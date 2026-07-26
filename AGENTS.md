@@ -41,7 +41,9 @@ compatibility redirect.
 - Preserve the distinction between stepped and linear outputs, sparse output
   updates, 1-based Lua indices, 1 ms control steps, and 30 fps drawing.
 
-See `docs/TESTING.md` for the detailed test matrix and coverage policy.
+Read `docs/ARCHITECTURE.md` before changing worker boundaries, Lua runtime
+behavior, typed messages, or validation responsibilities. See `docs/TESTING.md`
+for the detailed test matrix and coverage policy.
 
 ## Required test workflow
 

@@ -69,8 +69,9 @@ lua-scripts/fredi-bach/      Additional bundled example scripts
 docs/                        Disting NT Lua scripting reference
 ```
 
-See [`src/disting/ARCHITECTURE.md`](src/disting/ARCHITECTURE.md) for the
-emulation boundaries and contribution guidance.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the complete system
+architecture and [`src/disting/ARCHITECTURE.md`](src/disting/ARCHITECTURE.md)
+for lower-level emulator implementation notes.
 
 ## Deploying to Vercel
 

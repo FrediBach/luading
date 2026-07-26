@@ -1,5 +1,9 @@
 # Disting NT emulation structure
 
+This file contains lower-level emulator implementation notes. See
+[`../../docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) for the canonical
+project-wide architecture and system boundaries.
+
 The emulator is split at the same boundaries as the hardware-facing script API:
 
 - `disting.worker.ts` owns scheduling only: the 1 ms control loop, 30 fps draw loop,
