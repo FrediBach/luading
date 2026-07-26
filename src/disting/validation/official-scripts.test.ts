@@ -3,15 +3,17 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LuaFactory } from 'wasmoon'
 import { callbackOutputEntries } from '../emulation/callback-output'
 import {
   describeProgram,
   DISTING_CONSTANTS,
   type LuaInitResult,
-  type LuaProgramRuntime,
 } from '../emulation/lua-contract'
-import { DISTING_API } from './api-manifest'
+import {
+  loadLuaProgramRuntime,
+  registerLuaModules,
+} from '../emulation/lua-runtime'
+import { createDistingLuaTestEngine } from '../testing/lua-test-environment'
 import { luaSequence, validateProgramContract } from './contract-validator'
 
 const EXPECTED_SCRIPT_ERRORS = {
@@ -33,55 +35,13 @@ describe('bundled Expert Sleepers scripts', () => {
     const invalidCallbackReturns: string[] = []
 
     for (const filename of readdirSync(root).filter((name) => name.endsWith('.lua')).sort()) {
-      const lua = await new LuaFactory().createEngine({ functionTimeout: 25 })
-      for (const [name, value] of Object.entries(DISTING_CONSTANTS)) lua.global.set(name, value)
-      for (const { name } of DISTING_API) lua.global.set(name, () => undefined)
-      for (const name of [
-        'getCpuCycleCount',
-        'getCurrentAlgorithm',
-        'getCurrentParameter',
-        'getAlgorithmCount',
-        'getParameterCount',
-        'getParameter',
-        'getBusVoltage',
-        'findAlgorithm',
-        'findParameter',
-      ]) lua.global.set(name, () => 1)
-      for (const name of ['getAlgorithmName', 'getParameterName']) {
-        lua.global.set(name, () => 'Mock')
-      }
-      lua.global.set('sendI2CGetter', () => [0])
+      const lua = await createDistingLuaTestEngine(25)
 
-      for (const [name, source] of Object.entries(modules)) {
-        lua.global.set('__source', source)
-        lua.global.set('__name', `@lib/${name}.lua`)
-        lua.global.set('__key', name)
-        await lua.doString('package.preload[__key] = assert(load(__source, __name, "t"))')
-      }
-      lua.global.set('__source', readFileSync(join(root, filename), 'utf8'))
-      const runtime = await lua.doString(`
-        local program = assert(load(__source, "@script.lua", "t"))()
-        local runtime = { program = program }
-        runtime.configure = function(algorithmIndex, parameterOffset)
-          program.algorithmIndex = algorithmIndex
-          program.parameterOffset = parameterOffset
-        end
-        runtime.setParameters = function(parameters) program.parameters = parameters end
-        runtime.setParameter = function(index, value) program.parameters[index] = value end
-        runtime.setState = function(state) program.state = state end
-        runtime.callUi = function(callback, value)
-          local fn = program[callback]
-          if type(fn) ~= "function" then return nil end
-          if value == nil then return fn(program) end
-          return fn(program, value)
-        end
-        if type(program.init) == "function" then runtime.init = function() return program:init() end end
-        if type(program.step) == "function" then runtime.step = function(dt, inputs) return program:step(dt, inputs) end end
-        if type(program.trigger) == "function" then runtime.trigger = function(input) return program:trigger(input) end end
-        if type(program.gate) == "function" then runtime.gate = function(input, rising) return program:gate(input, rising) end end
-        if type(program.draw) == "function" then runtime.draw = function() return program:draw() end end
-        return runtime
-      `) as LuaProgramRuntime
+      await registerLuaModules(lua, modules)
+      const runtime = await loadLuaProgramRuntime(
+        lua,
+        readFileSync(join(root, filename), 'utf8'),
+      )
 
       runtime.configure(1, 0)
       const rawInit = runtime.init?.()

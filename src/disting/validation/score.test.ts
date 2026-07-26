@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { RuntimeStats } from '../types'
 import {
   calculateQualityReport,
+  dedupeDiagnostics,
   runtimePerformanceDiagnostics,
 } from './score'
 import type { ScriptDiagnostic } from './types'
@@ -30,6 +31,28 @@ function finding(values: Partial<ScriptDiagnostic> = {}): ScriptDiagnostic {
     penalty: 5,
     ...values,
   }
+}
+
+function findingsForPenalty(total: number) {
+  const categories: Array<[ScriptDiagnostic['category'], number]> = [
+    ['realtime', 35],
+    ['contract', 35],
+    ['api', 20],
+    ['clarity', 10],
+  ]
+  let remaining = total
+  return categories.flatMap(([category, maximum], index) => {
+    const penalty = Math.min(remaining, maximum)
+    remaining -= penalty
+    return penalty > 0
+      ? [finding({
+          id: `grade:${index}`,
+          ruleId: `grade-${index}`,
+          penalty,
+          category,
+        })]
+      : []
+  })
 }
 
 describe('calculateQualityReport', () => {
@@ -75,6 +98,48 @@ describe('calculateQualityReport', () => {
     expect(report.status).toBe('provisional')
     expect(report.score).toBe(100)
   })
+
+  it.each([
+    [10, 90, 'A'],
+    [20, 80, 'B'],
+    [30, 70, 'C'],
+    [40, 60, 'D'],
+    [50, 50, 'F'],
+  ] as const)('maps a %d-point penalty to score %d and grade %s', (penalty, score, grade) => {
+    const report = calculateQualityReport(
+      findingsForPenalty(penalty),
+      { ...EMPTY_STATS, steps: 1000 },
+      true,
+    )
+
+    expect(report.score).toBe(score)
+    expect(report.grade).toBe(grade)
+  })
+
+  it('caps category deductions and reports finding counts', () => {
+    const report = calculateQualityReport([
+      finding({
+        id: 'contract:huge',
+        ruleId: 'huge-contract-penalty',
+        category: 'contract',
+        penalty: 100,
+      }),
+      finding({ id: 'warning', penalty: 0 }),
+      finding({ id: 'info', severity: 'info', penalty: 0 }),
+    ], { ...EMPTY_STATS, steps: 1000 }, true)
+
+    expect(report.categories.find((item) => item.category === 'contract')).toMatchObject({
+      score: 0,
+      maximum: 35,
+    })
+    expect(report).toMatchObject({
+      score: 65,
+      errorCount: 0,
+      warningCount: 2,
+      infoCount: 1,
+      profile: 'Disting NT Lua 1.12',
+    })
+  })
 })
 
 describe('runtimePerformanceDiagnostics', () => {
@@ -89,5 +154,50 @@ describe('runtimePerformanceDiagnostics', () => {
       target: 'local',
       penalty: 15,
     })
+  })
+
+  it('emits a watch finding at 25% and no finding below it', () => {
+    expect(runtimePerformanceDiagnostics({
+      ...EMPTY_STATS,
+      steps: 1000,
+      p95Us: 250,
+    })[0]).toMatchObject({
+      ruleId: 'step-p95-watch',
+      penalty: 6,
+    })
+    expect(runtimePerformanceDiagnostics({
+      ...EMPTY_STATS,
+      steps: 1000,
+      p95Us: 249.9,
+    })).toEqual([])
+  })
+})
+
+describe('dedupeDiagnostics', () => {
+  it('keeps the latest diagnostic per id and sorts by severity, line, and message', () => {
+    const diagnostics = dedupeDiagnostics([
+      finding({ id: 'same', message: 'Old', severity: 'info' }),
+      finding({ id: 'info', message: 'Info', severity: 'info' }),
+      finding({
+        id: 'late',
+        message: 'Zulu',
+        severity: 'warning',
+        range: { startLine: 8, startColumn: 1, endLine: 8, endColumn: 2 },
+      }),
+      finding({
+        id: 'early',
+        message: 'Alpha',
+        severity: 'warning',
+        range: { startLine: 2, startColumn: 1, endLine: 2, endColumn: 2 },
+      }),
+      finding({ id: 'same', message: 'Error', severity: 'error' }),
+    ])
+
+    expect(diagnostics.map((item) => item.message)).toEqual([
+      'Error',
+      'Alpha',
+      'Zulu',
+      'Info',
+    ])
   })
 })

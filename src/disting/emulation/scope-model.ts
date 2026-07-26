@@ -88,11 +88,12 @@ function findLatestTrigger(
   earliestTrigger: number,
   latestTrigger: number,
 ) {
+  const timeEpsilon = 1e-9
   for (let index = trace.length - 1; index > 0; index -= 1) {
     const before = trace[index - 1]
     const after = trace[index]
-    if (!before || !after || after.time > latestTrigger) continue
-    if (after.time < earliestTrigger) break
+    if (!before || !after || after.time > latestTrigger + timeEpsilon) continue
+    if (after.time < earliestTrigger - timeEpsilon) break
 
     const from = readTracePoint(before, source)
     const to = readTracePoint(after, source)

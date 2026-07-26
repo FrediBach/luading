@@ -21,4 +21,25 @@ describe('DistingPresetApi', () => {
     expect(preset.setParameter(2, 1, 4)).toBe(true)
     expect(preset.getParameter(2, 1)).toBe(1)
   })
+
+  it('returns undefined or false for missing algorithms and parameters', () => {
+    const preset = new DistingPresetApi()
+
+    expect(preset.findAlgorithm('Missing')).toBeUndefined()
+    expect(preset.findAlgorithms(4)).toBeUndefined()
+    expect(preset.findParameter(99, 'Record')).toBeUndefined()
+    expect(preset.getAlgorithmName(1)).toBeUndefined()
+    expect(preset.getParameterName(2, 99)).toBeUndefined()
+    expect(preset.setParameter(2, 1, Number.NaN)).toBe(false)
+    expect(preset.setParameterNormalized(99, 1, 0.5)).toBe(false)
+  })
+
+  it('resets companion parameter state', () => {
+    const preset = new DistingPresetApi()
+    preset.setParameter(2, 2, 1)
+    expect(preset.getParameterInfo(2, 2)).toMatchObject({ value: 1 })
+
+    preset.reset()
+    expect(preset.getParameter(2, 2)).toBe(0)
+  })
 })

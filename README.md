@@ -42,12 +42,23 @@ Open [http://localhost:5173](http://localhost:5173).
 ## Quality checks
 
 ```bash
-npm test
-npm run lint
-npm run build
+npm run check
 ```
 
-The production build is written to `dist/`.
+The check command runs linting, the complete test suite with coverage gates, and
+the production build. Individual test commands are also available:
+
+```bash
+npm test
+npm run test:watch
+npm run test:conformance
+npm run test:coverage
+```
+
+The test suite includes manual conformance checks, real Lua/Wasmoon lifecycle
+tests, simulator-core units, and regression execution of all 58 bundled Lua
+scripts. See [`docs/TESTING.md`](docs/TESTING.md) for the test matrix and
+coverage policy. The production build is written to `dist/`.
 
 ## Project structure
 

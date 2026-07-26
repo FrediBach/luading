@@ -29,4 +29,21 @@ describe('DistingHardwareApi', () => {
       bytes: [0x90, 60, 127],
     })
   })
+
+  it('clamps I2C addresses, response lengths, destinations, and non-finite values', () => {
+    const events: DistingHardwareEvent[] = []
+    const api = new DistingHardwareApi((event) => events.push(event))
+
+    api.sendI2CCommand(999, Number.NaN)
+    expect(api.sendI2CGetter(-4, 999, {})).toHaveLength(256)
+    api.sendMIDI(-2, { 2: 64, 1: 0x90, 3: 127, 4: 99 })
+
+    expect(events[0]).toEqual({ kind: 'i2cCommand', address: 127, bytes: [0] })
+    expect(events[1]).toMatchObject({ kind: 'i2cGetter', address: 0, bytes: [] })
+    expect(events[2]).toEqual({
+      kind: 'midiOut',
+      destinations: 0,
+      bytes: [0x90, 64, 127],
+    })
+  })
 })

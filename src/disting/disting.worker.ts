@@ -2,9 +2,12 @@
 
 import { LuaFactory } from 'wasmoon'
 import wasmoonWasmUrl from 'wasmoon/dist/glue.wasm?url'
-import { callbackOutputEntries } from './emulation/callback-output'
 import { DistingDisplayApi } from './emulation/display-api'
 import { DistingHardwareApi } from './emulation/hardware-api'
+import {
+  loadLuaProgramRuntime,
+  registerLuaModules,
+} from './emulation/lua-runtime'
 import {
   describeProgram,
   DISTING_CONSTANTS,
@@ -18,6 +21,14 @@ import {
   SignalBank,
 } from './emulation/signal-sources'
 import { DistingPresetApi } from './emulation/preset-api'
+import {
+  applyCallbackOutput,
+  detectInputEdges,
+  prepareMidiMessage,
+  serialiseJsonState,
+  sourceErrorDiagnostic,
+  uiCallbackName,
+} from './emulation/runtime-helpers'
 import {
   DISTING_DISPLAY,
   type CallbackRuntimeStats,
@@ -44,7 +55,6 @@ const FRAME_INTERVAL_MS = 1000 / 20
 const MAX_CATCH_UP_STEPS = 50
 const TRACE_EVERY_STEPS = 1
 const MAX_DURATION_SAMPLES = 2000
-const HIGH_THRESHOLD_VOLTS = 1
 
 let lua: Awaited<ReturnType<typeof factory.createEngine>> | null = null
 let program: LuaProgram | null = null
@@ -133,49 +143,7 @@ function recordRuntimeDiagnostic(diagnostic: ScriptDiagnostic) {
 }
 
 function updateOutputs(next: unknown, callback: LuaCallbackName) {
-  const entries = callbackOutputEntries(next)
-  if (entries === undefined) return
-  if (entries === null) {
-    recordRuntimeDiagnostic(runtimeDiagnostic(
-      'callback-output-table',
-      callback,
-      `${callback}() returned a non-table value`,
-      `Output callbacks must return a Lua table or nil, but received ${typeof next}.`,
-      'Return a 1-based table of output voltages, an empty table, or nil.',
-    ))
-    return
-  }
-
-  for (const [outputNumber, value] of entries) {
-    if (outputNumber > outputs.length) {
-      recordRuntimeDiagnostic({
-        ...runtimeDiagnostic(
-          `callback-output-index-${outputNumber}`,
-          callback,
-          `${callback}() returned undeclared output ${outputNumber}`,
-          `The script declares ${outputs.length} outputs, so output index ${outputNumber} cannot be updated.`,
-          'Declare the additional output in init() or remove this table entry.',
-        ),
-        id: `runtime:callback-output-index-${outputNumber}:${callback}`,
-      })
-      continue
-    }
-    if (value === undefined) continue
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      recordRuntimeDiagnostic({
-        ...runtimeDiagnostic(
-          `callback-output-value-${outputNumber}`,
-          callback,
-          `${callback}() returned an invalid voltage for output ${outputNumber}`,
-          `Output voltages must be finite numbers, but received ${String(value)}.`,
-          'Ensure all output calculations produce finite numeric voltages.',
-        ),
-        id: `runtime:callback-output-value-${outputNumber}:${callback}`,
-      })
-      continue
-    }
-    outputs[outputNumber - 1] = value
-  }
+  applyCallbackOutput(outputs, next, callback).forEach(recordRuntimeDiagnostic)
 }
 
 function measureCallback<T>(name: LuaCallbackName, callback: () => T) {
@@ -445,24 +413,6 @@ async function registerDistingGlobals() {
   })
 }
 
-async function registerLuaModules(modules: Record<string, string>) {
-  if (!lua) return
-
-  for (const [name, source] of Object.entries(modules)) {
-    lua.global.set('__distingModuleSource', source)
-    lua.global.set('__distingModuleName', `@lib/${name}.lua`)
-    lua.global.set('__distingModuleKey', name)
-    await lua.doString(`
-      package.preload[__distingModuleKey] =
-        assert(load(__distingModuleSource, __distingModuleName, "t"))
-    `)
-  }
-
-  lua.global.set('__distingModuleSource', undefined)
-  lua.global.set('__distingModuleName', undefined)
-  lua.global.set('__distingModuleKey', undefined)
-}
-
 async function loadProgram(
   source: string,
   modules: Record<string, string> = {},
@@ -475,67 +425,8 @@ async function loadProgram(
   try {
     lua = await factory.createEngine({ functionTimeout: 25 })
     await registerDistingGlobals()
-    await registerLuaModules(modules)
-
-    lua.global.set('__distingProgramSource', source)
-    const wrapped = `
-      local chunk, loadError = load(__distingProgramSource, "@script.lua", "t")
-      if not chunk then error(loadError, 0) end
-      local program = chunk()
-      if type(program) ~= "table" then
-        return { program = program }
-      end
-      local runtime = { program = program }
-      runtime.configure = function(algorithmIndex, parameterOffset)
-        program.algorithmIndex = algorithmIndex
-        program.parameterOffset = parameterOffset
-      end
-      runtime.setParameters = function(parameters)
-        program.parameters = parameters
-      end
-      runtime.setParameter = function(index, value)
-        program.parameters[index] = value
-      end
-      runtime.setState = function(state)
-        program.state = state
-      end
-      runtime.callUi = function(callback, value)
-        local fn = program[callback]
-        if type(fn) ~= "function" then return nil end
-        if value == nil then return fn(program) end
-        return fn(program, value)
-      end
-      if type(program.init) == "function" then
-        runtime.init = function() return program:init() end
-      end
-      if type(program.step) == "function" then
-        runtime.step = function(dt, inputs) return program:step(dt, inputs) end
-      end
-      if type(program.trigger) == "function" then
-        runtime.trigger = function(input) return program:trigger(input) end
-      end
-      if type(program.gate) == "function" then
-        runtime.gate = function(input, rising) return program:gate(input, rising) end
-      end
-      if type(program.draw) == "function" then
-        runtime.draw = function() return program:draw() end
-      end
-      if type(program.ui) == "function" then
-        runtime.ui = function() return program:ui() end
-      end
-      if type(program.setupUi) == "function" then
-        runtime.setupUi = function() return program:setupUi() end
-      end
-      if type(program.midiMessage) == "function" then
-        runtime.midiMessage = function(message) return program:midiMessage(message) end
-      end
-      if type(program.serialise) == "function" then
-        runtime.serialise = function() return program:serialise() end
-      end
-      return runtime
-    `
-    const result: unknown = await lua.doString(wrapped)
-    lua.global.set('__distingProgramSource', undefined)
+    await registerLuaModules(lua, modules)
+    const result: unknown = await loadLuaProgramRuntime(lua, source)
     if (!result || typeof result !== 'object') {
       throw new Error('The script must return a table containing init/step/draw callbacks.')
     }
@@ -591,30 +482,6 @@ async function loadProgram(
     closeEngine()
     const message = error instanceof Error ? error.message : String(error)
     post({ type: 'error', message, diagnostic: sourceErrorDiagnostic(message) })
-  }
-}
-
-function sourceErrorDiagnostic(message: string): ScriptDiagnostic {
-  const location = message.match(/script\.lua:(\d+)(?::(\d+))?/)
-  const line = location ? Number(location[1]) : undefined
-  const column = location?.[2] ? Number(location[2]) : 1
-  return {
-    id: `runtime:lua-error:${line ?? 0}:${column}`,
-    ruleId: 'lua-runtime-error',
-    severity: 'error',
-    category: 'contract',
-    target: 'hardware',
-    origin: 'runtime',
-    message: line ? `Lua error on line ${line}` : 'Lua execution error',
-    detail: message,
-    suggestion: 'Fix the reported Lua error and run the script again.',
-    penalty: 0,
-    range: line ? {
-      startLine: line,
-      startColumn: column,
-      endLine: line,
-      endColumn: column + 1,
-    } : undefined,
   }
 }
 
@@ -705,21 +572,17 @@ function renderDisplay() {
 function dispatchInputEdges(nextInputs: number[]) {
   if (!program || !metadata) return
 
-  for (let index = 0; index < nextInputs.length; index += 1) {
-    const high = nextInputs[index] >= HIGH_THRESHOLD_VOLTS
-    const wasHigh = inputHigh[index] ?? false
-    if (high === wasHigh) continue
-
-    inputHigh[index] = high
-    const inputNumber = index + 1
-    if (metadata.inputKinds[index] === 'trigger' && high) {
+  const detected = detectInputEdges(nextInputs, metadata.inputKinds, inputHigh)
+  inputHigh = detected.nextHigh
+  for (const event of detected.events) {
+    if (event.kind === 'trigger') {
       const result = runtime?.trigger
-        ? measureCallback('trigger', () => runtime?.trigger?.(inputNumber))
+        ? measureCallback('trigger', () => runtime?.trigger?.(event.input))
         : undefined
       updateOutputs(result, 'trigger')
-    } else if (metadata.inputKinds[index] === 'gate') {
+    } else {
       const result = runtime?.gate
-        ? measureCallback('gate', () => runtime?.gate?.(inputNumber, high))
+        ? measureCallback('gate', () => runtime?.gate?.(event.input, event.rising))
         : undefined
       updateOutputs(result, 'gate')
     }
@@ -829,10 +692,6 @@ function pause(notify = true) {
   if (notify) post({ type: 'running', running: false })
 }
 
-function uiCallbackName(control: DistingUiControl, event: DistingUiEventKind) {
-  return `${control}${event[0].toUpperCase()}${event.slice(1)}`
-}
-
 function dispatchUiEvent(
   control: DistingUiControl,
   event: DistingUiEventKind,
@@ -850,47 +709,19 @@ function dispatchUiEvent(
   postFrame([])
 }
 
-function midiMessageType(status: number) {
-  const kind = status & 0xf0
-  if (kind === 0x80 || kind === 0x90) return 'note'
-  if (kind === 0xa0) return 'poly pressure'
-  if (kind === 0xb0) return 'cc'
-  if (kind === 0xc0) return 'program change'
-  if (kind === 0xd0) return 'aftertouch'
-  if (kind === 0xe0) return 'bend'
-  return undefined
-}
-
 function dispatchMidi(bytes: number[]) {
-  if (!runtime?.midiMessage || !metadata?.midi || bytes.length === 0) return
-  const message = bytes.slice(0, 3).map((value) => (
-    Math.min(255, Math.max(0, Math.trunc(value)))
-  ))
-  const type = midiMessageType(message[0])
-  if (metadata.midi.messages.length > 0 && (!type || !metadata.midi.messages.includes(type))) return
-  const channelParameter = metadata.midi.channelParameter
-  if (channelParameter !== undefined && channelParameter > 0) {
-    const selectedChannel = program?.parameters?.[channelParameter - 1]
-    if (selectedChannel === 0) return
-    const messageChannel = (message[0] & 0x0f) + 1
-    if (typeof selectedChannel === 'number' && selectedChannel !== messageChannel) return
-  }
+  if (!runtime?.midiMessage) return
+  const message = prepareMidiMessage(bytes, metadata?.midi, program?.parameters)
+  if (!message) return
   runtime.midiMessage(message)
   renderDisplay()
   postFrame([])
 }
 
 function serialiseState() {
-  const state = runtime?.serialise?.() ?? program?.state ?? null
-  try {
-    return JSON.parse(JSON.stringify(state)) as unknown
-  } catch {
-    post({
-      type: 'log',
-      line: 'serialise() returned data that could not be represented as JSON.',
-    })
-    return null
-  }
+  const result = serialiseJsonState(runtime?.serialise?.() ?? program?.state ?? null)
+  if (result.error) post({ type: 'log', line: result.error })
+  return result.state
 }
 
 function handleMessage(message: WorkerRequest) {

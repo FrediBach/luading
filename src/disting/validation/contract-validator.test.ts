@@ -93,4 +93,103 @@ describe('validateProgramContract', () => {
       'midi-messages',
     ]))
   })
+
+  it('rejects non-function lifecycle members and non-table init results', () => {
+    const invalidProgram = Object.fromEntries([
+      'init',
+      'step',
+      'trigger',
+      'gate',
+      'draw',
+      'ui',
+      'setupUi',
+      'midiMessage',
+      'serialise',
+    ].map((name) => [name, true]))
+    const callbackFindings = validateProgramContract(
+      invalidProgram as unknown as LuaProgram,
+      undefined,
+    )
+    const initFindings = validateProgramContract({}, 'not a table')
+
+    expect(callbackFindings.filter((item) => item.ruleId.endsWith('-type'))).toHaveLength(9)
+    expect(initFindings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'init-return', severity: 'error' }),
+    ]))
+  })
+
+  it('reports malformed I/O, names, and parameter shapes', () => {
+    const findings = validateProgramContract({}, {
+      inputs: 'two',
+      outputs: { label: 'not a sequence' },
+      inputNames: 'Inputs',
+      outputNames: { 1: 42, 2: 'Extra' },
+      parameters: {
+        1: 'bad',
+        2: ['', 0, 1, 0],
+        3: ['Broken enum', {}, 1],
+        4: ['Numbers', 0, Number.NaN, 0],
+        5: ['Scale', 0, 10, 5, 0, 7],
+      },
+    })
+    const rules = findings.map((item) => item.ruleId)
+
+    expect(rules).toEqual(expect.arrayContaining([
+      'inputs-shape',
+      'outputs-shape',
+      'inputNames-shape',
+      'outputNames-1',
+      'outputNames-extra-1',
+      'outputNames-extra-2',
+      'parameter-1-shape',
+      'parameter-2-name',
+      'parameter-3-enum',
+      'parameter-3-default',
+      'parameter-4-numbers',
+      'parameter-5-scale',
+    ]))
+  })
+
+  it('accepts every documented MIDI filter and parameter scale', () => {
+    const messageTypes = ['note', 'cc', 'bend', 'aftertouch', 'poly pressure', 'program change']
+    const findings = validateProgramContract({ midiMessage: () => undefined }, {
+      parameters: [
+        ['Channel', 0, 16, 1, 0],
+        ['Tenths', 0, 100, 25, 11, 10],
+        ['Hundredths', 0, 100, 25, 11, 100],
+        ['Thousandths', 0, 1000, 25, 11, 1000],
+      ],
+      midi: { channelParameter: 1, messages: messageTypes },
+    })
+
+    expect(findings.filter((item) => item.severity === 'error')).toEqual([])
+  })
+
+  it('reports unused edge callbacks, inert outputs, and missing identity metadata', () => {
+    const findings = validateProgramContract({
+      trigger: () => [],
+      gate: () => [],
+    }, {
+      inputs: [0],
+      outputs: 2,
+    })
+
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'unused-trigger-callback' }),
+      expect.objectContaining({ ruleId: 'unused-gate-callback' }),
+      expect.objectContaining({ ruleId: 'missing-program-name' }),
+      expect.objectContaining({ ruleId: 'missing-program-author' }),
+    ]))
+
+    const inert = validateProgramContract({}, { outputs: 1 })
+    expect(inert.some((item) => item.ruleId === 'outputs-never-updated')).toBe(true)
+  })
+
+  it('rejects invalid MIDI configuration shapes independently', () => {
+    expect(validateProgramContract({}, { midi: [] }).map((item) => item.ruleId)).toContain('midi-shape')
+    expect(validateProgramContract({}, {
+      parameters: [['Channel', 0, 16, 1]],
+      midi: { channelParameter: 1, messages: {} },
+    }).map((item) => item.ruleId)).toContain('midi-messages')
+  })
 })

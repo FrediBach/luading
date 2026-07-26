@@ -157,7 +157,7 @@ return {
         local maxDrift = (amountParam / 100.0) * 0.05
         
         -- Convert speed to multiplier (exponential: -100->0.1x, 0->1x, 100->10x)
-        local speedMult = math.pow(10, speedParam / 100.0)
+        local speedMult = 10 ^ (speedParam / 100.0)
         
         -- Normalize character to 0-1
         local character = characterParam / 100.0

@@ -132,7 +132,7 @@ return
 
         -- Calculate actual rate with CV modulation (exponential FM)
         -- rateCVAmt semitones per volt means rate multiplier of 2^(cv * rateCVAmt / 12)
-        local rateMultiplier = math.pow(2, rateCV * rateCVAmt / 12)
+        local rateMultiplier = 2 ^ (rateCV * rateCVAmt / 12)
         local actualRate = baseRate * rateMultiplier
 
         -- Clamp rate to reasonable bounds (0.001 Hz to 100 Hz)
