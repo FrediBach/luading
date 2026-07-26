@@ -102,3 +102,5 @@ endorsed by Expert Sleepers. Hardware behavior remains the source of truth.
 ## License
 
 This project is licensed under the terms in [`LICENSE`](LICENSE).
+Firmware-derived display font atlas data has separate upstream notices in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

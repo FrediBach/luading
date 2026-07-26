@@ -35,6 +35,8 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - JSON-friendly preset state
 - integer and antialiased drawing commands, shades, alignment, and the standard
   parameter line
+- firmware-derived standard/tiny font metrics, glyph coverage, fallback,
+  baseline placement, clipping, and 16-shade text quantization
 - I2C and MIDI output adapters
 - clocked/free-running signal sources and oscilloscope triggering
 

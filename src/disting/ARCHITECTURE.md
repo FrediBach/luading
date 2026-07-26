@@ -22,9 +22,14 @@ The emulator is split at the same boundaries as the hardware-facing script API:
 - `emulation/hardware-api.ts` validates and records I2C and MIDI output. Physical
   buses are deliberately not accessed: I2C getters return zero-filled responses,
   while all outbound traffic is surfaced in the hardware event log.
-- `emulation/display-renderer.ts` rasterizes those commands onto the native 256x64
+- `emulation/display-font.ts` measures and rasterizes the standard and tiny text
+  faces from generated atlases. The source faces are the Selawik and pixelmix
+  fonts embedded in Disting NT 1.12 firmware; rendering is independent of
+  browser font availability and preserves the documented text baseline.
+- `emulation/display-renderer.ts` rasterizes commands onto the native 256x64
   canvas. Integer primitives use pixel algorithms, smooth primitives retain
-  floating-point antialiasing, and tiny text uses a 3x5 bitmap font.
+  floating-point antialiasing, and font coverage is quantized to 16 display
+  shades.
 - `emulation/scope-model.ts` performs automatic trigger selection, edge
   interpolation, and pre/post-trigger windowing independently of React.
 - `InputPatchBay.tsx` and `Scope.tsx` are controls over typed worker messages and

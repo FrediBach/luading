@@ -1,64 +1,5 @@
 import { DISTING_DISPLAY, type DrawCommand, type TextAlignment } from '../types'
-
-const TINY_FONT: Record<string, string[]> = {
-  ' ': ['000', '000', '000', '000', '000'],
-  A: ['010', '101', '111', '101', '101'],
-  B: ['110', '101', '110', '101', '110'],
-  C: ['011', '100', '100', '100', '011'],
-  D: ['110', '101', '101', '101', '110'],
-  E: ['111', '100', '110', '100', '111'],
-  F: ['111', '100', '110', '100', '100'],
-  G: ['011', '100', '101', '101', '011'],
-  H: ['101', '101', '111', '101', '101'],
-  I: ['111', '010', '010', '010', '111'],
-  J: ['001', '001', '001', '101', '010'],
-  K: ['101', '101', '110', '101', '101'],
-  L: ['100', '100', '100', '100', '111'],
-  M: ['101', '111', '111', '101', '101'],
-  N: ['101', '111', '111', '111', '101'],
-  O: ['010', '101', '101', '101', '010'],
-  P: ['110', '101', '110', '100', '100'],
-  Q: ['010', '101', '101', '111', '011'],
-  R: ['110', '101', '110', '101', '101'],
-  S: ['011', '100', '010', '001', '110'],
-  T: ['111', '010', '010', '010', '010'],
-  U: ['101', '101', '101', '101', '111'],
-  V: ['101', '101', '101', '101', '010'],
-  W: ['101', '101', '111', '111', '101'],
-  X: ['101', '101', '010', '101', '101'],
-  Y: ['101', '101', '010', '010', '010'],
-  Z: ['111', '001', '010', '100', '111'],
-  '0': ['111', '101', '101', '101', '111'],
-  '1': ['010', '110', '010', '010', '111'],
-  '2': ['110', '001', '010', '100', '111'],
-  '3': ['110', '001', '010', '001', '110'],
-  '4': ['101', '101', '111', '001', '001'],
-  '5': ['111', '100', '110', '001', '110'],
-  '6': ['011', '100', '111', '101', '111'],
-  '7': ['111', '001', '010', '010', '010'],
-  '8': ['111', '101', '111', '101', '111'],
-  '9': ['111', '101', '111', '001', '110'],
-  '.': ['000', '000', '000', '000', '010'],
-  ',': ['000', '000', '000', '010', '100'],
-  ':': ['000', '010', '000', '010', '000'],
-  ';': ['000', '010', '000', '010', '100'],
-  '-': ['000', '000', '111', '000', '000'],
-  '+': ['000', '010', '111', '010', '000'],
-  '/': ['001', '001', '010', '100', '100'],
-  '%': ['101', '001', '010', '100', '101'],
-  '(': ['010', '100', '100', '100', '010'],
-  ')': ['010', '001', '001', '001', '010'],
-  '[': ['110', '100', '100', '100', '110'],
-  ']': ['011', '001', '001', '001', '011'],
-  '<': ['001', '010', '100', '010', '001'],
-  '>': ['100', '010', '001', '010', '100'],
-  '=': ['000', '111', '000', '111', '000'],
-  '_': ['000', '000', '000', '000', '111'],
-  '?': ['110', '001', '010', '000', '010'],
-  '!': ['010', '010', '010', '000', '010'],
-  "'": ['010', '010', '000', '000', '000'],
-  '"': ['101', '101', '000', '000', '000'],
-}
+import { rasterizeDistingText } from './display-font'
 
 function shadeStyle(shade: number) {
   const intensity = Math.round((Math.min(15, Math.max(0, shade)) / 15) * 255)
@@ -129,35 +70,19 @@ function drawPixelCircle(
   }
 }
 
-function textStart(x: number, width: number, align: TextAlignment) {
-  if (align === 'centre') return Math.round(x - width / 2)
-  if (align === 'right') return x - width
-  return x
-}
-
-function drawTinyText(
+function drawText(
   context: CanvasRenderingContext2D,
   x: number,
   baseline: number,
   text: string,
+  tiny: boolean,
   align: TextAlignment,
+  shade: number,
 ) {
-  const glyphWidth = 3
-  const advance = 4
-  const width = text.length === 0 ? 0 : text.length * advance - 1
-  const startX = textStart(x, width, align)
-  const startY = baseline - 4
-
-  Array.from(text).forEach((character, characterIndex) => {
-    const glyph = TINY_FONT[character.toUpperCase()] ?? TINY_FONT['?']
-    glyph.forEach((row, rowIndex) => {
-      for (let column = 0; column < glyphWidth; column += 1) {
-        if (row[column] === '1') {
-          putPixel(context, startX + characterIndex * advance + column, startY + rowIndex)
-        }
-      }
-    })
-  })
+  for (const pixel of rasterizeDistingText(x, baseline, text, tiny, align)) {
+    context.fillStyle = shadeStyle(Math.round((shade * pixel.coverage) / 15))
+    putPixel(context, pixel.x, pixel.y)
+  }
 }
 
 function renderCommand(context: CanvasRenderingContext2D, command: DrawCommand) {
@@ -214,14 +139,15 @@ function renderCommand(context: CanvasRenderingContext2D, command: DrawCommand) 
     return
   }
 
-  if (command.tiny) {
-    drawTinyText(context, command.x, command.y, command.text, command.align)
-  } else {
-    context.font = '8px Arial, sans-serif'
-    context.textBaseline = 'alphabetic'
-    context.textAlign = command.align === 'centre' ? 'center' : command.align
-    context.fillText(command.text, command.x, command.y)
-  }
+  drawText(
+    context,
+    command.x,
+    command.y,
+    command.text,
+    command.tiny,
+    command.align,
+    command.shade,
+  )
 }
 
 export function renderDistingDisplay(

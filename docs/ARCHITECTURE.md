@@ -122,7 +122,10 @@ The core emulator is split by hardware-facing responsibility:
   edges, filters MIDI, normalizes serialized state, and maps runtime errors.
 - `display-api.ts` implements Disting drawing globals and emits
   renderer-independent draw commands.
-- `display-renderer.ts` rasterizes commands onto the 256x64 canvas.
+- `display-font.ts` measures and rasterizes text from firmware-derived Selawik
+  and pixelmix atlases without using browser fonts.
+- `display-renderer.ts` rasterizes commands onto the 256x64 canvas and
+  quantizes atlas coverage to the display's 16 shades.
 - `signal-sources.ts` implements deterministic CV, gate, trigger, sequencer,
   noise, and shared-clock sources.
 - `preset-api.ts` provides deterministic companion algorithms for preset and
@@ -140,7 +143,10 @@ contract and never feeds values back into the simulation.
 
 Lua drawing calls are legal only while `draw()` is active. The display adapter
 supports integer and smooth primitives, 16 shades, standard and tiny text,
-alignment, and the standard parameter line.
+alignment, and the standard parameter line. Standard and tiny text use
+pre-rasterized atlases generated from the Selawik and pixelmix fonts embedded in
+the 1.12 firmware, so glyphs and metrics do not vary by browser or operating
+system.
 
 If `draw()` returns true, the default parameter line is suppressed. An explicit
 `drawStandardParameterLine()` call still requests it.
