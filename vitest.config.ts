@@ -13,6 +13,7 @@ export default defineConfig({
         'src/disting/emulation/audio-routing.ts',
         'src/disting/emulation/callback-output.ts',
         'src/disting/emulation/display-api.ts',
+        'src/disting/emulation/display-bounds.ts',
         'src/disting/emulation/display-font.ts',
         'src/disting/emulation/hardware-api.ts',
         'src/disting/emulation/lua-contract.ts',

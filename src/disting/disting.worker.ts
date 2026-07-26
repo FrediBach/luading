@@ -3,6 +3,7 @@
 import { LuaFactory } from 'wasmoon'
 import wasmoonWasmUrl from 'wasmoon/dist/glue.wasm?url'
 import { DistingDisplayApi } from './emulation/display-api'
+import { findFirstTextOverflow } from './emulation/display-bounds'
 import { DistingHardwareApi } from './emulation/hardware-api'
 import {
   loadLuaProgramRuntime,
@@ -185,6 +186,26 @@ function observeDisplayCall(name: string) {
     'Disting drawing functions may only be used while the firmware is invoking draw().',
     'Store display state in this callback and render it later from draw().',
   ))
+}
+
+function observeDisplayOverflow() {
+  const overflow = findFirstTextOverflow(display.commands)
+  if (!overflow) return
+
+  const { command, bounds } = overflow
+  recordRuntimeDiagnostic({
+    id: 'runtime:display-text-outside-frame:draw',
+    ruleId: 'display-text-outside-frame',
+    severity: 'warning',
+    category: 'contract',
+    target: 'hardware',
+    origin: 'runtime',
+    callback: 'draw',
+    message: `${command.tiny ? 'drawTinyText' : 'drawText'}() placed text outside the display`,
+    detail: `The text at (${command.x}, ${command.y}) rasterizes to x=${bounds.left}–${bounds.right}, y=${bounds.top}–${bounds.bottom}; the Disting NT framebuffer is 256×64 pixels (x=0–255, y=0–63). Hardware clips pixels outside that range.`,
+    suggestion: 'Move the text baseline or horizontal anchor so the complete glyph bounds remain inside the framebuffer.',
+    penalty: 0,
+  })
 }
 
 function finiteIndex(value: unknown) {
@@ -567,6 +588,7 @@ function renderDisplay() {
   const parameter = metadata?.parameters[lastParameterIndex]
   const value = program?.parameters?.[lastParameterIndex]
   display.finish(suppressStandardLine, parameter, typeof value === 'number' ? value : undefined)
+  observeDisplayOverflow()
 }
 
 function dispatchInputEdges(nextInputs: number[]) {

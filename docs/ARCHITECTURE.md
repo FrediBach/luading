@@ -124,6 +124,8 @@ The core emulator is split by hardware-facing responsibility:
   renderer-independent draw commands.
 - `display-font.ts` measures and rasterizes text from firmware-derived Selawik
   and pixelmix atlases without using browser fonts.
+- `display-bounds.ts` detects text whose actual rasterized glyph bounds extend
+  outside the hardware framebuffer.
 - `display-renderer.ts` rasterizes commands onto the 256x64 canvas and
   quantizes atlas coverage to the display's 16-shade black-to-`#02F1EF`
   palette.
@@ -148,6 +150,8 @@ alignment, and the standard parameter line. Standard and tiny text use
 pre-rasterized atlases generated from the Selawik and pixelmix fonts embedded in
 the 1.12 firmware, so glyphs and metrics do not vary by browser or operating
 system.
+Both faces place each glyph from the bitmap-top metric relative to the baseline
+supplied by the script.
 
 If `draw()` returns true, the default parameter line is suppressed. An explicit
 `drawStandardParameterLine()` call still requests it.

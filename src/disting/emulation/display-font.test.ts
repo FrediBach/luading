@@ -53,6 +53,15 @@ describe('Disting display fonts', () => {
     expect(minimumX(right)).toBe(11)
   })
 
+  it('places standard glyphs relative to the requested baseline', () => {
+    const capital = rasterizeDistingText(0, 7, 'A', false, 'left')
+    const descender = rasterizeDistingText(0, 7, 'y', false, 'left')
+
+    expect(Math.min(...capital.map((pixel) => pixel.y))).toBe(0)
+    expect(Math.max(...capital.map((pixel) => pixel.y))).toBe(6)
+    expect(Math.max(...descender.map((pixel) => pixel.y))).toBe(9)
+  })
+
   it('falls back to the question-mark glyph for unsupported characters', () => {
     const unsupported = rasterizeDistingText(0, 10, '▶', false, 'left')
     const fallback = rasterizeDistingText(0, 10, '?', false, 'left')

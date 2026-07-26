@@ -36,8 +36,8 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - integer and antialiased drawing commands, shades, alignment, and the standard
   parameter line
 - firmware-derived standard/tiny font metrics, glyph coverage, fallback,
-  baseline placement, clipping, exact `#02F1EF` full-bright pixels, and
-  16-shade text quantization
+  baseline placement, clipping and overflow detection, exact `#02F1EF`
+  full-bright pixels, and 16-shade text quantization
 - I2C and MIDI output adapters
 - clocked/free-running signal sources and oscilloscope triggering
 

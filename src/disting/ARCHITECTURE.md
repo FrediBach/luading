@@ -25,7 +25,11 @@ The emulator is split at the same boundaries as the hardware-facing script API:
 - `emulation/display-font.ts` measures and rasterizes the standard and tiny text
   faces from generated atlases. The source faces are the Selawik and pixelmix
   fonts embedded in Disting NT 1.12 firmware; rendering is independent of
-  browser font availability and preserves the documented text baseline.
+  browser font availability. Both faces use their atlas bitmap-top metrics
+  directly relative to the script-supplied baseline.
+- `emulation/display-bounds.ts` checks rasterized text extents against the
+  256x64 framebuffer so clipped user-script text is reported without changing
+  the hardware's clipping behavior.
 - `emulation/display-renderer.ts` rasterizes commands onto the native 256x64
   canvas. Integer primitives use pixel algorithms, smooth primitives retain
   floating-point antialiasing, and font coverage is quantized to the 16-shade
