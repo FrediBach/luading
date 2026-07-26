@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/disting",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/disting/:path*",
+      "destination": "/:path*",
+      "permanent": true
+    }
+  ]
+}

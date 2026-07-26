@@ -1,7 +1,11 @@
 {
-  "name": "wasm-playground",
+  "name": "luading-disting-nt-lua-simulator",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "A browser-based Disting NT Lua simulator and script-development workbench.",
+  "engines": {
+    "node": "24.x"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,6 +22,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
+    "@emnapi/core": "1.11.3",
+    "@emnapi/runtime": "1.11.3",
+    "@emnapi/wasi-threads": "1.2.3",
     "@eslint/js": "^9.39.4",
     "@rolldown/plugin-babel": "^0.2.1",
     "@types/babel__core": "^7.20.5",
@@ -25,7 +32,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "assemblyscript": "^0.26.7",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -34,7 +40,6 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
     "vite": "^8.0.1",
-    "vite-plugin-assemblyscript-asc": "^1.0.5",
     "vitest": "^4.1.10"
   }
 }

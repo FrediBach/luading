@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { LuaFactory } from 'wasmoon'
 import type { WasmExports } from './wasm'
 import * as ts from './assembly'
@@ -154,7 +154,7 @@ interface Props {
 }
 
 export function BenchmarkRunner({ wasm }: Props) {
-  const benchmarks: BenchmarkDef[] = [
+  const benchmarks = useMemo<BenchmarkDef[]>(() => [
     {
       name: 'add',
       description: 'Integer addition',
@@ -187,7 +187,7 @@ export function BenchmarkRunner({ wasm }: Props) {
       argMin: 2,
       argMax: 256,
     },
-  ]
+  ], [wasm])
 
   const [iterations, setIterations] = useState(100_000)
   const [args, setArgs] = useState<Record<string, number>>(

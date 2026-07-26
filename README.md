@@ -1,99 +1,92 @@
-# WASM playground
+# Luading - Disting NT Lua Simulator
 
-## Disting NT Lua proof of concept
+Luading is a browser-based development workbench for writing, running, and
+validating Lua scripts for the Expert Sleepers Disting NT.
 
-Run the development server and open [`/disting`](http://localhost:5173/disting).
+The simulator runs at the site root (`/`). The former `/disting` URL is retained
+as a permanent redirect in the Vercel configuration.
 
-The proof of concept runs a Disting-style Lua 5.4 program in an isolated Web
-Worker and implements a focused subset of the module contract:
+## What it does
 
-- `init`, `step`, `trigger`, and `draw` callbacks
-- a deterministic 1 ms control step and 30 fps display refresh
-- CV input, script parameters, trigger input, and output voltage traces
-- common drawing primitives on a simulated 256×64 display
-- average, p95, and maximum callback timing against the local 1 ms budget
-- live script-quality checks with Monaco markers and source navigation
-- raw Disting contract validation for I/O, parameters, callbacks, and outputs
-- a 100-point score covering contract use, real-time safety, API portability,
-  and clarity
-- separate hardware-valid and simulator-compatibility diagnostics
-- worker replacement on reload and timeouts for runaway scripts
+- Runs a persistent Lua 5.4 VM in an isolated Web Worker
+- Simulates the Disting NT lifecycle callbacks, including `init`, `step`,
+  `trigger`, `gate`, `draw`, MIDI, UI, and preset state
+- Provides editable CV, gate, trigger, clock, parameter, and front-panel inputs
+- Renders the 256×64 display and output traces in real time
+- Routes simulated outputs through Web Audio
+- Includes Monaco-based editing, Disting NT completions, diagnostics, and source
+  navigation
+- Validates script contracts and assigns a quality score for API portability,
+  real-time safety, contract use, and clarity
+- Reports average, p95, and maximum callback timing against the browser-local
+  1 ms control-step budget
+- Includes bundled example scripts and their Lua modules
 
-The timing percentage describes the current browser only. It is not a calibrated
-estimate of Disting NT hardware CPU usage.
+The performance measurements describe the current browser only. They are not a
+calibrated estimate of Disting NT hardware CPU usage.
 
-## React + TypeScript + Vite
+## Requirements
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+- Node.js 24
+- npm 10 or newer
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Quality checks
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm test
+npm run lint
+npm run build
 ```
+
+The production build is written to `dist/`.
+
+## Project structure
+
+```text
+src/disting/                 Simulator UI, worker, emulation, and validation
+lua-scripts/expert-sleepers/ Bundled community example scripts
+lua-scripts/fredi-bach/      Additional bundled example scripts
+docs/                        Disting NT Lua scripting reference
+```
+
+See [`src/disting/ARCHITECTURE.md`](src/disting/ARCHITECTURE.md) for the
+emulation boundaries and contribution guidance.
+
+## Deploying to Vercel
+
+The repository includes `vercel.json` with the Vite build settings and the
+legacy `/disting` redirects. No environment variables are required.
+
+To create or link the Vercel project and deploy a preview:
+
+```bash
+vercel
+```
+
+To deploy the current revision to production:
+
+```bash
+vercel --prod
+```
+
+Vercel can also import the repository through its dashboard. Use the repository
+root as the project root; the framework, build command, and output directory are
+already configured.
+
+## Disclaimer
+
+Luading is an independent community project. It is not affiliated with or
+endorsed by Expert Sleepers. Hardware behavior remains the source of truth.
+
+## License
+
+This project is licensed under the terms in [`LICENSE`](LICENSE).

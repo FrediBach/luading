@@ -409,10 +409,10 @@ export function DistingPlayground() {
   return (
     <main className="disting-app">
       <header className="disting-topbar">
-        <a href="/" className="disting-back">← WASM playground</a>
+        <span className="disting-project">Luading</span>
         <div className="disting-brand">
           <span className="disting-brand-mark">NT</span>
-          <span>Lua Lab <small>proof of concept</small></span>
+          <span>Disting NT <small>Lua Simulator</small></span>
         </div>
         <div className={`disting-status disting-status--${status}`}>
           <span />

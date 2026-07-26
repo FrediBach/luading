@@ -29,13 +29,12 @@
   border-bottom: 1px solid var(--nt-line);
 }
 
-.disting-back {
+.disting-project {
   color: var(--nt-muted);
-  text-decoration: none;
-  font-size: 13px;
+  font: 11px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
-
-.disting-back:hover { color: var(--nt-text); }
 
 .disting-brand {
   display: flex;

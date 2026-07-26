@@ -7,7 +7,7 @@ local out = {}
 
 return {
   name = "Vector LFO",
-  author = "Browser POC",
+  author = "Luading",
 
   init = function(self)
     return {
