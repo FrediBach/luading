@@ -44,14 +44,26 @@ describe('Disting display renderer fonts', () => {
 
     const glyphPixels = fills.filter((fill) => fill.width === 1 && fill.height === 1)
     expect(glyphPixels[0]).toEqual({
-      style: 'rgb(102, 102, 102)',
+      style: 'rgb(1, 96, 96)',
       x: 2,
       y: 0,
       width: 1,
       height: 1,
     })
-    expect(glyphPixels.some((pixel) => pixel.style === 'rgb(238, 238, 238)')).toBe(true)
+    expect(glyphPixels.some((pixel) => pixel.style === 'rgb(2, 225, 223)')).toBe(true)
     expect(glyphPixels.every((pixel) => pixel.x >= 0 && pixel.y >= 0)).toBe(true)
+  })
+
+  it('uses #02F1EF for fully lit display pixels and black for the background', () => {
+    const { context, fills } = recordingContext()
+    const commands: DrawCommand[] = [
+      { kind: 'text', x: 0, y: 4, text: 'A', shade: 15, tiny: true, align: 'left' },
+    ]
+
+    renderDistingDisplay(context, commands)
+
+    expect(fills[0]).toMatchObject({ style: '#000', x: 0, y: 0, width: 256, height: 64 })
+    expect(fills.some((fill) => fill.style === 'rgb(2, 241, 239)')).toBe(true)
   })
 
   it('clips atlas pixels to the 256x64 framebuffer', () => {
@@ -74,10 +86,16 @@ describe('Disting display renderer fonts', () => {
 
     renderDistingDisplay(context, commands)
 
-    const intensities = fills
+    const palette = Array.from({ length: 16 }, (_, shade) => {
+      const red = Math.round((2 * shade) / 15)
+      const green = Math.round((241 * shade) / 15)
+      const blue = Math.round((239 * shade) / 15)
+      return `rgb(${red}, ${green}, ${blue})`
+    })
+    const styles = fills
       .filter((fill) => fill.width === 1 && fill.height === 1)
-      .map((fill) => Number.parseInt(fill.style.match(/\d+/)?.[0] ?? '', 10))
-    expect(intensities.every((intensity) => intensity % 17 === 0)).toBe(true)
-    expect(Math.max(...intensities)).toBe(119)
+      .map((fill) => fill.style)
+    expect(styles.every((style) => palette.includes(style))).toBe(true)
+    expect(styles).toContain('rgb(1, 112, 112)')
   })
 })

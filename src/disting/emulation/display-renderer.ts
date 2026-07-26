@@ -1,9 +1,14 @@
 import { DISTING_DISPLAY, type DrawCommand, type TextAlignment } from '../types'
 import { rasterizeDistingText } from './display-font'
 
+const DISPLAY_COLOUR = { red: 2, green: 241, blue: 239 } as const
+
 function shadeStyle(shade: number) {
-  const intensity = Math.round((Math.min(15, Math.max(0, shade)) / 15) * 255)
-  return `rgb(${intensity}, ${intensity}, ${intensity})`
+  const intensity = Math.min(15, Math.max(0, shade)) / 15
+  const red = Math.round(DISPLAY_COLOUR.red * intensity)
+  const green = Math.round(DISPLAY_COLOUR.green * intensity)
+  const blue = Math.round(DISPLAY_COLOUR.blue * intensity)
+  return `rgb(${red}, ${green}, ${blue})`
 }
 
 function putPixel(context: CanvasRenderingContext2D, x: number, y: number) {

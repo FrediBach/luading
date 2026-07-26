@@ -125,7 +125,8 @@ The core emulator is split by hardware-facing responsibility:
 - `display-font.ts` measures and rasterizes text from firmware-derived Selawik
   and pixelmix atlases without using browser fonts.
 - `display-renderer.ts` rasterizes commands onto the 256x64 canvas and
-  quantizes atlas coverage to the display's 16 shades.
+  quantizes atlas coverage to the display's 16-shade black-to-`#02F1EF`
+  palette.
 - `signal-sources.ts` implements deterministic CV, gate, trigger, sequencer,
   noise, and shared-clock sources.
 - `preset-api.ts` provides deterministic companion algorithms for preset and
