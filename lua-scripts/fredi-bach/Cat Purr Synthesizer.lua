@@ -27,9 +27,18 @@ local prevGate = false
 local smoothedVCA = 0.0
 local smoothedVCF = 0.0
 
+-- Fixed display metadata
+local DISPLAY_METER_LABELS = { "P", "F", "A" }
+local DISPLAY_METER_Y = { 23, 33, 43 }
+local DISPLAY_METER_SLOPE = { -2, 0, 2 }
+
 --------------------------------------------------------------------------------
 -- UTILITY FUNCTIONS
 --------------------------------------------------------------------------------
+
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
 
 -- Simple pseudo-random number generator (0-1)
 local function nextRandom()
@@ -84,6 +93,14 @@ return
     , init = function(self)
         -- Seed the random state with something
         noiseState = 12345 + math.floor(os.clock() * 1000) % 10000
+
+        -- Display state is captured by step() and only consumed by draw().
+        -- Scalars and this fixed-size peak table avoid allocating at display
+        -- cadence while still retaining short events for the 30 fps screen.
+        self.display_body_radius = 13.0
+        self.display_tail_offset = 0.0
+        self.display_output_peaks = { 0.0, 0.0, 0.0 }
+        self.display_whisker_flash = 0.0
         
         return
         {
@@ -166,6 +183,37 @@ return
             -- When stopped, smoothly fade out
             smoothedVCA = smooth(smoothedVCA, 0, 0.01)
             smoothedVCF = smooth(smoothedVCF, 0, 0.01)
+
+            local displayAlpha = clamp(dt * 8.0, 0, 1)
+            self.display_body_radius = smooth(
+                self.display_body_radius,
+                13.0,
+                displayAlpha
+            )
+            self.display_tail_offset = smooth(
+                self.display_tail_offset,
+                0.0,
+                displayAlpha
+            )
+            self.display_whisker_flash = math.max(
+                0,
+                self.display_whisker_flash - dt * 10
+            )
+            prevGate = false
+
+            self.display_output_peaks[1] = math.max(
+                clamp(basePitch + 0.5, 0, 1),
+                self.display_output_peaks[1] - dt * 2.5
+            )
+            self.display_output_peaks[2] = math.max(
+                clamp(smoothedVCF / 5.0, 0, 1),
+                self.display_output_peaks[2] - dt * 2.5
+            )
+            self.display_output_peaks[3] = math.max(
+                clamp(smoothedVCA / 8.0, 0, 1),
+                self.display_output_peaks[3] - dt * 2.5
+            )
+
             return { basePitch, smoothedVCF, smoothedVCA, 0 }
         end
         
@@ -303,6 +351,54 @@ return
         if purrWave > 0.5 then
             gateOut = 5.0  -- 5V gate
         end
+
+        --------------------------------------------------------------------
+        -- DISPLAY STATE
+        -- All animation inputs are derived from the real phases and outputs.
+        --------------------------------------------------------------------
+
+        local displayAlpha = clamp(dt * 8.0, 0, 1)
+        local breathMotion = math.abs(math.sin(breathPhase * math.pi * 2))
+        local bodyTarget = 13.0
+            + vcaFloor * 2.0
+            + breathMotion * intensity * 4.0
+        self.display_body_radius = smooth(
+            self.display_body_radius,
+            bodyTarget,
+            displayAlpha
+        )
+
+        local tailTarget = math.sin(variationPhase * math.pi * 4)
+            * variation * 2.5
+        self.display_tail_offset = smooth(
+            self.display_tail_offset,
+            tailTarget,
+            displayAlpha
+        )
+
+        local gateIsHigh = gateOut > 0
+        if gateIsHigh and not prevGate then
+            self.display_whisker_flash = 1.0
+        else
+            self.display_whisker_flash = math.max(
+                0,
+                self.display_whisker_flash - dt * 10
+            )
+        end
+        prevGate = gateIsHigh
+
+        self.display_output_peaks[1] = math.max(
+            clamp(vcoOut + 0.5, 0, 1),
+            self.display_output_peaks[1] - dt * 2.5
+        )
+        self.display_output_peaks[2] = math.max(
+            clamp(vcfOut / 5.0, 0, 1),
+            self.display_output_peaks[2] - dt * 2.5
+        )
+        self.display_output_peaks[3] = math.max(
+            clamp(vcaOut / 8.0, 0, 1),
+            self.display_output_peaks[3] - dt * 2.5
+        )
         
         --------------------------------------------------------------------
         -- RETURN OUTPUT VOLTAGES
@@ -317,59 +413,161 @@ return
     , draw = function(self)
         local params = self.parameters
         local intensity = params[3] / 100
+        local variation = params[4] / 100
+        local vcaFloor = params[8] / 100
         local mode = params[9]
-        
-        -- Draw title
-        drawText(128, 12, "~ Cat Purr ~", 15, "centre")
-        
-        -- Draw breath indicator (sine wave visualization)
-        local breathY = 35
-        local waveWidth = 100
-        local startX = 78
-        
-        -- Draw breath waveform
-        for i = 0, waveWidth do
-            local phase = (breathPhase + i / waveWidth) % 1.0
-            local y = math.abs(math.sin(phase * math.pi * 2)) * 10
-            local brightness = math.floor(4 + y)
-            drawRectangle(startX + i, breathY - y, startX + i, breathY + y, brightness)
+
+        drawStandardParameterLine()
+
+        local running = mode == 1 or (self.gateOpen or false)
+        local silhouetteShade = running
+            and (7 + math.floor(intensity * 7))
+            or 5
+        local bodyX = 126
+        local bodyY = 33
+        local bodyRadiusX = 49
+        local bodyRadiusY = self.display_body_radius
+
+        -- Breathing body: a compact ellipse built from smooth segments. Its
+        -- vertical radius follows the real breath phase with step-time
+        -- smoothing, so dropped draw frames do not alter the pose.
+        local previousX = nil
+        local previousY = nil
+        for i = 0, 24 do
+            local angle = (i / 24) * math.pi * 2
+            local x = bodyX + math.cos(angle) * bodyRadiusX
+            local y = bodyY + math.sin(angle) * bodyRadiusY
+            if previousX then
+                drawSmoothLine(previousX, previousY, x, y, silhouetteShade)
+            end
+            previousX = x
+            previousY = y
         end
-        
-        -- Draw phase marker
-        local markerX = startX + breathPhase * waveWidth
-        drawLine(markerX, breathY - 12, markerX, breathY + 12, 15)
-        
-        -- Draw purr pulses visualization
-        local purrY = 52
-        for i = 0, 50 do
-            local phase = (purrPhase + i / 50 * 3) % 1.0
-            local pulse = phase < 0.4 and (1 - phase / 0.4) or 0
-            pulse = pulse * intensity * math.abs(math.sin(breathPhase * math.pi))
-            local barHeight = math.floor(pulse * 8)
-            if barHeight > 0 then
-                drawRectangle(103 + i * 2, purrY - barHeight, 
-                             104 + i * 2, purrY, 8 + math.floor(pulse * 7))
+
+        -- VCA output fills the curled body with five quiet ribs. VCA Floor
+        -- establishes the minimum fill while the held output supplies motion.
+        local bodyFill = clamp(
+            math.max(vcaFloor, self.display_output_peaks[3]),
+            0,
+            1
+        )
+        local fillShade = 3 + math.floor(bodyFill * 8)
+        for row = -2, 2 do
+            local normalizedY = row / 3
+            local halfWidth = math.sqrt(1 - normalizedY * normalizedY)
+                * (bodyRadiusX - 9) * bodyFill
+            local y = bodyY + row * (bodyRadiusY / 3)
+            if halfWidth >= 1 then
+                drawSmoothLine(
+                    bodyX - halfWidth,
+                    y,
+                    bodyX + halfWidth,
+                    y,
+                    fillShade
+                )
             end
         end
-        
-        -- Draw mode indicator
+
+        -- Curled tail. Variation moves the curl as a whole instead of adding
+        -- decorative random pixels.
+        local tailCenterX = 178
+        local tailCenterY = 33 + self.display_tail_offset
+        previousX = bodyX + bodyRadiusX - 2
+        previousY = bodyY + 5
+        for i = 0, 15 do
+            local angle = -0.25 + (i / 15) * math.pi * 1.75
+            local radius = 13 - i * 0.45
+            local x = tailCenterX + math.cos(angle) * radius
+            local y = tailCenterY + math.sin(angle) * radius
+            drawSmoothLine(previousX, previousY, x, y, silhouetteShade)
+            previousX = x
+            previousY = y
+        end
+        drawSmoothCircle(previousX, previousY, 1.5, silhouetteShade + 1)
+
+        -- Head, ears, face, and paws establish the sleeping-cat silhouette.
+        -- Organic variation gently twitches the ears only while the cat runs.
+        local earMotion = running
+            and math.sin(variationPhase * math.pi * 6) * variation * 1.5
+            or 0
+        drawSmoothCircle(71, 32, 11, silhouetteShade)
+        drawSmoothLine(62, 26, 64 + earMotion, 16, silhouetteShade)
+        drawSmoothLine(64 + earMotion, 16, 70, 23, silhouetteShade)
+        drawSmoothLine(72, 23, 79 - earMotion, 16, silhouetteShade)
+        drawSmoothLine(79 - earMotion, 16, 81, 27, silhouetteShade)
+
+        if running then
+            -- Sleeping eyes.
+            drawSmoothLine(64, 29, 68, 29, 13)
+            drawSmoothLine(73, 29, 77, 29, 13)
+        else
+            -- Gated mode opens the eyes when stopped.
+            drawSmoothCircle(66, 29, 1.5, 15)
+            drawSmoothCircle(75, 29, 1.5, 15)
+        end
+
+        drawSmoothLine(69, 34, 71, 35, 11)
+        drawSmoothLine(71, 35, 73, 34, 11)
+        drawSmoothLine(61, 35, 51, 32, 7)
+        drawSmoothLine(61, 37, 50, 37, 7)
+        drawSmoothLine(62, 39, 52, 42, 7)
+        drawSmoothLine(83, 45, 96, 47, silhouetteShade)
+        drawSmoothLine(97, 47, 108, 46, silhouetteShade)
+
+        -- Two throat lines show the aliased laryngeal phase. Their speed comes
+        -- from Purr Rate, amplitude and shade from Intensity.
+        local throatAmplitude = running and (0.5 + intensity * 1.8) or 0
+        local throatShade = running and (8 + math.floor(intensity * 6)) or 3
+        for line = 0, 1 do
+            previousX = 79
+            previousY = 35 + line * 4
+            for segment = 1, 6 do
+                local x = 79 + segment * 3
+                local phase = purrPhase + segment / 6 + line * 0.25
+                local y = 35 + line * 4
+                    + math.sin(phase * math.pi * 2) * throatAmplitude
+                drawSmoothLine(previousX, previousY, x, y, throatShade)
+                previousX = x
+                previousY = y
+            end
+        end
+
+        -- The three output whiskers are ordered pitch, filter, amplitude.
+        -- Peak holds make narrow purr pulses readable at the 30 fps cadence,
+        -- and every Purr Gate briefly pushes all three tips outward.
+        local meterStartX = 211
+        local flash = self.display_whisker_flash
+        for i = 1, 3 do
+            local level = clamp(self.display_output_peaks[i], 0, 1)
+            local tipX = math.min(
+                250,
+                meterStartX + 4 + level * 27 + flash * 8
+            )
+            local tipY = DISPLAY_METER_Y[i] + DISPLAY_METER_SLOPE[i]
+            local meterShade = 6 + math.floor(level * 6 + flash * 3)
+            drawTinyText(
+                202,
+                DISPLAY_METER_Y[i] + 2,
+                DISPLAY_METER_LABELS[i],
+                6,
+                "right"
+            )
+            drawLine(meterStartX, DISPLAY_METER_Y[i], 250, tipY, 2)
+            drawSmoothLine(
+                meterStartX,
+                DISPLAY_METER_Y[i],
+                tipX,
+                tipY,
+                math.min(15, meterShade)
+            )
+            drawSmoothCircle(tipX, tipY, flash > 0 and 1.8 or 1, math.min(15, meterShade + 2))
+        end
+
         local modeText = mode == 1 and "FREE" or "GATED"
-        local runText = (mode == 1 or self.gateOpen) and "RUN" or "STOP"
-        drawTinyText(20, 35, modeText, 10)
-        drawTinyText(20, 45, runText, self.gateOpen and 15 or 6)
-        
-        -- Draw output level indicators
-        drawTinyText(230, 25, "VCO", 8)
-        drawTinyText(230, 35, "VCF", 8)
-        drawTinyText(230, 45, "VCA", 8)
-        drawTinyText(230, 55, "GATE", 8)
-        
-        -- Level bars
-        local vcfLevel = math.floor(smoothedVCF * 20)
-        local vcaLevel = math.floor(smoothedVCA * 20)
-        drawRectangle(245, 31, 245 + vcfLevel, 33, 12)
-        drawRectangle(245, 41, 245 + vcaLevel, 43, 14)
-        
-        return false  -- Show standard parameter line
+        local runText = running and "RUN" or "STOP"
+        drawTinyText(4, 63, modeText, mode == 1 and 8 or 10)
+        drawTinyText(252, 63, runText, running and 15 or 6, "right")
+
+        return true
     end
 }

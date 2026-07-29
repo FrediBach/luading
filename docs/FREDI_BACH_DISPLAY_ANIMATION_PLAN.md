@@ -144,6 +144,8 @@ one output ribbon by a shuttle controlled by the LFO.
 
 ### 4. Cat Purr Synthesizer
 
+Status: Implemented
+
 **Concept: a sleeping cat whose breathing and throat vibration are the control
 signals.** This is the most figurative screen and should be immediately charming.
 
