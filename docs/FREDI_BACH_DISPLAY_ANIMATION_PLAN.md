@@ -68,6 +68,8 @@ The sections are ordered alphabetically to match the directory.
 
 ### 1. Amen Break Drum Triggers
 
+Status: Implemented
+
 **Concept: spinning break record.** Replace the generic step ring with a compact
 four-track drum record whose grooves make the Amen pattern visible.
 
@@ -90,6 +92,8 @@ four-track drum record whose grooves make the Amen pattern visible.
   flashes and returns the needle to twelve o'clock.
 
 ### 2. Analog Drift CV Script
+
+Status: Implemented
 
 **Concept: a particle wandering around a tuning center.** The screen should feel
 like Brownian movement observed through a small laboratory window.
