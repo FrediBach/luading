@@ -169,6 +169,8 @@ signals.** This is the most figurative screen and should be immediately charming
 
 ### 5. Clock Speed Up Script
 
+Status: Implemented
+
 **Concept: a clock tunnel rushing toward the viewer.** Acceleration should feel
 physical before the multiplier is read.
 

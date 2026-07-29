@@ -22,6 +22,8 @@ local PULSE_WIDTH = 0.01       -- Output trigger pulse width (10ms)
 local MIN_PERIOD = 0.025       -- Minimum period cap (prevents >2400 BPM)
 local DEFAULT_PERIOD = 0.5     -- Default period before first clock (120 BPM)
 local PERIOD_SMOOTHING = 0.3   -- Smoothing factor for period measurement
+local DISPLAY_RING_COUNT = 6
+local DISPLAY_RING_LIFETIME = 0.42
 
 --------------------------------------------------------------------------------
 -- Easing Functions
@@ -84,8 +86,30 @@ local state = {
     
     -- Output pulse management
     outputHigh = false,
-    pulseTimer = 0.0
+    pulseTimer = 0.0,
+
+    -- Read-only presentation state consumed by draw()
+    displayMultiplier = 1.0,
+    displayPeriodValid = false,
+    displayRingTimes = {},
+    displayRingCursor = 0
 }
+
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
+local function clearDisplayRings()
+    for i = 1, DISPLAY_RING_COUNT do
+        state.displayRingTimes[i] = -1.0
+    end
+    state.displayRingCursor = 0
+end
+
+local function recordDisplayClock()
+    state.displayRingCursor = (state.displayRingCursor % DISPLAY_RING_COUNT) + 1
+    state.displayRingTimes[state.displayRingCursor] = state.totalTime
+end
 
 --------------------------------------------------------------------------------
 -- Main Script Table
@@ -110,6 +134,10 @@ return
         state.currentMultiplier = 1.0
         state.outputHigh = false
         state.pulseTimer = 0.0
+        state.displayMultiplier = 1.0
+        state.displayPeriodValid = false
+        state.displayRingTimes = {}
+        clearDisplayRings()
         
         return
         {
@@ -143,6 +171,13 @@ return
     ------------------------------------------------------------------------
 ,   step = function(self, dt, inputs)
         state.totalTime = state.totalTime + dt
+
+        -- Smooth only the presentation of the multiplier. Musical timing
+        -- continues to use state.currentMultiplier directly.
+        local displayTarget = state.gateHigh and state.currentMultiplier or 1.0
+        local displayAlpha = clamp(dt * 12.0, 0, 1)
+        state.displayMultiplier = state.displayMultiplier
+            + (displayTarget - state.displayMultiplier) * displayAlpha
         
         -- Handle output pulse ending (both modes)
         if state.outputHigh then
@@ -192,6 +227,7 @@ return
             state.internalPhase = state.internalPhase - 1.0
             state.outputHigh = true
             state.pulseTimer = 0
+            recordDisplayClock()
             return { 5.0 }
         end
         
@@ -220,6 +256,7 @@ return
                                              + period * PERIOD_SMOOTHING
                     end
                     state.triggerCount = state.triggerCount + 1
+                    state.displayPeriodValid = true
                 end
             end
             state.lastTriggerTime = state.totalTime
@@ -228,6 +265,7 @@ return
             if not state.gateHigh then
                 state.outputHigh = true
                 state.pulseTimer = 0
+                recordDisplayClock()
                 return { 5.0 }
             end
             -- In acceleration mode: we ignore input triggers for output
@@ -252,6 +290,8 @@ return
                 -- Gate closed: return to pass-through mode
                 state.gateHigh = false
                 state.currentMultiplier = 1.0
+                state.displayMultiplier = 1.0
+                clearDisplayRings()
                 -- Note: output state is preserved; next trigger will come from input
             end
         end
@@ -265,48 +305,152 @@ return
         local rampTime = self.parameters[1]
         local maxSpeed = self.parameters[2]
         local easingIdx = self.parameters[3]
-        
-        -- Mode indicator at top
-        if state.gateHigh then
-            drawRectangle(0, 12, 255, 24, 2)  -- Subtle background
-            drawText(128, 22, "ACCELERATING", 15, "centre")
-        else
-            drawText(128, 22, "PASS-THROUGH", 8, "centre")
-        end
-        
-        -- Large speed multiplier display
-        local multStr = string.format("%.2fx", state.currentMultiplier)
-        drawText(128, 42, multStr, 15, "centre")
-        
-        -- Progress bar (only during acceleration)
-        local barX, barY, barW, barH = 24, 48, 208, 6
+
+        drawStandardParameterLine()
+
+        local centerX = 128
+        local centerY = 34
+        local outerRadius = 24
+        local progress = 0.0
         if state.gateHigh then
             local elapsed = state.totalTime - state.accelStartTime
-            local progress = math.min(elapsed / rampTime, 1.0)
-            
-            -- Bar background
-            drawBox(barX, barY, barX + barW, barY + barH, 4)
-            
-            -- Filled portion
-            if progress > 0 then
-                local fillW = math.floor(progress * (barW - 2))
-                if fillW > 0 then
-                    drawRectangle(barX + 1, barY + 1, barX + 1 + fillW, barY + barH - 1, 12)
+            progress = clamp(elapsed / rampTime, 0, 1)
+        end
+
+        if not state.displayPeriodValid then
+            -- A tempo needs two input clocks. Until then, use a waiting
+            -- crosshair rather than presenting DEFAULT_PERIOD as measured.
+            drawCircle(centerX, centerY, 8, 3)
+            drawLine(centerX - 14, centerY, centerX + 14, centerY, 6)
+            drawLine(centerX, centerY - 14, centerX, centerY + 14, 6)
+            drawCircle(centerX, centerY, 2, 10)
+            drawTinyText(centerX, centerY + 20, "CLOCK?", 6, "centre")
+        elseif state.gateHigh then
+            -- Six guide rings form the tunnel. Their spacing is the selected
+            -- easing curve itself, so changing Easing changes the picture
+            -- without adding a curve-name label.
+            local easingFunc = easingFunctions[easingIdx]
+            for i = 1, DISPLAY_RING_COUNT do
+                local ringProgress = i / DISPLAY_RING_COUNT
+                local easedRadius = easingFunc(ringProgress)
+                local radius = 3 + easedRadius * (outerRadius - 5)
+                local shade = 2 + math.floor((i / DISPLAY_RING_COUNT) * 3)
+                drawCircle(centerX, centerY, radius, shade)
+            end
+
+            -- Max Speed is the fixed target at the mouth of the tunnel.
+            local maxShade = 4 + math.floor(
+                clamp((maxSpeed - 1.5) / 14.5, 0, 1) * 4
+            )
+            drawCircle(centerX, centerY, outerRadius, maxShade)
+            drawLine(
+                centerX,
+                centerY - outerRadius - 2,
+                centerX,
+                centerY - outerRadius + 2,
+                maxShade + 2
+            )
+            drawLine(
+                centerX + outerRadius - 2,
+                centerY,
+                centerX + outerRadius + 2,
+                centerY,
+                maxShade + 2
+            )
+            drawLine(
+                centerX,
+                centerY + outerRadius - 2,
+                centerX,
+                centerY + outerRadius + 2,
+                maxShade + 2
+            )
+            drawLine(
+                centerX - outerRadius - 2,
+                centerY,
+                centerX - outerRadius + 2,
+                centerY,
+                maxShade + 2
+            )
+        else
+            -- Pass-through settles immediately to one calm clock face.
+            drawCircle(centerX, centerY, 9, 5)
+            drawLine(centerX, centerY - 7, centerX, centerY - 2, 7)
+            drawLine(centerX, centerY, centerX + 5, centerY + 3, 7)
+            drawCircle(centerX, centerY, 1, 10)
+        end
+
+        -- Real output clocks rush from the center to the tunnel mouth. The
+        -- fixed six-slot history naturally compresses as clocks accelerate.
+        if state.displayPeriodValid then
+            for i = 1, DISPLAY_RING_COUNT do
+                local started = state.displayRingTimes[i]
+                if started >= 0 then
+                    local age = state.totalTime - started
+                    local ringProgress = age / DISPLAY_RING_LIFETIME
+                    if ringProgress >= 0 and ringProgress <= 1 then
+                        local easedTravel = 1
+                            - (1 - ringProgress) * (1 - ringProgress)
+                        local radius = 2
+                            + easedTravel * (outerRadius - 2)
+                        local shade = 15 - math.floor(ringProgress * 9)
+                        drawSmoothCircle(centerX, centerY, radius, shade)
+                    end
                 end
             end
-        else
-            -- When not accelerating, show a dim empty bar
-            drawBox(barX, barY, barX + barW, barY + barH, 2)
         end
-        
-        -- BPM info at bottom
-        local baseBPM = 60.0 / state.measuredPeriod
-        local currentBPM = baseBPM * state.currentMultiplier
-        
-        drawTinyText(barX, 62, string.format("%.0f BPM", baseBPM), 6)
-        drawTinyText(barX + barW, 62, string.format("%.0f BPM", currentBPM), 10, "right")
-        
-        -- Easing indicator
-        drawTinyText(128, 62, easingNames[easingIdx], 4, "centre")
+
+        -- Ramp Time appears as a faint radial progress arc.
+        if state.gateHigh and progress > 0 then
+            local arcSegments = 16
+            local visibleSegments = math.max(
+                1,
+                math.floor(progress * arcSegments)
+            )
+            local previousX = centerX
+            local previousY = centerY - outerRadius - 2
+            for i = 1, visibleSegments do
+                local arcProgress = (i / visibleSegments) * progress
+                local angle = -math.pi / 2 + arcProgress * math.pi * 2
+                local x = centerX
+                    + math.cos(angle) * (outerRadius + 2)
+                local y = centerY
+                    + math.sin(angle) * (outerRadius + 2)
+                drawSmoothLine(previousX, previousY, x, y, 8)
+                previousX = x
+                previousY = y
+            end
+        end
+
+        local modeText = state.gateHigh and "ACCEL" or "PASS"
+        drawTinyText(4, 13, modeText, state.gateHigh and 12 or 6)
+        drawTinyText(
+            centerX,
+            63,
+            string.format("x%.2f", state.displayMultiplier),
+            15,
+            "centre"
+        )
+
+        if state.displayPeriodValid then
+            local baseBPM = 60.0 / state.measuredPeriod
+            local currentPeriod = math.max(
+                state.measuredPeriod / state.displayMultiplier,
+                MIN_PERIOD
+            )
+            local currentBPM = 60.0 / currentPeriod
+            drawTinyText(4, 63, string.format("%.0fBPM", baseBPM), 8)
+            drawTinyText(
+                252,
+                63,
+                string.format("%.0fBPM", currentBPM),
+                11,
+                "right"
+            )
+        else
+            drawTinyText(4, 63, "WAIT", 6)
+            drawTinyText(252, 63, "--BPM", 4, "right")
+        end
+
+        return true
     end
 }
