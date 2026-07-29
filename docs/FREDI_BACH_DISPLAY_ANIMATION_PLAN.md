@@ -116,6 +116,8 @@ like Brownian movement observed through a small laboratory window.
 
 ### 3. Arpeggio Weaver LFO Routing
 
+Status: Implemented
+
 **Concept: a four-thread musical loom.** Four moving note threads are woven into
 one output ribbon by a shuttle controlled by the LFO.
 

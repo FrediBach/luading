@@ -249,6 +249,81 @@ local function selectArpeggio(lfoVal, extLfo, extMix, weaveMode)
 end
 
 --------------------------------------------------------------------------------
+-- DISPLAY HELPERS
+--------------------------------------------------------------------------------
+
+local DISPLAY_LANE_Y = { 16, 26, 36, 46 }
+local DISPLAY_NOTE_LIMIT = 48
+local DISPLAY_BEAD_COUNT = 6
+local DISPLAY_LFO_HISTORY = 32
+local NOTE_NAMES = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }
+
+local function clamp(value, minimum, maximum)
+    if value < minimum then return minimum end
+    if value > maximum then return maximum end
+    return value
+end
+
+local function midiToNoteName(midiNote)
+    local note = math.floor(midiNote + 0.5)
+    local pitchClass = note % 12
+    if pitchClass < 0 then pitchClass = pitchClass + 12 end
+    local octave = math.floor(note / 12) - 1
+    return NOTE_NAMES[pitchClass + 1] .. octave
+end
+
+-- Fill fixed display note buffers without allocating note sequences in draw().
+local function updateDisplayNoteCache(self, parameters)
+    local scaleIndex = parameters[2]
+    local scale = SCALE_INTERVALS[scaleIndex] or SCALE_INTERVALS[1]
+
+    for lane = 1, NUM_ARPS do
+        local baseIdx = 8 + (lane - 1) * 4
+        local octaves = parameters[baseIdx + 2]
+        local count = 0
+
+        for octave = 0, octaves - 1 do
+            for _, interval in ipairs(scale) do
+                count = count + 1
+                if count <= DISPLAY_NOTE_LIMIT then
+                    self.display_lane_notes[lane][count] = interval + octave * 12
+                end
+            end
+        end
+
+        self.display_lane_note_counts[lane] = math.min(count, DISPLAY_NOTE_LIMIT)
+        self.display_lane_octaves[lane] = octaves
+    end
+
+    self.display_cached_scale = scaleIndex
+end
+
+local function displayNoteCacheNeedsUpdate(self, parameters)
+    if self.display_cached_scale ~= parameters[2] then return true end
+    for lane = 1, NUM_ARPS do
+        local baseIdx = 8 + (lane - 1) * 4
+        if self.display_lane_octaves[lane] ~= parameters[baseIdx + 2] then
+            return true
+        end
+    end
+    return false
+end
+
+local function pushDisplayOutputBead(self, lane, midiNote)
+    self.display_bead_index = (self.display_bead_index % DISPLAY_BEAD_COUNT) + 1
+    local bead = self.display_beads[self.display_bead_index]
+    bead.started = self.display_time
+    bead.lane = lane
+    bead.midi = midiNote
+end
+
+local function clearDisplayBeads(self)
+    for i = 1, DISPLAY_BEAD_COUNT do
+        self.display_beads[i].started = -1
+    end
+end
+
+--------------------------------------------------------------------------------
 -- MAIN SCRIPT TABLE
 --------------------------------------------------------------------------------
 
@@ -280,6 +355,32 @@ return {
         triggerTimer = 0
         lfoPhase = 0
         lfoValue = 0
+
+        -- Display-only animation state. Buffers are fixed-size and reused.
+        self.display_time = 0
+        self.display_lane_notes = { {}, {}, {}, {} }
+        self.display_lane_note_counts = { 0, 0, 0, 0 }
+        self.display_lane_octaves = { 0, 0, 0, 0 }
+        self.display_lane_from = { 1, 1, 1, 1 }
+        self.display_lane_to = { 1, 1, 1, 1 }
+        self.display_lane_started = { 0, 0, 0, 0 }
+        self.display_cached_scale = nil
+        self.display_shuttle_position = 2.5
+        self.display_shuttle_target = 2.5
+        self.display_pending_started = -1
+        self.display_current_midi = 48
+        self.display_bead_index = 0
+        self.display_beads = {}
+        for i = 1, DISPLAY_BEAD_COUNT do
+            self.display_beads[i] = { started = -1, lane = 1, midi = 48 }
+        end
+        self.display_lfo_history = {}
+        for i = 1, DISPLAY_LFO_HISTORY do
+            self.display_lfo_history[i] = 0
+        end
+        self.display_lfo_history_index = 0
+        self.display_lfo_history_count = 0
+        self.display_lfo_history_timer = 0
         
         return {
             -- Input configuration
@@ -339,6 +440,7 @@ return {
             -- Process each arpeggio's clock divider
             for i = 1, NUM_ARPS do
                 local arp = arps[i]
+                local previousPosition = arp.position
                 local baseIdx = 8 + (i - 1) * 4  -- Parameter base index for this arp
                 local divider = p[baseIdx + 1]   -- Arp divider parameter
                 
@@ -355,6 +457,12 @@ return {
                     local notes = buildNoteSequence(scale, octaves)
                     arp.position = advancePattern(arp, pattern, #notes)
                     arp.lastNote = notes[arp.position] or 0
+
+                    if arp.position ~= previousPosition then
+                        self.display_lane_from[i] = previousPosition
+                        self.display_lane_to[i] = arp.position
+                        self.display_lane_started[i] = self.display_time
+                    end
                 end
             end
             
@@ -362,6 +470,7 @@ return {
             if switchPending and not gateHigh then
                 currentArp = pendingArp
                 switchPending = false
+                self.display_pending_started = -1
             end
             
             -- Get the currently active arpeggio's note
@@ -375,6 +484,9 @@ return {
             -- We'll use MIDI note 60 as 0V reference
             local totalSemitones = (rootNote - 60) + activeArp.lastNote + offset
             currentPitch = totalSemitones * VOLTS_PER_SEMITONE
+
+            self.display_current_midi = rootNote + activeArp.lastNote + offset
+            pushDisplayOutputBead(self, currentArp, self.display_current_midi)
             
             -- Start gate and trigger
             gateHigh = true
@@ -394,6 +506,20 @@ return {
             pendingArp = 1
             switchPending = false
             lfoPhase = 0
+
+            for i = 1, NUM_ARPS do
+                self.display_lane_from[i] = 1
+                self.display_lane_to[i] = 1
+                self.display_lane_started[i] = self.display_time
+            end
+            self.display_shuttle_position = 1
+            self.display_shuttle_target = 1
+            self.display_pending_started = -1
+            self.display_current_midi = self.parameters[1]
+            self.display_lfo_history_index = 0
+            self.display_lfo_history_count = 0
+            self.display_lfo_history_timer = 0
+            clearDisplayBeads(self)
         end
         
         return {}
@@ -405,6 +531,11 @@ return {
     , step = function(self, dt, inputs)
         local p = self.parameters
         local outputs = {}
+
+        self.display_time = self.display_time + dt
+        if displayNoteCacheNeedsUpdate(self, p) then
+            updateDisplayNoteCache(self, p)
+        end
         
         -- Update internal LFO
         local lfoRate = p[3] / 100.0  -- Hz (parameter is scaled by 100)
@@ -427,14 +558,41 @@ return {
         local extMix = p[5]
         local weaveMode = p[6]
         local desiredArp = selectArpeggio(lfoValue, extLfo, extMix, weaveMode)
+
+        -- Continuous display position uses the same internal/external mix but
+        -- does not call the probabilistic selector or consume random state.
+        local extNormalized = clamp(extLfo / 5.0, -1, 1)
+        local mix = extMix / 100.0
+        local combinedLfo = lfoValue * (1 - mix) + extNormalized * mix
+        self.display_shuttle_target = 1 + ((combinedLfo + 1) / 2) * 3
+        local shuttleAlpha = clamp(dt * 14.0, 0, 1)
+        self.display_shuttle_position = self.display_shuttle_position
+            + (self.display_shuttle_target - self.display_shuttle_position) * shuttleAlpha
+
+        self.display_lfo_history_timer = self.display_lfo_history_timer + dt
+        if self.display_lfo_history_timer >= (1.0 / 30.0) then
+            self.display_lfo_history_timer = self.display_lfo_history_timer % (1.0 / 30.0)
+            self.display_lfo_history_index = (
+                self.display_lfo_history_index % DISPLAY_LFO_HISTORY
+            ) + 1
+            self.display_lfo_history[self.display_lfo_history_index] = lfoValue
+            self.display_lfo_history_count = math.min(
+                self.display_lfo_history_count + 1,
+                DISPLAY_LFO_HISTORY
+            )
+        end
         
         -- Only switch arpeggios when gate is low (note has completed)
         if desiredArp ~= currentArp then
             if not gateHigh then
                 currentArp = desiredArp
                 switchPending = false
+                self.display_pending_started = -1
             else
                 -- Mark that we want to switch when the note ends
+                if not switchPending or pendingArp ~= desiredArp then
+                    self.display_pending_started = self.display_time
+                end
                 pendingArp = desiredArp
                 switchPending = true
             end
@@ -451,6 +609,7 @@ return {
                 if switchPending then
                     currentArp = pendingArp
                     switchPending = false
+                    self.display_pending_started = -1
                 end
             end
         end
@@ -474,100 +633,177 @@ return {
     ------------------------------------------------------------------------
     , draw = function(self)
         local p = self.parameters
-        
-        -- Draw standard parameter line at top
         drawStandardParameterLine()
-        
-        -- Display area dimensions
-        local screenW = 256
-        local screenH = 64
-        local topMargin = 12
-        
-        -- Draw 4 arpeggio lanes
-        local laneHeight = 10
-        local laneGap = 2
-        local laneY = topMargin + 4
-        
-        for i = 1, NUM_ARPS do
-            local y = laneY + (i - 1) * (laneHeight + laneGap)
-            local isActive = (currentArp == i)
-            local isPending = (switchPending and pendingArp == i)
-            
-            -- Lane background
-            local bgColor = isActive and 4 or 1
-            drawRectangle(0, y, screenW - 1, y + laneHeight - 1, bgColor)
-            
-            -- Arp number
-            local labelColor = isActive and 15 or 6
-            drawTinyText(4, y + 7, tostring(i), labelColor)
-            
-            -- Pattern name
-            local baseIdx = 8 + (i - 1) * 4
-            local patternIdx = p[baseIdx]
-            local patternName = PATTERN_NAMES[patternIdx] or "?"
-            drawTinyText(14, y + 7, string.sub(patternName, 1, 4), labelColor)
-            
-            -- Divider
+
+        local laneStartX = 30
+        local laneEndX = 166
+        local shuttleX = 178
+        local outputHubX = 193
+        local outputY = 31
+
+        -- Four arpeggio threads. Each lane shows a bounded sample of its note
+        -- sequence, with pitch encoded vertically and position horizontally.
+        for lane = 1, NUM_ARPS do
+            local y = DISPLAY_LANE_Y[lane]
+            local isActive = currentArp == lane
+            local baseIdx = 8 + (lane - 1) * 4
             local divider = p[baseIdx + 1]
-            drawTinyText(38, y + 7, "/" .. divider, labelColor)
-            
-            -- Current position indicator (visual representation of arp progress)
-            local arp = arps[i]
-            local octaves = p[baseIdx + 2]
-            local scale = p[2]
-            local notes = buildNoteSequence(scale, octaves)
-            local numNotes = #notes
-            
-            if numNotes > 0 then
-                local barWidth = 140
-                local barX = 55
-                local noteWidth = barWidth / numNotes
-                
-                -- Draw position markers
-                for n = 1, numNotes do
-                    local x = barX + (n - 1) * noteWidth
-                    local noteColor = (n == arp.position and isActive) and 15 or 2
-                    if n == arp.position then
-                        drawRectangle(x, y + 2, x + noteWidth - 2, y + laneHeight - 3, noteColor)
-                    else
-                        drawRectangle(x, y + 4, x + noteWidth - 2, y + laneHeight - 5, noteColor)
-                    end
+            local labelShade = isActive and 15 or 6
+            local threadShade = isActive and 8 or 3
+            local noteCount = self.display_lane_note_counts[lane] or 0
+
+            drawTinyText(4, y + 2, tostring(lane), labelShade)
+            drawTinyText(14, y + 2, "/" .. divider, labelShade)
+            drawSmoothLine(laneStartX - 3, y, laneEndX + 5, y, isActive and 5 or 2)
+
+            local visibleNotes = math.min(noteCount, 16)
+            local previousX = nil
+            local previousY = nil
+            local maxNote = noteCount > 0 and self.display_lane_notes[lane][noteCount] or 1
+            if maxNote <= 0 then maxNote = 1 end
+
+            for slot = 1, visibleNotes do
+                local noteIndex
+                local x
+                if visibleNotes == 1 then
+                    noteIndex = 1
+                    x = (laneStartX + laneEndX) / 2
+                else
+                    noteIndex = math.floor(
+                        ((slot - 1) / (visibleNotes - 1)) * (noteCount - 1) + 1.5
+                    )
+                    x = laneStartX
+                        + ((slot - 1) / (visibleNotes - 1)) * (laneEndX - laneStartX)
                 end
+
+                local note = self.display_lane_notes[lane][noteIndex] or 0
+                local noteY = y + 3 - (note / maxNote) * 6
+                if previousX then
+                    drawSmoothLine(previousX, previousY, x, noteY, threadShade)
+                end
+                drawSmoothCircle(x, noteY, 1, threadShade + 1)
+                previousX = x
+                previousY = noteY
             end
-            
-            -- Pending indicator
-            if isPending then
-                drawTinyText(200, y + 7, ">>", 12)
-            end
-            
-            -- Active indicator
-            if isActive then
-                drawCircle(210, y + 5, 3, 15)
+
+            if noteCount > 0 then
+                local positionElapsed = self.display_time - self.display_lane_started[lane]
+                local positionProgress = clamp(positionElapsed / 0.10, 0, 1)
+                local positionEased = 1 - (1 - positionProgress) * (1 - positionProgress)
+                local displayPosition = self.display_lane_from[lane]
+                    + (self.display_lane_to[lane] - self.display_lane_from[lane]) * positionEased
+                displayPosition = clamp(displayPosition, 1, noteCount)
+
+                local markerX = laneStartX
+                if noteCount > 1 then
+                    markerX = laneStartX
+                        + ((displayPosition - 1) / (noteCount - 1)) * (laneEndX - laneStartX)
+                end
+
+                local fromIndex = clamp(math.floor(displayPosition), 1, noteCount)
+                local toIndex = clamp(fromIndex + 1, 1, noteCount)
+                local noteFraction = displayPosition - math.floor(displayPosition)
+                local fromNote = self.display_lane_notes[lane][fromIndex] or 0
+                local toNote = self.display_lane_notes[lane][toIndex] or fromNote
+                local markerNote = fromNote + (toNote - fromNote) * noteFraction
+                local markerY = y + 3 - (markerNote / maxNote) * 6
+
+                drawSmoothLine(markerX, markerY, shuttleX - 5, y, isActive and 7 or 3)
+                drawSmoothCircle(markerX, markerY, isActive and 2.4 or 1.6, isActive and 15 or 8)
             end
         end
-        
-        -- Draw LFO visualization at bottom
-        local lfoY = screenH - 8
-        local lfoBarWidth = 80
-        local lfoBarX = screenW - lfoBarWidth - 10
-        
-        -- LFO bar background
-        drawBox(lfoBarX, lfoY - 4, lfoBarX + lfoBarWidth, lfoY + 4, 3)
-        
-        -- LFO position indicator
-        local lfoPos = (lfoValue + 1) / 2  -- 0 to 1
-        local lfoIndicatorX = lfoBarX + lfoPos * lfoBarWidth
-        drawRectangle(lfoIndicatorX - 2, lfoY - 3, lfoIndicatorX + 2, lfoY + 3, 15)
-        
-        -- LFO label
-        drawTinyText(lfoBarX - 18, lfoY + 2, "LFO", 8)
-        
-        -- Current arp indicator
-        drawTinyText(10, lfoY + 2, "Arp:" .. currentArp, 12)
-        
-        -- Scale name
-        local scaleName = SCALE_NAMES[p[2]] or "?"
-        drawTinyText(50, lfoY + 2, scaleName, 8)
+
+        -- The vertical shuttle separates the continuous weave request from the
+        -- lane that is actually sounding. A pending switch gets a ghost frame.
+        drawLine(shuttleX, 13, shuttleX, 49, 4)
+        local requestedY = DISPLAY_LANE_Y[1]
+            + (self.display_shuttle_position - 1) * 10
+        drawCircle(shuttleX, requestedY, 2, 8)
+
+        if switchPending then
+            local pendingY = DISPLAY_LANE_Y[pendingArp]
+            local pendingAge = math.max(0, self.display_time - self.display_pending_started)
+            local pendingShade = 7 + math.floor((math.sin(pendingAge * 18) + 1) * 1.5)
+            drawBox(shuttleX - 6, pendingY - 4, shuttleX + 6, pendingY + 4, pendingShade)
+        end
+
+        local activeY = DISPLAY_LANE_Y[currentArp]
+        drawRectangle(shuttleX - 4, activeY - 3, shuttleX + 4, activeY + 3, 13)
+        drawCircle(shuttleX, activeY, 2, 15)
+
+        -- The selected thread converges into one output ribbon.
+        drawSmoothLine(shuttleX + 4, activeY, outputHubX, outputY, gateHigh and 12 or 5)
+        drawSmoothLine(outputHubX, outputY, 250, outputY, gateHigh and 12 or 5)
+        drawSmoothCircle(250, outputY, gateHigh and 2.5 or 1.5, gateHigh and 15 or 7)
+
+        -- New notes travel down the output ribbon. The six-slot queue permits
+        -- fast clocks without allocating tables or losing overlapping beads.
+        for i = 1, DISPLAY_BEAD_COUNT do
+            local bead = self.display_beads[i]
+            if bead.started >= 0 then
+                local age = self.display_time - bead.started
+                local progress = age / 0.28
+                if progress >= 0 and progress <= 1 then
+                    local beadX
+                    local beadY
+                    local startY = DISPLAY_LANE_Y[bead.lane]
+                    if progress < 0.35 then
+                        local firstLeg = progress / 0.35
+                        beadX = shuttleX + (outputHubX - shuttleX) * firstLeg
+                        beadY = startY + (outputY - startY) * firstLeg
+                    else
+                        local secondLeg = (progress - 0.35) / 0.65
+                        beadX = outputHubX + (250 - outputHubX) * secondLeg
+                        beadY = outputY
+                    end
+                    drawSmoothCircle(beadX, beadY, 2.2, 15 - math.floor(progress * 6))
+                end
+            end
+        end
+
+        -- Compact internal LFO history behind the shuttle.
+        local traceLeft = 195
+        local traceRight = 249
+        local traceCenterY = 46
+        drawBox(traceLeft - 2, 40, traceRight + 1, 52, 2)
+        drawTinyText(traceLeft, 39, "LFO", 5)
+        local tracePreviousX = nil
+        local tracePreviousY = nil
+        for n = 1, self.display_lfo_history_count do
+            local index = (
+                self.display_lfo_history_index - self.display_lfo_history_count + n - 1
+            ) % DISPLAY_LFO_HISTORY + 1
+            local value = self.display_lfo_history[index]
+            local x = traceLeft
+            if self.display_lfo_history_count > 1 then
+                x = traceLeft
+                    + ((n - 1) / (self.display_lfo_history_count - 1))
+                    * (traceRight - traceLeft)
+            end
+            local y = traceCenterY - value * 4
+            if tracePreviousX then
+                drawSmoothLine(tracePreviousX, tracePreviousY, x, y, 6)
+            end
+            tracePreviousX = x
+            tracePreviousY = y
+        end
+
+        local scaleText = midiToNoteName(p[1]) .. " " .. (SCALE_NAMES[p[2]] or "?")
+        drawTinyText(4, 63, scaleText, 7)
+        if switchPending then
+            drawTinyText(
+                128,
+                63,
+                string.format("A%d>%d", currentArp, pendingArp),
+                10,
+                "centre"
+            )
+        else
+            drawTinyText(128, 63, "ARP " .. currentArp, 10, "centre")
+        end
+        drawTinyText(252, 63, midiToNoteName(self.display_current_midi), 12, "right")
+
+        return true
     end
     
     ------------------------------------------------------------------------
