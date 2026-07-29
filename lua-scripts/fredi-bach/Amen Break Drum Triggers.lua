@@ -204,6 +204,93 @@ local function apply_swing(step, swing_amount)
     return 0
 end
 
+-- Find the accent at a step without consuming the musical random sequence.
+local function find_hit_accent(pattern, step)
+    for _, hit in ipairs(pattern) do
+        if hit[1] == step then
+            return hit[2]
+        end
+    end
+    return nil
+end
+
+-- Calculate a deterministic display strength for a pattern step. This is a
+-- preview of likelihood/accent only; actual trigger decisions remain in
+-- should_trigger() and are never made by draw().
+local function preview_hit_strength(pattern_array, step, pattern_cv, density_cv, ghost_array)
+    local norm_pattern = cv_to_normalized(pattern_cv)
+    local pattern_position = norm_pattern * 3.0
+    local pattern_low = math.floor(pattern_position) + 1
+    local pattern_high = math.min(pattern_low + 1, 4)
+    local blend = pattern_position - (pattern_low - 1)
+
+    local accent_a = find_hit_accent(pattern_array[pattern_low], step)
+    local accent_b = find_hit_accent(pattern_array[pattern_high], step)
+    local strength = 0
+
+    if accent_a and accent_b then
+        strength = lerp(accent_a, accent_b, blend)
+    elseif accent_a then
+        strength = accent_a * (1.0 - blend)
+    elseif accent_b then
+        strength = accent_b * blend
+    end
+
+    if ghost_array then
+        local ghost_accent = find_hit_accent(ghost_array, step)
+        if ghost_accent then
+            local ghost_strength = ghost_accent * cv_to_normalized(density_cv)
+            strength = math.max(strength, ghost_strength)
+        end
+    end
+
+    return clamp(strength, 0, 1)
+end
+
+local function update_display_preview(self, pattern_cv, density_cv)
+    local lanes = {
+        { patterns.kick, ghost_notes.kick },
+        { patterns.snare, ghost_notes.snare },
+        { patterns.hihat_closed, ghost_notes.hihat },
+        { patterns.hihat_open, nil },
+    }
+
+    for lane = 1, 4 do
+        for step = 0, 15 do
+            self.display_preview[lane][step + 1] = preview_hit_strength(
+                lanes[lane][1],
+                step,
+                pattern_cv,
+                density_cv,
+                lanes[lane][2]
+            )
+        end
+    end
+
+    self.display_preview_pattern_cv = pattern_cv
+    self.display_preview_density_cv = density_cv
+end
+
+local function begin_display_step(self, previous_step, next_step, total_steps)
+    self.display_step_from = previous_step
+    self.display_step_to = next_step
+    if next_step < previous_step then
+        self.display_step_to = next_step + total_steps
+    end
+    self.display_step_started = self.display_time
+end
+
+local function record_external_clock(self)
+    local now = self.display_time or 0
+    if self.display_last_clock_time ~= nil then
+        local period = now - self.display_last_clock_time
+        if period > 0 then
+            self.display_clock_period = period
+        end
+    end
+    self.display_last_clock_time = now
+end
+
 --------------------------------------------------------------------------------
 -- MAIN SCRIPT
 --------------------------------------------------------------------------------
@@ -223,6 +310,20 @@ return {
         self.swing_delay = 0
         self.pending_triggers = { false, false, false, false }
         self.pending_accents = { 0, 0, 0, 0 }
+
+        -- Display-only state. Short trigger events are stretched visually so
+        -- they remain visible at the 30 fps draw cadence.
+        self.display_time = 0
+        self.display_step_from = 0
+        self.display_step_to = 0
+        self.display_step_started = 0
+        self.display_lane_flashes = { 0, 0, 0, 0 }
+        self.display_accent_flash = 0
+        self.display_preview = { {}, {}, {}, {} }
+        self.display_preview_pattern_cv = nil
+        self.display_preview_density_cv = nil
+        self.display_last_clock_time = nil
+        self.display_clock_period = nil
         
         return {
             inputs = { kTrigger, kTrigger, kCV, kCV, kCV }
@@ -245,12 +346,22 @@ return {
             -- Clock input - advance step
             local steps_param = self.parameters[2]
             local total_steps = (steps_param == 2) and 32 or 16
+            local previous_step = self.current_step
             self.current_step = (self.current_step + 1) % total_steps
+            begin_display_step(self, previous_step, self.current_step, total_steps)
+            record_external_clock(self)
         elseif input == 2 then
             -- Reset input
             self.current_step = 0
             self.phase = 0.0
             self.last_step = -1
+            self.display_step_from = 0
+            self.display_step_to = 0
+            self.display_step_started = self.display_time
+            self.display_lane_flashes = { 0, 0, 0, 0 }
+            self.display_accent_flash = 0
+            self.display_last_clock_time = nil
+            self.display_clock_period = nil
         end
         return {}
     end
@@ -258,6 +369,15 @@ return {
     -- Main processing loop (called every 1ms)
     , step = function(self, dt, inputs)
         local outputs = {}
+
+        self.display_time = self.display_time + dt
+        for i = 1, 4 do
+            self.display_lane_flashes[i] = math.max(
+                0,
+                self.display_lane_flashes[i] - dt / 0.18
+            )
+        end
+        self.display_accent_flash = math.max(0, self.display_accent_flash - dt / 0.22)
         
         -- Read CV inputs
         local pattern_cv = inputs[3] or 0
@@ -272,6 +392,13 @@ return {
         local trig_ms = self.parameters[5]
         
         local total_steps = (steps_param == 2) and 32 or 16
+
+        if self.display_preview_pattern_cv == nil
+            or math.abs(pattern_cv - self.display_preview_pattern_cv) >= 0.01
+            or math.abs(density_cv - self.display_preview_density_cv) >= 0.01
+        then
+            update_display_preview(self, pattern_cv, density_cv)
+        end
         
         -- Combine parameter swing with CV
         local total_swing = swing_param + (cv_to_normalized(swing_cv) * 50)
@@ -287,7 +414,11 @@ return {
             
             if self.phase >= step_duration then
                 self.phase = self.phase - step_duration
+                local previous_step = self.current_step
                 self.current_step = (self.current_step + 1) % total_steps
+                begin_display_step(self, previous_step, self.current_step, total_steps)
+                self.display_last_clock_time = self.display_time
+                self.display_clock_period = step_duration
             end
         end
         
@@ -325,6 +456,11 @@ return {
                 for i = 1, 4 do
                     if self.pending_triggers[i] then
                         self.trigger_timers[i] = trig_ms
+                        self.display_lane_flashes[i] = 1
+                        self.display_accent_flash = math.max(
+                            self.display_accent_flash,
+                            self.pending_accents[i]
+                        )
                         if self.pending_accents[i] > self.accent then
                             self.accent = self.pending_accents[i]
                         end
@@ -336,6 +472,11 @@ return {
             for i = 1, 4 do
                 if self.pending_triggers[i] then
                     self.trigger_timers[i] = trig_ms
+                    self.display_lane_flashes[i] = 1
+                    self.display_accent_flash = math.max(
+                        self.display_accent_flash,
+                        self.pending_accents[i]
+                    )
                     if self.pending_accents[i] > self.accent then
                         self.accent = self.pending_accents[i]
                     end
@@ -363,50 +504,127 @@ return {
     
     -- Custom display
     , draw = function(self)
-        -- Draw parameter line at top
         drawStandardParameterLine()
         
-        local cx = 128  -- Center X
-        local cy = 38   -- Center Y
-        
-        -- Draw step indicator (circular pattern display)
         local total_steps = (self.parameters[2] == 2) and 32 or 16
-        local radius = 18
-        
+        local cx = 64
+        local cy = 34
+        local groove_radii = { 23, 18, 13, 8 }
+        local lane_labels = { "K", "S", "H", "O" }
+        local lane_y = { 19, 30, 41, 52 }
+
+        -- Four concentric grooves make the complete kick/snare/hat pattern
+        -- visible. In 32-step mode the 16-step pattern repeats for the second
+        -- bar while the outer tick ring retains all 32 clock positions.
+        drawCircle(cx, cy, 25, 3)
+        for lane = 1, 4 do
+            drawCircle(cx, cy, groove_radii[lane], 2)
+        end
+
+        -- Outer clock ticks. Downbeats are longest; 32-step mode also uses
+        -- medium ticks on alternating sixteenths.
         for i = 0, total_steps - 1 do
             local angle = (i / total_steps) * 2 * math.pi - math.pi / 2
-            local x = cx + radius * math.cos(angle)
-            local y = cy + radius * math.sin(angle)
-            
-            if i == self.current_step then
-                drawCircle(x, y, 3, 15)  -- Current step: bright filled
-            elseif i % 4 == 0 then
-                drawCircle(x, y, 2, 8)   -- Downbeats: medium brightness
+            local tick_outer = 27
+            local tick_shade = 3
+            if i % 4 == 0 then
+                tick_outer = 29
+                tick_shade = 8
+            elseif total_steps == 32 and i % 2 == 0 then
+                tick_outer = 28
+                tick_shade = 5
+            end
+
+            drawLine(
+                cx + 26 * math.cos(angle),
+                cy + 26 * math.sin(angle),
+                cx + tick_outer * math.cos(angle),
+                cy + tick_outer * math.sin(angle),
+                tick_shade
+            )
+        end
+
+        -- Pattern and ghost-note likelihoods appear as notches in their groove.
+        for lane = 1, 4 do
+            for i = 0, total_steps - 1 do
+                local strength = self.display_preview[lane][(i % 16) + 1] or 0
+                if strength >= 0.04 then
+                    local angle = (i / total_steps) * 2 * math.pi - math.pi / 2
+                    local radius = groove_radii[lane]
+                    local notch_radius = strength >= 0.65 and 2 or 1
+                    local shade = 3 + math.floor(strength * 9)
+                    drawCircle(
+                        cx + radius * math.cos(angle),
+                        cy + radius * math.sin(angle),
+                        notch_radius,
+                        shade
+                    )
+                end
+            end
+        end
+
+        -- Ease the needle between steps while retaining forward wrap motion.
+        local elapsed = self.display_time - self.display_step_started
+        local progress = clamp(elapsed / 0.08, 0, 1)
+        local eased = 1 - ((1 - progress) * (1 - progress) * (1 - progress))
+        local needle_step = lerp(self.display_step_from, self.display_step_to, eased)
+        needle_step = needle_step % total_steps
+        local needle_angle = (needle_step / total_steps) * 2 * math.pi - math.pi / 2
+        local needle_x = cx + 27 * math.cos(needle_angle)
+        local needle_y = cy + 27 * math.sin(needle_angle)
+
+        drawSmoothLine(cx, cy, needle_x, needle_y, 13)
+        drawSmoothCircle(needle_x, needle_y, 2.5, 15)
+        drawCircle(cx, cy, 2, 10)
+
+        -- Fired lanes launch accent-sized pulses from the needle into speaker
+        -- bars. Flash latches outlive the actual trigger so 1-20 ms pulses are
+        -- still visible at 30 fps.
+        local bar_x = 145
+        local bar_right = 242
+        for lane = 1, 4 do
+            local y = lane_y[lane]
+            local flash = self.display_lane_flashes[lane] or 0
+            drawTinyText(bar_x - 9, y + 2, lane_labels[lane], flash > 0 and 15 or 6, "centre")
+            drawBox(bar_x, y - 3, bar_right, y + 3, 3)
+
+            if flash > 0 then
+                local fill_width = math.floor((bar_right - bar_x - 2) * flash)
+                local shade = 8 + math.floor(flash * 7)
+                if fill_width > 0 then
+                    drawRectangle(bar_x + 1, y - 2, bar_x + 1 + fill_width, y + 2, shade)
+                end
+
+                local travel = clamp((1 - flash) * 1.5, 0, 1)
+                local pulse_x = lerp(needle_x, bar_x - 5, travel)
+                local pulse_y = lerp(needle_y, y, travel)
+                local pulse_radius = 1 + self.display_accent_flash * 2
+                drawSmoothLine(needle_x, needle_y, bar_x - 5, y, 4 + math.floor(flash * 7))
+                drawSmoothCircle(pulse_x, pulse_y, pulse_radius, 10 + math.floor(flash * 5))
+            end
+        end
+
+        local step_text = string.format("%02d/%02d", self.current_step + 1, total_steps)
+        drawTinyText(bar_x, 63, step_text, 10)
+
+        local clock_text
+        if self.parameters[4] == 2 then
+            if self.display_last_clock_time == nil then
+                clock_text = "EXT WAIT"
+            elseif self.display_clock_period == nil then
+                clock_text = "EXT SYNC"
             else
-                drawCircle(x, y, 1, 3)   -- Other steps: dim
+                local clock_age = self.display_time - self.display_last_clock_time
+                if clock_age > math.max(0.5, self.display_clock_period * 2.5) then
+                    clock_text = "EXT IDLE"
+                else
+                    local measured_bpm = 60 / (self.display_clock_period * 4)
+                    clock_text = string.format("%dBPM", math.floor(measured_bpm + 0.5))
+                end
             end
+        else
+            clock_text = string.format("%dBPM", self.parameters[1])
         end
-        
-        -- Draw center label
-        drawTinyText(cx, cy + 2, "AMEN", 12, "centre")
-        
-        -- Draw trigger activity indicators
-        local labels = { "K", "S", "H", "O" }
-        for i = 1, 4 do
-            local x = 30 + (i - 1) * 18
-            local brightness = 4
-            if self.trigger_timers and self.trigger_timers[i] and self.trigger_timers[i] > 0 then
-                brightness = 15
-            end
-            drawText(x, 58, labels[i], brightness)
-        end
-        
-        -- Show step number
-        local step_str = string.format("%02d", self.current_step + 1)
-        drawText(200, 58, step_str, 10)
-        
-        -- Show tempo
-        local tempo_str = string.format("%dBPM", self.parameters[1])
-        drawTinyText(235, 58, tempo_str, 6)
+        drawTinyText(252, 63, clock_text, 7, "right")
     end
 }
