@@ -289,6 +289,8 @@ Status: Implemented
 
 ### 10. Drunken Walk Sequencer
 
+Status: Implemented
+
 **Concept: a marble rolling between numbered signal cups.** It differentiates
 this switch from the note-oriented staircase above.
 

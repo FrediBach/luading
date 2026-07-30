@@ -14,6 +14,17 @@ local heldValues = {}          -- S&H values for each output
 local lastDirection = 1        -- Track last direction for bounce mode (1=fwd, -1=back)
 
 --------------------------------------------------------------------------------
+-- Display constants
+--------------------------------------------------------------------------------
+local DISPLAY_CUP_LEFT = 34
+local DISPLAY_CUP_RIGHT = 222
+local DISPLAY_CUP_TOP = 28
+local DISPLAY_CUP_BOTTOM = 41
+local DISPLAY_TRANSITION_TIME = 0.24
+local DISPLAY_EDGE_FLASH_TIME = 0.28
+local DISPLAY_OUTPUT_FLASH_TIME = 0.14
+
+--------------------------------------------------------------------------------
 -- Helper: Clamp value to range
 --------------------------------------------------------------------------------
 local function clamp(value, min, max)
@@ -56,6 +67,29 @@ local function calculateNextStep(current, numSteps, goForward, edgeMode)
     return next
 end
 
+local function lerp(from, to, amount)
+    return from + (to - from) * amount
+end
+
+local function smoothStep(amount)
+    local clamped = clamp(amount, 0, 1)
+    return clamped * clamped * (3 - 2 * clamped)
+end
+
+local function getCupX(step, numSteps)
+    if numSteps <= 1 then return 128 end
+    return DISPLAY_CUP_LEFT
+        + (step - 1) / (numSteps - 1)
+        * (DISPLAY_CUP_RIGHT - DISPLAY_CUP_LEFT)
+end
+
+local function getCupHalfWidth(numSteps)
+    if numSteps <= 1 then return 10 end
+    local spacing = (DISPLAY_CUP_RIGHT - DISPLAY_CUP_LEFT)
+        / (numSteps - 1)
+    return clamp(spacing * 0.32, 6, 10)
+end
+
 --------------------------------------------------------------------------------
 -- Main script table
 --------------------------------------------------------------------------------
@@ -71,6 +105,21 @@ return
         -- Initialize held values for all 8 possible outputs
         for i = 1, 8 do
             heldValues[i] = 0.0
+        end
+
+        -- Display state captures routing decisions and bounded sampled values.
+        -- It is deliberately excluded from serialise().
+        self.display_time = 0
+        self.display_previous_step = 1
+        self.display_current_step = 1
+        self.display_transition_started = -1
+        self.display_output_started = -1
+        self.display_edge_hit = 0
+        self.display_edge_mode = 1
+        self.display_probability = 0.75
+        self.display_values = {}
+        for i = 1, 8 do
+            self.display_values[i] = 0
         end
         
         -- Seed random number generator
@@ -127,12 +176,39 @@ return
             local goForward = roll < adjustedProb
             
             -- Calculate next step
+            local previousStep = currentStep
+            local requestedDirection = goForward and 1 or -1
+            local edgeHit = 0
+            if (
+                previousStep == 1
+                and requestedDirection < 0
+            ) then
+                edgeHit = -1
+            elseif (
+                previousStep == numSteps
+                and requestedDirection > 0
+            ) then
+                edgeHit = 1
+            end
             currentStep = calculateNextStep(currentStep, numSteps, goForward, edgeMode)
+
+            self.display_previous_step = previousStep
+            self.display_current_step = currentStep
+            self.display_transition_started = self.display_time
+            self.display_output_started = self.display_time
+            self.display_edge_hit = edgeHit
+            self.display_edge_mode = edgeMode
             
         elseif input == 4 then
             -- Reset input triggered
             currentStep = 1
             lastDirection = 1
+
+            self.display_previous_step = 1
+            self.display_current_step = 1
+            self.display_transition_started = -1
+            self.display_output_started = self.display_time
+            self.display_edge_hit = 0
         end
         
         -- Build output table
@@ -141,6 +217,7 @@ return
         
         -- Update held value for current step
         heldValues[currentStep] = signalValue
+        self.display_values[currentStep] = clamp(signalValue / 10, -1, 1)
         
         -- Set outputs based on mode
         for i = 1, 8 do
@@ -174,7 +251,17 @@ return
     , step = function(self, dt, inputs)
         -- Cache CV inputs for use in trigger function
         self.lastSignal = inputs[1]
-        self.lastProbCV = inputs[3]
+        self.lastProbCV = inputs[3] or 0
+
+        self.display_time = self.display_time + dt
+        local probabilityTarget = clamp(
+            self.parameters[2] / 100.0 + self.lastProbCV / 10.0,
+            0,
+            1
+        )
+        local displayAlpha = clamp(dt * 10, 0, 1)
+        self.display_probability = self.display_probability
+            + (probabilityTarget - self.display_probability) * displayAlpha
         
         local numSteps = self.parameters[1]
         local outputMode = self.parameters[4]
@@ -188,6 +275,7 @@ return
                 if i == currentStep then
                     outs[i] = signalValue
                     heldValues[i] = signalValue  -- Update held value
+                    self.display_values[i] = clamp(signalValue / 10, -1, 1)
                 else
                     if outputMode == 1 then
                         -- Gate mode
@@ -216,77 +304,254 @@ return
     -- Custom display
     ------------------------------------------------------------------------
     , draw = function(self)
+        drawStandardParameterLine()
+
         local numSteps = self.parameters[1]
-        local probability = self.parameters[2]
         local edgeMode = self.parameters[3]
         local outputMode = self.parameters[4]
-        
-        -- Calculate layout
-        local stepWidth = 24
-        local totalWidth = numSteps * stepWidth
-        local startX = (256 - totalWidth) / 2
-        local centerY = 38
-        local boxHeight = 20
-        
-        -- Draw step boxes
+        local probability = clamp(self.display_probability, 0, 1)
+        local probabilityPercent = math.floor(probability * 100 + 0.5)
+        local visibleCurrentStep = clamp(currentStep, 1, numSteps)
+        local visiblePreviousStep = clamp(
+            self.display_previous_step,
+            1,
+            numSteps
+        )
+        local visibleTargetStep = clamp(
+            self.display_current_step,
+            1,
+            numSteps
+        )
+        local activeX = getCupX(visibleCurrentStep, numSteps)
+        local cupHalfWidth = getCupHalfWidth(numSteps)
+
+        -- One input rail feeds only the selected cup and its output stem.
+        drawSmoothLine(4, 24, activeX, 24, 8)
+        drawSmoothLine(activeX, 24, 252, 24, 2)
+        drawSmoothLine(activeX, 24, activeX, 48, 11)
+        drawSmoothLine(activeX - 6, 48, activeX + 6, 48, 11)
+
+        local outputAge = self.display_time - self.display_output_started
+        local outputFlash = (
+            self.display_output_started >= 0
+            and outputAge < DISPLAY_OUTPUT_FLASH_TIME
+        )
+
+        -- Shallow numbered cups retain bipolar sampled values in S&H mode.
         for i = 1, numSteps do
-            local x = startX + (i - 1) * stepWidth
-            local boxLeft = x + 2
-            local boxRight = x + stepWidth - 2
-            local boxTop = centerY - boxHeight / 2
-            local boxBottom = centerY + boxHeight / 2
-            
-            if i == currentStep then
-                -- Active step: filled box
-                drawRectangle(boxLeft, boxTop, boxRight, boxBottom, 15)
-                drawText(x + stepWidth / 2, centerY + 4, tostring(i), 0, "centre")
+            local cupX = getCupX(i, numSteps)
+            local value = clamp(self.display_values[i] or 0, -1, 1)
+            local magnitude = math.abs(value)
+            local cupShade = i == visibleCurrentStep and 10 or 5
+            if (
+                outputMode == 1
+                and i == visibleCurrentStep
+                and outputFlash
+            ) then
+                cupShade = math.floor(
+                    15 - outputAge / DISPLAY_OUTPUT_FLASH_TIME * 5
+                )
+            end
+
+            if outputMode == 2 and magnitude > 0.001 then
+                local fillTop
+                local fillBottom
+                if value > 0 then
+                    fillTop = 34 - magnitude * 6
+                    fillBottom = 34
+                else
+                    fillTop = 34
+                    fillBottom = 34 + magnitude * 6
+                end
+                drawRectangle(
+                    cupX - cupHalfWidth + 2,
+                    fillTop,
+                    cupX + cupHalfWidth - 2,
+                    fillBottom,
+                    math.floor(5 + magnitude * 7)
+                )
+            end
+
+            drawSmoothLine(
+                cupX - cupHalfWidth,
+                DISPLAY_CUP_TOP,
+                cupX - cupHalfWidth + 2,
+                DISPLAY_CUP_BOTTOM,
+                cupShade
+            )
+            drawSmoothLine(
+                cupX - cupHalfWidth + 2,
+                DISPLAY_CUP_BOTTOM,
+                cupX + cupHalfWidth - 2,
+                DISPLAY_CUP_BOTTOM,
+                cupShade
+            )
+            drawSmoothLine(
+                cupX + cupHalfWidth - 2,
+                DISPLAY_CUP_BOTTOM,
+                cupX + cupHalfWidth,
+                DISPLAY_CUP_TOP,
+                cupShade
+            )
+            drawLine(
+                cupX - cupHalfWidth + 2,
+                34,
+                cupX + cupHalfWidth - 2,
+                34,
+                3
+            )
+            drawTinyText(
+                cupX,
+                40,
+                tostring(i),
+                i == visibleCurrentStep and 15 or 7,
+                "centre"
+            )
+        end
+
+        -- The marble follows the captured decision, including edge behavior.
+        local transitionAge = self.display_time
+            - self.display_transition_started
+        local transitioning = (
+            self.display_transition_started >= 0
+            and transitionAge < DISPLAY_TRANSITION_TIME
+        )
+        local transition = smoothStep(
+            transitionAge / DISPLAY_TRANSITION_TIME
+        )
+        local previousX = getCupX(visiblePreviousStep, numSteps)
+        local targetX = getCupX(visibleTargetStep, numSteps)
+        local marbleX = targetX
+        local marbleY = 27
+
+        if transitioning then
+            if (
+                self.display_edge_hit ~= 0
+                and self.display_edge_mode == 1
+            ) then
+                if transition < 0.5 then
+                    local portalX = self.display_edge_hit > 0 and 242 or 14
+                    local progress = transition / 0.5
+                    marbleX = lerp(previousX, portalX, progress)
+                    marbleY = 27 + progress * 5
+                else
+                    local portalX = self.display_edge_hit > 0 and 14 or 242
+                    local progress = (transition - 0.5) / 0.5
+                    marbleX = lerp(portalX, targetX, progress)
+                    marbleY = lerp(32, 27, progress)
+                end
+            elseif self.display_edge_hit ~= 0 then
+                local wallX = self.display_edge_hit > 0 and 236 or 20
+                if transition < 0.35 then
+                    local progress = transition / 0.35
+                    marbleX = lerp(previousX, wallX, progress)
+                    marbleY = 27 - math.sin(progress * math.pi) * 5
+                else
+                    local progress = (transition - 0.35) / 0.65
+                    marbleX = lerp(wallX, targetX, progress)
+                    marbleY = 27 - math.sin(progress * math.pi) * 9
+                end
             else
-                -- Inactive step: outline only
-                drawBox(boxLeft, boxTop, boxRight, boxBottom, 8)
-                drawText(x + stepWidth / 2, centerY + 4, tostring(i), 8, "centre")
+                marbleX = lerp(previousX, targetX, transition)
+                marbleY = 27 - math.sin(transition * math.pi) * 11
             end
         end
-        
-        -- Draw direction indicator
-        local arrowY = centerY + boxHeight / 2 + 8
-        local arrowX = startX + (currentStep - 0.5) * stepWidth
-        
-        if lastDirection > 0 then
-            -- Forward arrow
-            drawLine(arrowX - 8, arrowY, arrowX + 8, arrowY, 12)
-            drawLine(arrowX + 4, arrowY - 3, arrowX + 8, arrowY, 12)
-            drawLine(arrowX + 4, arrowY + 3, arrowX + 8, arrowY, 12)
-        else
-            -- Backward arrow
-            drawLine(arrowX - 8, arrowY, arrowX + 8, arrowY, 12)
-            drawLine(arrowX - 4, arrowY - 3, arrowX - 8, arrowY, 12)
-            drawLine(arrowX - 4, arrowY + 3, arrowX - 8, arrowY, 12)
+
+        drawSmoothCircle(marbleX, marbleY, 3, 15)
+
+        local edgeAge = self.display_time - self.display_transition_started
+        if (
+            self.display_edge_hit ~= 0
+            and self.display_transition_started >= 0
+            and edgeAge < DISPLAY_EDGE_FLASH_TIME
+        ) then
+            local edgeShade = math.floor(
+                15 - clamp(
+                    edgeAge / DISPLAY_EDGE_FLASH_TIME,
+                    0,
+                    1
+                ) * 9
+            )
+            if self.display_edge_mode == 1 then
+                drawCircle(14, 27, 3, edgeShade)
+                drawCircle(242, 27, 3, edgeShade)
+            else
+                local wallX = self.display_edge_hit > 0 and 236 or 20
+                drawLine(wallX, 15, wallX, 35, edgeShade)
+                drawLine(
+                    wallX - self.display_edge_hit * 4,
+                    18,
+                    wallX,
+                    22,
+                    edgeShade
+                )
+                drawLine(
+                    wallX - self.display_edge_hit * 4,
+                    32,
+                    wallX,
+                    28,
+                    edgeShade
+                )
+            end
         end
-        
-        -- Draw probability bar at bottom
-        local barY = 58
-        local barWidth = 100
-        local barX = (256 - barWidth) / 2
-        local probWidth = (probability / 100.0) * barWidth
-        
-        -- Draw bar background
-        drawBox(barX, barY - 3, barX + barWidth, barY + 3, 4)
-        -- Draw probability fill
-        if probWidth > 0 then
-            drawRectangle(barX, barY - 2, barX + probWidth, barY + 2, 10)
+
+        -- Effective probability becomes a small gravity arrow.
+        local gravityX = 76
+        local gravityBaseY = 56
+        local gravityTipX = gravityX + (probability - 0.5) * 34
+        local gravityTipY = 50
+        drawSmoothLine(
+            gravityX,
+            gravityBaseY,
+            gravityTipX,
+            gravityTipY,
+            10
+        )
+        local arrowDirection = gravityTipX >= gravityX and 1 or -1
+        drawLine(
+            gravityTipX - arrowDirection * 4,
+            gravityTipY,
+            gravityTipX,
+            gravityTipY,
+            10
+        )
+        drawLine(
+            gravityTipX,
+            gravityTipY,
+            gravityTipX - arrowDirection * 2,
+            gravityTipY + 4,
+            10
+        )
+
+        -- Fixed 1-8 dots make the linear Step CV output immediately legible.
+        drawTinyText(142, 56, "CV", 5)
+        drawLine(158, 53, 228, 53, 3)
+        for i = 1, 8 do
+            local dotX = 158 + (i - 1) * 10
+            local shade = i == visibleCurrentStep
+                and 15
+                or (i <= numSteps and 6 or 2)
+            drawSmoothCircle(
+                dotX,
+                53,
+                i == visibleCurrentStep and 1.8 or 0.8,
+                shade
+            )
         end
-        -- Draw center mark (50%)
-        drawLine(barX + barWidth / 2, barY - 4, barX + barWidth / 2, barY + 4, 6)
-        
-        -- Labels
-        drawTinyText(barX - 2, barY + 2, "B", 6, "right")
-        drawTinyText(barX + barWidth + 2, barY + 2, "F", 6)
-        
-        -- Mode indicators in corners
-        local modeStr = (edgeMode == 1) and "WRAP" or "BNCE"
-        local outStr = (outputMode == 1) and "GATE" or "S&H"
-        drawTinyText(4, 62, modeStr, 6)
-        drawTinyText(252, 62, outStr, 6, "right")
+
+        local modeName = outputMode == 1 and "GATE" or "S&H"
+        local edgeName = edgeMode == 1 and "WRAP" or "BOUNCE"
+        drawTinyText(4, 63, modeName, 8)
+        drawTinyText(128, 63, edgeName, 7, "centre")
+        drawTinyText(
+            252,
+            63,
+            probabilityPercent .. "% FWD",
+            10,
+            "right"
+        )
+
+        return true
     end
     
     ------------------------------------------------------------------------
