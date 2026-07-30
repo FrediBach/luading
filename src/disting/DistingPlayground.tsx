@@ -4,7 +4,7 @@ import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
-import { InputPatchBay } from './InputPatchBay'
+import { IoDeck } from './io'
 import { OutputAudioRouter } from './OutputAudioRouter'
 import { Scope } from './Scope'
 import { ScriptQualityPanel } from './ScriptQualityPanel'
@@ -45,6 +45,7 @@ import './DistingPlayground.css'
 import './controls/controls.css'
 import './device/device.css'
 import './workbench/workbench.css'
+import './io/io.css'
 
 const MAX_TRACE_POINTS = 5000
 const LOAD_TIMEOUT_MS = 2000
@@ -525,10 +526,11 @@ export function DistingPlayground() {
               </div>
 
               {program && (
-                <InputPatchBay
+                <IoDeck
                   program={program}
                   sources={inputSources}
                   values={inputs}
+                  trace={trace}
                   clock={clock}
                   onClockChange={changeClock}
                   onSourceChange={changeInputSource}

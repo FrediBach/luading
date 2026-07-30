@@ -1,4 +1,9 @@
-import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
+import {
+  forwardRef,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react'
 
 interface Props {
   label: string
@@ -17,7 +22,7 @@ function isInteractiveTarget(target: EventTarget) {
     && Boolean(target.closest('button, input, select, textarea, a, [role="slider"]'))
 }
 
-export function ControlTile({
+export const ControlTile = forwardRef<HTMLElement, Props>(function ControlTile({
   label,
   meta,
   visual,
@@ -27,7 +32,7 @@ export function ControlTile({
   selected = false,
   status = 'default',
   onActivate,
-}: Props) {
+}, ref) {
   const activateFromClick = (event: MouseEvent<HTMLElement>) => {
     if (!onActivate || isInteractiveTarget(event.target)) return
     onActivate()
@@ -40,6 +45,7 @@ export function ControlTile({
 
   return (
     <article
+      ref={ref}
       className={`control-tile control-tile--${status}${selected ? ' is-selected' : ''}`}
       tabIndex={onActivate ? 0 : undefined}
       role={onActivate ? 'button' : undefined}
@@ -57,5 +63,4 @@ export function ControlTile({
       {footer && <footer>{footer}</footer>}
     </article>
   )
-}
-
+})

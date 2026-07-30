@@ -10,7 +10,7 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: metadata-driven script parameter bank.
+Current milestone: compact input channel deck and inspectors.
 
 | Session | Status | Notes |
 | --- | --- | --- |
@@ -19,11 +19,11 @@ Current milestone: metadata-driven script parameter bank.
 | 3. Shared control primitives | Implemented; visual QA pending | Added the project-local icon set, tooltip, corner action, icon toggle, exact value field, popover, tile, rotary, endless encoder, push rotary, momentary button, segmented selector, meter, signal glyph, and downsampled mini signal plot. Pure interaction math and server-rendered accessibility semantics are covered by focused tests. |
 | 4. Disting device face | Implemented; visual QA pending | Replaced the three native pot sliders, two encoder button groups, and four hardware buttons with pushable rotary controls, endless encoders, and momentary buttons. Added the compact display bezel and save-state control. Typed pot turns, encoder turns, pushes, and releases retain the existing `uiEvent` request contract. |
 | 5. Parameter bank | Implemented; visual QA pending | Replaced native parameter sliders with paged custom controls. Documented scales determine exact steps; bipolar values use center-detented rotaries; unscaled values use stepped rotaries; short enums use segmented controls; long enums use searchable custom menus. Default reset and exact numeric entry are available, and enum indices remain 1-based. |
-| 6. Input channel tiles | Not started | Next implementation session. Existing input patch bay remains functional inside the rack. |
-| 7. Output tiles and WebAudio | Not started | Existing output cards and audio router remain functional inside the rack. |
+| 6. Input channel tiles | Implemented; visual QA pending | Replaced the full input patch bay with compact channel tiles and contextual inspectors. Tiles show actual downsampled worker traces, current voltage, generator shape, timing, direct primary values, sync, and trigger fire. Inspectors expose every signal shape plus frequency/division, amplitude, offset, phase, pulse width, step count, manual voltage, and deterministic seed where applicable. |
+| 7. Output tiles and WebAudio | Not started | Next implementation session. Existing output cards and audio router remain functional inside the rack. |
 | 8. Scope workspace | Shell integration complete | Existing scope is mounted in the drawer; compact toolbar, legend, and tile assignment are pending. |
 | 9. Problems, console, performance | Shell integration complete | Existing content is mounted in drawer tabs; compact workspace redesign is pending. |
-| 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. Clock, save state, MIDI, workspace presets, shortcuts, and About remain pending. |
+| 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. The global test-signal clock now has a compact custom control in the I/O deck; final command-bar placement, MIDI, workspace presets, shortcuts, and About remain pending. |
 | 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
 | 12. Performance and release gate | Not started | Full gate was run for the first shell increment; final profiling and legacy cleanup remain pending. |
 
@@ -71,6 +71,13 @@ Implemented files:
 - `src/disting/device/parameter-controls.ts`
 - focused tests in `src/disting/device/parameter-controls.test.ts` and
   `src/disting/device/parameter-rendering.test.tsx`
+- `src/disting/io/IoDeck.tsx`
+- `src/disting/io/InputChannelTile.tsx`
+- `src/disting/io/InputChannelInspector.tsx`
+- `src/disting/io/input-source-controls.ts`
+- `src/disting/io/io.css`
+- focused tests in `src/disting/io/input-source-controls.test.ts` and
+  `src/disting/io/input-rendering.test.tsx`
 
 Verification completed for the first increment:
 
@@ -78,17 +85,19 @@ Verification completed for the first increment:
 - focused control math and rendering tests: 11 passed;
 - focused device mapping/rendering tests: 7 passed;
 - focused parameter metadata/rendering tests: 8 passed;
+- focused input helper/rendering tests: 9 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 42 files and 197 tests passed;
+- complete test suite: 44 files and 206 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 6: replace the full input patch bay
-with compact `InputChannelTile` controls and contextual inspectors, including
-live trace previews, direct clock sync, exact generator settings, and trigger
-fire actions. Visual QA of the shell and custom controls at the target
-viewports remains required when a controllable browser is available.
+The next implementation session is Session 7: replace the existing output
+cards and separate WebAudio router with compact `OutputChannelTile` controls,
+channel-local routing popovers, actual output trace previews, and a shared audio
+master control inside the I/O deck. Visual QA of the shell and custom controls
+at the target viewports remains required when a controllable browser is
+available.
 
 ## Objective
 

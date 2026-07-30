@@ -1,0 +1,312 @@
+.io-deck {
+  margin-bottom: 8px;
+  overflow: visible;
+  border: 1px solid var(--nt-line);
+  border-radius: 7px;
+  background: var(--workbench-surface-panel, #121716);
+}
+
+.io-deck-header {
+  min-height: 42px;
+  padding: 6px 8px 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--nt-line);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.io-deck-header > span small,
+.io-deck-header > span strong {
+  display: block;
+  font-family: var(--mono);
+}
+
+.io-deck-header > span small {
+  color: var(--nt-green);
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.io-deck-header > span strong {
+  margin-top: 4px;
+  color: var(--nt-text);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.io-clock-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.io-clock-control > .control-value-field {
+  min-height: 28px;
+  border-color: var(--nt-line);
+  background: var(--workbench-surface-recessed, #0d1110);
+}
+
+.io-input-grid {
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+  gap: 7px;
+  align-items: stretch;
+}
+
+.input-channel-tile-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.input-channel-tile-shell > .control-tile {
+  width: 100%;
+  min-height: 142px;
+  grid-template-rows: auto minmax(44px, 1fr) auto auto;
+}
+
+.input-channel-tile-shell .control-tile > header {
+  padding-right: 62px;
+}
+
+.input-channel-visual {
+  position: relative;
+  width: 100%;
+  height: 45px;
+  min-width: 0;
+}
+
+.input-channel-visual .signal-shape-glyph {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 2px;
+  border-radius: 3px;
+  background: rgba(8, 12, 10, 0.78);
+  opacity: 0.75;
+}
+
+.input-channel-value {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.input-channel-value > output {
+  overflow: hidden;
+  color: var(--nt-green);
+  font: 10px/1 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input-channel-value > .control-value-field {
+  max-width: 76px;
+  padding-inline: 3px;
+  border-color: var(--nt-line);
+  background: rgba(0, 0, 0, 0.12);
+  font-size: 8px;
+}
+
+.input-division-stepper {
+  display: grid;
+  grid-template-columns: 22px minmax(34px, auto) 22px;
+  gap: 2px;
+}
+
+.input-division-stepper button,
+.input-division-stepper output {
+  min-height: 23px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px solid var(--nt-line);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--nt-text);
+  font: 8px/1 var(--mono);
+}
+
+.input-division-stepper button {
+  padding: 0;
+  cursor: pointer;
+}
+
+.input-division-stepper button:hover:not(:disabled) {
+  border-color: var(--nt-green);
+  color: var(--nt-green);
+}
+
+.input-division-stepper button:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.input-channel-tile-shell > .control-popover {
+  width: min(470px, calc(100vw - 24px));
+}
+
+.input-channel-inspector {
+  display: grid;
+  gap: 10px;
+}
+
+.input-shape-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.input-shape-picker legend,
+.input-seed-control > span {
+  margin-bottom: 6px;
+  color: var(--nt-muted);
+  font: 8px/1 var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.input-shape-picker > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.input-shape-picker button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 5px 3px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed, #0d1110);
+  color: var(--nt-muted);
+  cursor: pointer;
+}
+
+.input-shape-picker button:hover,
+.input-shape-picker button.is-active {
+  border-color: color-mix(in srgb, var(--nt-green) 60%, var(--nt-line));
+  color: var(--nt-text);
+}
+
+.input-shape-picker button.is-active {
+  background: var(--nt-green-soft);
+  color: var(--nt-green);
+}
+
+.input-shape-picker button span {
+  width: 100%;
+  overflow: hidden;
+  font: 7px/1 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.input-inspector-section {
+  padding: 8px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.input-inspector-timing {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.input-inspector-timing > .control-tooltip {
+  align-self: center;
+}
+
+.input-inspector-timing .segmented-selector {
+  min-width: 0;
+  flex: 1;
+}
+
+.input-inspector-timing .segmented-selector > div {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.input-inspector-timing .segmented-selector button {
+  min-width: 0;
+  padding-inline: 3px;
+  font-size: 7px;
+}
+
+.input-inspector-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 7px;
+}
+
+.input-inspector-controls > .rotary-control {
+  min-height: 112px;
+  padding: 7px 4px 4px;
+  align-content: start;
+  box-sizing: border-box;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.input-inspector-controls .rotary-control-label {
+  min-height: 17px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  white-space: normal;
+}
+
+.input-seed-control {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.09);
+}
+
+.input-seed-control > span {
+  margin: 0;
+}
+
+.input-seed-control > .control-value-field {
+  border-color: var(--nt-line);
+  background: var(--workbench-surface-recessed, #0d1110);
+}
+
+@media (max-width: 620px) {
+  .io-input-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .input-shape-picker > div {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .input-inspector-timing {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .input-inspector-timing .segmented-selector > div {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
