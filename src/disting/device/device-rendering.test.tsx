@@ -22,7 +22,7 @@ describe('Disting device face rendering', () => {
     expect(markup).toContain('aria-label="Button 4"')
   })
 
-  it('shows loaded UI mode and saved-state status in the bezel', () => {
+  it('shows the loaded UI mode and program status in the bezel', () => {
     const markup = renderToStaticMarkup(
       <DistingDeviceFace
         commands={[]}
@@ -30,8 +30,6 @@ describe('Disting device face rendering', () => {
         customUi
         simulatedSeconds={1.25}
         potPositions={[0.5, 0.5, 0.5]}
-        savedState
-        onSaveState={() => undefined}
         onPotTurn={() => undefined}
         onEncoderTurn={() => undefined}
         onControlPress={() => undefined}
@@ -42,10 +40,9 @@ describe('Disting device face rendering', () => {
     expect(markup).toContain('Test algorithm')
     expect(markup).toContain('Custom UI')
     expect(markup).toContain('1.250 s')
-    expect(markup).toContain('State saved. Save again.')
   })
 
-  it('disables hardware and state controls when no script is loaded', () => {
+  it('disables hardware controls when no script is loaded', () => {
     const markup = renderToStaticMarkup(
       <DistingDeviceFace
         commands={[]}
@@ -53,8 +50,6 @@ describe('Disting device face rendering', () => {
         customUi={null}
         simulatedSeconds={0}
         potPositions={[0.5, 0.5, 0.5]}
-        savedState={false}
-        onSaveState={() => undefined}
         onPotTurn={() => undefined}
         onEncoderTurn={() => undefined}
         onControlPress={() => undefined}
@@ -66,4 +61,3 @@ describe('Disting device face rendering', () => {
     expect(markup).toContain('disabled=""')
   })
 })
-

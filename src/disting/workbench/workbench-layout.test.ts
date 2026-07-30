@@ -4,6 +4,7 @@ import {
   clampDrawerHeight,
   clampSplitPercent,
   normalizeWorkbenchLayout,
+  WORKSPACE_PRESET_LAYOUTS,
   workbenchLayoutReducer,
 } from './workbench-layout'
 
@@ -24,18 +25,26 @@ describe('workbench layout', () => {
       drawerOpen: false,
       activeDrawerTab: 'console',
       density: 'comfortable',
+      workspacePreset: 'monitor',
     })).toEqual({
       splitPercent: 72,
       drawerHeight: 200,
       drawerOpen: false,
       activeDrawerTab: 'console',
       density: 'comfortable',
+      workspacePreset: null,
     })
 
     expect(normalizeWorkbenchLayout({
       activeDrawerTab: 'unknown',
       density: 'touch',
-    })).toEqual(DEFAULT_WORKBENCH_LAYOUT)
+    })).toEqual({
+      ...DEFAULT_WORKBENCH_LAYOUT,
+      workspacePreset: null,
+    })
+
+    expect(normalizeWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT))
+      .toEqual(DEFAULT_WORKBENCH_LAYOUT)
   })
 
   it('opens, switches, and collapses drawer tabs predictably', () => {
@@ -45,6 +54,7 @@ describe('workbench layout', () => {
     )
     expect(opened.drawerOpen).toBe(true)
     expect(opened.activeDrawerTab).toBe('problems')
+    expect(opened.workspacePreset).toBeNull()
 
     const switched = workbenchLayoutReducer(opened, {
       type: 'toggleDrawer',
@@ -61,7 +71,7 @@ describe('workbench layout', () => {
     expect(collapsed.activeDrawerTab).toBe('console')
   })
 
-  it('resets the split without changing other presentation state', () => {
+  it('resets the split and marks a manually changed workspace as custom', () => {
     const state = {
       ...DEFAULT_WORKBENCH_LAYOUT,
       splitPercent: 41,
@@ -72,7 +82,21 @@ describe('workbench layout', () => {
     expect(workbenchLayoutReducer(state, { type: 'resetSplit' })).toEqual({
       ...state,
       splitPercent: DEFAULT_WORKBENCH_LAYOUT.splitPercent,
+      workspacePreset: null,
     })
   })
-})
 
+  it('applies complete Code, Patch, Monitor, and Compact presets', () => {
+    const presets = ['code', 'patch', 'monitor', 'compact'] as const
+
+    for (const preset of presets) {
+      expect(workbenchLayoutReducer(DEFAULT_WORKBENCH_LAYOUT, {
+        type: 'applyPreset',
+        preset,
+      })).toEqual({
+        ...WORKSPACE_PRESET_LAYOUTS[preset],
+        workspacePreset: preset,
+      })
+    }
+  })
+})

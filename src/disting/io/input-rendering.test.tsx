@@ -85,7 +85,7 @@ describe('input channel rendering', () => {
     expect(markup).toContain('Steps')
   })
 
-  it('renders the compact global clock and every program input', () => {
+  it('renders global audio controls and every program input', () => {
     const program: LoadedProgram = {
       name: 'Inputs',
       author: 'Test',
@@ -117,8 +117,6 @@ describe('input channel rendering', () => {
         focusedScopeProbe={0}
         traceHistory={traceHistory}
         traceRevision={1}
-        clock={{ bpm: 120, running: true }}
-        onClockChange={() => undefined}
         onSourceChange={() => undefined}
         onTrigger={() => undefined}
         onProbeChange={() => undefined}
@@ -126,9 +124,7 @@ describe('input channel rendering', () => {
       />,
     )
 
-    expect(markup).toContain('I/O deck')
-    expect(markup).toContain('Global test-signal clock')
-    expect(markup).toContain('120')
+    expect(markup).toContain('WebAudio monitoring')
     expect(markup).toContain('IN 1')
     expect(markup).toContain('IN 2')
     expect(markup).toContain('1.250 V')

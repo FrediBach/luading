@@ -1,11 +1,30 @@
 import type { DistingScriptExampleGroup } from '../script-examples'
+import type { GlobalClockConfig } from '../types'
+import { SaveStateControl } from '../device/SaveStateControl'
+import { AboutPopover } from './AboutPopover'
+import { ClockTransport } from './ClockTransport'
 import { HealthBadge } from './HealthBadge'
+import { MidiEventTool } from './MidiEventTool'
+import { RunControls } from './RunControls'
+import { RuntimeStatus, type RuntimeStateValue } from './RuntimeStatus'
+import { ScriptMenu } from './ScriptMenu'
+import { WorkspacePresetMenu } from './WorkspacePresetMenu'
+import type { WorkspacePresetId } from './workbench-layout'
 
 interface Props {
   programName: string
   selectedExampleId: string
   scriptGroups: DistingScriptExampleGroup[]
-  status: 'booting' | 'loading' | 'paused' | 'running' | 'error'
+  status: RuntimeStateValue
+  simulatedSeconds: number
+  clock: GlobalClockConfig
+  savedState: boolean
+  programLoaded: boolean
+  workspacePreset: WorkspacePresetId | null
+  midi?: {
+    bytes: number[]
+    messages: string[]
+  }
   qualityLabel: string
   qualityStatus: 'pending' | 'invalid' | 'provisional' | 'scored'
   qualityErrorCount: number
@@ -14,6 +33,11 @@ interface Props {
   onSelectExample(id: string): void
   onToggleRunning(): void
   onRun(): void
+  onClockChange(clock: GlobalClockConfig): void
+  onSaveState(): void
+  onApplyWorkspacePreset(preset: WorkspacePresetId): void
+  onMidiBytesChange(bytes: number[]): void
+  onSendMidi(bytes: number[]): void
   onOpenProblems(): void
 }
 
@@ -22,6 +46,12 @@ export function CommandBar({
   selectedExampleId,
   scriptGroups,
   status,
+  simulatedSeconds,
+  clock,
+  savedState,
+  programLoaded,
+  workspacePreset,
+  midi,
   qualityLabel,
   qualityStatus,
   qualityErrorCount,
@@ -30,6 +60,11 @@ export function CommandBar({
   onSelectExample,
   onToggleRunning,
   onRun,
+  onClockChange,
+  onSaveState,
+  onApplyWorkspacePreset,
+  onMidiBytesChange,
+  onSendMidi,
   onOpenProblems,
 }: Props) {
   return (
@@ -39,25 +74,33 @@ export function CommandBar({
         <strong>Luading</strong>
       </div>
 
-      <label className="workbench-script-picker">
-        <span>Script</span>
-        <select
-          aria-label="Lua example script"
-          value={selectedExampleId}
-          onChange={(event) => onSelectExample(event.target.value)}
-        >
-          <option value="">{programName}</option>
-          {scriptGroups.map((group) => (
-            <optgroup key={group.name} label={group.name}>
-              {group.examples.map((example) => (
-                <option key={example.id} value={example.id}>{example.name}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </label>
+      <ScriptMenu
+        programName={programName}
+        selectedExampleId={selectedExampleId}
+        scriptGroups={scriptGroups}
+        loading={status === 'booting' || status === 'loading'}
+        onSelectExample={onSelectExample}
+      />
+
+      <RunControls
+        status={status}
+        programLoaded={programLoaded}
+        canToggleRunning={canToggleRunning}
+        onToggleRunning={onToggleRunning}
+        onRun={onRun}
+      />
+
+      <span className="commandbar-divider" aria-hidden="true" />
+
+      <ClockTransport clock={clock} onChange={onClockChange} />
 
       <div className="workbench-commandbar-spacer" />
+
+      <SaveStateControl
+        saved={savedState}
+        disabled={!programLoaded}
+        onSave={onSaveState}
+      />
 
       <HealthBadge
         label={qualityLabel}
@@ -67,26 +110,20 @@ export function CommandBar({
         onOpen={onOpenProblems}
       />
 
-      <button
-        type="button"
-        className="workbench-command workbench-command--secondary"
-        onClick={onToggleRunning}
-        disabled={!canToggleRunning}
-      >
-        {status === 'running' ? 'Pause' : 'Resume'}
-      </button>
-      <button
-        type="button"
-        className="workbench-command workbench-command--primary"
-        onClick={onRun}
-      >
-        Run
-      </button>
-
-      <div className={`workbench-runtime-state workbench-runtime-state--${status}`}>
-        <i />
-        <span>{status}</span>
-      </div>
+      <RuntimeStatus status={status} simulatedSeconds={simulatedSeconds} />
+      <WorkspacePresetMenu
+        activePreset={workspacePreset}
+        onApply={onApplyWorkspacePreset}
+      />
+      {midi && (
+        <MidiEventTool
+          bytes={midi.bytes}
+          messages={midi.messages}
+          onBytesChange={onMidiBytesChange}
+          onSend={onSendMidi}
+        />
+      )}
+      <AboutPopover />
     </header>
   )
 }

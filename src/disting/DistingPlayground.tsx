@@ -41,6 +41,8 @@ import { SplitPane } from './workbench/SplitPane'
 import { StatusBar } from './workbench/StatusBar'
 import { useWorkbenchLayout } from './workbench/useWorkbenchLayout'
 import { WorkbenchShell } from './workbench/WorkbenchShell'
+import { useWorkbenchShortcuts } from './workbench/workbench-shortcuts'
+import { createMidiEventRequest } from './workbench/midi-event'
 import type {
   DistingHardwareEvent,
   DistingUiControl,
@@ -471,8 +473,8 @@ export function DistingPlayground() {
     post(createUiEventRequest(control, event))
   }
 
-  const sendMidi = () => {
-    post({ type: 'midi', bytes: midiBytes })
+  const sendMidi = (bytes: number[]) => {
+    post(createMidiEventRequest(bytes))
   }
 
   const changeProbe = (index: number, source: ScopeSource | null) => {
@@ -525,6 +527,15 @@ export function DistingPlayground() {
     if (request) setRevealRequest(request)
   }
 
+  useWorkbenchShortcuts({
+    canToggleRunning: Boolean(program)
+      && (status === 'running' || status === 'paused'),
+    onRun: loadScript,
+    onToggleRunning: toggleRunning,
+    onToggleDrawer: (tab) => dispatchLayout({ type: 'toggleDrawer', tab }),
+    onApplyPreset: (preset) => dispatchLayout({ type: 'applyPreset', preset }),
+  })
+
   return (
     <WorkbenchShell
       density={layout.density}
@@ -534,14 +545,31 @@ export function DistingPlayground() {
           selectedExampleId={selectedExampleId}
           scriptGroups={DISTING_SCRIPT_GROUPS}
           status={status}
+          simulatedSeconds={stats.simulatedSeconds}
+          clock={clock}
+          savedState={hasSavedState}
+          programLoaded={Boolean(program)}
+          workspacePreset={layout.workspacePreset}
+          midi={program?.midi ? {
+            bytes: midiBytes,
+            messages: program.midi.messages,
+          } : undefined}
           qualityLabel={qualityLabel}
           qualityStatus={qualityReport.status}
           qualityErrorCount={qualityReport.errorCount}
           qualityWarningCount={qualityReport.warningCount}
-          canToggleRunning={Boolean(program)}
+          canToggleRunning={Boolean(program)
+            && (status === 'running' || status === 'paused')}
           onSelectExample={selectExample}
           onToggleRunning={toggleRunning}
           onRun={loadScript}
+          onClockChange={changeClock}
+          onSaveState={() => post({ type: 'serialise' })}
+          onApplyWorkspacePreset={(preset) => (
+            dispatchLayout({ type: 'applyPreset', preset })
+          )}
+          onMidiBytesChange={setMidiBytes}
+          onSendMidi={sendMidi}
           onOpenProblems={() => dispatchLayout({ type: 'openDrawer', tab: 'problems' })}
         />
       )}
@@ -552,10 +580,6 @@ export function DistingPlayground() {
           onSplitReset={() => dispatchLayout({ type: 'resetSplit' })}
           primary={(
             <div className="disting-editor-panel workbench-editor">
-              <div className="workbench-editor-heading">
-                <span className="disting-panel-kicker">PROGRAM</span>
-                <strong>{program?.name ?? 'Lua script'}</strong>
-              </div>
               <DistingCodeEditor
                 value={editorSource}
                 diagnostics={diagnostics}
@@ -574,34 +598,10 @@ export function DistingPlayground() {
                   customUi={program?.customUi ?? null}
                   simulatedSeconds={stats.simulatedSeconds}
                   potPositions={potPositions}
-                  savedState={hasSavedState}
-                  onSaveState={() => post({ type: 'serialise' })}
                   onPotTurn={turnPot}
                   onEncoderTurn={turnEncoder}
                   onControlPress={(control) => sendControlEvent(control, 'push')}
                   onControlRelease={(control) => sendControlEvent(control, 'release')}
-                  utilities={program?.midi ? (
-                    <div className="disting-midi-input">
-                      <span>MIDI IN</span>
-                      {midiBytes.map((value, index) => (
-                        <input
-                          key={`midi-byte-${index}`}
-                          aria-label={`MIDI byte ${index + 1}`}
-                          type="number"
-                          min={0}
-                          max={255}
-                          value={value}
-                          onChange={(event) => {
-                            const nextValue = Math.min(255, Math.max(0, Number(event.target.value)))
-                            setMidiBytes((previous) => previous.map((byte, byteIndex) => (
-                              byteIndex === index ? nextValue : byte
-                            )))
-                          }}
-                        />
-                      ))}
-                      <button type="button" onClick={sendMidi}>Send</button>
-                    </div>
-                  ) : undefined}
                 />
 
                 {program && (
@@ -624,8 +624,6 @@ export function DistingPlayground() {
                   focusedScopeProbe={focusedScopeProbe}
                   traceHistory={traceHistory}
                   traceRevision={traceRevision}
-                  clock={clock}
-                  onClockChange={changeClock}
                   onSourceChange={changeInputSource}
                   onTrigger={(index) => post({ type: 'trigger', index })}
                   onProbeChange={changeProbe}

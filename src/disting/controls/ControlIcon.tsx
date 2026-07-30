@@ -18,6 +18,7 @@ export type ControlIconName =
   | 'patch'
   | 'monitor'
   | 'compact'
+  | 'info'
   | 'close'
 
 interface Props {
@@ -66,6 +67,8 @@ function IconPaths({ name }: { name: ControlIconName }) {
       return <path d="M2.5 3.5h15v11h-6.6v1.8h3V18H6v-1.7h3v-1.8H2.5Zm1.8 1.8v7.4h11.4V5.3Z" />
     case 'compact':
       return <path d="M3 3h6v6H3Zm8 0h6v6h-6ZM3 11h6v6H3Zm8 0h6v6h-6ZM5 5v2h2V5Zm8 0v2h2V5Zm-8 8v2h2v-2Zm8 0v2h2v-2Z" />
+    case 'info':
+      return <path d="M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm-.9 3h1.8v1.8H9.1Zm0 3.2h1.8v6H9.1Z" />
     case 'close':
       return <path d="m5.4 4.2 4.6 4.6 4.6-4.6 1.2 1.2-4.6 4.6 4.6 4.6-1.2 1.2-4.6-4.6-4.6 4.6-1.2-1.2L8.8 10 4.2 5.4Z" />
   }
@@ -86,4 +89,3 @@ export function ControlIcon({ name, size = 16, className }: Props) {
     </svg>
   )
 }
-

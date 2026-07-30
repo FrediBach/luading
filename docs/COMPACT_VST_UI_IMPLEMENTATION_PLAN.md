@@ -10,7 +10,7 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: command bar completion and utilities.
+Current milestone: responsive behavior and accessibility.
 
 | Session | Status | Notes |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ Current milestone: command bar completion and utilities.
 | 7. Output tiles and WebAudio | Implemented; browser QA pending | Replaced the output row and separate audio router with traced output tiles, channel-local destination popovers, and a shared audio master with enable, level, waveform, and error states. Target-viewport and live WebAudio activation/error checks remain pending because no controllable browser was available. |
 | 8. Scope workspace | Implemented; browser QA pending | Replaced the legacy scope panel with a drawer-native workspace, compact toolbar, routed legend chips, responsive graph, focused-probe highlighting, and input/output tile assignment. First-free assignment never overwrites occupied probes; a chooser makes replacements explicit. Live resize and target-viewport checks remain pending because no controllable browser was available. |
 | 9. Problems, console, performance | Implemented; browser QA pending | Added compact health/diagnostic, typed console, and browser-local performance workspaces. Lists are bounded; console filtering, copy, clear-view, and autoscroll controls are present; new blocking diagnostics and runtime errors open the relevant drawer tab. |
-| 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. The global test-signal clock now has a compact custom control in the I/O deck; final command-bar placement, MIDI, workspace presets, shortcuts, and About remain pending. |
+| 10. Command bar and utilities | Implemented; browser QA pending | Consolidated searchable script selection, Lua Run/Reload and Pause/Resume, the explicitly labelled test-signal clock, saved-state status, health, runtime state, workspace presets, conditional MIDI input, and About content in the command bar. Added guarded shortcuts and removed duplicate editor, device, clock, and MIDI rows. |
 | 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
 | 12. Performance and release gate | Partial | Removed frame-driven Monaco marker resets, scheduled simulator frames as non-urgent React work with commit-aware worker backpressure, froze inactive drawer workspaces while preserving local state, bounded scope rendering to 1,000 extrema-preserving points, and downsampled output traces before rendering. Popover focus and pointer-capture teardown were hardened after an intermittent workbench-freeze report. Live browser profiling and final legacy cleanup remain pending. |
 
@@ -104,15 +104,29 @@ Implemented files:
 - focused tests in `src/disting/drawer/drawer-workspaces.test.ts` and
   `src/disting/drawer/workspace-rendering.test.tsx`
 - `src/disting/workbench/HealthBadge.tsx`
+- `src/disting/workbench/ScriptMenu.tsx`
+- `src/disting/workbench/RunControls.tsx`
+- `src/disting/workbench/ClockTransport.tsx`
+- `src/disting/workbench/RuntimeStatus.tsx`
+- `src/disting/workbench/WorkspacePresetMenu.tsx`
+- `src/disting/workbench/MidiEventTool.tsx`
+- `src/disting/workbench/AboutPopover.tsx`
+- `src/disting/workbench/script-menu.ts`
+- `src/disting/workbench/midi-event.ts`
+- `src/disting/workbench/workbench-shortcuts.ts`
+- focused tests in `src/disting/workbench/command-bar-rendering.test.tsx`,
+  `src/disting/workbench/midi-event.test.ts`, and
+  `src/disting/workbench/workbench-shortcuts.test.ts`
 - `src/disting/editor/diagnostic-markers.ts`
 - `src/disting/editor/diagnostic-markers.test.ts`
 - `src/disting/io/trace-values.ts`
 - `src/disting/frame-commit.ts`
 - `src/disting/frame-commit.test.ts`
 
-Verification completed through Session 9:
+Verification completed through Session 10:
 
-- focused workbench layout tests: 4 passed;
+- focused workbench layout tests: 5 passed;
+- focused command-bar, MIDI, shortcut, and About tests: 14 passed;
 - focused control math and rendering tests: 11 passed;
 - focused device mapping/rendering tests: 7 passed;
 - focused parameter metadata/rendering tests: 8 passed;
@@ -122,16 +136,16 @@ Verification completed through Session 9:
 - focused drawer workspace helper/rendering tests: 8 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 53 files and 238 tests passed;
+- complete test suite: 58 files and 261 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 10: complete the command bar and
-utilities, including MIDI, workspace presets, shortcuts, and About content.
-Visual QA of the shell, custom controls, and Session 9 drawer workspaces at the
-target viewports remains required. A local Vite server was available during
-Session 9, but the browser-control runtime reported no connected browser
-backend, so viewport and live interaction claims remain intentionally pending.
+The next implementation session is Session 11: complete responsive behavior
+and accessibility. Visual QA of the shell, custom controls, drawer workspaces,
+and command utilities at the target viewports remains required. A local Vite
+server was available during Session 10, but the browser-control runtime again
+reported no connected browser backend, so viewport and live interaction claims
+remain intentionally pending.
 The same limitation prevented an interactive running-versus-paused typing and
 heap comparison after the targeted responsiveness remediation. Simulator frame
 acknowledgements now occur only after the matching React frame commit, so the

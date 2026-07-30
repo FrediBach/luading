@@ -6,39 +6,6 @@
     #141a18;
 }
 
-.disting-device-face-header {
-  min-height: 40px;
-  padding: 6px 9px 6px 11px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--nt-line);
-  background: rgba(0, 0, 0, 0.12);
-}
-
-.disting-device-face-header > span small,
-.disting-device-face-header > span strong {
-  display: block;
-  font-family: var(--mono);
-}
-
-.disting-device-face-header > span small {
-  color: var(--nt-muted);
-  font-size: 7px;
-  line-height: 1;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.disting-device-face-header > span strong {
-  margin-top: 4px;
-  color: var(--nt-text);
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 600;
-}
-
 .device-save-state {
   min-height: 27px;
   padding: 0 8px;
@@ -221,18 +188,6 @@
 .hardware-button-cluster .momentary-button {
   min-width: 42px;
   width: 42px;
-}
-
-.disting-device-utilities {
-  padding: 0 10px 10px;
-}
-
-.disting-device-utilities .disting-midi-input {
-  margin: 0;
-  padding: 8px;
-  border: 1px solid var(--nt-line);
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.12);
 }
 
 .parameter-bank {

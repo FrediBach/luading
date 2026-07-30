@@ -566,8 +566,7 @@
   background: rgba(0, 0, 0, 0.14);
 }
 
-.disting-hardware-heading,
-.disting-midi-input {
+.disting-hardware-heading {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -580,8 +579,7 @@
 
 .disting-hardware-heading span,
 .disting-pot-bank span,
-.disting-button-bank span,
-.disting-midi-input > span {
+.disting-button-bank span {
   color: var(--nt-muted);
   font: 8px/1 var(--mono);
   text-transform: uppercase;
@@ -646,27 +644,6 @@
 }
 
 .disting-button-bank span { margin-right: auto; }
-
-.disting-midi-input {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--nt-line);
-}
-
-.disting-midi-input input {
-  width: 52px;
-  box-sizing: border-box;
-  padding: 6px;
-  border: 1px solid var(--nt-line);
-  border-radius: 6px;
-  outline: none;
-  background: #0d1110;
-  color: var(--nt-text);
-  font: 9px/1 var(--mono);
-}
-
-.disting-midi-input input:focus { border-color: var(--nt-green); }
-.disting-midi-input > span { margin-right: auto; }
 
 .disting-io-grid {
   display: grid;
@@ -949,8 +926,6 @@
   .disting-quality-finding { grid-template-columns: 6px minmax(0, 1fr); }
   .disting-quality-meta { grid-column: 2; display: flex; justify-items: start; }
   .disting-pot-bank { grid-template-columns: 1fr; }
-  .disting-midi-input { flex-wrap: wrap; }
-  .disting-midi-input > span { width: 100%; }
   .disting-subpanel-head { align-items: flex-start; flex-direction: column; }
   .disting-clock-control { width: 100%; flex-wrap: wrap; }
   .disting-input-config { grid-template-columns: repeat(2, minmax(0, 1fr)); }

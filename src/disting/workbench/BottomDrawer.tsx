@@ -6,6 +6,7 @@ import {
 } from 'react'
 import { shouldReuseDrawerPanel } from './drawer-panel'
 import type { DrawerTabId } from './workbench-layout'
+import { DRAWER_SHORTCUTS } from './workbench-shortcuts'
 
 export interface DrawerTabDefinition {
   id: DrawerTabId
@@ -113,12 +114,14 @@ export function BottomDrawer({
             role="tab"
             aria-selected={open && activeTab === tab.id}
             aria-controls={`workbench-drawer-panel-${tab.id}`}
+            aria-keyshortcuts={DRAWER_SHORTCUTS[tab.id].aria}
             className={open && activeTab === tab.id ? 'is-active' : ''}
             onClick={() => onToggleTab(tab.id)}
             key={tab.id}
           >
             {tab.label}
             {tab.badge !== undefined && <span>{tab.badge}</span>}
+            <kbd>{DRAWER_SHORTCUTS[tab.id].label}</kbd>
           </button>
         ))}
         <span className="workbench-drawer-hint">

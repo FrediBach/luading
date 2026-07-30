@@ -1,5 +1,6 @@
 export type DrawerTabId = 'scope' | 'problems' | 'console' | 'performance'
 export type WorkbenchDensity = 'compact' | 'comfortable'
+export type WorkspacePresetId = 'code' | 'patch' | 'monitor' | 'compact'
 
 export interface WorkbenchLayoutState {
   splitPercent: number
@@ -7,6 +8,7 @@ export interface WorkbenchLayoutState {
   drawerOpen: boolean
   activeDrawerTab: DrawerTabId
   density: WorkbenchDensity
+  workspacePreset: WorkspacePresetId | null
 }
 
 export type WorkbenchLayoutAction =
@@ -17,13 +19,45 @@ export type WorkbenchLayoutAction =
   | { type: 'closeDrawer' }
   | { type: 'toggleDrawer'; tab: DrawerTabId }
   | { type: 'setDensity'; density: WorkbenchDensity }
+  | { type: 'applyPreset'; preset: WorkspacePresetId }
+
+export const WORKSPACE_PRESET_LAYOUTS: Record<
+  WorkspacePresetId,
+  Omit<WorkbenchLayoutState, 'workspacePreset'>
+> = {
+  code: {
+    splitPercent: 72,
+    drawerHeight: 220,
+    drawerOpen: false,
+    activeDrawerTab: 'problems',
+    density: 'comfortable',
+  },
+  patch: {
+    splitPercent: 60,
+    drawerHeight: 220,
+    drawerOpen: true,
+    activeDrawerTab: 'scope',
+    density: 'compact',
+  },
+  monitor: {
+    splitPercent: 38,
+    drawerHeight: 300,
+    drawerOpen: true,
+    activeDrawerTab: 'scope',
+    density: 'comfortable',
+  },
+  compact: {
+    splitPercent: 54,
+    drawerHeight: 180,
+    drawerOpen: false,
+    activeDrawerTab: 'scope',
+    density: 'compact',
+  },
+}
 
 export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
-  splitPercent: 60,
-  drawerHeight: 220,
-  drawerOpen: true,
-  activeDrawerTab: 'scope',
-  density: 'compact',
+  ...WORKSPACE_PRESET_LAYOUTS.patch,
+  workspacePreset: 'patch',
 }
 
 export const WORKBENCH_LAYOUT_STORAGE_KEY = 'luading.workbench-layout.v1'
@@ -49,11 +83,30 @@ function isDensity(value: unknown): value is WorkbenchDensity {
   return value === 'compact' || value === 'comfortable'
 }
 
+function isWorkspacePreset(value: unknown): value is WorkspacePresetId {
+  return value === 'code'
+    || value === 'patch'
+    || value === 'monitor'
+    || value === 'compact'
+}
+
+function matchesPreset(
+  state: Omit<WorkbenchLayoutState, 'workspacePreset'>,
+  preset: WorkspacePresetId,
+) {
+  const expected = WORKSPACE_PRESET_LAYOUTS[preset]
+  return state.splitPercent === expected.splitPercent
+    && state.drawerHeight === expected.drawerHeight
+    && state.drawerOpen === expected.drawerOpen
+    && state.activeDrawerTab === expected.activeDrawerTab
+    && state.density === expected.density
+}
+
 export function normalizeWorkbenchLayout(value: unknown): WorkbenchLayoutState {
   if (!value || typeof value !== 'object') return { ...DEFAULT_WORKBENCH_LAYOUT }
   const candidate = value as Partial<WorkbenchLayoutState>
 
-  return {
+  const normalized = {
     splitPercent: clampSplitPercent(
       typeof candidate.splitPercent === 'number'
         ? candidate.splitPercent
@@ -74,6 +127,16 @@ export function normalizeWorkbenchLayout(value: unknown): WorkbenchLayoutState {
       ? candidate.density
       : DEFAULT_WORKBENCH_LAYOUT.density,
   }
+  const requestedPreset = isWorkspacePreset(candidate.workspacePreset)
+    ? candidate.workspacePreset
+    : null
+
+  return {
+    ...normalized,
+    workspacePreset: requestedPreset && matchesPreset(normalized, requestedPreset)
+      ? requestedPreset
+      : null,
+  }
 }
 
 export function workbenchLayoutReducer(
@@ -82,25 +145,47 @@ export function workbenchLayoutReducer(
 ): WorkbenchLayoutState {
   switch (action.type) {
     case 'setSplit':
-      return { ...state, splitPercent: clampSplitPercent(action.value) }
+      return {
+        ...state,
+        splitPercent: clampSplitPercent(action.value),
+        workspacePreset: null,
+      }
     case 'resetSplit':
-      return { ...state, splitPercent: DEFAULT_WORKBENCH_LAYOUT.splitPercent }
+      return {
+        ...state,
+        splitPercent: DEFAULT_WORKBENCH_LAYOUT.splitPercent,
+        workspacePreset: null,
+      }
     case 'setDrawerHeight':
-      return { ...state, drawerHeight: clampDrawerHeight(action.value) }
+      return {
+        ...state,
+        drawerHeight: clampDrawerHeight(action.value),
+        workspacePreset: null,
+      }
     case 'openDrawer':
       return {
         ...state,
         drawerOpen: true,
         activeDrawerTab: action.tab ?? state.activeDrawerTab,
+        workspacePreset: null,
       }
     case 'closeDrawer':
-      return { ...state, drawerOpen: false }
+      return { ...state, drawerOpen: false, workspacePreset: null }
     case 'toggleDrawer':
       return state.drawerOpen && state.activeDrawerTab === action.tab
-        ? { ...state, drawerOpen: false }
-        : { ...state, drawerOpen: true, activeDrawerTab: action.tab }
+        ? { ...state, drawerOpen: false, workspacePreset: null }
+        : {
+            ...state,
+            drawerOpen: true,
+            activeDrawerTab: action.tab,
+            workspacePreset: null,
+          }
     case 'setDensity':
-      return { ...state, density: action.density }
+      return { ...state, density: action.density, workspacePreset: null }
+    case 'applyPreset':
+      return {
+        ...WORKSPACE_PRESET_LAYOUTS[action.preset],
+        workspacePreset: action.preset,
+      }
   }
 }
-

@@ -1,7 +1,5 @@
-import { IconToggle, ValueField } from '../controls'
 import type { TraceHistory } from '../emulation/trace-history'
 import type {
-  GlobalClockConfig,
   LoadedProgram,
   ScopeProbe,
   ScopeSource,
@@ -21,8 +19,6 @@ interface Props {
   focusedScopeProbe: number | null
   traceHistory: TraceHistory
   traceRevision: number
-  clock: GlobalClockConfig
-  onClockChange(clock: GlobalClockConfig): void
   onSourceChange(index: number, source: SignalSourceConfig): void
   onTrigger(index: number): void
   onProbeChange(index: number, source: ScopeSource | null): void
@@ -38,8 +34,6 @@ export function IoDeck({
   focusedScopeProbe,
   traceHistory,
   traceRevision,
-  clock,
-  onClockChange,
   onSourceChange,
   onTrigger,
   onProbeChange,
@@ -51,28 +45,7 @@ export function IoDeck({
   return (
     <section className="io-deck" aria-label="Input and output controls">
       <header className="io-deck-header">
-        <span>
-          <small>I/O deck</small>
-          <strong>Signal channels</strong>
-        </span>
         <div className="io-global-controls">
-          <div className="io-clock-control">
-            <IconToggle
-              icon="clock"
-              label="Global test-signal clock"
-              pressed={clock.running}
-              onChange={(running) => onClockChange({ ...clock, running })}
-            />
-            <ValueField
-              label="Global clock tempo"
-              value={clock.bpm}
-              min={1}
-              max={999}
-              step={1}
-              unit="BPM"
-              onChange={(bpm) => onClockChange({ ...clock, bpm })}
-            />
-          </div>
           <AudioMasterControl
             enabled={outputAudio.enabled}
             level={outputAudio.level}
