@@ -1,4 +1,5 @@
 import type { DistingScriptExampleGroup } from '../script-examples'
+import { HealthBadge } from './HealthBadge'
 
 interface Props {
   programName: string
@@ -7,6 +8,8 @@ interface Props {
   status: 'booting' | 'loading' | 'paused' | 'running' | 'error'
   qualityLabel: string
   qualityStatus: 'pending' | 'invalid' | 'provisional' | 'scored'
+  qualityErrorCount: number
+  qualityWarningCount: number
   canToggleRunning: boolean
   onSelectExample(id: string): void
   onToggleRunning(): void
@@ -21,6 +24,8 @@ export function CommandBar({
   status,
   qualityLabel,
   qualityStatus,
+  qualityErrorCount,
+  qualityWarningCount,
   canToggleRunning,
   onSelectExample,
   onToggleRunning,
@@ -54,13 +59,13 @@ export function CommandBar({
 
       <div className="workbench-commandbar-spacer" />
 
-      <button
-        type="button"
-        className={`workbench-health workbench-health--${qualityStatus}`}
-        onClick={onOpenProblems}
-      >
-        {qualityLabel}
-      </button>
+      <HealthBadge
+        label={qualityLabel}
+        status={qualityStatus}
+        errorCount={qualityErrorCount}
+        warningCount={qualityWarningCount}
+        onOpen={onOpenProblems}
+      />
 
       <button
         type="button"

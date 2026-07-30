@@ -10,7 +10,7 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: compact problems, console, and performance workspaces.
+Current milestone: command bar completion and utilities.
 
 | Session | Status | Notes |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Current milestone: compact problems, console, and performance workspaces.
 | 6. Input channel tiles | Implemented; visual QA pending | Replaced the full input patch bay with compact channel tiles and contextual inspectors. Tiles show actual downsampled worker traces, current voltage, generator shape, timing, direct primary values, sync, and trigger fire. Inspectors expose every signal shape plus frequency/division, amplitude, offset, phase, pulse width, step count, manual voltage, and deterministic seed where applicable. |
 | 7. Output tiles and WebAudio | Implemented; browser QA pending | Replaced the output row and separate audio router with traced output tiles, channel-local destination popovers, and a shared audio master with enable, level, waveform, and error states. Target-viewport and live WebAudio activation/error checks remain pending because no controllable browser was available. |
 | 8. Scope workspace | Implemented; browser QA pending | Replaced the legacy scope panel with a drawer-native workspace, compact toolbar, routed legend chips, responsive graph, focused-probe highlighting, and input/output tile assignment. First-free assignment never overwrites occupied probes; a chooser makes replacements explicit. Live resize and target-viewport checks remain pending because no controllable browser was available. |
-| 9. Problems, console, performance | Shell integration complete | Existing content is mounted in drawer tabs; compact workspace redesign is pending. |
+| 9. Problems, console, performance | Implemented; browser QA pending | Added compact health/diagnostic, typed console, and browser-local performance workspaces. Lists are bounded; console filtering, copy, clear-view, and autoscroll controls are present; new blocking diagnostics and runtime errors open the relevant drawer tab. |
 | 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. The global test-signal clock now has a compact custom control in the I/O deck; final command-bar placement, MIDI, workspace presets, shortcuts, and About remain pending. |
 | 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
 | 12. Performance and release gate | Not started | Full gate was run for the first shell increment; final profiling and legacy cleanup remain pending. |
@@ -90,11 +90,20 @@ Implemented files:
 - `src/disting/drawer/ScopeToolbar.tsx`
 - `src/disting/drawer/ScopeLegend.tsx`
 - `src/disting/drawer/scope-controls.ts`
+- `src/disting/drawer/ProblemsWorkspace.tsx`
+- `src/disting/drawer/QualitySummary.tsx`
+- `src/disting/drawer/DiagnosticsList.tsx`
+- `src/disting/drawer/ConsoleWorkspace.tsx`
+- `src/disting/drawer/PerformanceWorkspace.tsx`
+- `src/disting/drawer/drawer-workspaces.ts`
 - `src/disting/drawer/drawer.css`
 - focused tests in `src/disting/drawer/scope-controls.test.ts` and
   `src/disting/drawer/scope-rendering.test.tsx`
+- focused tests in `src/disting/drawer/drawer-workspaces.test.ts` and
+  `src/disting/drawer/workspace-rendering.test.tsx`
+- `src/disting/workbench/HealthBadge.tsx`
 
-Verification completed through Session 8:
+Verification completed through Session 9:
 
 - focused workbench layout tests: 4 passed;
 - focused control math and rendering tests: 11 passed;
@@ -103,16 +112,19 @@ Verification completed through Session 8:
 - focused input helper/rendering tests: 9 passed;
 - focused output helper/rendering tests: 6 passed;
 - focused scope assignment/rendering tests: 7 passed;
+- focused drawer workspace helper/rendering tests: 8 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 48 files and 219 tests passed;
+- complete test suite: 50 files and 227 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 9: redesign the drawer-mounted
-problems, console, and performance content as compact workspaces with bounded
-diagnostic and log lists. Visual QA of the shell and custom controls at the
-target viewports remains required when a controllable browser is available.
+The next implementation session is Session 10: complete the command bar and
+utilities, including MIDI, workspace presets, shortcuts, and About content.
+Visual QA of the shell, custom controls, and Session 9 drawer workspaces at the
+target viewports remains required. A local Vite server was available during
+Session 9, but the browser-control runtime reported no connected browser
+backend, so viewport and live interaction claims remain intentionally pending.
 
 ## Objective
 

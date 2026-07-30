@@ -1,3 +1,8 @@
+export { ConsoleWorkspace } from './ConsoleWorkspace'
+export { DiagnosticsList } from './DiagnosticsList'
+export { PerformanceWorkspace } from './PerformanceWorkspace'
+export { ProblemsWorkspace } from './ProblemsWorkspace'
+export { QualitySummary } from './QualitySummary'
 export { ScopeLegend } from './ScopeLegend'
 export { ScopeToolbar } from './ScopeToolbar'
 export { ScopeWorkspace } from './ScopeWorkspace'

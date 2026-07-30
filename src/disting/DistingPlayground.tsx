@@ -4,13 +4,25 @@ import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
-import { ScopeWorkspace } from './drawer'
+import {
+  ConsoleWorkspace,
+  PerformanceWorkspace,
+  ProblemsWorkspace,
+  ScopeWorkspace,
+} from './drawer'
+import {
+  blockingDrawerTab,
+  boundConsoleEntries,
+  diagnosticRevealRequest,
+  type BlockingState,
+  type ConsoleEntry,
+  type ConsoleEntryKind,
+} from './drawer/drawer-workspaces'
 import {
   assignScopeSource,
   createDefaultScopeProbes,
 } from './drawer/scope-controls'
 import { IoDeck } from './io'
-import { ScriptQualityPanel } from './ScriptQualityPanel'
 import { DISTING_SCRIPT_EXAMPLES, DISTING_SCRIPT_GROUPS } from './script-examples'
 import { BottomDrawer } from './workbench/BottomDrawer'
 import { CommandBar } from './workbench/CommandBar'
@@ -65,23 +77,33 @@ const EMPTY_STATS: RuntimeStats = {
   callbacks: {},
 }
 
-function formatDuration(microseconds: number) {
-  return microseconds < 1000 ? `${microseconds.toFixed(1)} µs` : `${(microseconds / 1000).toFixed(2)} ms`
-}
-
-function hardwareEventLabel(event: DistingHardwareEvent) {
+function hardwareEventEntry(event: DistingHardwareEvent): {
+  kind: ConsoleEntryKind
+  message: string
+} {
   const hex = (value: number) => `0x${value.toString(16).padStart(2, '0').toUpperCase()}`
   if (event.kind === 'i2cCommand') {
-    return `I2C ${hex(event.address)} ← ${event.bytes.map(hex).join(' ')}`
+    return {
+      kind: 'i2c',
+      message: `${hex(event.address)} ← ${event.bytes.map(hex).join(' ')}`,
+    }
   }
   if (event.kind === 'i2cGetter') {
-    return `I2C ${hex(event.address)} → ${event.response.map(hex).join(' ')}`
+    return {
+      kind: 'i2c',
+      message: `${hex(event.address)} → ${event.response.map(hex).join(' ')}`,
+    }
   }
   if (event.kind === 'midiOut') {
-    return `MIDI ${hex(event.destinations)} ← ${event.bytes.map(hex).join(' ')}`
+    return {
+      kind: 'midi',
+      message: `${hex(event.destinations)} ← ${event.bytes.map(hex).join(' ')}`,
+    }
   }
-  if (event.kind === 'displayMode') return `Display mode: ${event.mode}`
-  return 'Custom UI exited'
+  if (event.kind === 'displayMode') {
+    return { kind: 'display', message: `Mode: ${event.mode}` }
+  }
+  return { kind: 'display', message: 'Custom UI exited' }
 }
 
 export function DistingPlayground() {
@@ -89,8 +111,7 @@ export function DistingPlayground() {
   const [program, setProgram] = useState<LoadedProgram | null>(null)
   const [status, setStatus] = useState<'booting' | 'loading' | 'paused' | 'running' | 'error'>('booting')
   const [error, setError] = useState<string | null>(null)
-  const [logs, setLogs] = useState<string[]>([])
-  const [hardwareEvents, setHardwareEvents] = useState<string[]>([])
+  const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([])
   const [inputSources, setInputSources] = useState<SignalSourceConfig[]>([])
   const [inputs, setInputs] = useState<number[]>([])
   const [clock, setClock] = useState<GlobalClockConfig>({ ...DEFAULT_CLOCK })
@@ -122,6 +143,24 @@ export function DistingPlayground() {
   const resumeWhenVisibleRef = useRef(false)
   const sourceIsLoadedRef = useRef(false)
   const savedStateRef = useRef<unknown>(undefined)
+  const consoleEntryIdRef = useRef(0)
+  const blockingStateRef = useRef<BlockingState>({
+    runtimeError: null,
+    diagnosticErrorCount: 0,
+  })
+
+  const appendConsoleEntry = useCallback((
+    kind: ConsoleEntryKind,
+    message: string,
+  ) => {
+    consoleEntryIdRef.current += 1
+    const entry = {
+      id: consoleEntryIdRef.current,
+      kind,
+      message,
+    } satisfies ConsoleEntry
+    setConsoleEntries((previous) => boundConsoleEntries([...previous, entry]))
+  }, [])
 
   const post = useCallback((message: WorkerRequest) => {
     workerRef.current?.postMessage(message)
@@ -165,7 +204,9 @@ export function DistingPlayground() {
         workerRef.current?.terminate()
         workerRef.current = null
         setStatus('error')
-        setError(`Script initialization exceeded ${LOAD_TIMEOUT_MS / 1000} seconds. The worker was terminated safely.`)
+        const message = `Script initialization exceeded ${LOAD_TIMEOUT_MS / 1000} seconds. The worker was terminated safely.`
+        setError(message)
+        appendConsoleEntry('error', message)
       }, LOAD_TIMEOUT_MS)
     } else if (message.type === 'loaded') {
       clearLoadTimeout()
@@ -217,9 +258,10 @@ export function DistingPlayground() {
         setTrace((previous) => [...previous, ...message.trace].slice(-MAX_TRACE_POINTS))
       }
     } else if (message.type === 'log') {
-      setLogs((previous) => [...previous, message.line].slice(-50))
+      appendConsoleEntry('lua', message.line)
     } else if (message.type === 'hardware') {
-      setHardwareEvents((previous) => [...previous, hardwareEventLabel(message.event)].slice(-50))
+      const entry = hardwareEventEntry(message.event)
+      appendConsoleEntry(entry.kind, entry.message)
     } else if (message.type === 'serialised') {
       savedStateRef.current = message.state
       setHasSavedState(true)
@@ -233,11 +275,12 @@ export function DistingPlayground() {
       resumeWhenVisibleRef.current = false
       setStatus('error')
       setError(message.message)
+      appendConsoleEntry('error', message.message)
       sourceIsLoadedRef.current = false
       setSourceIsLoaded(false)
       if (message.diagnostic) setRuntimeDiagnostics([message.diagnostic])
     }
-  }, [clearLoadTimeout])
+  }, [appendConsoleEntry, clearLoadTimeout])
 
   const createWorker = useCallback(() => {
     terminateWorker()
@@ -251,10 +294,12 @@ export function DistingPlayground() {
     }
     worker.onerror = (event) => {
       clearLoadTimeout()
+      const message = event.message || 'The Lua worker stopped unexpectedly.'
       setStatus('error')
-      setError(event.message || 'The Lua worker stopped unexpectedly.')
+      setError(message)
+      appendConsoleEntry('error', message)
     }
-  }, [clearLoadTimeout, handleWorkerMessage, terminateWorker])
+  }, [appendConsoleEntry, clearLoadTimeout, handleWorkerMessage, terminateWorker])
 
   const loadScript = useCallback(() => {
     runningRef.current = false
@@ -267,8 +312,7 @@ export function DistingPlayground() {
     setInputs([])
     setProbes(EMPTY_PROBES)
     setFocusedScopeProbe(null)
-    setLogs([])
-    setHardwareEvents([])
+    setConsoleEntries([])
     setError(null)
     sourceIsLoadedRef.current = false
     setSourceIsLoaded(false)
@@ -411,7 +455,6 @@ export function DistingPlayground() {
     dispatchLayout({ type: 'openDrawer', tab: 'scope' })
   }
 
-  const budgetState = stats.budgetPercent < 25 ? 'comfortable' : stats.budgetPercent < 75 ? 'watch' : 'over'
   const diagnostics = useMemo(() => dedupeDiagnostics([
     ...staticDiagnostics,
     ...contractDiagnostics,
@@ -428,9 +471,19 @@ export function DistingPlayground() {
       : 'Run to score'
     : `${qualityReport.score} · ${qualityReport.grade}`
 
+  useEffect(() => {
+    const current = {
+      runtimeError: error,
+      diagnosticErrorCount: qualityReport.errorCount,
+    } satisfies BlockingState
+    const tab = blockingDrawerTab(blockingStateRef.current, current)
+    blockingStateRef.current = current
+    if (tab) dispatchLayout({ type: 'openDrawer', tab })
+  }, [dispatchLayout, error, qualityReport.errorCount])
+
   const selectDiagnostic = (diagnostic: ScriptDiagnostic) => {
-    if (!diagnostic.range) return
-    setRevealRequest({ range: diagnostic.range, nonce: Date.now() })
+    const request = diagnosticRevealRequest(diagnostic, Date.now())
+    if (request) setRevealRequest(request)
   }
 
   return (
@@ -444,6 +497,8 @@ export function DistingPlayground() {
           status={status}
           qualityLabel={qualityLabel}
           qualityStatus={qualityReport.status}
+          qualityErrorCount={qualityReport.errorCount}
+          qualityWarningCount={qualityReport.warningCount}
           canToggleRunning={Boolean(program)}
           onSelectExample={selectExample}
           onToggleRunning={toggleRunning}
@@ -570,7 +625,7 @@ export function DistingPlayground() {
               label: 'Problems',
               badge: diagnostics.length,
               content: (
-                <ScriptQualityPanel
+                <ProblemsWorkspace
                   diagnostics={diagnostics}
                   report={qualityReport}
                   onSelectDiagnostic={selectDiagnostic}
@@ -580,45 +635,19 @@ export function DistingPlayground() {
             {
               id: 'console',
               label: 'Console',
-              badge: (error ? 1 : 0) + logs.length + hardwareEvents.length,
+              badge: consoleEntries.length,
               content: (
-                <section className={`disting-console${error ? ' disting-console--error' : ''}`}>
-                  <div className="disting-panel-kicker">
-                    {error ? 'RUNTIME ERROR' : 'LUA / HARDWARE EVENT LOG'}
-                  </div>
-                  <pre>
-                    {error
-                      ?? ([...logs, ...hardwareEvents].join('\n') || 'No runtime or hardware events.')}
-                  </pre>
-                </section>
+                <ConsoleWorkspace
+                  entries={consoleEntries}
+                  onClear={() => setConsoleEntries([])}
+                />
               ),
             },
             {
               id: 'performance',
               label: 'Performance',
               content: (
-                <section className="disting-metrics" aria-label="Runtime performance">
-                  <div>
-                    <span>Average step</span>
-                    <strong>{formatDuration(stats.averageUs)}</strong>
-                    <small>Lua callback + boundary</small>
-                  </div>
-                  <div>
-                    <span>95th percentile</span>
-                    <strong>{formatDuration(stats.p95Us)}</strong>
-                    <small>last 2,000 steps</small>
-                  </div>
-                  <div>
-                    <span>Worst step</span>
-                    <strong>{formatDuration(stats.maxUs)}</strong>
-                    <small>{stats.droppedSteps} catch-up drops</small>
-                  </div>
-                  <div className={`disting-budget disting-budget--${budgetState}`}>
-                    <span>Local 1 ms budget</span>
-                    <strong>{stats.budgetPercent.toFixed(2)}%</strong>
-                    <small>not calibrated to hardware</small>
-                  </div>
-                </section>
+                <PerformanceWorkspace stats={stats} />
               ),
             },
           ]}

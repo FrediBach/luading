@@ -149,6 +149,35 @@
   text-transform: uppercase;
 }
 
+.workbench-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.workbench-health > i {
+  width: 6px;
+  height: 6px;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.workbench-health--scored > i {
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.workbench-health--provisional > i {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.workbench-health--invalid > i {
+  border-radius: 1px;
+  background: currentColor;
+}
+
 .workbench-health--scored {
   border-color: color-mix(in srgb, var(--nt-green) 55%, var(--nt-line));
   color: var(--nt-green);
@@ -471,21 +500,12 @@
 }
 
 .workbench-drawer-panel > .scope-workspace,
-.workbench-drawer-panel > .disting-quality,
-.workbench-drawer-panel > .disting-console,
-.workbench-drawer-panel > .disting-metrics {
+.workbench-drawer-panel > .problems-workspace,
+.workbench-drawer-panel > .console-workspace,
+.workbench-drawer-panel > .performance-workspace {
   margin: 0;
   border: 0;
   border-radius: 0;
-}
-
-.workbench-drawer-panel > .disting-console {
-  min-height: 100%;
-  box-sizing: border-box;
-}
-
-.workbench-drawer-panel > .disting-console pre {
-  max-height: none;
 }
 
 .workbench-statusbar {
