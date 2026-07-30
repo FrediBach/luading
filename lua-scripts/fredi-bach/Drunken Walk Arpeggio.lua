@@ -23,6 +23,20 @@ local gateTimer = 0             -- Countdown for gate high duration
 local lastDirection = 1         -- Track last movement direction for display
 
 --------------------------------------------------------------------------------
+-- Display Constants
+--------------------------------------------------------------------------------
+local DISPLAY_STAGE_LEFT = 24
+local DISPLAY_STAGE_WIDTH = 208
+local DISPLAY_STEP_BOTTOM = 46
+local DISPLAY_TRANSITION_TIME = 0.24
+local DISPLAY_EDGE_FLASH_TIME = 0.28
+local DISPLAY_GATE_FLASH_TIME = 0.12
+local NOTE_NAMES = {
+    "C", "C#", "D", "D#", "E", "F",
+    "F#", "G", "G#", "A", "A#", "B"
+}
+
+--------------------------------------------------------------------------------
 -- Helper Functions
 --------------------------------------------------------------------------------
 
@@ -68,6 +82,38 @@ local function handleEdge(step, numSteps, edgeMode)
     end
 end
 
+local function midiToNoteName(midiNote, includeOctave)
+    local note = math.floor(midiNote + 0.5)
+    local pitchClass = note % 12
+    if pitchClass < 0 then pitchClass = pitchClass + 12 end
+    local name = NOTE_NAMES[pitchClass + 1]
+    if not includeOctave then return name end
+    return name .. (math.floor(note / 12) - 1)
+end
+
+local function getDisplayStepGeometry(self, step, numSteps)
+    local stepWidth = math.floor(DISPLAY_STAGE_WIDTH / numSteps)
+    local totalWidth = stepWidth * numSteps
+    local startX = math.floor((256 - totalWidth) / 2)
+    local offset = self.parameters[2 + step]
+    local height = math.floor(
+        6 + ((clamp(offset, -24, 24) + 24) / 48) * 18 + 0.5
+    )
+    local left = startX + (step - 1) * stepWidth + 2
+    local right = startX + step * stepWidth - 2
+    local top = DISPLAY_STEP_BOTTOM - height
+    return left, right, top, (left + right) / 2
+end
+
+local function lerp(from, to, amount)
+    return from + (to - from) * amount
+end
+
+local function smoothStep(amount)
+    local clamped = clamp(amount, 0, 1)
+    return clamped * clamped * (3 - 2 * clamped)
+end
+
 --------------------------------------------------------------------------------
 -- Main Script Table
 --------------------------------------------------------------------------------
@@ -85,6 +131,19 @@ return
         lastProbCV = 0
         gateTimer = 0
         lastDirection = 1
+
+        -- Display-only state captures decisions made by trigger() and is
+        -- advanced by step(). It never participates in musical decisions.
+        self.display_time = 0
+        self.display_previous_step = 1
+        self.display_current_step = 1
+        self.display_transition_started = -1
+        self.display_gate_started = -1
+        self.display_edge_hit = 0
+        self.display_edge_mode = 1
+        self.display_direction = 1
+        self.display_probability = 0.5
+        self.display_decision_probability = 0.5
         
         return
         {
@@ -151,8 +210,24 @@ return
             lastDirection = direction
             
             -- Calculate new step position with edge handling
+            local previousStep = currentStep
             local newStep = currentStep + direction
+            local edgeHit = 0
+            if newStep < 1 then
+                edgeHit = -1
+            elseif newStep > numSteps then
+                edgeHit = 1
+            end
             currentStep = handleEdge(newStep, numSteps, edgeMode)
+
+            self.display_previous_step = previousStep
+            self.display_current_step = currentStep
+            self.display_transition_started = self.display_time
+            self.display_gate_started = self.display_time
+            self.display_edge_hit = edgeHit
+            self.display_edge_mode = edgeMode
+            self.display_direction = direction
+            self.display_decision_probability = probability
             
             -- Get the note offset for current step (parameters 3-10 are notes 1-8)
             local noteOffset = self.parameters[2 + currentStep]
@@ -173,6 +248,13 @@ return
             -----------------------------------------------------------------
             currentStep = 1
             lastDirection = 1
+
+            self.display_previous_step = 1
+            self.display_current_step = 1
+            self.display_transition_started = -1
+            self.display_gate_started = self.display_time
+            self.display_edge_hit = 0
+            self.display_direction = 1
             
             -- Output the first note
             local rootNote = self.parameters[2]
@@ -197,7 +279,16 @@ return
         
         -- Cache the probability CV for use in trigger handler
         -- Input 2 is probability CV, scale from voltage to useful range
-        lastProbCV = inputs[2]
+        lastProbCV = inputs[2] or 0
+
+        self.display_time = self.display_time + dt
+        local probabilityTarget = calculateProbability(
+            lastProbCV,
+            self.parameters[11]
+        )
+        local displayAlpha = clamp(dt * 10, 0, 1)
+        self.display_probability = self.display_probability
+            + (probabilityTarget - self.display_probability) * displayAlpha
         
         -- Handle gate timing
         if gateTimer > 0 then
@@ -216,79 +307,281 @@ return
     -- Custom Display (called at ~30fps)
     ----------------------------------------------------------------------------
     , draw = function(self)
+        drawStandardParameterLine()
+
         local numSteps = self.parameters[1]
-        local probOffset = self.parameters[11]
-        
-        -- Calculate current probability for display
-        local probability = calculateProbability(lastProbCV, probOffset)
+        local rootNote = self.parameters[2]
+        local edgeMode = self.parameters[12]
+        local probability = clamp(self.display_probability, 0, 1)
         local probPercent = math.floor(probability * 100 + 0.5)
-        
-        -- ===== Step Indicator Display =====
-        -- Draw boxes for each step, highlight current step
-        local boxWidth = 14
-        local boxHeight = 16
-        local spacing = 4
-        local totalWidth = numSteps * boxWidth + (numSteps - 1) * spacing
-        local startX = math.floor((256 - totalWidth) / 2)
-        local boxY = 22
-        
+        local visibleCurrentStep = clamp(currentStep, 1, numSteps)
+        local visiblePreviousStep = clamp(
+            self.display_previous_step,
+            1,
+            numSteps
+        )
+        local visibleTargetStep = clamp(
+            self.display_current_step,
+            1,
+            numSteps
+        )
+
+        -- Each note offset becomes a stair height on a stable -24..+24 scale.
         for i = 1, numSteps do
-            local x = startX + (i - 1) * (boxWidth + spacing)
-            
-            if i == currentStep then
-                -- Current step: filled bright rectangle
-                drawRectangle(x, boxY, x + boxWidth, boxY + boxHeight, 15)
-                -- Draw step number in inverse
-                drawTinyText(x + boxWidth/2, boxY + boxHeight - 4, tostring(i), 0, "centre")
+            local left, right, top, centreX = getDisplayStepGeometry(
+                self,
+                i,
+                numSteps
+            )
+            local midiNote = rootNote + self.parameters[2 + i]
+            if i == visibleCurrentStep then
+                drawRectangle(
+                    left,
+                    top,
+                    right,
+                    DISPLAY_STEP_BOTTOM,
+                    9
+                )
+                drawLine(left, top, right, top, 15)
+                drawTinyText(
+                    centreX,
+                    DISPLAY_STEP_BOTTOM - 1,
+                    midiToNoteName(midiNote, false),
+                    0,
+                    "centre"
+                )
             else
-                -- Other steps: hollow box
-                drawBox(x, boxY, x + boxWidth, boxY + boxHeight, 6)
-                drawTinyText(x + boxWidth/2, boxY + boxHeight - 4, tostring(i), 8, "centre")
+                drawRectangle(
+                    left,
+                    top,
+                    right,
+                    DISPLAY_STEP_BOTTOM,
+                    2
+                )
+                drawBox(left, top, right, DISPLAY_STEP_BOTTOM, 5)
+                drawTinyText(
+                    centreX,
+                    DISPLAY_STEP_BOTTOM - 1,
+                    midiToNoteName(midiNote, false),
+                    8,
+                    "centre"
+                )
             end
         end
-        
-        -- ===== Current Note Display =====
-        local noteOffset = self.parameters[2 + currentStep]
-        local rootNote = self.parameters[2]
-        local noteNames = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }
-        local midiNote = rootNote + noteOffset
-        local noteName = noteNames[(midiNote % 12) + 1]
-        local octave = math.floor(midiNote / 12) - 1
-        
-        drawText(128, 16, noteName .. octave, 15, "centre")
-        
-        -- ===== Probability Bar =====
-        -- Visual representation of forward/backward probability
-        local barY = 48
-        local barHeight = 6
-        local barWidth = 160
-        local barStartX = (256 - barWidth) / 2
-        local barCenterX = barStartX + barWidth / 2
-        
-        -- Draw bar outline
-        drawBox(barStartX, barY, barStartX + barWidth, barY + barHeight, 4)
-        
-        -- Draw center line (50% mark)
-        drawLine(barCenterX, barY - 2, barCenterX, barY + barHeight + 2, 8)
-        
-        -- Draw probability indicator
-        local indicatorX = barStartX + (probability * barWidth)
-        drawRectangle(indicatorX - 2, barY - 1, indicatorX + 2, barY + barHeight + 1, 15)
-        
-        -- Labels
-        drawTinyText(barStartX - 2, barY + 4, "<", 8, "right")
-        drawTinyText(barStartX + barWidth + 2, barY + 4, ">", 8)
-        
-        -- ===== Probability Percentage =====
-        drawText(128, 62, probPercent .. "% fwd", 10, "centre")
-        
-        -- ===== Direction Arrow =====
-        local arrowX = 230
-        local arrowY = 30
-        if lastDirection > 0 then
-            drawText(arrowX, arrowY, ">", 12, "centre")
+
+        local previousLeft, previousRight, previousTop, previousX =
+            getDisplayStepGeometry(
+                self,
+                visiblePreviousStep,
+                numSteps
+            )
+        local currentLeft, currentRight, currentTop, currentX =
+            getDisplayStepGeometry(
+                self,
+                visibleTargetStep,
+                numSteps
+            )
+        local transitionAge = self.display_time
+            - self.display_transition_started
+        local transitioning = (
+            self.display_transition_started >= 0
+            and transitionAge < DISPLAY_TRANSITION_TIME
+        )
+        local transition = smoothStep(
+            transitionAge / DISPLAY_TRANSITION_TIME
+        )
+        local walkerX = currentX
+        local walkerY = currentTop - 1
+        local lean = 0
+
+        if transitioning then
+            local edgeHit = self.display_edge_hit
+            local mode = self.display_edge_mode
+            if edgeHit ~= 0 and mode == 1 then
+                -- Wrap drops through one portal and reappears at the other.
+                if transition < 0.5 then
+                    local portalX = edgeHit > 0 and 242 or 14
+                    local progress = transition / 0.5
+                    walkerX = lerp(previousX, portalX, progress)
+                    walkerY = previousTop - 1 + progress * 5
+                else
+                    local portalX = edgeHit > 0 and 14 or 242
+                    local progress = (transition - 0.5) / 0.5
+                    walkerX = lerp(portalX, currentX, progress)
+                    walkerY = lerp(
+                        currentTop + 4,
+                        currentTop - 1,
+                        progress
+                    )
+                end
+            elseif edgeHit ~= 0 then
+                -- Bounce and Sticky first press into the wall, then recoil.
+                local wallX = edgeHit > 0
+                    and DISPLAY_STAGE_LEFT + DISPLAY_STAGE_WIDTH + 4
+                    or DISPLAY_STAGE_LEFT - 4
+                if transition < 0.35 then
+                    local progress = transition / 0.35
+                    walkerX = lerp(previousX, wallX, progress)
+                    walkerY = previousTop - 1 - math.sin(
+                        progress * math.pi
+                    ) * 3
+                else
+                    local progress = (transition - 0.35) / 0.65
+                    walkerX = lerp(wallX, currentX, progress)
+                    walkerY = lerp(
+                        previousTop - 1,
+                        currentTop - 1,
+                        progress
+                    ) - math.sin(progress * math.pi) * 4
+                end
+            else
+                walkerX = lerp(previousX, currentX, transition)
+                walkerY = lerp(
+                    previousTop - 1,
+                    currentTop - 1,
+                    transition
+                ) - math.sin(transition * math.pi) * 5
+            end
+            lean = self.display_direction
+            if (
+                self.display_edge_hit ~= 0
+                and self.display_edge_mode ~= 1
+                and transition >= 0.35
+            ) then
+                lean = -self.display_direction
+            end
         else
-            drawText(arrowX, arrowY, "<", 12, "centre")
+            lean = 0
         end
+
+        -- A short landing ring preserves the 20ms gate event at 30fps.
+        local gateAge = self.display_time - self.display_gate_started
+        if (
+            self.display_gate_started >= 0
+            and gateAge < DISPLAY_GATE_FLASH_TIME
+        ) then
+            local gateProgress = clamp(
+                gateAge / DISPLAY_GATE_FLASH_TIME,
+                0,
+                1
+            )
+            local gateShade = math.floor(15 - gateProgress * 8)
+            drawSmoothCircle(
+                currentX,
+                currentTop - 1,
+                2 + gateProgress * 5,
+                gateShade
+            )
+        end
+
+        -- Portals and walls only brighten for the corresponding edge event.
+        local edgeAge = self.display_time - self.display_transition_started
+        if (
+            self.display_edge_hit ~= 0
+            and self.display_transition_started >= 0
+            and edgeAge < DISPLAY_EDGE_FLASH_TIME
+        ) then
+            local edgeShade = math.floor(
+                15 - clamp(
+                    edgeAge / DISPLAY_EDGE_FLASH_TIME,
+                    0,
+                    1
+                ) * 9
+            )
+            if self.display_edge_mode == 1 then
+                drawCircle(14, 38, 3, edgeShade)
+                drawCircle(242, 38, 3, edgeShade)
+            else
+                local wallX = self.display_edge_hit > 0
+                    and DISPLAY_STAGE_LEFT + DISPLAY_STAGE_WIDTH + 4
+                    or DISPLAY_STAGE_LEFT - 4
+                drawLine(wallX, 22, wallX, 47, edgeShade)
+                drawLine(
+                    wallX + self.display_edge_hit * -4,
+                    25,
+                    wallX,
+                    29,
+                    edgeShade
+                )
+                drawLine(
+                    wallX + self.display_edge_hit * -4,
+                    44,
+                    wallX,
+                    40,
+                    edgeShade
+                )
+            end
+        end
+
+        -- Two legs, a leaning body, and a bright head make the walker legible.
+        local hipX = walkerX
+        local hipY = walkerY - 4
+        local headX = hipX + lean * 2
+        local headY = walkerY - 9
+        drawSmoothLine(walkerX - 3, walkerY, hipX, hipY, 13)
+        drawSmoothLine(walkerX + 3, walkerY, hipX, hipY, 13)
+        drawSmoothLine(hipX, hipY, headX, headY + 1, 14)
+        drawSmoothCircle(headX, headY, 1.5, 15)
+
+        local currentMidi = rootNote
+            + self.parameters[2 + visibleCurrentStep]
+        drawTinyText(
+            walkerX,
+            math.max(13, walkerY - 11),
+            midiToNoteName(currentMidi, true),
+            15,
+            "centre"
+        )
+
+        -- Forward probability tilts a balance and moves its weight.
+        local balanceLeftX = 96
+        local balanceRightX = 160
+        local balanceY = 53
+        local tilt = (probability - 0.5) * 8
+        local leftY = balanceY + tilt
+        local rightY = balanceY - tilt
+        local weightX = lerp(balanceLeftX, balanceRightX, probability)
+        local weightY = lerp(leftY, rightY, probability)
+        drawSmoothLine(
+            balanceLeftX,
+            leftY,
+            balanceRightX,
+            rightY,
+            7
+        )
+        drawLine(128, balanceY, 128, 58, 4)
+        drawSmoothCircle(weightX, weightY - 1.5, 2, 12)
+        if transitioning then
+            local decisionProbability = clamp(
+                self.display_decision_probability,
+                0,
+                1
+            )
+            local decisionX = lerp(
+                balanceLeftX,
+                balanceRightX,
+                decisionProbability
+            )
+            local decisionY = lerp(
+                leftY,
+                rightY,
+                decisionProbability
+            )
+            drawSmoothCircle(decisionX, decisionY - 1.5, 0.8, 5)
+        end
+
+        local edgeName = edgeMode == 1
+            and "WRAP"
+            or (edgeMode == 2 and "BOUNCE" or "STICKY")
+        drawTinyText(4, 63, edgeName, 7)
+        drawTinyText(
+            252,
+            63,
+            probPercent .. "% FWD",
+            10,
+            "right"
+        )
+
+        return true
     end
 }

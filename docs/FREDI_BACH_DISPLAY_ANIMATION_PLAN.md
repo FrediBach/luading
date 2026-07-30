@@ -267,6 +267,8 @@ pulled from the loop; a new note is recorded onto it.
 
 ### 9. Drunken Walk Arpeggio
 
+Status: Implemented
+
 **Concept: a tiny walker stumbling up and down a staircase of notes.**
 
 - **Composition:** Draw 2-8 stair blocks whose heights are the configured note
