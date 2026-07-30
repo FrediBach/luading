@@ -312,6 +312,8 @@ this switch from the note-oriented staircase above.
 
 ### 11. Euclidean Gate Skip Algorithm
 
+Status: Implemented
+
 **Concept: a Euclidean roulette wheel feeding a pass/skip fork.**
 
 - **Composition:** Put the E(hits,steps) pattern on a wheel at x=80. A playhead
