@@ -334,6 +334,8 @@ Status: Implemented
 
 ### 12. Euclidean Rhythm Distribution
 
+Status: Implemented
+
 **Concept: magnetic rhythm beads sliding along a timeline.** This makes the
 distribution control visibly different from a conventional Euclidean ring.
 
