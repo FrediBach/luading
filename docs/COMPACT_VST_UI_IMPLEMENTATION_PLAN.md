@@ -10,15 +10,15 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: shared custom-control foundation.
+Current milestone: compact simulated Disting device face.
 
 | Session | Status | Notes |
 | --- | --- | --- |
 | 1. Baseline and interaction contract | Partial | Source/CSS inventory, workflow inventory, density targets, and interaction rules are documented. Before screenshots and viewport measurements remain pending because a controllable browser was unavailable in the implementation session. |
 | 2. Workbench shell | Implemented; visual QA pending | Added the fixed-height shell, compact command bar, persisted split/drawer layout state, keyboard-accessible resizers, instrument rack, tabbed bottom drawer, and status bar. Existing device, patch, audio, scope, quality, console, and performance behavior was recomposed without changing worker messages. |
 | 3. Shared control primitives | Implemented; visual QA pending | Added the project-local icon set, tooltip, corner action, icon toggle, exact value field, popover, tile, rotary, endless encoder, push rotary, momentary button, segmented selector, meter, signal glyph, and downsampled mini signal plot. Pure interaction math and server-rendered accessibility semantics are covered by focused tests. |
-| 4. Disting device face | Not started | Next implementation session. Existing form controls remain in the new instrument rack until they are replaced with the new primitives. |
-| 5. Parameter bank | Not started | Existing parameter sliders remain functional. |
+| 4. Disting device face | Implemented; visual QA pending | Replaced the three native pot sliders, two encoder button groups, and four hardware buttons with pushable rotary controls, endless encoders, and momentary buttons. Added the compact display bezel and save-state control. Typed pot turns, encoder turns, pushes, and releases retain the existing `uiEvent` request contract. |
+| 5. Parameter bank | Not started | Next implementation session. Existing parameter sliders remain functional below the new device face. |
 | 6. Input channel tiles | Not started | Existing input patch bay remains functional inside the rack. |
 | 7. Output tiles and WebAudio | Not started | Existing output cards and audio router remain functional inside the rack. |
 | 8. Scope workspace | Shell integration complete | Existing scope is mounted in the drawer; compact toolbar, legend, and tile assignment are pending. |
@@ -58,21 +58,30 @@ Implemented files:
 - `src/disting/controls/controls.css`
 - focused tests in `src/disting/controls/control-math.test.ts` and
   `src/disting/controls/control-rendering.test.tsx`
+- `src/disting/device/DistingDeviceFace.tsx`
+- `src/disting/device/DistingDisplayBezel.tsx`
+- `src/disting/device/HardwareControlBank.tsx`
+- `src/disting/device/SaveStateControl.tsx`
+- `src/disting/device/hardware-controls.ts`
+- `src/disting/device/device.css`
+- focused tests in `src/disting/device/hardware-controls.test.ts` and
+  `src/disting/device/device-rendering.test.tsx`
 
 Verification completed for the first increment:
 
 - focused workbench layout tests: 4 passed;
 - focused control math and rendering tests: 11 passed;
+- focused device mapping/rendering tests: 7 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 38 files and 182 tests passed;
+- complete test suite: 40 files and 189 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 4: replace the existing simulated
-pot, encoder, and button form controls with `DistingDeviceFace`,
-`DistingDisplayBezel`, and `HardwareControlBank` composed from these
-primitives. Visual QA of both the shell and controls at the target viewports
+The next implementation session is Session 5: replace the native script
+parameter sliders with the metadata-driven `ParameterBank` and
+`ParameterControl` components, including continuous, bipolar, integer, and enum
+forms. Visual QA of the shell and custom controls at the target viewports
 remains required when a controllable browser is available.
 
 ## Objective

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_DISTING_SCRIPT } from './default-script'
-import { DistingDisplay } from './DistingDisplay'
+import { DistingDeviceFace } from './device'
+import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
 import { InputPatchBay } from './InputPatchBay'
@@ -18,6 +19,7 @@ import { WorkbenchShell } from './workbench/WorkbenchShell'
 import type {
   DistingHardwareEvent,
   DistingUiControl,
+  DistingUiEventKind,
   DrawCommand,
   GlobalClockConfig,
   LoadedProgram,
@@ -39,8 +41,9 @@ import type {
   SourceRange,
   ValidationWorkerResponse,
 } from './validation/types'
-import './controls/controls.css'
 import './DistingPlayground.css'
+import './controls/controls.css'
+import './device/device.css'
 import './workbench/workbench.css'
 
 const MAX_TRACE_POINTS = 5000
@@ -372,21 +375,26 @@ export function DistingPlayground() {
     setPotPositions((previous) => previous.map((position, positionIndex) => (
       positionIndex === index ? value : position
     )))
-    post({
-      type: 'uiEvent',
-      control: `pot${index + 1}` as DistingUiControl,
-      event: 'turn',
+    post(createUiEventRequest(
+      `pot${index + 1}` as DistingUiControl,
+      'turn',
       value,
-    })
+    ))
   }
 
-  const turnEncoder = (index: 1 | 2, value: -1 | 1) => {
-    post({ type: 'uiEvent', control: `encoder${index}`, event: 'turn', value })
+  const turnEncoder = (index: 0 | 1, value: -1 | 1) => {
+    post(createUiEventRequest(
+      `encoder${index + 1}` as DistingUiControl,
+      'turn',
+      value,
+    ))
   }
 
-  const pressControl = (control: DistingUiControl) => {
-    post({ type: 'uiEvent', control, event: 'push' })
-    post({ type: 'uiEvent', control, event: 'release' })
+  const sendControlEvent = (
+    control: DistingUiControl,
+    event: Extract<DistingUiEventKind, 'push' | 'release'>,
+  ) => {
+    post(createUiEventRequest(control, event))
   }
 
   const sendMidi = () => {
@@ -462,94 +470,41 @@ export function DistingPlayground() {
           secondary={(
             <InstrumentRack>
               <div className="disting-device-panel">
-                <div className="disting-device-head">
-                  <div>
-                    <span className="disting-panel-kicker">SIMULATED MODULE</span>
-                    <strong>disting NT</strong>
-                  </div>
-                  <span className="disting-clock">{stats.simulatedSeconds.toFixed(3)} s</span>
-                </div>
-
-                <DistingDisplay commands={display} />
-
-                {program && (
-                  <div className="disting-hardware-controls">
-                    <div className="disting-hardware-heading">
-                      <span>{program.customUi ? 'CUSTOM UI' : 'STANDARD UI'}</span>
-                      <button type="button" onClick={() => post({ type: 'serialise' })}>
-                        {hasSavedState ? 'State saved' : 'Save state'}
-                      </button>
-                    </div>
-
-                    <div className="disting-pot-bank">
-                      {potPositions.map((position, index) => (
-                        <label key={`pot-${index + 1}`}>
-                          <span>Pot {index + 1}</span>
-                          <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.001}
-                            value={position}
-                            onChange={(event) => turnPot(index, Number(event.target.value))}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => pressControl(`pot${index + 1}` as DistingUiControl)}
-                          >
-                            Push
-                          </button>
-                        </label>
+                <DistingDeviceFace
+                  commands={display}
+                  programName={program?.name ?? 'Lua script'}
+                  customUi={program?.customUi ?? null}
+                  simulatedSeconds={stats.simulatedSeconds}
+                  potPositions={potPositions}
+                  savedState={hasSavedState}
+                  onSaveState={() => post({ type: 'serialise' })}
+                  onPotTurn={turnPot}
+                  onEncoderTurn={turnEncoder}
+                  onControlPress={(control) => sendControlEvent(control, 'push')}
+                  onControlRelease={(control) => sendControlEvent(control, 'release')}
+                  utilities={program?.midi ? (
+                    <div className="disting-midi-input">
+                      <span>MIDI IN</span>
+                      {midiBytes.map((value, index) => (
+                        <input
+                          key={`midi-byte-${index}`}
+                          aria-label={`MIDI byte ${index + 1}`}
+                          type="number"
+                          min={0}
+                          max={255}
+                          value={value}
+                          onChange={(event) => {
+                            const nextValue = Math.min(255, Math.max(0, Number(event.target.value)))
+                            setMidiBytes((previous) => previous.map((byte, byteIndex) => (
+                              byteIndex === index ? nextValue : byte
+                            )))
+                          }}
+                        />
                       ))}
+                      <button type="button" onClick={sendMidi}>Send</button>
                     </div>
-
-                    <div className="disting-button-bank">
-                      {[1, 2].map((index) => (
-                        <div key={`encoder-${index}`}>
-                          <span>Encoder {index}</span>
-                          <button type="button" onClick={() => turnEncoder(index as 1 | 2, -1)}>−</button>
-                          <button type="button" onClick={() => pressControl(`encoder${index}` as DistingUiControl)}>Push</button>
-                          <button type="button" onClick={() => turnEncoder(index as 1 | 2, 1)}>+</button>
-                        </div>
-                      ))}
-                      <div>
-                        <span>Buttons</span>
-                        {[1, 2, 3, 4].map((index) => (
-                          <button
-                            type="button"
-                            key={`button-${index}`}
-                            onClick={() => pressControl(`button${index}` as DistingUiControl)}
-                          >
-                            {index}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {program.midi && (
-                      <div className="disting-midi-input">
-                        <span>MIDI IN</span>
-                        {midiBytes.map((value, index) => (
-                          <input
-                            key={`midi-byte-${index}`}
-                            aria-label={`MIDI byte ${index + 1}`}
-                            type="number"
-                            min={0}
-                            max={255}
-                            value={value}
-                            onChange={(event) => {
-                              const nextValue = Math.min(255, Math.max(0, Number(event.target.value)))
-                              setMidiBytes((previous) => previous.map((byte, byteIndex) => (
-                                byteIndex === index ? nextValue : byte
-                              )))
-                            }}
-                          />
-                        ))}
-                        <button type="button" onClick={sendMidi}>Send</button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  ) : undefined}
+                />
 
                 {program && program.parameters.length > 0 && (
                   <div className="disting-parameters">
