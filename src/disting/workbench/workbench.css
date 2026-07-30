@@ -309,8 +309,7 @@
 }
 
 .workbench-instrument-rack .disting-device-panel,
-.workbench-instrument-rack .disting-patch-bay,
-.workbench-instrument-rack .disting-audio-router {
+.workbench-instrument-rack .disting-patch-bay {
   margin: 0 0 8px;
   border: 1px solid var(--nt-line);
   border-radius: 7px;
@@ -327,33 +326,21 @@
   padding: 8px 10px;
 }
 
-.workbench-instrument-rack .disting-input-list,
-.workbench-instrument-rack .disting-audio-routes {
+.workbench-instrument-rack .disting-input-list {
   grid-template-columns: 1fr;
 }
 
-.workbench-instrument-rack .disting-input-channel,
-.workbench-instrument-rack .disting-audio-route {
+.workbench-instrument-rack .disting-input-channel {
   border-right: 0;
   border-bottom: 1px solid var(--nt-line);
 }
 
-.workbench-instrument-rack .disting-input-channel:last-child,
-.workbench-instrument-rack .disting-audio-route:last-child {
+.workbench-instrument-rack .disting-input-channel:last-child {
   border-bottom: 0;
 }
 
 .workbench-instrument-rack .disting-input-config {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.workbench-instrument-rack .disting-audio-body {
-  grid-template-columns: 1fr;
-}
-
-.workbench-instrument-rack .disting-synth-settings {
-  border-top: 1px solid var(--nt-line);
-  border-left: 0;
 }
 
 .workbench-instrument-rack .disting-display {
@@ -364,8 +351,7 @@
   margin-inline: 10px;
 }
 
-.workbench-instrument-rack .disting-parameters,
-.workbench-instrument-rack .disting-output-row {
+.workbench-instrument-rack .disting-parameters {
   padding-inline: 10px;
 }
 
@@ -605,4 +591,3 @@
     box-shadow: none;
   }
 }
-

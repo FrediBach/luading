@@ -5,7 +5,6 @@ import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
 import { IoDeck } from './io'
-import { OutputAudioRouter } from './OutputAudioRouter'
 import { Scope } from './Scope'
 import { ScriptQualityPanel } from './ScriptQualityPanel'
 import { DISTING_SCRIPT_EXAMPLES, DISTING_SCRIPT_GROUPS } from './script-examples'
@@ -511,18 +510,6 @@ export function DistingPlayground() {
                   />
                 )}
 
-                <div className="disting-output-row">
-                  {outputs.map((output, index) => (
-                    <div className="disting-output" key={program?.outputNames[index] ?? index}>
-                      <span>OUT {index + 1}</span>
-                      <strong>{output.toFixed(3)} V</strong>
-                      <small>
-                        {program?.outputNames[index] ?? `Output ${index + 1}`}
-                        {program ? ` · ${program.outputKinds[index]}` : ''}
-                      </small>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               {program && (
@@ -530,6 +517,7 @@ export function DistingPlayground() {
                   program={program}
                   sources={inputSources}
                   values={inputs}
+                  outputs={outputs}
                   trace={trace}
                   clock={clock}
                   onClockChange={changeClock}
@@ -537,8 +525,6 @@ export function DistingPlayground() {
                   onTrigger={(index) => post({ type: 'trigger', index })}
                 />
               )}
-
-              <OutputAudioRouter program={program} trace={trace} />
             </InstrumentRack>
           )}
         />

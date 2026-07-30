@@ -38,10 +38,11 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   interpolation, and pre/post-trigger windowing independently of React.
 - `InputPatchBay.tsx` and `Scope.tsx` are controls over typed worker messages and
   trace data. They do not contain signal-generation or Lua behavior.
-- `OutputAudioRouter.tsx` maps output channels to opt-in WebAudio voices.
-  `emulation/audio-routing.ts` extracts control-step-accurate rising edges and V/oct
-  note changes from the dense trace, while `emulation/web-audio.ts` owns the
-  browser audio graph and synthesized drum/synth voices.
+- `io/useOutputAudio.ts` maps output channels to opt-in WebAudio voices and keeps
+  browser activation, route, level, and waveform state local to the I/O deck.
+  `emulation/audio-routing.ts` extracts control-step-accurate rising edges and
+  V/oct note changes from the dense trace, while `emulation/web-audio.ts` owns
+  the browser audio graph and synthesized drum/synth voices.
 - `editor/DistingCodeEditor.tsx` keeps source text in Monaco's model rather than
   React state. Monaco is loaded during an idle window, uses its own editor-service
   worker, and remains a separate production chunk from the simulation worker.

@@ -77,11 +77,11 @@ describe('input channel rendering', () => {
       name: 'Inputs',
       author: 'Test',
       inputCount: 2,
-      outputCount: 0,
+      outputCount: 2,
       inputNames: ['Clock', 'CV'],
-      outputNames: [],
+      outputNames: ['Gate', 'Pitch'],
       inputKinds: ['trigger', 'cv'],
-      outputKinds: [],
+      outputKinds: ['stepped', 'linear'],
       parameters: [],
       customUi: false,
       uiPotPositions: [null, null, null],
@@ -94,6 +94,7 @@ describe('input channel rendering', () => {
           source({ shape: 'manual', manualValue: 1.25 }),
         ]}
         values={[0, 1.25]}
+        outputs={[5, 0.25]}
         trace={trace}
         clock={{ bpm: 120, running: true }}
         onClockChange={() => undefined}
@@ -108,6 +109,9 @@ describe('input channel rendering', () => {
     expect(markup).toContain('IN 1')
     expect(markup).toContain('IN 2')
     expect(markup).toContain('1.250 V')
+    expect(markup).toContain('OUT 1')
+    expect(markup).toContain('OUT 2')
+    expect(markup).toContain('stepped · Gate')
+    expect(markup).toContain('linear · Pitch')
   })
 })
-
