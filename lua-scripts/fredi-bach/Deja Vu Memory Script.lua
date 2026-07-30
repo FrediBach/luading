@@ -28,6 +28,29 @@ local cachedMemoryCv = 0       -- Cached memory CV input
 local cachedProbCv = 0         -- Cached probability CV input
 
 --------------------------------------------------------------------------------
+-- Display Constants
+--------------------------------------------------------------------------------
+
+local DISPLAY_CENTRE_X = 128
+local DISPLAY_CENTRE_Y = 30
+local DISPLAY_RADIUS_X = 62
+local DISPLAY_RADIUS_Y = 15
+local DISPLAY_WRITE_X = 66
+local DISPLAY_WRITE_Y = 30
+local DISPLAY_READ_X = 190
+local DISPLAY_READ_Y = 30
+local DISPLAY_INPUT_X = 22
+local DISPLAY_OUTPUT_X = 244
+local DISPLAY_RECORD_TIME = 0.12
+local DISPLAY_SHIFT_TIME = 0.18
+local DISPLAY_OUTPUT_TIME = 0.30
+local DISPLAY_FLASH_TIME = 0.45
+local NOTE_NAMES = {
+    "C", "C#", "D", "D#", "E", "F",
+    "F#", "G", "G#", "A", "A#", "B"
+}
+
+--------------------------------------------------------------------------------
 -- Helper Functions
 --------------------------------------------------------------------------------
 
@@ -47,13 +70,13 @@ end
 -- @return number|nil The randomly selected note voltage, or nil if buffer empty
 local function getRandomNote(maxIndex)
     if bufferCount == 0 then
-        return nil
+        return nil, 0
     end
     
     -- Limit to actual stored notes and effective memory size
     local availableNotes = math.min(bufferCount, maxIndex)
     if availableNotes == 0 then
-        return nil
+        return nil, 0
     end
     
     -- Select random index from available notes
@@ -62,7 +85,7 @@ local function getRandomNote(maxIndex)
     -- Calculate actual buffer position (working backwards from current position)
     local actualIndex = ((bufferIndex - randomIndex) % MAX_MEMORY) + 1
     
-    return noteBuffer[actualIndex]
+    return noteBuffer[actualIndex], randomIndex
 end
 
 --- Adds a note to the circular buffer
@@ -105,6 +128,39 @@ local function getEffectiveProbability(self, cvInput)
     return clamp(effectiveProbability, 0, 100)
 end
 
+--- Converts a V/Oct voltage to a compact note name, treating 0V as C4.
+-- @param voltage number Pitch voltage
+-- @return string Note name and octave
+local function voltageToNoteName(voltage)
+    local midiNote = math.floor(60 + voltage * 12 + 0.5)
+    local pitchClass = midiNote % 12
+    if pitchClass < 0 then pitchClass = pitchClass + 12 end
+    local octave = math.floor(midiNote / 12) - 1
+    return NOTE_NAMES[pitchClass + 1] .. octave
+end
+
+--- Returns the position of one logical memory slot on the tape loop.
+-- Slot one sits just beyond the write head so new notes visibly join the loop.
+-- @param slot number One-based slot index
+-- @param slotCount number Number of visible slots
+-- @return number, number Display x and y
+local function getDisplaySlotPosition(slot, slotCount)
+    local progress = slot / math.max(1, slotCount)
+    local angle = math.pi + progress * math.pi * 2
+    return DISPLAY_CENTRE_X + math.cos(angle) * DISPLAY_RADIUS_X,
+        DISPLAY_CENTRE_Y + math.sin(angle) * DISPLAY_RADIUS_Y
+end
+
+local function lerp(from, to, amount)
+    return from + (to - from) * amount
+end
+
+local function getStoredNote(logicalAge)
+    if logicalAge < 1 or logicalAge > bufferCount then return nil, 0 end
+    local actualIndex = ((bufferIndex - logicalAge) % MAX_MEMORY) + 1
+    return noteBuffer[actualIndex], actualIndex
+end
+
 --------------------------------------------------------------------------------
 -- Main Script Table
 --------------------------------------------------------------------------------
@@ -125,6 +181,17 @@ return {
         bufferCount = 0
         currentOutput = 0
         lastTriggered = false
+
+        -- Fixed display state is written by step()/gate() and read by draw().
+        self.display_time = 0
+        self.display_memory_size = DEFAULT_MEMORY
+        self.display_probability = DEFAULT_PROBABILITY
+        self.display_event_started = -1
+        self.display_event_input = 0
+        self.display_event_output = 0
+        self.display_event_memory_size = DEFAULT_MEMORY
+        self.display_recall_slot = 0
+        self.display_gate_high = false
         
         -- Seed random number generator
         math.randomseed(os.time())
@@ -180,10 +247,12 @@ return {
             
             -- Decide whether to trigger deja-vu
             local roll = math.random(100)
+            local recallSlot = 0
             
             if roll <= probability and bufferCount > 0 then
                 -- Deja-vu triggered! Get a random past note
-                local pastNote = getRandomNote(memorySize)
+                local pastNote
+                pastNote, recallSlot = getRandomNote(memorySize)
                 if pastNote then
                     currentOutput = pastNote
                     lastTriggered = true
@@ -200,11 +269,19 @@ return {
             -- Always add the incoming note to memory (not the output)
             -- This ensures memory represents what was played, not what was output
             addNoteToBuffer(pitchIn)
+
+            self.display_event_started = self.display_time
+            self.display_event_input = pitchIn
+            self.display_event_output = currentOutput
+            self.display_event_memory_size = memorySize
+            self.display_recall_slot = recallSlot
+            self.display_gate_high = true
             
             -- Return gate high
             return { currentOutput, 5.0 }
         else
             -- Gate closed
+            self.display_gate_high = false
             return { [2] = 0.0 }  -- Only update gate output
         end
     end
@@ -219,6 +296,15 @@ return {
         cachedPitch = inputs[1] or 0
         cachedMemoryCv = inputs[3] or 0
         cachedProbCv = inputs[4] or 0
+
+        self.display_time = self.display_time + dt
+        local displayAlpha = clamp(dt * 10, 0, 1)
+        local memoryTarget = getEffectiveMemorySize(self, cachedMemoryCv)
+        local probabilityTarget = getEffectiveProbability(self, cachedProbCv)
+        self.display_memory_size = self.display_memory_size
+            + (memoryTarget - self.display_memory_size) * displayAlpha
+        self.display_probability = self.display_probability
+            + (probabilityTarget - self.display_probability) * displayAlpha
         
         -- Continuously output the current pitch (for sample & hold behavior)
         -- Gate output is handled by the gate function
@@ -229,46 +315,232 @@ return {
     -- Custom Display
     ------------------------------------------------------------------------
     , draw = function(self)
-        local memorySize = getEffectiveMemorySize(self, cachedMemoryCv)
-        local probability = getEffectiveProbability(self, cachedProbCv)
-        
-        -- Title
-        drawText(128, 12, "DEJA-VU", 15, "centre")
-        
-        -- Memory visualization (show buffer as boxes)
-        local boxWidth = 6
-        local boxSpacing = 2
-        local totalWidth = memorySize * (boxWidth + boxSpacing) - boxSpacing
-        local startX = 128 - totalWidth / 2
-        local boxY = 28
-        
-        for i = 1, memorySize do
-            local x = startX + (i - 1) * (boxWidth + boxSpacing)
-            local filled = i <= bufferCount
-            
-            if filled then
-                -- Filled box for stored notes
-                drawRectangle(x, boxY, x + boxWidth, boxY + 8, 8)
-            else
-                -- Empty box for unused slots
-                drawBox(x, boxY, x + boxWidth, boxY + 8, 4)
+        drawStandardParameterLine()
+
+        local memorySize = clamp(
+            math.floor(self.display_memory_size + 0.5),
+            MIN_MEMORY,
+            MAX_MEMORY
+        )
+        local probability = clamp(self.display_probability, 0, 100)
+        local used = math.min(bufferCount, memorySize)
+        local eventAge = self.display_time - self.display_event_started
+        local eventActive = (
+            self.display_event_started >= 0
+            and eventAge <= DISPLAY_FLASH_TIME
+        )
+        local shiftProgress = clamp(
+            (eventAge - DISPLAY_RECORD_TIME) / DISPLAY_SHIFT_TIME,
+            0,
+            1
+        )
+
+        -- The tape follows a 24-segment oval around two reels.
+        local previousX = DISPLAY_CENTRE_X - DISPLAY_RADIUS_X
+        local previousY = DISPLAY_CENTRE_Y
+        for segment = 1, 24 do
+            local angle = math.pi + segment / 24 * math.pi * 2
+            local x = DISPLAY_CENTRE_X
+                + math.cos(angle) * DISPLAY_RADIUS_X
+            local y = DISPLAY_CENTRE_Y
+                + math.sin(angle) * DISPLAY_RADIUS_Y
+            drawSmoothLine(previousX, previousY, x, y, 3)
+            previousX = x
+            previousY = y
+        end
+
+        drawCircle(101, DISPLAY_CENTRE_Y, 8, 5)
+        drawCircle(101, DISPLAY_CENTRE_Y, 2, 7)
+        drawCircle(155, DISPLAY_CENTRE_Y, 8, 5)
+        drawCircle(155, DISPLAY_CENTRE_Y, 2, 7)
+        drawLine(93, DISPLAY_CENTRE_Y, 109, DISPLAY_CENTRE_Y, 2)
+        drawLine(147, DISPLAY_CENTRE_Y, 163, DISPLAY_CENTRE_Y, 2)
+
+        -- Input and output chutes meet the write and read heads.
+        drawSmoothLine(
+            4,
+            DISPLAY_WRITE_Y,
+            DISPLAY_WRITE_X,
+            DISPLAY_WRITE_Y,
+            eventActive and 8 or 4
+        )
+        drawSmoothLine(
+            DISPLAY_READ_X,
+            DISPLAY_READ_Y,
+            252,
+            DISPLAY_READ_Y,
+            self.display_gate_high and 15 or 4
+        )
+        drawLine(61, 26, DISPLAY_WRITE_X, DISPLAY_WRITE_Y, 10)
+        drawLine(61, 34, DISPLAY_WRITE_X, DISPLAY_WRITE_Y, 10)
+
+        -- Probability makes the read head larger and brighter.
+        local readRadius = 2 + probability / 100 * 3
+        local readShade = math.floor(5 + probability / 10 + 0.5)
+        drawSmoothCircle(
+            DISPLAY_READ_X,
+            DISPLAY_READ_Y,
+            readRadius,
+            readShade
+        )
+
+        -- Find the active pitch range once so bead shade can encode pitch.
+        local minimumPitch = nil
+        local maximumPitch = nil
+        for logicalAge = 1, used do
+            local note = getStoredNote(logicalAge)
+            if note then
+                minimumPitch = minimumPitch
+                    and math.min(minimumPitch, note)
+                    or note
+                maximumPitch = maximumPitch
+                    and math.max(maximumPitch, note)
+                    or note
             end
         end
-        
-        -- Stats line
-        local statsY = 48
-        drawText(5, statsY, "Mem:" .. memorySize, 10)
-        drawText(70, statsY, "Prob:" .. math.floor(probability) .. "%", 10)
-        drawText(150, statsY, "Notes:" .. bufferCount, 10)
-        
-        -- Deja-vu indicator
-        if lastTriggered then
-            drawText(230, statsY, "!", 15)
-            drawCircle(242, statsY - 4, 6, 12)
+
+        -- Empty slots establish capacity; stored beads move forward after write.
+        for logicalAge = 1, memorySize do
+            local slotX, slotY = getDisplaySlotPosition(
+                logicalAge,
+                memorySize
+            )
+            if logicalAge <= used then
+                local note = getStoredNote(logicalAge)
+                local beadX = slotX
+                local beadY = slotY
+
+                if eventActive and logicalAge > 1 then
+                    local fromX, fromY = getDisplaySlotPosition(
+                        logicalAge - 1,
+                        memorySize
+                    )
+                    beadX = lerp(fromX, slotX, shiftProgress)
+                    beadY = lerp(fromY, slotY, shiftProgress)
+                end
+
+                local pitchAmount = 0.5
+                if maximumPitch and minimumPitch
+                    and maximumPitch > minimumPitch then
+                    pitchAmount = (note - minimumPitch)
+                        / (maximumPitch - minimumPitch)
+                end
+                local beadShade = math.floor(6 + pitchAmount * 6 + 0.5)
+                if (
+                    lastTriggered
+                    and eventActive
+                    and logicalAge == self.display_recall_slot + 1
+                ) then
+                    beadShade = 15
+                end
+                drawSmoothCircle(beadX, beadY, 1.5, beadShade)
+            else
+                drawSmoothCircle(slotX, slotY, 0.7, 3)
+            end
         end
-        
-        -- Current output voltage display
-        local outputStr = string.format("%.2fV", currentOutput)
-        drawText(128, 60, outputStr, 12, "centre")
+
+        if eventActive then
+            -- The incoming bead first crosses the chute, then joins slot one.
+            local inputX = DISPLAY_INPUT_X
+            local inputY = DISPLAY_WRITE_Y
+            if eventAge < DISPLAY_RECORD_TIME then
+                local progress = clamp(
+                    eventAge / DISPLAY_RECORD_TIME,
+                    0,
+                    1
+                )
+                inputX = lerp(
+                    DISPLAY_INPUT_X,
+                    DISPLAY_WRITE_X,
+                    progress
+                )
+            else
+                local slotX, slotY = getDisplaySlotPosition(1, memorySize)
+                inputX = lerp(
+                    DISPLAY_WRITE_X,
+                    slotX,
+                    shiftProgress
+                )
+                inputY = lerp(
+                    DISPLAY_WRITE_Y,
+                    slotY,
+                    shiftProgress
+                )
+            end
+            drawSmoothCircle(inputX, inputY, 2.2, 14)
+
+            -- A recalled note is copied from its old slot to the read head.
+            -- A new note follows the tape from the write head instead.
+            local sourceX = DISPLAY_WRITE_X
+            local sourceY = DISPLAY_WRITE_Y
+            if lastTriggered then
+                sourceX, sourceY = getDisplaySlotPosition(
+                    self.display_recall_slot,
+                    self.display_event_memory_size
+                )
+            end
+
+            local outputX
+            local outputY
+            local firstStageEnd = DISPLAY_OUTPUT_TIME * 0.5
+            if eventAge < firstStageEnd then
+                local progress = clamp(eventAge / firstStageEnd, 0, 1)
+                outputX = lerp(sourceX, DISPLAY_READ_X, progress)
+                outputY = lerp(sourceY, DISPLAY_READ_Y, progress)
+            else
+                local progress = clamp(
+                    (eventAge - firstStageEnd) / firstStageEnd,
+                    0,
+                    1
+                )
+                outputX = lerp(
+                    DISPLAY_READ_X,
+                    DISPLAY_OUTPUT_X,
+                    progress
+                )
+                outputY = DISPLAY_READ_Y
+            end
+            drawSmoothCircle(outputX, outputY, 2.2, 15)
+        elseif self.display_gate_high then
+            drawSmoothCircle(
+                DISPLAY_OUTPUT_X,
+                DISPLAY_READ_Y,
+                2.2,
+                15
+            )
+        end
+
+        if lastTriggered and eventActive then
+            local flashShade = math.floor(
+                7 + 8 * clamp(1 - eventAge / DISPLAY_FLASH_TIME, 0, 1)
+            )
+            drawTinyText(128, 14, "DEJA", flashShade, "centre")
+        end
+
+        local inputPitch = eventActive
+            and self.display_event_input
+            or cachedPitch
+        drawTinyText(
+            4,
+            63,
+            "IN " .. voltageToNoteName(inputPitch),
+            8
+        )
+        drawTinyText(
+            128,
+            63,
+            used .. "/" .. memorySize,
+            10,
+            "centre"
+        )
+        drawTinyText(
+            252,
+            63,
+            voltageToNoteName(currentOutput) .. " OUT",
+            self.display_gate_high and 15 or 8,
+            "right"
+        )
+
+        return true
     end
 }

@@ -241,6 +241,8 @@ through the protected gap.**
 
 ### 8. Deja Vu Memory Script
 
+Status: Implemented
+
 **Concept: a looping memory tape with note beads.** A repeated note is visibly
 pulled from the loop; a new note is recorded onto it.
 
