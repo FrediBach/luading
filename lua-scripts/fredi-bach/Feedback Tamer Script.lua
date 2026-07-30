@@ -25,8 +25,10 @@ local peak_hold_time = 0.0    -- Timer for peak hold decay
 -- Constants
 --------------------------------------------------------------------------------
 local PEAK_HOLD_DURATION = 1.0  -- How long to hold peak display (seconds)
-local DISPLAY_WIDTH = 256
-local DISPLAY_HEIGHT = 64
+local DISPLAY_HISTORY_SIZE = 30
+local DISPLAY_SAMPLE_TIME = 1.0 / 30.0
+local DISPLAY_CENTRE_Y = 31
+local DISPLAY_WAVE_HEIGHT = 14
 
 --------------------------------------------------------------------------------
 -- Utility Functions
@@ -62,6 +64,24 @@ local function clamp(value, min_val, max_val)
     return value
 end
 
+local function history_slot(self, chronological_index)
+    local slot = self.display_history_write
+        - self.display_history_count
+        + chronological_index
+    while slot <= 0 do
+        slot = slot + DISPLAY_HISTORY_SIZE
+    end
+    while slot > DISPLAY_HISTORY_SIZE do
+        slot = slot - DISPLAY_HISTORY_SIZE
+    end
+    return slot
+end
+
+local function waveform_y(sample)
+    local normalized = clamp(sample / 5.0, -1, 1)
+    return DISPLAY_CENTRE_Y - normalized * DISPLAY_WAVE_HEIGHT
+end
+
 --------------------------------------------------------------------------------
 -- Main Script Table
 --------------------------------------------------------------------------------
@@ -78,6 +98,23 @@ return {
         gain_reduction = 1.0
         peak_hold = 0.0
         peak_hold_time = 0.0
+
+        -- Fixed display buffers are sampled from the real script input,
+        -- envelope, and reduced output at the documented draw cadence.
+        self.display_time = 0.0
+        self.display_sample_accumulator = 0.0
+        self.display_history_write = 0
+        self.display_history_count = 0
+        self.display_input_history = {}
+        self.display_output_history = {}
+        self.display_envelope_history = {}
+        for i = 1, DISPLAY_HISTORY_SIZE do
+            self.display_input_history[i] = 0.0
+            self.display_output_history[i] = 0.0
+            self.display_envelope_history[i] = 0.0
+        end
+        self.display_jaw_open = 1.0
+        self.display_peak_started = -1.0
 
         return {
             -- Input: Audio signal to monitor (typically feedback return)
@@ -132,6 +169,7 @@ return {
     , step = function(self, dt, inputs)
         local audio_in = inputs[1]
         local p = self.parameters
+        self.display_time = self.display_time + dt
 
         -- Read parameters
         local threshold_db = p[1]
@@ -151,7 +189,8 @@ return {
         local release_coef = calc_coef(dt, release_ms)
 
         -- Get absolute value of input for level detection
-        local input_level = math.abs(audio_in)
+        local sidechain_signal = audio_in
+        local input_level = math.abs(sidechain_signal)
 
         -- Simple one-pole high-pass filter for sidechain (optional)
         -- This helps prevent low frequencies from triggering reduction
@@ -162,7 +201,8 @@ return {
             end
             local hpf_coef = calc_coef(dt, 1000.0 / (2.0 * math.pi * hpf_freq))
             self.hpf_state = self.hpf_state + hpf_coef * (audio_in - self.hpf_state)
-            input_level = math.abs(audio_in - self.hpf_state)
+            sidechain_signal = audio_in - self.hpf_state
+            input_level = math.abs(sidechain_signal)
         end
 
         -- Peak envelope follower with separate attack/release
@@ -210,8 +250,40 @@ return {
         if envelope > peak_hold then
             peak_hold = envelope
             peak_hold_time = 0.0
+            self.display_peak_started = self.display_time
         elseif peak_hold_time > PEAK_HOLD_DURATION then
             peak_hold = envelope
+        end
+
+        -- The jaw follows the authoritative gain reduction. A minimum display
+        -- time keeps very fast attack visible while the real release parameter
+        -- controls its slower reopening.
+        local jaw_time_ms
+        if gain_reduction < self.display_jaw_open then
+            jaw_time_ms = math.max(20, attack_ms)
+        else
+            jaw_time_ms = math.max(60, release_ms)
+        end
+        local jaw_coef = calc_coef(dt, jaw_time_ms)
+        self.display_jaw_open = self.display_jaw_open
+            + jaw_coef * (gain_reduction - self.display_jaw_open)
+
+        self.display_sample_accumulator = self.display_sample_accumulator + dt
+        while self.display_sample_accumulator >= DISPLAY_SAMPLE_TIME do
+            self.display_sample_accumulator = self.display_sample_accumulator
+                - DISPLAY_SAMPLE_TIME
+            self.display_history_write = self.display_history_write + 1
+            if self.display_history_write > DISPLAY_HISTORY_SIZE then
+                self.display_history_write = 1
+            end
+            self.display_history_count = math.min(
+                DISPLAY_HISTORY_SIZE,
+                self.display_history_count + 1
+            )
+            self.display_input_history[self.display_history_write] =
+                sidechain_signal
+            self.display_output_history[self.display_history_write] = audio_out
+            self.display_envelope_history[self.display_history_write] = envelope
         end
 
         -- Store current values for display
@@ -228,103 +300,144 @@ return {
     -- Custom Display
     ------------------------------------------------------------------------
     , draw = function(self)
-        -- Get display values (with defaults for first frame)
-        local env = self.display_envelope or 0
         local gr = self.display_gr or 1
         local peak = self.display_peak or 0
         local thresh = self.display_threshold or 1
         local cv = self.display_cv or 0
+        local history_count = self.display_history_count or 0
 
-        -- Layout constants
-        local meter_left = 10
-        local meter_right = 180
-        local meter_width = meter_right - meter_left
-        local meter_top = 20
-        local meter_height = 12
-        local gr_top = 38
-        local gr_height = 10
+        drawTinyText(5, 9, "IN", 6)
+        drawTinyText(170, 9, "OUT", 6)
+        drawLine(5, DISPLAY_CENTRE_Y, 130, DISPLAY_CENTRE_Y, 2)
+        drawLine(169, DISPLAY_CENTRE_Y, 250, DISPLAY_CENTRE_Y, 2)
 
-        -- Draw title
-        drawText(128, 12, "FEEDBACK TAMER", 15, "centre")
-
-        -- === Input Level Meter ===
-        drawText(meter_left, meter_top - 2, "IN", 8)
-
-        -- Meter background
-        drawBox(meter_left, meter_top, meter_right, meter_top + meter_height, 4)
-
-        -- Convert envelope to meter position (0-5V range mapped to meter)
-        local env_normalized = clamp(env / 5.0, 0, 1)
-        local env_pos = meter_left + math.floor(env_normalized * meter_width)
-
-        -- Draw level bar with color coding
-        if env_pos > meter_left then
-            local color = 10  -- Normal: cyan-ish
-            if env > thresh then
-                color = 15  -- Over threshold: bright/white
+        -- The input trace uses the exact signed side-chain sample. With SC HPF
+        -- enabled, its low-frequency motion disappears just as it does from the
+        -- envelope detector.
+        local peak_x = 5
+        local peak_y = DISPLAY_CENTRE_Y
+        local history_peak = 0
+        local previous_x = nil
+        local previous_y = nil
+        for i = 1, history_count do
+            local slot = history_slot(self, i)
+            local amount
+            if history_count <= 1 then
+                amount = 1
+            else
+                amount = (i - 1) / (history_count - 1)
             end
-            drawRectangle(meter_left + 1, meter_top + 1, 
-                         env_pos, meter_top + meter_height - 1, color)
+            local x = 5 + amount * 123
+            local sample = self.display_input_history[slot]
+            local y = waveform_y(sample)
+            local env_amount = clamp(
+                self.display_envelope_history[slot] / 5.0,
+                0,
+                1
+            )
+            local shade = 5 + math.floor(env_amount * 7)
+            if previous_x then
+                drawSmoothLine(previous_x, previous_y, x, y, shade)
+            end
+            previous_x = x
+            previous_y = y
+
+            if math.abs(sample) > history_peak then
+                history_peak = math.abs(sample)
+                peak_x = x
+                peak_y = y
+            end
         end
 
-        -- Draw threshold marker
-        local thresh_normalized = clamp(thresh / 5.0, 0, 1)
-        local thresh_pos = meter_left + math.floor(thresh_normalized * meter_width)
-        drawLine(thresh_pos, meter_top - 2, thresh_pos, meter_top + meter_height + 2, 12)
+        -- The threshold bracket immediately before the jaws moves vertically
+        -- with the authoritative linear threshold.
+        local threshold_height = clamp(thresh / 5.0, 0, 1)
+            * DISPLAY_WAVE_HEIGHT
+        local threshold_top = DISPLAY_CENTRE_Y - threshold_height
+        local threshold_bottom = DISPLAY_CENTRE_Y + threshold_height
+        drawSmoothLine(132, threshold_top, 132, threshold_bottom, 7)
+        drawSmoothLine(128, threshold_top, 136, threshold_top, 10)
+        drawSmoothLine(128, threshold_bottom, 136, threshold_bottom, 10)
 
-        -- Draw peak hold marker
-        local peak_normalized = clamp(peak / 5.0, 0, 1)
-        local peak_pos = meter_left + math.floor(peak_normalized * meter_width)
-        if peak_pos > meter_left then
-            drawLine(peak_pos, meter_top + 1, peak_pos, meter_top + meter_height - 1, 15)
+        -- Gain reduction closes the protective jaws. The exit trace contains
+        -- the real reduced audio samples, so the mouth and waveform tell the
+        -- same story without sampling anything outside the Lua algorithm.
+        local jaw_open = clamp(self.display_jaw_open or 1, 0, 1)
+        local jaw_gap = 3 + jaw_open * 11
+        local jaw_shade = 8 + math.floor((1 - jaw_open) * 7)
+        local upper_tip_y = DISPLAY_CENTRE_Y - jaw_gap
+        local lower_tip_y = DISPLAY_CENTRE_Y + jaw_gap
+        drawSmoothLine(137, 9, 152, upper_tip_y, jaw_shade)
+        drawSmoothLine(152, upper_tip_y, 167, 9, jaw_shade)
+        drawSmoothLine(137, 53, 152, lower_tip_y, jaw_shade)
+        drawSmoothLine(152, lower_tip_y, 167, 53, jaw_shade)
+        drawSmoothCircle(152, 8, 2, 6)
+        drawSmoothCircle(152, 54, 2, 6)
+
+        previous_x = nil
+        previous_y = nil
+        for i = 1, history_count do
+            local slot = history_slot(self, i)
+            local amount
+            if history_count <= 1 then
+                amount = 1
+            else
+                amount = (i - 1) / (history_count - 1)
+            end
+            local x = 170 + amount * 79
+            local y = waveform_y(self.display_output_history[slot])
+            if previous_x then
+                drawSmoothLine(
+                    previous_x,
+                    previous_y,
+                    x,
+                    y,
+                    7 + math.floor(gr * 5)
+                )
+            end
+            previous_x = x
+            previous_y = y
         end
 
-        -- === Gain Reduction Meter ===
-        drawText(meter_left, gr_top - 2, "GR", 8)
-
-        -- GR meter background
-        drawBox(meter_left, gr_top, meter_right, gr_top + gr_height, 4)
-
-        -- GR is shown as reduction from right (1.0 = no reduction = empty)
-        local gr_amount = 1.0 - gr  -- Amount of reduction (0 to 1)
-        local gr_pos = meter_left + math.floor(gr_amount * meter_width)
-
-        if gr_pos > meter_left then
-            -- Color based on amount of reduction
-            local gr_color = 6  -- Mild reduction
-            if gr_amount > 0.5 then
-                gr_color = 12  -- Heavy reduction
-            end
-            if gr_amount > 0.8 then
-                gr_color = 15  -- Extreme reduction
-            end
-            drawRectangle(meter_left + 1, gr_top + 1, 
-                         gr_pos, gr_top + gr_height - 1, gr_color)
+        local peak_age = self.display_time - self.display_peak_started
+        if self.display_peak_started >= 0
+            and peak_age < PEAK_HOLD_DURATION
+            and peak > 0 then
+            local peak_fade = 1 - peak_age / PEAK_HOLD_DURATION
+            drawSmoothCircle(
+                peak_x,
+                peak_y,
+                1.5 + peak_fade,
+                7 + math.floor(peak_fade * 8)
+            )
         end
 
-        -- === CV Output Display ===
-        local cv_text = string.format("CV: %.2fV", cv)
-        drawText(200, meter_top + 6, cv_text, 15)
-
-        -- === Status indicator ===
+        local reduction_percent = math.floor((1 - gr) * 100 + 0.5)
         local status = "PASS"
-        local status_color = 10
-        if gr < 0.99 then
-            status = "TAMING"
-            status_color = 12
-        end
-        if gr < 0.5 then
-            status = "LIMITING"
-            status_color = 15
-        end
-        drawText(200, gr_top + 5, status, status_color)
+        if gr < 0.99 then status = "TAME" end
+        if gr < 0.5 then status = "LIMIT" end
+        drawTinyText(252, 9, status, jaw_shade, "right")
+        drawTinyText(
+            4,
+            62,
+            string.format("TH %.0fdB", self.parameters[1]),
+            8
+        )
+        drawTinyText(
+            128,
+            62,
+            string.format("GR %d%%", reduction_percent),
+            11 + math.floor((1 - gr) * 4),
+            "centre"
+        )
+        drawTinyText(
+            252,
+            62,
+            string.format("CV %+.2fV", cv),
+            13,
+            "right"
+        )
 
-        -- === Scale markers ===
-        drawTinyText(meter_left, meter_top + meter_height + 8, "0", 6)
-        drawTinyText(meter_left + meter_width // 2, meter_top + meter_height + 8, "2.5", 6, "centre")
-        drawTinyText(meter_right, meter_top + meter_height + 8, "5V", 6, "right")
-
-        -- Return false to show standard parameter line at top
-        return false
+        return true
     end
 }

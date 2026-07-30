@@ -381,6 +381,8 @@ should communicate frequency relationships before the offsets are read.
 
 ### 14. Feedback Tamer Script
 
+Status: Implemented
+
 **Concept: a waveform passing through a pair of protective jaws.** The jaws
 close as feedback becomes unsafe.
 
