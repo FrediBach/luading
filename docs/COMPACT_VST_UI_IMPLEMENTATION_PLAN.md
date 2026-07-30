@@ -2,9 +2,56 @@
 
 ## Status
 
-Proposed implementation plan. This document describes a presentation and
+Implementation in progress. This document describes a presentation and
 interaction redesign; it does not change the documented Disting NT Lua
 contract.
+
+### Progress ledger
+
+Last updated: 2026-07-30
+
+Current milestone: fixed-height workbench foundation.
+
+| Session | Status | Notes |
+| --- | --- | --- |
+| 1. Baseline and interaction contract | Partial | Source/CSS inventory, workflow inventory, density targets, and interaction rules are documented. Before screenshots and viewport measurements remain pending because a controllable browser was unavailable in the implementation session. |
+| 2. Workbench shell | Implemented; visual QA pending | Added the fixed-height shell, compact command bar, persisted split/drawer layout state, keyboard-accessible resizers, instrument rack, tabbed bottom drawer, and status bar. Existing device, patch, audio, scope, quality, console, and performance behavior was recomposed without changing worker messages. |
+| 3. Shared control primitives | Not started | Next major implementation session after shell visual QA. |
+| 4. Disting device face | Not started | Existing form controls remain in the new instrument rack. |
+| 5. Parameter bank | Not started | Existing parameter sliders remain functional. |
+| 6. Input channel tiles | Not started | Existing input patch bay remains functional inside the rack. |
+| 7. Output tiles and WebAudio | Not started | Existing output cards and audio router remain functional inside the rack. |
+| 8. Scope workspace | Shell integration complete | Existing scope is mounted in the drawer; compact toolbar, legend, and tile assignment are pending. |
+| 9. Problems, console, performance | Shell integration complete | Existing content is mounted in drawer tabs; compact workspace redesign is pending. |
+| 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. Clock, save state, MIDI, workspace presets, shortcuts, and About remain pending. |
+| 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
+| 12. Performance and release gate | Not started | Full gate was run for the first shell increment; final profiling and legacy cleanup remain pending. |
+
+Implemented files:
+
+- `src/disting/workbench/WorkbenchShell.tsx`
+- `src/disting/workbench/CommandBar.tsx`
+- `src/disting/workbench/SplitPane.tsx`
+- `src/disting/workbench/InstrumentRack.tsx`
+- `src/disting/workbench/BottomDrawer.tsx`
+- `src/disting/workbench/StatusBar.tsx`
+- `src/disting/workbench/useWorkbenchLayout.ts`
+- `src/disting/workbench/workbench-layout.ts`
+- `src/disting/workbench/workbench-layout.test.ts`
+- `src/disting/workbench/workbench.css`
+
+Verification completed for the first increment:
+
+- focused workbench layout tests: 4 passed;
+- TypeScript project build: passed;
+- lint: passed;
+- complete test suite: 36 files and 171 tests passed;
+- coverage thresholds: passed; and
+- production build through `npm run check`: passed.
+
+The next session should begin with visual QA of the shell at the target
+viewports, fix any sizing or overflow issues found, and then implement the
+shared control primitives from Session 3.
 
 ## Objective
 
@@ -1349,4 +1396,3 @@ The first reviewable milestone should include:
 This vertical slice validates geometry, density, live visualization,
 interaction rules, accessibility, and state flow before every existing control
 is converted.
-

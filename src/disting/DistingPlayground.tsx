@@ -8,6 +8,13 @@ import { OutputAudioRouter } from './OutputAudioRouter'
 import { Scope } from './Scope'
 import { ScriptQualityPanel } from './ScriptQualityPanel'
 import { DISTING_SCRIPT_EXAMPLES, DISTING_SCRIPT_GROUPS } from './script-examples'
+import { BottomDrawer } from './workbench/BottomDrawer'
+import { CommandBar } from './workbench/CommandBar'
+import { InstrumentRack } from './workbench/InstrumentRack'
+import { SplitPane } from './workbench/SplitPane'
+import { StatusBar } from './workbench/StatusBar'
+import { useWorkbenchLayout } from './workbench/useWorkbenchLayout'
+import { WorkbenchShell } from './workbench/WorkbenchShell'
 import type {
   DistingHardwareEvent,
   DistingUiControl,
@@ -33,6 +40,7 @@ import type {
   ValidationWorkerResponse,
 } from './validation/types'
 import './DistingPlayground.css'
+import './workbench/workbench.css'
 
 const MAX_TRACE_POINTS = 5000
 const LOAD_TIMEOUT_MS = 2000
@@ -76,6 +84,7 @@ function hardwareEventLabel(event: DistingHardwareEvent) {
 }
 
 export function DistingPlayground() {
+  const { layout, dispatch: dispatchLayout } = useWorkbenchLayout()
   const [program, setProgram] = useState<LoadedProgram | null>(null)
   const [status, setStatus] = useState<'booting' | 'loading' | 'paused' | 'running' | 'error'>('booting')
   const [error, setError] = useState<string | null>(null)
@@ -400,6 +409,11 @@ export function DistingPlayground() {
     () => calculateQualityReport(diagnostics, stats, sourceIsLoaded),
     [diagnostics, sourceIsLoaded, stats],
   )
+  const qualityLabel = qualityReport.score === null
+    ? qualityReport.status === 'invalid'
+      ? `${qualityReport.errorCount} errors`
+      : 'Run to score'
+    : `${qualityReport.score} · ${qualityReport.grade}`
 
   const selectDiagnostic = (diagnostic: ScriptDiagnostic) => {
     if (!diagnostic.range) return
@@ -407,268 +421,269 @@ export function DistingPlayground() {
   }
 
   return (
-    <main className="disting-app">
-      <header className="disting-topbar">
-        <span className="disting-project">Luading</span>
-        <div className="disting-brand">
-          <span className="disting-brand-mark">NT</span>
-          <span>Disting NT <small>Lua Simulator</small></span>
-        </div>
-        <div className={`disting-status disting-status--${status}`}>
-          <span />
-          {status}
-        </div>
-      </header>
-
-      <section className="disting-intro">
-        <div>
-          <p className="disting-eyebrow">Disting-style runtime in your browser</p>
-          <h1>Patch the script. Watch the machine.</h1>
-          <p>
-            A focused simulation of the real Lua lifecycle: one persistent Lua 5.4 VM,
-            1 ms control steps, 30 fps drawing, CV, triggers, parameters, and deadline telemetry.
-          </p>
-        </div>
-        <div className="disting-runtime-strip">
-          <span>Lua 5.4 / WASM</span>
-          <span>1 kHz step</span>
-          <span>30 fps draw</span>
-          <span>isolated worker</span>
-        </div>
-      </section>
-
-      <section className="disting-workbench">
-        <div className="disting-editor-panel">
-          <div className="disting-panel-header">
-            <div>
-              <span className="disting-panel-kicker">PROGRAM</span>
-              <strong>{program?.name ?? 'Lua script'}</strong>
-            </div>
-            <div className="disting-actions">
-              <span className={`disting-quality-chip disting-quality-chip--${qualityReport.status}`}>
-                {qualityReport.score === null
-                  ? qualityReport.status === 'invalid'
-                    ? `${qualityReport.errorCount} errors`
-                    : 'Run to score'
-                  : `${qualityReport.score} · ${qualityReport.grade}`}
-              </span>
-              <label className="disting-example-picker">
-                <span>Example</span>
-                <select
-                  aria-label="Lua example script"
-                  value={selectedExampleId}
-                  onChange={(event) => selectExample(event.target.value)}
-                >
-                  <option value="" disabled>Choose a script…</option>
-                  {DISTING_SCRIPT_GROUPS.map((group) => (
-                    <optgroup key={group.name} label={group.name}>
-                      {group.examples.map((example) => (
-                        <option key={example.id} value={example.id}>{example.name}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-              <button type="button" className="disting-button disting-button--secondary" onClick={toggleRunning} disabled={!program}>
-                {status === 'running' ? 'Pause' : 'Resume'}
-              </button>
-              <button type="button" className="disting-button disting-button--primary" onClick={loadScript}>
-                Run script
-              </button>
-            </div>
-          </div>
-          <DistingCodeEditor
-            value={editorSource}
-            diagnostics={diagnostics}
-            revealRequest={revealRequest}
-            onChange={updateSource}
-            onRun={loadScript}
-          />
-          <ScriptQualityPanel
-            diagnostics={diagnostics}
-            report={qualityReport}
-            onSelectDiagnostic={selectDiagnostic}
-          />
-        </div>
-
-        <div className="disting-device-panel">
-          <div className="disting-device-head">
-            <div>
-              <span className="disting-panel-kicker">SIMULATED MODULE</span>
-              <strong>disting NT</strong>
-            </div>
-            <span className="disting-clock">{stats.simulatedSeconds.toFixed(3)} s</span>
-          </div>
-
-          <DistingDisplay commands={display} />
-
-          {program && (
-            <div className="disting-hardware-controls">
-              <div className="disting-hardware-heading">
-                <span>{program.customUi ? 'CUSTOM UI' : 'STANDARD UI'}</span>
-                <button type="button" onClick={() => post({ type: 'serialise' })}>
-                  {hasSavedState ? 'State saved' : 'Save state'}
-                </button>
-              </div>
-
-              <div className="disting-pot-bank">
-                {potPositions.map((position, index) => (
-                  <label key={`pot-${index + 1}`}>
-                    <span>Pot {index + 1}</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.001}
-                      value={position}
-                      onChange={(event) => turnPot(index, Number(event.target.value))}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => pressControl(`pot${index + 1}` as DistingUiControl)}
-                    >
-                      Push
-                    </button>
-                  </label>
-                ))}
-              </div>
-
-              <div className="disting-button-bank">
-                {[1, 2].map((index) => (
-                  <div key={`encoder-${index}`}>
-                    <span>Encoder {index}</span>
-                    <button type="button" onClick={() => turnEncoder(index as 1 | 2, -1)}>−</button>
-                    <button type="button" onClick={() => pressControl(`encoder${index}` as DistingUiControl)}>Push</button>
-                    <button type="button" onClick={() => turnEncoder(index as 1 | 2, 1)}>+</button>
-                  </div>
-                ))}
-                <div>
-                  <span>Buttons</span>
-                  {[1, 2, 3, 4].map((index) => (
-                    <button
-                      type="button"
-                      key={`button-${index}`}
-                      onClick={() => pressControl(`button${index}` as DistingUiControl)}
-                    >
-                      {index}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {program.midi && (
-                <div className="disting-midi-input">
-                  <span>MIDI IN</span>
-                  {midiBytes.map((value, index) => (
-                    <input
-                      key={`midi-byte-${index}`}
-                      aria-label={`MIDI byte ${index + 1}`}
-                      type="number"
-                      min={0}
-                      max={255}
-                      value={value}
-                      onChange={(event) => {
-                        const nextValue = Math.min(255, Math.max(0, Number(event.target.value)))
-                        setMidiBytes((previous) => previous.map((byte, byteIndex) => (
-                          byteIndex === index ? nextValue : byte
-                        )))
-                      }}
-                    />
-                  ))}
-                  <button type="button" onClick={sendMidi}>Send</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {program && program.parameters.length > 0 && (
-            <div className="disting-parameters">
-              {program.parameters.map((parameter, index) => (
-                <label className="disting-control" key={`${parameter.name}-${index}`}>
-                  <span>
-                    {parameter.name}
-                    <output>{parameter.enumValues?.[Math.round(parameterValues[index]) - 1] ?? parameterLabel(parameterValues[index], parameter.unit)}</output>
-                  </span>
-                  <input
-                    type="range"
-                    min={parameter.min}
-                    max={parameter.max}
-                    step={parameter.enumValues ? 1 : (parameter.max - parameter.min) / 200}
-                    value={parameterValues[index]}
-                    onChange={(event) => changeParameter(index, Number(event.target.value))}
-                  />
-                </label>
-              ))}
-            </div>
-          )}
-
-          <div className="disting-output-row">
-            {outputs.map((output, index) => (
-              <div className="disting-output" key={program?.outputNames[index] ?? index}>
-                <span>OUT {index + 1}</span>
-                <strong>{output.toFixed(3)} V</strong>
-                <small>
-                  {program?.outputNames[index] ?? `Output ${index + 1}`}
-                  {program ? ` · ${program.outputKinds[index]}` : ''}
-                </small>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {program && (
-        <InputPatchBay
-          program={program}
-          sources={inputSources}
-          values={inputs}
-          clock={clock}
-          onClockChange={changeClock}
-          onSourceChange={changeInputSource}
-          onTrigger={(index) => post({ type: 'trigger', index })}
+    <WorkbenchShell
+      density={layout.density}
+      commandBar={(
+        <CommandBar
+          programName={program?.name ?? 'Lua script'}
+          selectedExampleId={selectedExampleId}
+          scriptGroups={DISTING_SCRIPT_GROUPS}
+          status={status}
+          qualityLabel={qualityLabel}
+          qualityStatus={qualityReport.status}
+          canToggleRunning={Boolean(program)}
+          onSelectExample={selectExample}
+          onToggleRunning={toggleRunning}
+          onRun={loadScript}
+          onOpenProblems={() => dispatchLayout({ type: 'openDrawer', tab: 'problems' })}
         />
       )}
+      workspace={(
+        <SplitPane
+          splitPercent={layout.splitPercent}
+          onSplitChange={(value) => dispatchLayout({ type: 'setSplit', value })}
+          onSplitReset={() => dispatchLayout({ type: 'resetSplit' })}
+          primary={(
+            <div className="disting-editor-panel workbench-editor">
+              <div className="workbench-editor-heading">
+                <span className="disting-panel-kicker">PROGRAM</span>
+                <strong>{program?.name ?? 'Lua script'}</strong>
+              </div>
+              <DistingCodeEditor
+                value={editorSource}
+                diagnostics={diagnostics}
+                revealRequest={revealRequest}
+                onChange={updateSource}
+                onRun={loadScript}
+              />
+            </div>
+          )}
+          secondary={(
+            <InstrumentRack>
+              <div className="disting-device-panel">
+                <div className="disting-device-head">
+                  <div>
+                    <span className="disting-panel-kicker">SIMULATED MODULE</span>
+                    <strong>disting NT</strong>
+                  </div>
+                  <span className="disting-clock">{stats.simulatedSeconds.toFixed(3)} s</span>
+                </div>
 
-      <OutputAudioRouter program={program} trace={trace} />
+                <DistingDisplay commands={display} />
 
-      <Scope
-        trace={trace}
-        probes={probes}
-        program={program}
-        inputs={inputs}
-        outputs={outputs}
-        onProbeChange={changeProbe}
-      />
+                {program && (
+                  <div className="disting-hardware-controls">
+                    <div className="disting-hardware-heading">
+                      <span>{program.customUi ? 'CUSTOM UI' : 'STANDARD UI'}</span>
+                      <button type="button" onClick={() => post({ type: 'serialise' })}>
+                        {hasSavedState ? 'State saved' : 'Save state'}
+                      </button>
+                    </div>
 
-      <section className="disting-metrics" aria-label="Runtime performance">
-        <div>
-          <span>Average step</span>
-          <strong>{formatDuration(stats.averageUs)}</strong>
-          <small>Lua callback + boundary</small>
-        </div>
-        <div>
-          <span>95th percentile</span>
-          <strong>{formatDuration(stats.p95Us)}</strong>
-          <small>last 2,000 steps</small>
-        </div>
-        <div>
-          <span>Worst step</span>
-          <strong>{formatDuration(stats.maxUs)}</strong>
-          <small>{stats.droppedSteps} catch-up drops</small>
-        </div>
-        <div className={`disting-budget disting-budget--${budgetState}`}>
-          <span>Local 1 ms budget</span>
-          <strong>{stats.budgetPercent.toFixed(2)}%</strong>
-          <small>not calibrated to hardware</small>
-        </div>
-      </section>
+                    <div className="disting-pot-bank">
+                      {potPositions.map((position, index) => (
+                        <label key={`pot-${index + 1}`}>
+                          <span>Pot {index + 1}</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.001}
+                            value={position}
+                            onChange={(event) => turnPot(index, Number(event.target.value))}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => pressControl(`pot${index + 1}` as DistingUiControl)}
+                          >
+                            Push
+                          </button>
+                        </label>
+                      ))}
+                    </div>
 
-      {(error || logs.length > 0 || hardwareEvents.length > 0) && (
-        <section className={`disting-console${error ? ' disting-console--error' : ''}`}>
-          <div className="disting-panel-kicker">{error ? 'RUNTIME ERROR' : 'LUA / HARDWARE EVENT LOG'}</div>
-          <pre>{error ?? [...logs, ...hardwareEvents].join('\n')}</pre>
-        </section>
+                    <div className="disting-button-bank">
+                      {[1, 2].map((index) => (
+                        <div key={`encoder-${index}`}>
+                          <span>Encoder {index}</span>
+                          <button type="button" onClick={() => turnEncoder(index as 1 | 2, -1)}>−</button>
+                          <button type="button" onClick={() => pressControl(`encoder${index}` as DistingUiControl)}>Push</button>
+                          <button type="button" onClick={() => turnEncoder(index as 1 | 2, 1)}>+</button>
+                        </div>
+                      ))}
+                      <div>
+                        <span>Buttons</span>
+                        {[1, 2, 3, 4].map((index) => (
+                          <button
+                            type="button"
+                            key={`button-${index}`}
+                            onClick={() => pressControl(`button${index}` as DistingUiControl)}
+                          >
+                            {index}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {program.midi && (
+                      <div className="disting-midi-input">
+                        <span>MIDI IN</span>
+                        {midiBytes.map((value, index) => (
+                          <input
+                            key={`midi-byte-${index}`}
+                            aria-label={`MIDI byte ${index + 1}`}
+                            type="number"
+                            min={0}
+                            max={255}
+                            value={value}
+                            onChange={(event) => {
+                              const nextValue = Math.min(255, Math.max(0, Number(event.target.value)))
+                              setMidiBytes((previous) => previous.map((byte, byteIndex) => (
+                                byteIndex === index ? nextValue : byte
+                              )))
+                            }}
+                          />
+                        ))}
+                        <button type="button" onClick={sendMidi}>Send</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {program && program.parameters.length > 0 && (
+                  <div className="disting-parameters">
+                    {program.parameters.map((parameter, index) => (
+                      <label className="disting-control" key={`${parameter.name}-${index}`}>
+                        <span>
+                          {parameter.name}
+                          <output>{parameter.enumValues?.[Math.round(parameterValues[index]) - 1] ?? parameterLabel(parameterValues[index], parameter.unit)}</output>
+                        </span>
+                        <input
+                          type="range"
+                          min={parameter.min}
+                          max={parameter.max}
+                          step={parameter.enumValues ? 1 : (parameter.max - parameter.min) / 200}
+                          value={parameterValues[index]}
+                          onChange={(event) => changeParameter(index, Number(event.target.value))}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                <div className="disting-output-row">
+                  {outputs.map((output, index) => (
+                    <div className="disting-output" key={program?.outputNames[index] ?? index}>
+                      <span>OUT {index + 1}</span>
+                      <strong>{output.toFixed(3)} V</strong>
+                      <small>
+                        {program?.outputNames[index] ?? `Output ${index + 1}`}
+                        {program ? ` · ${program.outputKinds[index]}` : ''}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {program && (
+                <InputPatchBay
+                  program={program}
+                  sources={inputSources}
+                  values={inputs}
+                  clock={clock}
+                  onClockChange={changeClock}
+                  onSourceChange={changeInputSource}
+                  onTrigger={(index) => post({ type: 'trigger', index })}
+                />
+              )}
+
+              <OutputAudioRouter program={program} trace={trace} />
+            </InstrumentRack>
+          )}
+        />
       )}
-    </main>
+      drawer={(
+        <BottomDrawer
+          activeTab={layout.activeDrawerTab}
+          open={layout.drawerOpen}
+          height={layout.drawerHeight}
+          onToggleTab={(tab) => dispatchLayout({ type: 'toggleDrawer', tab })}
+          onHeightChange={(value) => dispatchLayout({ type: 'setDrawerHeight', value })}
+          tabs={[
+            {
+              id: 'scope',
+              label: 'Scope',
+              content: (
+                <Scope
+                  trace={trace}
+                  probes={probes}
+                  program={program}
+                  inputs={inputs}
+                  outputs={outputs}
+                  onProbeChange={changeProbe}
+                />
+              ),
+            },
+            {
+              id: 'problems',
+              label: 'Problems',
+              badge: diagnostics.length,
+              content: (
+                <ScriptQualityPanel
+                  diagnostics={diagnostics}
+                  report={qualityReport}
+                  onSelectDiagnostic={selectDiagnostic}
+                />
+              ),
+            },
+            {
+              id: 'console',
+              label: 'Console',
+              badge: (error ? 1 : 0) + logs.length + hardwareEvents.length,
+              content: (
+                <section className={`disting-console${error ? ' disting-console--error' : ''}`}>
+                  <div className="disting-panel-kicker">
+                    {error ? 'RUNTIME ERROR' : 'LUA / HARDWARE EVENT LOG'}
+                  </div>
+                  <pre>
+                    {error
+                      ?? ([...logs, ...hardwareEvents].join('\n') || 'No runtime or hardware events.')}
+                  </pre>
+                </section>
+              ),
+            },
+            {
+              id: 'performance',
+              label: 'Performance',
+              content: (
+                <section className="disting-metrics" aria-label="Runtime performance">
+                  <div>
+                    <span>Average step</span>
+                    <strong>{formatDuration(stats.averageUs)}</strong>
+                    <small>Lua callback + boundary</small>
+                  </div>
+                  <div>
+                    <span>95th percentile</span>
+                    <strong>{formatDuration(stats.p95Us)}</strong>
+                    <small>last 2,000 steps</small>
+                  </div>
+                  <div>
+                    <span>Worst step</span>
+                    <strong>{formatDuration(stats.maxUs)}</strong>
+                    <small>{stats.droppedSteps} catch-up drops</small>
+                  </div>
+                  <div className={`disting-budget disting-budget--${budgetState}`}>
+                    <span>Local 1 ms budget</span>
+                    <strong>{stats.budgetPercent.toFixed(2)}%</strong>
+                    <small>not calibrated to hardware</small>
+                  </div>
+                </section>
+              ),
+            },
+          ]}
+        />
+      )}
+      statusBar={<StatusBar stats={stats} />}
+    />
   )
 }
