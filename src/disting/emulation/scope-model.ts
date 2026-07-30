@@ -22,7 +22,7 @@ export function readTracePoint(point: TracePoint, source: ScopeSource) {
     : point.outputs[source.index] ?? 0
 }
 
-function signalRange(trace: TracePoint[], source: ScopeSource) {
+function signalRange(trace: readonly TracePoint[], source: ScopeSource) {
   let min = Number.POSITIVE_INFINITY
   let max = Number.NEGATIVE_INFINITY
 
@@ -39,8 +39,8 @@ function signalRange(trace: TracePoint[], source: ScopeSource) {
 }
 
 export function selectAutomaticTrigger(
-  trace: TracePoint[],
-  sources: Array<ScopeSource | null>,
+  trace: readonly TracePoint[],
+  sources: readonly (ScopeSource | null)[],
 ): TriggerSelection | null {
   let best: TriggerSelection | null = null
   let bestRange = 0
@@ -81,7 +81,7 @@ function interpolatedCrossing(
 }
 
 function findLatestTrigger(
-  trace: TracePoint[],
+  trace: readonly TracePoint[],
   source: ScopeSource,
   edge: TriggerEdge,
   level: number,
@@ -106,7 +106,7 @@ function findLatestTrigger(
 }
 
 export function selectScopeWindow(
-  trace: TracePoint[],
+  trace: readonly TracePoint[],
   durationSeconds: number,
   trigger: TriggerSelection | null,
   edge: TriggerEdge,

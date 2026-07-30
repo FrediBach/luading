@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { TraceHistory } from '../emulation/trace-history'
 import type { LoadedProgram, SignalSourceConfig, TracePoint } from '../types'
 import { InputChannelInspector } from './InputChannelInspector'
 import { InputChannelTile } from './InputChannelTile'
@@ -27,6 +28,8 @@ const trace: TracePoint[] = [
   { time: 0.001, inputs: [5, -1], outputs: [] },
   { time: 0.002, inputs: [0, 0], outputs: [] },
 ]
+const traceHistory = new TraceHistory()
+traceHistory.append(trace)
 
 describe('input channel rendering', () => {
   it('renders a live trigger tile with direct sync and fire actions', () => {
@@ -37,7 +40,8 @@ describe('input channel rendering', () => {
         kind="trigger"
         source={source()}
         value={5}
-        trace={trace}
+        traceHistory={traceHistory}
+        traceRevision={1}
         probes={[
           { id: 'probe-1', source: { kind: 'input', index: 0 } },
           { id: 'probe-2', source: null },
@@ -111,7 +115,8 @@ describe('input channel rendering', () => {
           { id: 'probe-4', source: null },
         ]}
         focusedScopeProbe={0}
-        trace={trace}
+        traceHistory={traceHistory}
+        traceRevision={1}
         clock={{ bpm: 120, running: true }}
         onClockChange={() => undefined}
         onSourceChange={() => undefined}

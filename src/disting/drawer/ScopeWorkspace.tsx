@@ -6,6 +6,7 @@ import {
   type TriggerEdge,
   type TriggerSelection,
 } from '../emulation/scope-model'
+import type { TraceHistory } from '../emulation/trace-history'
 import type {
   LoadedProgram,
   ScopeProbe,
@@ -29,7 +30,8 @@ const TIME_PER_DIVISION_MS = [5, 10, 25, 50, 100, 200, 500] as const
 const VOLTS_PER_DIVISION = [0.5, 1, 2, 5, 10] as const
 
 interface Props {
-  trace: TracePoint[]
+  traceHistory: TraceHistory
+  traceRevision: number
   probes: ScopeProbe[]
   program: LoadedProgram | null
   inputs: number[]
@@ -71,7 +73,8 @@ function formatVoltage(value: number) {
 }
 
 export function ScopeWorkspace({
-  trace,
+  traceHistory,
+  traceRevision,
   probes,
   program,
   inputs,
@@ -87,6 +90,7 @@ export function ScopeWorkspace({
   const [timeZoomIndex, setTimeZoomIndex] = useState(3)
   const [voltageZoomIndex, setVoltageZoomIndex] = useState(3)
 
+  const trace = traceHistory.snapshot(traceRevision)
   const timePerDivision = TIME_PER_DIVISION_MS[timeZoomIndex] ?? 50
   const voltsPerDivision = VOLTS_PER_DIVISION[voltageZoomIndex] ?? 5
   const durationSeconds = timePerDivision * HORIZONTAL_DIVISIONS / 1000

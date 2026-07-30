@@ -8,12 +8,12 @@ import {
   ValueField,
 } from '../controls'
 import { CLOCK_DIVISIONS, SIGNAL_SHAPES } from '../emulation/signal-sources'
+import type { TraceHistory } from '../emulation/trace-history'
 import type {
   InputKind,
   ScopeProbe,
   ScopeSource,
   SignalSourceConfig,
-  TracePoint,
 } from '../types'
 import { InputChannelInspector } from './InputChannelInspector'
 import {
@@ -35,7 +35,8 @@ interface Props {
   kind: InputKind
   source: SignalSourceConfig
   value: number
-  trace: readonly TracePoint[]
+  traceHistory: TraceHistory
+  traceRevision: number
   probes: readonly ScopeProbe[]
   focusedScopeProbe: number | null
   onChange(source: SignalSourceConfig): void
@@ -61,7 +62,8 @@ export function InputChannelTile({
   kind,
   source,
   value,
-  trace,
+  traceHistory,
+  traceRevision,
   probes,
   focusedScopeProbe,
   onChange,
@@ -73,6 +75,7 @@ export function InputChannelTile({
   const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
   const tileRef = useRef<HTMLElement>(null)
   const scopeSource = { kind: 'input' as const, index }
+  const trace = traceHistory.snapshot(traceRevision)
   const traceValues = inputTraceValues(trace, index)
   const range = inputPlotRange(source, traceValues)
   const clockDivision = source.timing.mode === 'clock'

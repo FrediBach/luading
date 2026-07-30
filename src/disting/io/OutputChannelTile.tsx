@@ -6,11 +6,11 @@ import {
   MiniSignalPlot,
 } from '../controls'
 import type { AudioRouteDestination } from '../emulation/audio-routing'
+import type { TraceHistory } from '../emulation/trace-history'
 import type {
   OutputKind,
   ScopeProbe,
   ScopeSource,
-  TracePoint,
 } from '../types'
 import {
   audioDestinationLabel,
@@ -28,7 +28,8 @@ interface Props {
   name: string
   kind: OutputKind
   value: number
-  trace: readonly TracePoint[]
+  traceHistory: TraceHistory
+  traceRevision: number
   route: AudioRouteDestination
   audioEnabled: boolean
   audioError: string | null
@@ -44,7 +45,8 @@ export function OutputChannelTile({
   name,
   kind,
   value,
-  trace,
+  traceHistory,
+  traceRevision,
   route,
   audioEnabled,
   audioError,
@@ -58,6 +60,7 @@ export function OutputChannelTile({
   const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
   const tileRef = useRef<HTMLElement>(null)
   const scopeSource = { kind: 'output' as const, index }
+  const trace = traceHistory.snapshot(traceRevision)
   const traceValues = outputTraceValues(trace, index)
   const range = outputPlotRange(traceValues)
   const routed = route !== 'off'

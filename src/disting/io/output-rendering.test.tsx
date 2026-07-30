@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { TraceHistory } from '../emulation/trace-history'
 import { AudioMasterControl } from './AudioMasterControl'
 import { OutputChannelTile } from './OutputChannelTile'
 import { OutputRoutingPopover } from './OutputRoutingPopover'
@@ -9,6 +10,8 @@ const trace = [
   { time: 0.001, inputs: [], outputs: [5, 0] },
   { time: 0.002, inputs: [], outputs: [0, 1] },
 ]
+const traceHistory = new TraceHistory()
+traceHistory.append(trace)
 
 describe('output channel rendering', () => {
   it('renders output identity, exact voltage, trace, and audio state', () => {
@@ -18,7 +21,8 @@ describe('output channel rendering', () => {
         name="Envelope"
         kind="stepped"
         value={5}
-        trace={trace}
+        traceHistory={traceHistory}
+        traceRevision={1}
         route="kick"
         audioEnabled
         audioError={null}

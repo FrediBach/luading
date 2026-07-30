@@ -12,6 +12,7 @@ import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
+import { TraceHistory } from './emulation/trace-history'
 import { FrameCommitGate } from './frame-commit'
 import {
   ConsoleWorkspace,
@@ -51,7 +52,6 @@ import type {
   ScopeProbe,
   ScopeSource,
   SignalSourceConfig,
-  TracePoint,
   WorkerRequest,
   WorkerResponse,
 } from './types'
@@ -72,7 +72,6 @@ import './device/device.css'
 import './workbench/workbench.css'
 import './io/io.css'
 
-const MAX_TRACE_POINTS = 5000
 const LOAD_TIMEOUT_MS = 2000
 const EMPTY_PROBES: ScopeProbe[] = createDefaultScopeProbes(0, 0)
 
@@ -128,7 +127,8 @@ export function DistingPlayground() {
   const [parameterValues, setParameterValues] = useState<number[]>([])
   const [outputs, setOutputs] = useState<number[]>([])
   const [stats, setStats] = useState<RuntimeStats>(EMPTY_STATS)
-  const [trace, setTrace] = useState<TracePoint[]>([])
+  const [traceHistory] = useState(() => new TraceHistory())
+  const [traceRevision, setTraceRevision] = useState(0)
   const [display, setDisplay] = useState<DrawCommand[]>([])
   const [probes, setProbes] = useState<ScopeProbe[]>(EMPTY_PROBES)
   const [focusedScopeProbe, setFocusedScopeProbe] = useState<number | null>(null)
@@ -194,6 +194,11 @@ export function DistingPlayground() {
     if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
     timeoutRef.current = null
   }, [])
+
+  const clearTrace = useCallback(() => {
+    traceHistory.clear()
+    setTraceRevision((revision) => revision + 1)
+  }, [traceHistory])
 
   const terminateWorker = useCallback(() => {
     clearLoadTimeout()
@@ -270,7 +275,8 @@ export function DistingPlayground() {
         setStats(message.stats)
         setDisplay(message.display)
         if (message.trace.length > 0) {
-          setTrace((previous) => [...previous, ...message.trace].slice(-MAX_TRACE_POINTS))
+          traceHistory.append(message.trace)
+          setTraceRevision((current) => current + 1)
         }
         setCommittedFrameRevision(revision)
       })
@@ -297,7 +303,7 @@ export function DistingPlayground() {
       setSourceIsLoaded(false)
       if (message.diagnostic) setRuntimeDiagnostics([message.diagnostic])
     }
-  }, [appendConsoleEntry, clearLoadTimeout])
+  }, [appendConsoleEntry, clearLoadTimeout, traceHistory])
 
   const createWorker = useCallback(() => {
     terminateWorker()
@@ -328,7 +334,7 @@ export function DistingPlayground() {
     runningRef.current = false
     resumeWhenVisibleRef.current = false
     setProgram(null)
-    setTrace([])
+    clearTrace()
     setStats(EMPTY_STATS)
     setDisplay([])
     setInputSources([])
@@ -343,7 +349,7 @@ export function DistingPlayground() {
     setRuntimeDiagnostics([])
     setStatus('loading')
     createWorker()
-  }, [createWorker])
+  }, [clearTrace, createWorker])
 
   const selectExample = (exampleId: string) => {
     const example = DISTING_SCRIPT_EXAMPLES.get(exampleId)
@@ -404,7 +410,7 @@ export function DistingPlayground() {
 
       if (!resumeWhenVisibleRef.current) return
       resumeWhenVisibleRef.current = false
-      setTrace([])
+      clearTrace()
       setStats(EMPTY_STATS)
       post({ type: 'resetTelemetry' })
       post({ type: 'start' })
@@ -412,7 +418,7 @@ export function DistingPlayground() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [post])
+  }, [clearTrace, post])
 
   const toggleRunning = () => {
     resumeWhenVisibleRef.current = false
@@ -423,19 +429,19 @@ export function DistingPlayground() {
     setInputSources((previous) => previous.map((source, sourceIndex) => (
       sourceIndex === index ? config : source
     )))
-    setTrace([])
+    clearTrace()
     post({ type: 'setInputSource', index, config })
   }
 
   const changeClock = (nextClock: GlobalClockConfig) => {
     setClock(nextClock)
-    setTrace([])
+    clearTrace()
     post({ type: 'setClock', config: nextClock })
   }
 
   const changeParameter = (index: number, value: number) => {
     setParameterValues((previous) => previous.map((item, itemIndex) => itemIndex === index ? value : item))
-    setTrace([])
+    clearTrace()
     post({ type: 'setParameter', index, value })
   }
 
@@ -616,7 +622,8 @@ export function DistingPlayground() {
                   outputs={outputs}
                   probes={probes}
                   focusedScopeProbe={focusedScopeProbe}
-                  trace={trace}
+                  traceHistory={traceHistory}
+                  traceRevision={traceRevision}
                   clock={clock}
                   onClockChange={changeClock}
                   onSourceChange={changeInputSource}
@@ -642,7 +649,8 @@ export function DistingPlayground() {
               label: 'Scope',
               content: (
                 <ScopeWorkspace
-                  trace={trace}
+                  traceHistory={traceHistory}
+                  traceRevision={traceRevision}
                   probes={probes}
                   program={program}
                   inputs={inputs}

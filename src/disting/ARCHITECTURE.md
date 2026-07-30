@@ -40,6 +40,10 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   black-to-`#02F1EF` display palette.
 - `emulation/scope-model.ts` performs automatic trigger selection, edge
   interpolation, and pre/post-trigger windowing independently of React.
+- `emulation/trace-history.ts` owns the bounded main-thread trace history. Its
+  samples live in native private fields and consumers receive a scalar revision,
+  preventing React development instrumentation from cloning the nested history
+  into every component-render performance measure.
 - `io/IoDeck.tsx` and `drawer/ScopeWorkspace.tsx` are controls over typed worker
   messages and trace data. They do not contain signal-generation or Lua
   behavior; reusable triggering and window selection remain in

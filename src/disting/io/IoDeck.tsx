@@ -1,11 +1,11 @@
 import { IconToggle, ValueField } from '../controls'
+import type { TraceHistory } from '../emulation/trace-history'
 import type {
   GlobalClockConfig,
   LoadedProgram,
   ScopeProbe,
   ScopeSource,
   SignalSourceConfig,
-  TracePoint,
 } from '../types'
 import { InputChannelTile } from './InputChannelTile'
 import { AudioMasterControl } from './AudioMasterControl'
@@ -19,7 +19,8 @@ interface Props {
   outputs: number[]
   probes: ScopeProbe[]
   focusedScopeProbe: number | null
-  trace: readonly TracePoint[]
+  traceHistory: TraceHistory
+  traceRevision: number
   clock: GlobalClockConfig
   onClockChange(clock: GlobalClockConfig): void
   onSourceChange(index: number, source: SignalSourceConfig): void
@@ -35,7 +36,8 @@ export function IoDeck({
   outputs,
   probes,
   focusedScopeProbe,
-  trace,
+  traceHistory,
+  traceRevision,
   clock,
   onClockChange,
   onSourceChange,
@@ -43,6 +45,7 @@ export function IoDeck({
   onProbeChange,
   onProbeFocus,
 }: Props) {
+  const trace = traceHistory.snapshot(traceRevision)
   const outputAudio = useOutputAudio(program, trace)
 
   return (
@@ -93,7 +96,8 @@ export function IoDeck({
                 kind={program.inputKinds[index] ?? 'cv'}
                 source={source}
                 value={values[index] ?? 0}
-                trace={trace}
+                traceHistory={traceHistory}
+                traceRevision={traceRevision}
                 probes={probes}
                 focusedScopeProbe={focusedScopeProbe}
                 onChange={(nextSource) => onSourceChange(index, nextSource)}
@@ -115,7 +119,8 @@ export function IoDeck({
                 name={program.outputNames[index] ?? `Output ${index + 1}`}
                 kind={program.outputKinds[index] ?? 'linear'}
                 value={outputs[index] ?? 0}
-                trace={trace}
+                traceHistory={traceHistory}
+                traceRevision={traceRevision}
                 route={route.destination}
                 audioEnabled={outputAudio.enabled}
                 audioError={outputAudio.error}

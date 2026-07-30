@@ -50,9 +50,17 @@ worker uses the typed messages in `src/disting/types.ts`.
 - creates, replaces, and terminates workers;
 - sends typed user actions to the simulation worker;
 - rejects stale validation-worker responses;
-- batches trace data into the scope and audio router;
+- appends trace data to an opaque, bounded `TraceHistory` for the scope and
+  audio router;
 - acknowledges simulator frames only after the matching React commit; and
 - pauses simulation when the page is hidden.
+
+The trace history is intentionally not stored in React state or exposed as an
+enumerable component prop. A scalar revision causes consumers to read its latest
+snapshot. This keeps React's development profiler from recursively cloning and
+retaining thousands of nested trace samples on every 20 fps frame. Development
+bootstrapping also bounds accumulated User Timing measures; production builds
+do not install that cleanup.
 
 The application is served at `/`. Vercel permanently redirects the former
 `/disting` route to `/`.
@@ -147,6 +155,8 @@ The core emulator is split by hardware-facing responsibility:
 - `hardware-api.ts` clamps and records MIDI/I2C operations. It never accesses
   physical hardware.
 - `scope-model.ts` selects triggers and trace windows independently of React.
+- `trace-history.ts` bounds high-frequency input/output samples and keeps the
+  nested history opaque to React development instrumentation.
 - `audio-routing.ts` turns dense output traces into musical events.
 - `web-audio.ts` owns the opt-in browser audio graph and synthesized voices.
 

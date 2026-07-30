@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { TraceHistory } from '../emulation/trace-history'
 import type { LoadedProgram, ScopeProbe, TracePoint } from '../types'
 import { ScopeProbeChooser } from '../io/ScopeAssignmentButton'
 import { ScopeWorkspace } from './ScopeWorkspace'
@@ -30,12 +31,15 @@ const trace: TracePoint[] = Array.from({ length: 600 }, (_, index) => ({
   inputs: [index % 20 < 10 ? 0 : 5],
   outputs: [index % 40 < 20 ? 0 : 5, (index % 12) / 12],
 }))
+const traceHistory = new TraceHistory()
+traceHistory.append(trace)
 
 describe('scope workspace rendering', () => {
   it('renders compact controls, routed legend chips, and responsive traces', () => {
     const markup = renderToStaticMarkup(
       <ScopeWorkspace
-        trace={trace}
+        traceHistory={traceHistory}
+        traceRevision={1}
         probes={probes}
         program={program}
         inputs={[5]}
