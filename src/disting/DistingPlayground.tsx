@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_DISTING_SCRIPT } from './default-script'
-import { DistingDeviceFace } from './device'
+import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
@@ -66,10 +66,6 @@ const EMPTY_STATS: RuntimeStats = {
 
 function formatDuration(microseconds: number) {
   return microseconds < 1000 ? `${microseconds.toFixed(1)} µs` : `${(microseconds / 1000).toFixed(2)} ms`
-}
-
-function parameterLabel(value: number, unit: string) {
-  return `${Number.isInteger(value) ? value : value.toFixed(2)}${unit ? ` ${unit}` : ''}`
 }
 
 function hardwareEventLabel(event: DistingHardwareEvent) {
@@ -506,25 +502,12 @@ export function DistingPlayground() {
                   ) : undefined}
                 />
 
-                {program && program.parameters.length > 0 && (
-                  <div className="disting-parameters">
-                    {program.parameters.map((parameter, index) => (
-                      <label className="disting-control" key={`${parameter.name}-${index}`}>
-                        <span>
-                          {parameter.name}
-                          <output>{parameter.enumValues?.[Math.round(parameterValues[index]) - 1] ?? parameterLabel(parameterValues[index], parameter.unit)}</output>
-                        </span>
-                        <input
-                          type="range"
-                          min={parameter.min}
-                          max={parameter.max}
-                          step={parameter.enumValues ? 1 : (parameter.max - parameter.min) / 200}
-                          value={parameterValues[index]}
-                          onChange={(event) => changeParameter(index, Number(event.target.value))}
-                        />
-                      </label>
-                    ))}
-                  </div>
+                {program && (
+                  <ParameterBank
+                    definitions={program.parameters}
+                    values={parameterValues}
+                    onChange={changeParameter}
+                  />
                 )}
 
                 <div className="disting-output-row">

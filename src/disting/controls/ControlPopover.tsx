@@ -40,7 +40,7 @@ export function ControlPopover({
     window.addEventListener('keydown', handleKeyDown)
     window.requestAnimationFrame(() => {
       popoverRef.current
-        ?.querySelector<HTMLElement>('button, input, select, [tabindex]:not([tabindex="-1"])')
+        ?.querySelector<HTMLElement>('.control-popover-content input, .control-popover-content select, .control-popover-content button, .control-popover-content [tabindex]:not([tabindex="-1"])')
         ?.focus()
     })
 

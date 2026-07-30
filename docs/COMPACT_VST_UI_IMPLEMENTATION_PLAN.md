@@ -10,7 +10,7 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: compact simulated Disting device face.
+Current milestone: metadata-driven script parameter bank.
 
 | Session | Status | Notes |
 | --- | --- | --- |
@@ -18,8 +18,8 @@ Current milestone: compact simulated Disting device face.
 | 2. Workbench shell | Implemented; visual QA pending | Added the fixed-height shell, compact command bar, persisted split/drawer layout state, keyboard-accessible resizers, instrument rack, tabbed bottom drawer, and status bar. Existing device, patch, audio, scope, quality, console, and performance behavior was recomposed without changing worker messages. |
 | 3. Shared control primitives | Implemented; visual QA pending | Added the project-local icon set, tooltip, corner action, icon toggle, exact value field, popover, tile, rotary, endless encoder, push rotary, momentary button, segmented selector, meter, signal glyph, and downsampled mini signal plot. Pure interaction math and server-rendered accessibility semantics are covered by focused tests. |
 | 4. Disting device face | Implemented; visual QA pending | Replaced the three native pot sliders, two encoder button groups, and four hardware buttons with pushable rotary controls, endless encoders, and momentary buttons. Added the compact display bezel and save-state control. Typed pot turns, encoder turns, pushes, and releases retain the existing `uiEvent` request contract. |
-| 5. Parameter bank | Not started | Next implementation session. Existing parameter sliders remain functional below the new device face. |
-| 6. Input channel tiles | Not started | Existing input patch bay remains functional inside the rack. |
+| 5. Parameter bank | Implemented; visual QA pending | Replaced native parameter sliders with paged custom controls. Documented scales determine exact steps; bipolar values use center-detented rotaries; unscaled values use stepped rotaries; short enums use segmented controls; long enums use searchable custom menus. Default reset and exact numeric entry are available, and enum indices remain 1-based. |
+| 6. Input channel tiles | Not started | Next implementation session. Existing input patch bay remains functional inside the rack. |
 | 7. Output tiles and WebAudio | Not started | Existing output cards and audio router remain functional inside the rack. |
 | 8. Scope workspace | Shell integration complete | Existing scope is mounted in the drawer; compact toolbar, legend, and tile assignment are pending. |
 | 9. Problems, console, performance | Shell integration complete | Existing content is mounted in drawer tabs; compact workspace redesign is pending. |
@@ -66,23 +66,29 @@ Implemented files:
 - `src/disting/device/device.css`
 - focused tests in `src/disting/device/hardware-controls.test.ts` and
   `src/disting/device/device-rendering.test.tsx`
+- `src/disting/device/ParameterBank.tsx`
+- `src/disting/device/ParameterControl.tsx`
+- `src/disting/device/parameter-controls.ts`
+- focused tests in `src/disting/device/parameter-controls.test.ts` and
+  `src/disting/device/parameter-rendering.test.tsx`
 
 Verification completed for the first increment:
 
 - focused workbench layout tests: 4 passed;
 - focused control math and rendering tests: 11 passed;
 - focused device mapping/rendering tests: 7 passed;
+- focused parameter metadata/rendering tests: 8 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 40 files and 189 tests passed;
+- complete test suite: 42 files and 197 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 5: replace the native script
-parameter sliders with the metadata-driven `ParameterBank` and
-`ParameterControl` components, including continuous, bipolar, integer, and enum
-forms. Visual QA of the shell and custom controls at the target viewports
-remains required when a controllable browser is available.
+The next implementation session is Session 6: replace the full input patch bay
+with compact `InputChannelTile` controls and contextual inspectors, including
+live trace previews, direct clock sync, exact generator settings, and trigger
+fire actions. Visual QA of the shell and custom controls at the target
+viewports remains required when a controllable browser is available.
 
 ## Objective
 
