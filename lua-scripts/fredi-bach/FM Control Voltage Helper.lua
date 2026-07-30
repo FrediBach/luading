@@ -55,13 +55,84 @@ local function getOffsetVoltage(ratioIndex)
     return math.log(ratio) / math.log(2)  -- log2(ratio)
 end
 
--- Format voltage for display
-local function formatVoltage(v)
-    if v >= 0 then
-        return string.format("+%.3fV", v)
-    else
-        return string.format("%.3fV", v)
+--------------------------------------------------------------------------------
+-- Display Helpers
+--------------------------------------------------------------------------------
+
+local DISPLAY_TWO_PI = math.pi * 2
+local DISPLAY_IMPULSE_TIME = 0.18
+local DISPLAY_RULER_LEFT = 72
+local DISPLAY_RULER_RIGHT = 247
+local DISPLAY_RULER_MIN = -2
+local DISPLAY_RULER_MAX = 3
+
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
+local function ratioValue(ratioIndex)
+    local ratio = RATIOS[ratioIndex]
+    if not ratio then return 1 end
+    return ratio[2] / ratio[3]
+end
+
+local function gearRadius(offset)
+    -- An octave of ratio change alters the radius by half a pixel. Keeping the
+    -- range narrow leaves every embedded ratio legible in the 2x2 gear train.
+    return clamp(9 - offset * 0.5, 7.5, 10.5)
+end
+
+local function rulerX(offset)
+    local normalized = (
+        clamp(offset, DISPLAY_RULER_MIN, DISPLAY_RULER_MAX)
+        - DISPLAY_RULER_MIN
+    ) / (DISPLAY_RULER_MAX - DISPLAY_RULER_MIN)
+    return DISPLAY_RULER_LEFT
+        + normalized * (DISPLAY_RULER_RIGHT - DISPLAY_RULER_LEFT)
+end
+
+local function beltEndpoints(fromX, fromY, fromRadius, toX, toY, toRadius)
+    local dx = toX - fromX
+    local dy = toY - fromY
+    local length = math.sqrt(dx * dx + dy * dy)
+    local ux = dx / length
+    local uy = dy / length
+    return fromX + ux * fromRadius,
+        fromY + uy * fromRadius,
+        toX - ux * toRadius,
+        toY - uy * toRadius
+end
+
+local function drawGear(x, y, radius, phase, label, shade)
+    local teeth = 8
+    drawSmoothCircle(x, y, radius, shade)
+
+    for tooth = 0, teeth - 1 do
+        local angle = (phase + tooth / teeth) * DISPLAY_TWO_PI
+        local cosAngle = math.cos(angle)
+        local sinAngle = math.sin(angle)
+        drawSmoothLine(
+            x + cosAngle * (radius + 0.5),
+            y + sinAngle * (radius + 0.5),
+            x + cosAngle * (radius + 2.5),
+            y + sinAngle * (radius + 2.5),
+            shade
+        )
     end
+
+    for spoke = 0, 3 do
+        local angle = (phase + spoke / 4) * DISPLAY_TWO_PI
+        drawSmoothLine(
+            x + math.cos(angle) * 2,
+            y + math.sin(angle) * 2,
+            x + math.cos(angle) * (radius - 2),
+            y + math.sin(angle) * (radius - 2),
+            math.max(4, shade - 3)
+        )
+    end
+
+    drawSmoothCircle(x, y, 1.3, math.min(15, shade + 2))
+    drawTinyText(x, y + 2, label, math.min(15, shade + 1), "centre")
 end
 
 --------------------------------------------------------------------------------
@@ -77,6 +148,15 @@ return {
         self.inputVoltage = 0
         self.offsets = { 0, 0, 0, 0 }
         self.outputVoltages = { 0, 0, 0, 0 }
+
+        -- Animation state is advanced at the 1 ms control cadence. draw() only
+        -- consumes these phases and timestamps.
+        self.display_time = 0
+        self.display_carrier_phase = 0
+        self.display_output_phases = { 0, 0, 0, 0 }
+        self.display_last_input = 0
+        self.display_has_input = false
+        self.display_pitch_change_started = -1
         
         return {
             inputs = 1
@@ -95,83 +175,142 @@ return {
     , step = function(self, dt, inputs)
         -- Read input voltage
         self.inputVoltage = inputs[1]
+        self.display_time = self.display_time + dt
+
+        if self.display_has_input then
+            -- Ignore sub-semitone chatter; a deliberate pitch jump launches
+            -- the short impulse shared by all four belts.
+            if math.abs(self.inputVoltage - self.display_last_input) >= 1 / 12 then
+                self.display_pitch_change_started = self.display_time
+            end
+        else
+            self.display_has_input = true
+        end
+        self.display_last_input = self.inputVoltage
         
         -- Calculate offset for each output based on parameter selection
         local outputs = {}
+        local displaySpeed = 0.12
+            + clamp((self.inputVoltage + 5) / 10, 0, 1) * 0.12
+        self.display_carrier_phase = (
+            self.display_carrier_phase + dt * displaySpeed
+        ) % 1
+
         for i = 1, 4 do
             local ratioIndex = self.parameters[i]
             self.offsets[i] = getOffsetVoltage(ratioIndex)
             self.outputVoltages[i] = self.inputVoltage + self.offsets[i]
             outputs[i] = self.outputVoltages[i]
+
+            -- Belt-driven gears turn opposite the carrier. Their selected
+            -- frequency ratio controls the illustrative rotation speed.
+            local ratio = ratioValue(ratioIndex)
+            self.display_output_phases[i] = (
+                self.display_output_phases[i] - dt * displaySpeed * ratio
+            ) % 1
         end
         
         return outputs
     end
     
     , draw = function(self)
-        -- Display layout constants
-        local colX = { 8, 136 }   -- Two columns
-        local startY = 16
-        local lineHeight = 12
-        
-        -- Title
-        drawText(128, 10, "FM Helper", 12, "centre")
-        
-        -- Draw horizontal separator
-        drawLine(0, 14, 256, 14, 4)
-        
-        -- Input voltage display
-        drawTinyText(4, 24, "IN: " .. formatVoltage(self.inputVoltage), 8)
-        
-        -- Draw each output's info in two columns
+        local carrierX = 38
+        local carrierY = 29
+        local carrierRadius = 13.5
+        local gearX = { 104, 180, 104, 180 }
+        local gearY = { 17, 17, 41, 41 }
+        local telemetryX = { 118, 194, 118, 194 }
+
+        -- Belts sit behind the gear silhouettes.
         for i = 1, 4 do
-            local col = ((i - 1) % 2) + 1
-            local row = math.floor((i - 1) / 2)
-            local x = colX[col]
-            local y = 36 + row * 14
-            
+            local radius = gearRadius(self.offsets[i])
+            local x1, y1, x2, y2 = beltEndpoints(
+                carrierX,
+                carrierY,
+                carrierRadius,
+                gearX[i],
+                gearY[i],
+                radius
+            )
+            drawSmoothLine(x1, y1, x2, y2, 4)
+        end
+
+        -- A pitch jump sends one bright impulse down every belt. The animation
+        -- is elapsed-time based, so skipped draw frames do not change its path.
+        local impulseAge = self.display_time - self.display_pitch_change_started
+        if self.display_pitch_change_started >= 0
+            and impulseAge < DISPLAY_IMPULSE_TIME then
+            local progress = clamp(impulseAge / DISPLAY_IMPULSE_TIME, 0, 1)
+            local shade = 15 - math.floor(progress * 5)
+            for i = 1, 4 do
+                local radius = gearRadius(self.offsets[i])
+                local x1, y1, x2, y2 = beltEndpoints(
+                    carrierX,
+                    carrierY,
+                    carrierRadius,
+                    gearX[i],
+                    gearY[i],
+                    radius
+                )
+                drawSmoothCircle(
+                    x1 + (x2 - x1) * progress,
+                    y1 + (y2 - y1) * progress,
+                    2,
+                    shade
+                )
+            end
+        end
+
+        drawGear(
+            carrierX,
+            carrierY,
+            carrierRadius,
+            self.display_carrier_phase,
+            "IN",
+            11
+        )
+        drawTinyText(
+            carrierX,
+            50,
+            string.format("%+.2fV", self.inputVoltage),
+            13,
+            "centre"
+        )
+
+        -- Ratio, diameter, and counter-rotation all express the same selected
+        -- frequency relationship. Exact octave offsets remain adjacent.
+        for i = 1, 4 do
             local ratioIndex = self.parameters[i]
             local ratioName = RATIOS[ratioIndex][1]
-            local offsetStr = formatVoltage(self.offsets[i])
-            
-            -- Output number and ratio
-            drawText(x, y, i .. ": " .. ratioName, 15)
-            
-            -- Offset value (smaller, dimmer)
-            drawTinyText(x + 50, y, offsetStr, 10)
+            drawGear(
+                gearX[i],
+                gearY[i],
+                gearRadius(self.offsets[i]),
+                self.display_output_phases[i],
+                ratioName,
+                8 + i
+            )
+            drawTinyText(
+                telemetryX[i],
+                gearY[i] + 2,
+                string.format("%d %+.3f", i, self.offsets[i]),
+                8 + i
+            )
         end
-        
-        -- Output voltage bar visualization
-        local barY = 56
-        local barHeight = 6
-        local centerX = 128
-        local scale = 20  -- pixels per volt
-        
-        drawLine(centerX, barY - 1, centerX, barY + barHeight + 1, 4)  -- Zero line
-        
+
+        -- Shared -2 to +3 octave ruler. Each numbered tick is authoritative:
+        -- it is positioned from the same offset used for the output CV.
+        local zeroX = rulerX(0)
+        drawLine(DISPLAY_RULER_LEFT, 59, DISPLAY_RULER_RIGHT, 59, 4)
+        drawLine(zeroX, 56, zeroX, 62, 7)
+        drawTinyText(DISPLAY_RULER_LEFT - 2, 62, "-2", 5, "right")
+        drawTinyText(DISPLAY_RULER_RIGHT, 62, "+3", 5, "right")
         for i = 1, 4 do
-            local offset = self.offsets[i]
-            local barWidth = math.abs(offset) * scale
-            local x1, x2
-            
-            if offset >= 0 then
-                x1 = centerX
-                x2 = math.min(centerX + barWidth, 254)
-            else
-                x1 = math.max(centerX - barWidth, 2)
-                x2 = centerX
-            end
-            
-            -- Stagger bars vertically by output number would be nice but space is tight
-            -- Just draw a tick for each output
-            local tickX = centerX + offset * scale
-            tickX = math.max(2, math.min(254, tickX))
-            
-            -- Color intensity based on output number
-            local color = 6 + i * 2
-            drawRectangle(tickX - 1, barY, tickX + 1, barY + barHeight, color)
+            local tickX = rulerX(self.offsets[i])
+            drawRectangle(tickX - 1, 56, tickX + 1, 61, 8 + i)
+            drawTinyText(tickX, 55, tostring(i), 11 + i, "centre")
         end
-        
+
         return true  -- Suppress standard parameter line
     end
 }

@@ -357,6 +357,8 @@ distribution control visibly different from a conventional Euclidean ring.
 
 ### 13. FM Control Voltage Helper
 
+Status: Implemented
+
 **Concept: four ratio gear trains driven by one carrier gear.** The picture
 should communicate frequency relationships before the offsets are read.
 
