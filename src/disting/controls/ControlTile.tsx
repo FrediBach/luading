@@ -11,6 +11,7 @@ interface Props {
   visual: ReactNode
   value: ReactNode
   actions?: ReactNode
+  footerAction?: ReactNode
   footer?: ReactNode
   selected?: boolean
   status?: 'default' | 'warning' | 'error'
@@ -28,6 +29,7 @@ export const ControlTile = forwardRef<HTMLElement, Props>(function ControlTile({
   visual,
   value,
   actions,
+  footerAction,
   footer,
   selected = false,
   status = 'default',
@@ -58,6 +60,9 @@ export const ControlTile = forwardRef<HTMLElement, Props>(function ControlTile({
         {meta && <small>{meta}</small>}
       </header>
       {actions && <div className="control-tile-actions">{actions}</div>}
+      {footerAction && (
+        <div className="control-tile-footer-action">{footerAction}</div>
+      )}
       <div className="control-tile-visual">{visual}</div>
       <div className="control-tile-value">{value}</div>
       {footer && <footer>{footer}</footer>}

@@ -2,6 +2,8 @@ import { IconToggle, ValueField } from '../controls'
 import type {
   GlobalClockConfig,
   LoadedProgram,
+  ScopeProbe,
+  ScopeSource,
   SignalSourceConfig,
   TracePoint,
 } from '../types'
@@ -15,11 +17,15 @@ interface Props {
   sources: SignalSourceConfig[]
   values: number[]
   outputs: number[]
+  probes: ScopeProbe[]
+  focusedScopeProbe: number | null
   trace: readonly TracePoint[]
   clock: GlobalClockConfig
   onClockChange(clock: GlobalClockConfig): void
   onSourceChange(index: number, source: SignalSourceConfig): void
   onTrigger(index: number): void
+  onProbeChange(index: number, source: ScopeSource | null): void
+  onProbeFocus(index: number): void
 }
 
 export function IoDeck({
@@ -27,11 +33,15 @@ export function IoDeck({
   sources,
   values,
   outputs,
+  probes,
+  focusedScopeProbe,
   trace,
   clock,
   onClockChange,
   onSourceChange,
   onTrigger,
+  onProbeChange,
+  onProbeFocus,
 }: Props) {
   const outputAudio = useOutputAudio(program, trace)
 
@@ -84,8 +94,12 @@ export function IoDeck({
                 source={source}
                 value={values[index] ?? 0}
                 trace={trace}
+                probes={probes}
+                focusedScopeProbe={focusedScopeProbe}
                 onChange={(nextSource) => onSourceChange(index, nextSource)}
                 onTrigger={() => onTrigger(index)}
+                onProbeChange={onProbeChange}
+                onProbeFocus={onProbeFocus}
                 key={`${program.inputNames[index] ?? 'input'}-${index}`}
               />
             ))}
@@ -105,9 +119,13 @@ export function IoDeck({
                 route={route.destination}
                 audioEnabled={outputAudio.enabled}
                 audioError={outputAudio.error}
+                probes={probes}
+                focusedScopeProbe={focusedScopeProbe}
                 onRouteChange={(destination) => (
                   outputAudio.changeRoute(index, destination)
                 )}
+                onProbeChange={onProbeChange}
+                onProbeFocus={onProbeFocus}
                 key={`${program.outputNames[index] ?? 'output'}-${index}`}
               />
             ))}

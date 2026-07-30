@@ -10,7 +10,7 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: integrated scope workspace.
+Current milestone: compact problems, console, and performance workspaces.
 
 | Session | Status | Notes |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ Current milestone: integrated scope workspace.
 | 5. Parameter bank | Implemented; visual QA pending | Replaced native parameter sliders with paged custom controls. Documented scales determine exact steps; bipolar values use center-detented rotaries; unscaled values use stepped rotaries; short enums use segmented controls; long enums use searchable custom menus. Default reset and exact numeric entry are available, and enum indices remain 1-based. |
 | 6. Input channel tiles | Implemented; visual QA pending | Replaced the full input patch bay with compact channel tiles and contextual inspectors. Tiles show actual downsampled worker traces, current voltage, generator shape, timing, direct primary values, sync, and trigger fire. Inspectors expose every signal shape plus frequency/division, amplitude, offset, phase, pulse width, step count, manual voltage, and deterministic seed where applicable. |
 | 7. Output tiles and WebAudio | Implemented; browser QA pending | Replaced the output row and separate audio router with traced output tiles, channel-local destination popovers, and a shared audio master with enable, level, waveform, and error states. Target-viewport and live WebAudio activation/error checks remain pending because no controllable browser was available. |
-| 8. Scope workspace | Shell integration complete | Existing scope is mounted in the drawer; compact toolbar, legend, and tile assignment are pending. |
+| 8. Scope workspace | Implemented; browser QA pending | Replaced the legacy scope panel with a drawer-native workspace, compact toolbar, routed legend chips, responsive graph, focused-probe highlighting, and input/output tile assignment. First-free assignment never overwrites occupied probes; a chooser makes replacements explicit. Live resize and target-viewport checks remain pending because no controllable browser was available. |
 | 9. Problems, console, performance | Shell integration complete | Existing content is mounted in drawer tabs; compact workspace redesign is pending. |
 | 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. The global test-signal clock now has a compact custom control in the I/O deck; final command-bar placement, MIDI, workspace presets, shortcuts, and About remain pending. |
 | 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
@@ -80,13 +80,21 @@ Implemented files:
 - `src/disting/io/AudioMasterControl.tsx`
 - `src/disting/io/output-audio-controls.ts`
 - `src/disting/io/useOutputAudio.ts`
+- `src/disting/io/ScopeAssignmentButton.tsx`
 - `src/disting/io/io.css`
 - focused tests in `src/disting/io/input-source-controls.test.ts`,
   `src/disting/io/input-rendering.test.tsx`,
   `src/disting/io/output-audio-controls.test.ts`, and
   `src/disting/io/output-rendering.test.tsx`
+- `src/disting/drawer/ScopeWorkspace.tsx`
+- `src/disting/drawer/ScopeToolbar.tsx`
+- `src/disting/drawer/ScopeLegend.tsx`
+- `src/disting/drawer/scope-controls.ts`
+- `src/disting/drawer/drawer.css`
+- focused tests in `src/disting/drawer/scope-controls.test.ts` and
+  `src/disting/drawer/scope-rendering.test.tsx`
 
-Verification completed through Session 7:
+Verification completed through Session 8:
 
 - focused workbench layout tests: 4 passed;
 - focused control math and rendering tests: 11 passed;
@@ -94,17 +102,17 @@ Verification completed through Session 7:
 - focused parameter metadata/rendering tests: 8 passed;
 - focused input helper/rendering tests: 9 passed;
 - focused output helper/rendering tests: 6 passed;
+- focused scope assignment/rendering tests: 7 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 46 files and 212 tests passed;
+- complete test suite: 48 files and 219 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 8: connect compact scope assignment
-actions to the channel tiles and redesign the existing drawer-mounted scope as
-`ScopeWorkspace`, `ScopeToolbar`, and `ScopeLegend`. Visual QA of the shell and
-custom controls at the target viewports remains required when a controllable
-browser is available.
+The next implementation session is Session 9: redesign the drawer-mounted
+problems, console, and performance content as compact workspaces with bounded
+diagnostic and log lists. Visual QA of the shell and custom controls at the
+target viewports remains required when a controllable browser is available.
 
 ## Objective
 

@@ -36,8 +36,10 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   black-to-`#02F1EF` display palette.
 - `emulation/scope-model.ts` performs automatic trigger selection, edge
   interpolation, and pre/post-trigger windowing independently of React.
-- `InputPatchBay.tsx` and `Scope.tsx` are controls over typed worker messages and
-  trace data. They do not contain signal-generation or Lua behavior.
+- `io/IoDeck.tsx` and `drawer/ScopeWorkspace.tsx` are controls over typed worker
+  messages and trace data. They do not contain signal-generation or Lua
+  behavior; reusable triggering and window selection remain in
+  `emulation/scope-model.ts`.
 - `io/useOutputAudio.ts` maps output channels to opt-in WebAudio voices and keeps
   browser activation, route, level, and waveform state local to the I/O deck.
   `emulation/audio-routing.ts` extracts control-step-accurate rising edges and

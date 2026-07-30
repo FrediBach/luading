@@ -1,17 +1,27 @@
 import { useRef, useState } from 'react'
 import {
+  ControlPopover,
   ControlTile,
   CornerAction,
   MiniSignalPlot,
 } from '../controls'
 import type { AudioRouteDestination } from '../emulation/audio-routing'
-import type { OutputKind, TracePoint } from '../types'
+import type {
+  OutputKind,
+  ScopeProbe,
+  ScopeSource,
+  TracePoint,
+} from '../types'
 import {
   audioDestinationLabel,
   outputPlotRange,
   outputTraceValues,
 } from './output-audio-controls'
 import { OutputRoutingPopover } from './OutputRoutingPopover'
+import {
+  ScopeAssignmentButton,
+  ScopeProbeChooser,
+} from './ScopeAssignmentButton'
 
 interface Props {
   index: number
@@ -22,7 +32,11 @@ interface Props {
   route: AudioRouteDestination
   audioEnabled: boolean
   audioError: string | null
+  probes: readonly ScopeProbe[]
+  focusedScopeProbe: number | null
   onRouteChange(destination: AudioRouteDestination): void
+  onProbeChange(index: number, source: ScopeSource | null): void
+  onProbeFocus(index: number): void
 }
 
 export function OutputChannelTile({
@@ -34,10 +48,16 @@ export function OutputChannelTile({
   route,
   audioEnabled,
   audioError,
+  probes,
+  focusedScopeProbe,
   onRouteChange,
+  onProbeChange,
+  onProbeFocus,
 }: Props) {
   const [routingOpen, setRoutingOpen] = useState(false)
+  const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
   const tileRef = useRef<HTMLElement>(null)
+  const scopeSource = { kind: 'output' as const, index }
   const traceValues = outputTraceValues(trace, index)
   const range = outputPlotRange(traceValues)
   const routed = route !== 'off'
@@ -50,7 +70,7 @@ export function OutputChannelTile({
         ref={tileRef}
         label={`OUT ${index + 1}`}
         meta={`${kind} · ${name}`}
-        selected={routingOpen}
+        selected={routingOpen || scopeChooserOpen}
         status={audioError && routed ? 'error' : 'default'}
         actions={(
           <CornerAction
@@ -59,6 +79,19 @@ export function OutputChannelTile({
             pressed={routed}
             tone={audioError && routed ? 'error' : 'default'}
             onClick={() => setRoutingOpen(true)}
+          />
+        )}
+        footerAction={(
+          <ScopeAssignmentButton
+            label={`OUT ${index + 1} · ${name}`}
+            source={scopeSource}
+            probes={probes}
+            onProbeChange={onProbeChange}
+            onProbeFocus={onProbeFocus}
+            onRequestChooser={() => {
+              setRoutingOpen(false)
+              setScopeChooserOpen(true)
+            }}
           />
         )}
         visual={(
@@ -94,6 +127,29 @@ export function OutputChannelTile({
         onChange={onRouteChange}
         onClose={() => setRoutingOpen(false)}
       />
+
+      <ControlPopover
+        open={scopeChooserOpen}
+        label={`OUT ${index + 1} · scope assignment`}
+        anchorRef={tileRef}
+        onClose={() => setScopeChooserOpen(false)}
+      >
+        <ScopeProbeChooser
+          label={`OUT ${index + 1} · ${name}`}
+          source={scopeSource}
+          probes={probes}
+          focusedProbeIndex={focusedScopeProbe}
+          onChoose={(probeIndex) => {
+            onProbeChange(probeIndex, scopeSource)
+            onProbeFocus(probeIndex)
+            setScopeChooserOpen(false)
+          }}
+          onUnassign={(probeIndex) => {
+            onProbeChange(probeIndex, null)
+            setScopeChooserOpen(false)
+          }}
+        />
+      </ControlPopover>
     </div>
   )
 }

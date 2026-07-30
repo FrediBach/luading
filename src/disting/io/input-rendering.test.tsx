@@ -38,8 +38,17 @@ describe('input channel rendering', () => {
         source={source()}
         value={5}
         trace={trace}
+        probes={[
+          { id: 'probe-1', source: { kind: 'input', index: 0 } },
+          { id: 'probe-2', source: null },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={0}
         onChange={() => undefined}
         onTrigger={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
       />,
     )
 
@@ -95,11 +104,20 @@ describe('input channel rendering', () => {
         ]}
         values={[0, 1.25]}
         outputs={[5, 0.25]}
+        probes={[
+          { id: 'probe-1', source: { kind: 'input', index: 0 } },
+          { id: 'probe-2', source: { kind: 'output', index: 0 } },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={0}
         trace={trace}
         clock={{ bpm: 120, running: true }}
         onClockChange={() => undefined}
         onSourceChange={() => undefined}
         onTrigger={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
       />,
     )
 

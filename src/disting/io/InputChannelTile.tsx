@@ -10,10 +10,16 @@ import {
 import { CLOCK_DIVISIONS, SIGNAL_SHAPES } from '../emulation/signal-sources'
 import type {
   InputKind,
+  ScopeProbe,
+  ScopeSource,
   SignalSourceConfig,
   TracePoint,
 } from '../types'
 import { InputChannelInspector } from './InputChannelInspector'
+import {
+  ScopeAssignmentButton,
+  ScopeProbeChooser,
+} from './ScopeAssignmentButton'
 import {
   adjacentClockDivision,
   inputIsStepped,
@@ -30,8 +36,12 @@ interface Props {
   source: SignalSourceConfig
   value: number
   trace: readonly TracePoint[]
+  probes: readonly ScopeProbe[]
+  focusedScopeProbe: number | null
   onChange(source: SignalSourceConfig): void
   onTrigger(): void
+  onProbeChange(index: number, source: ScopeSource | null): void
+  onProbeFocus(index: number): void
 }
 
 function shapeLabel(source: SignalSourceConfig) {
@@ -52,11 +62,17 @@ export function InputChannelTile({
   source,
   value,
   trace,
+  probes,
+  focusedScopeProbe,
   onChange,
   onTrigger,
+  onProbeChange,
+  onProbeFocus,
 }: Props) {
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
   const tileRef = useRef<HTMLElement>(null)
+  const scopeSource = { kind: 'input' as const, index }
   const traceValues = inputTraceValues(trace, index)
   const range = inputPlotRange(source, traceValues)
   const clockDivision = source.timing.mode === 'clock'
@@ -140,8 +156,11 @@ export function InputChannelTile({
         ref={tileRef}
         label={`IN ${index + 1}`}
         meta={`${kind} · ${name}`}
-        selected={inspectorOpen}
-        onActivate={() => setInspectorOpen(true)}
+        selected={inspectorOpen || scopeChooserOpen}
+        onActivate={() => {
+          setScopeChooserOpen(false)
+          setInspectorOpen(true)
+        }}
         actions={(
           <>
             {inputUsesTiming(source) && (
@@ -163,6 +182,19 @@ export function InputChannelTile({
               />
             )}
           </>
+        )}
+        footerAction={(
+          <ScopeAssignmentButton
+            label={`IN ${index + 1} · ${name}`}
+            source={scopeSource}
+            probes={probes}
+            onProbeChange={onProbeChange}
+            onProbeFocus={onProbeFocus}
+            onRequestChooser={() => {
+              setInspectorOpen(false)
+              setScopeChooserOpen(true)
+            }}
+          />
         )}
         visual={(
           <div className="input-channel-visual">
@@ -192,6 +224,29 @@ export function InputChannelTile({
         onClose={() => setInspectorOpen(false)}
       >
         <InputChannelInspector source={source} onChange={onChange} />
+      </ControlPopover>
+
+      <ControlPopover
+        open={scopeChooserOpen}
+        label={`IN ${index + 1} · scope assignment`}
+        anchorRef={tileRef}
+        onClose={() => setScopeChooserOpen(false)}
+      >
+        <ScopeProbeChooser
+          label={`IN ${index + 1} · ${name}`}
+          source={scopeSource}
+          probes={probes}
+          focusedProbeIndex={focusedScopeProbe}
+          onChoose={(probeIndex) => {
+            onProbeChange(probeIndex, scopeSource)
+            onProbeFocus(probeIndex)
+            setScopeChooserOpen(false)
+          }}
+          onUnassign={(probeIndex) => {
+            onProbeChange(probeIndex, null)
+            setScopeChooserOpen(false)
+          }}
+        />
       </ControlPopover>
     </div>
   )

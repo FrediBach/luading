@@ -22,7 +22,16 @@ describe('output channel rendering', () => {
         route="kick"
         audioEnabled
         audioError={null}
+        probes={[
+          { id: 'probe-1', source: { kind: 'output', index: 0 } },
+          { id: 'probe-2', source: null },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={0}
         onRouteChange={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
       />,
     )
 

@@ -316,6 +316,13 @@ button.control-value-field:hover:not(:disabled) {
   gap: 3px;
 }
 
+.control-tile-footer-action {
+  position: absolute;
+  z-index: 2;
+  right: 5px;
+  bottom: 5px;
+}
+
 .control-tile-visual {
   min-width: 0;
   min-height: 0;
@@ -330,6 +337,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .control-tile > footer {
+  padding-right: 31px;
   overflow: hidden;
   color: var(--nt-muted);
   font: 7px/1 var(--mono);
@@ -660,4 +668,3 @@ button.control-value-field:hover:not(:disabled) {
     transition: none;
   }
 }
-

@@ -4,8 +4,12 @@ import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
+import { ScopeWorkspace } from './drawer'
+import {
+  assignScopeSource,
+  createDefaultScopeProbes,
+} from './drawer/scope-controls'
 import { IoDeck } from './io'
-import { Scope } from './Scope'
 import { ScriptQualityPanel } from './ScriptQualityPanel'
 import { DISTING_SCRIPT_EXAMPLES, DISTING_SCRIPT_GROUPS } from './script-examples'
 import { BottomDrawer } from './workbench/BottomDrawer'
@@ -48,10 +52,7 @@ import './io/io.css'
 
 const MAX_TRACE_POINTS = 5000
 const LOAD_TIMEOUT_MS = 2000
-const EMPTY_PROBES: ScopeProbe[] = Array.from({ length: 4 }, (_, index) => ({
-  id: `probe-${index + 1}`,
-  source: null,
-}))
+const EMPTY_PROBES: ScopeProbe[] = createDefaultScopeProbes(0, 0)
 
 const EMPTY_STATS: RuntimeStats = {
   simulatedSeconds: 0,
@@ -99,6 +100,7 @@ export function DistingPlayground() {
   const [trace, setTrace] = useState<TracePoint[]>([])
   const [display, setDisplay] = useState<DrawCommand[]>([])
   const [probes, setProbes] = useState<ScopeProbe[]>(EMPTY_PROBES)
+  const [focusedScopeProbe, setFocusedScopeProbe] = useState<number | null>(null)
   const [editorSource, setEditorSource] = useState(DEFAULT_DISTING_SCRIPT)
   const [selectedExampleId, setSelectedExampleId] = useState('')
   const [staticDiagnostics, setStaticDiagnostics] = useState<ScriptDiagnostic[]>([])
@@ -174,14 +176,16 @@ export function DistingPlayground() {
       setPotPositions(message.program.uiPotPositions.map((value) => value ?? 0.5))
       setOutputs(Array.from({ length: message.program.outputCount }, () => 0))
       setClock({ ...DEFAULT_CLOCK })
-      setProbes(EMPTY_PROBES.map((probe, index) => ({
-        ...probe,
-        source: index === 0 && message.program.inputCount > 0
-          ? { kind: 'input', index: 0 }
-          : index - 1 < message.program.outputCount
-            ? { kind: 'output', index: index - 1 }
-            : null,
-      })))
+      const defaultProbes = createDefaultScopeProbes(
+        message.program.inputCount,
+        message.program.outputCount,
+      )
+      setProbes(defaultProbes)
+      setFocusedScopeProbe(
+        defaultProbes.findIndex((probe) => probe.source !== null) >= 0
+          ? defaultProbes.findIndex((probe) => probe.source !== null)
+          : null,
+      )
       setStatus('paused')
       setError(null)
       sourceIsLoadedRef.current = true
@@ -262,6 +266,7 @@ export function DistingPlayground() {
     setInputSources([])
     setInputs([])
     setProbes(EMPTY_PROBES)
+    setFocusedScopeProbe(null)
     setLogs([])
     setHardwareEvents([])
     setError(null)
@@ -398,9 +403,12 @@ export function DistingPlayground() {
   }
 
   const changeProbe = (index: number, source: ScopeSource | null) => {
-    setProbes((previous) => previous.map((probe, probeIndex) => (
-      probeIndex === index ? { ...probe, source } : probe
-    )))
+    setProbes((previous) => assignScopeSource(previous, index, source))
+  }
+
+  const focusProbe = (index: number) => {
+    setFocusedScopeProbe(index)
+    dispatchLayout({ type: 'openDrawer', tab: 'scope' })
   }
 
   const budgetState = stats.budgetPercent < 25 ? 'comfortable' : stats.budgetPercent < 75 ? 'watch' : 'over'
@@ -518,11 +526,15 @@ export function DistingPlayground() {
                   sources={inputSources}
                   values={inputs}
                   outputs={outputs}
+                  probes={probes}
+                  focusedScopeProbe={focusedScopeProbe}
                   trace={trace}
                   clock={clock}
                   onClockChange={changeClock}
                   onSourceChange={changeInputSource}
                   onTrigger={(index) => post({ type: 'trigger', index })}
+                  onProbeChange={changeProbe}
+                  onProbeFocus={focusProbe}
                 />
               )}
             </InstrumentRack>
@@ -541,13 +553,15 @@ export function DistingPlayground() {
               id: 'scope',
               label: 'Scope',
               content: (
-                <Scope
+                <ScopeWorkspace
                   trace={trace}
                   probes={probes}
                   program={program}
                   inputs={inputs}
                   outputs={outputs}
+                  focusedProbeIndex={focusedScopeProbe}
                   onProbeChange={changeProbe}
+                  onProbeFocus={setFocusedScopeProbe}
                 />
               ),
             },
