@@ -218,6 +218,8 @@ becomes a literal accumulation that crosses a gate threshold.
 
 ### 7. Configurable Gate Extender
 
+Status: Implemented
+
 **Concept: an elastic strip that stretches a short input gate and then recoils
 through the protected gap.**
 

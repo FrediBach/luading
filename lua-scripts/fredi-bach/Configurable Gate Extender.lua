@@ -68,6 +68,10 @@ local function getEffectiveExtend(self)
     return effectiveMs / 1000  -- Convert to seconds
 end
 
+local function clamp(value, minimum, maximum)
+    return math.max(minimum, math.min(maximum, value))
+end
+
 --------------------------------------------------------------------------------
 -- Main Script Table
 --------------------------------------------------------------------------------
@@ -90,6 +94,19 @@ return
         inputFellAt = 0
         hasPendingGate = false
         lastCv = 0
+
+        -- Display state is captured at edge/step cadence and consumed
+        -- read-only by draw().
+        self.display_input_rise_time = -1
+        self.display_input_fall_time = -1
+        self.display_output_rise_time = -1
+        self.display_extension_end = -1
+        self.display_scheduled_extend = 0
+        self.display_gap_started = -1
+        self.display_gap_duration = 0
+        self.display_retrigger_flash = 0
+        self.display_effective_extend = 0
+        self.display_cv_bend = 0
         
         return {
             inputs = { kGate, kCV }
@@ -120,12 +137,18 @@ return
             -- INPUT GATE WENT HIGH
             -----------------------------------------------------------------
             inputHigh = true
+            self.display_input_rise_time = time
             
             if state == STATE_IDLE then
                 -- Normal case: start output immediately
                 state = STATE_ACTIVE
                 endTime = 0  -- Not scheduled yet (input still high)
                 hasPendingGate = false
+                self.display_input_fall_time = -1
+                self.display_output_rise_time = time
+                self.display_extension_end = -1
+                self.display_scheduled_extend = 0
+                self.display_gap_started = -1
                 return { GATE_HIGH }
                 
             elseif state == STATE_ACTIVE then
@@ -134,11 +157,15 @@ return
                 state = STATE_GAP
                 gapEndTime = time + minGapS
                 hasPendingGate = true
+                self.display_gap_started = time
+                self.display_gap_duration = minGapS
+                self.display_retrigger_flash = 1
                 return { GATE_LOW }
                 
             else -- STATE_GAP
                 -- Already in gap period, just mark that we have a pending gate
                 hasPendingGate = true
+                self.display_retrigger_flash = 1
                 return {}
             end
         else
@@ -147,10 +174,14 @@ return
             -----------------------------------------------------------------
             inputHigh = false
             inputFellAt = time
+            self.display_input_fall_time = time
             
             if state == STATE_ACTIVE and endTime == 0 then
                 -- Schedule when to end the output gate
-                endTime = time + getEffectiveExtend(self)
+                local effectiveExtend = getEffectiveExtend(self)
+                endTime = time + effectiveExtend
+                self.display_scheduled_extend = effectiveExtend
+                self.display_extension_end = endTime
             end
             
             return {}
@@ -164,6 +195,19 @@ return
         -- Update time and CV value
         time = time + dt
         lastCv = inputs[2] or 0
+
+        local displayAlpha = clamp(dt * 10, 0, 1)
+        local effectiveExtend = getEffectiveExtend(self)
+        self.display_effective_extend = self.display_effective_extend
+            + (effectiveExtend - self.display_effective_extend) * displayAlpha
+        local cvAmount = self.parameters[2] / 100
+        local bendTarget = clamp(lastCv / 5, -1, 1) * cvAmount * 7
+        self.display_cv_bend = self.display_cv_bend
+            + (bendTarget - self.display_cv_bend) * displayAlpha
+        self.display_retrigger_flash = math.max(
+            0,
+            self.display_retrigger_flash - dt * 8
+        )
         
         local minGapS = self.parameters[3] / 1000
         local result = {}
@@ -177,6 +221,8 @@ return
                 state = STATE_GAP
                 gapEndTime = time + minGapS
                 endTime = 0
+                self.display_gap_started = time
+                self.display_gap_duration = minGapS
                 result[1] = GATE_LOW
             end
         
@@ -192,6 +238,11 @@ return
                         state = STATE_ACTIVE
                         endTime = 0  -- Will be set when input goes low
                         hasPendingGate = false
+                        self.display_input_fall_time = -1
+                        self.display_output_rise_time = time
+                        self.display_extension_end = -1
+                        self.display_scheduled_extend = 0
+                        self.display_gap_started = -1
                         result[1] = GATE_HIGH
                     else
                         -- Input went low during gap - output delayed pulse
@@ -205,6 +256,14 @@ return
                         if endTime <= time then
                             endTime = time + MIN_PULSE_S
                         end
+
+                        self.display_output_rise_time = time
+                        self.display_extension_end = endTime
+                        self.display_scheduled_extend = math.max(
+                            0,
+                            endTime - time
+                        )
+                        self.display_gap_started = -1
                         
                         result[1] = GATE_HIGH
                     end
@@ -212,6 +271,7 @@ return
                     -- No pending gate, return to idle
                     state = STATE_IDLE
                     gapEndTime = 0
+                    self.display_gap_started = -1
                 end
             end
         end
@@ -223,50 +283,149 @@ return
     -- Draw Function - Custom display (30fps)
     --------------------------------------------------------------------------
     , draw = function(self)
-        -- State indicator
-        local stateNames = {
-            [STATE_IDLE] = "IDLE",
-            [STATE_ACTIVE] = "HIGH",
-            [STATE_GAP] = "GAP"
-        }
-        local stateName = stateNames[state] or "?"
-        
-        -- Color based on state (brighter when active)
-        local stateColor = (state == STATE_ACTIVE) and 15 or 8
-        
-        -- Draw state in center
-        drawText(128, 32, stateName, stateColor, "centre")
-        
-        -- Draw parameter summary
-        local extendMs = self.parameters[1]
-        local cvAmt = self.parameters[2]
+        drawStandardParameterLine()
+
+        local stateName = state == STATE_IDLE
+            and "IDLE"
+            or (state == STATE_ACTIVE and "HIGH" or "GAP")
         local minGapMs = self.parameters[3]
-        
-        -- Show effective extend time (with CV modulation)
-        local effectiveMs = math.max(0, extendMs + (cvAmt / 100) * lastCv * 200)
-        
-        drawTinyText(128, 45, string.format("Extend: %dms (eff: %dms)", 
-            extendMs, math.floor(effectiveMs + 0.5)), 7, "centre")
-        drawTinyText(128, 55, string.format("Gap: %dms  CV: %d%%", 
-            minGapMs, cvAmt), 7, "centre")
-        
-        -- Visual gate indicator bar at bottom
-        local barY = 60
-        local barWidth = 200
-        local barX = (256 - barWidth) / 2
-        
-        -- Background bar
-        drawRectangle(barX, barY, barX + barWidth, barY + 3, 2)
-        
-        -- Filled portion based on state
-        if state == STATE_ACTIVE then
-            drawRectangle(barX, barY, barX + barWidth, barY + 3, 12)
-        elseif state == STATE_GAP and gapEndTime > 0 then
-            -- Show gap progress
-            local minGapS = self.parameters[3] / 1000
-            local gapProgress = 1.0 - math.max(0, (gapEndTime - time) / minGapS)
-            local fillWidth = math.floor(barWidth * gapProgress)
-            drawRectangle(barX, barY, barX + fillWidth, barY + 3, 6)
+
+        local inputX = 28
+        local outputX = 226
+        local baseY = 34
+        local segments = 24
+        local gapProgress = 0
+        if state == STATE_GAP and self.display_gap_duration > 0 then
+            gapProgress = clamp(
+                (time - self.display_gap_started)
+                    / self.display_gap_duration,
+                0,
+                1
+            )
         end
+
+        local extensionProgress = 0
+        if (
+            state == STATE_ACTIVE
+            and not inputHigh
+            and self.display_extension_end >= 0
+        ) then
+            local duration = self.display_extension_end
+                - self.display_input_fall_time
+            if duration <= 0 then
+                extensionProgress = 1
+            else
+                extensionProgress = clamp(
+                    (time - self.display_input_fall_time) / duration,
+                    0,
+                    1
+                )
+            end
+        end
+
+        -- Input and output pegs frame a single elastic timeline.
+        drawLine(inputX, 23, inputX, 46, 5)
+        drawCircle(inputX, baseY, 3, inputHigh and 15 or 8)
+        drawLine(outputX, 23, outputX, 46, 5)
+        drawCircle(
+            outputX,
+            baseY,
+            3,
+            state == STATE_ACTIVE and 15 or 8
+        )
+
+        -- CV bends the strip while state determines which portion remains
+        -- taut. During extension the dim region advances left-to-right;
+        -- during GAP the lit strip retracts toward the output peg.
+        local previousX = inputX
+        local previousY = baseY
+        for i = 1, segments do
+            local position = i / segments
+            local x = inputX + position * (outputX - inputX)
+            local y = baseY
+                - math.sin(position * math.pi) * self.display_cv_bend
+
+            drawSmoothLine(previousX, previousY, x, y, 2)
+
+            local midpoint = (i - 0.5) / segments
+            local liveShade = nil
+            if state == STATE_ACTIVE then
+                if inputHigh then
+                    liveShade = 14
+                elseif midpoint <= extensionProgress then
+                    liveShade = 4
+                else
+                    liveShade = 13
+                end
+            elseif state == STATE_GAP and midpoint >= gapProgress then
+                liveShade = hasPendingGate and 10 or 7
+            end
+
+            if liveShade then
+                drawSmoothLine(previousX, previousY, x, y, liveShade)
+            end
+            previousX = x
+            previousY = y
+        end
+
+        -- The fixed fall marker separates the natural input gate from the
+        -- elastic extension. Effective Extend and Min Gap divide the remaining
+        -- timeline proportionally.
+        local fallX = 72
+        local effectiveMs = self.display_effective_extend * 1000
+        local timelineExtendMs = effectiveMs
+        if state ~= STATE_IDLE and self.display_extension_end >= 0 then
+            timelineExtendMs = self.display_scheduled_extend * 1000
+        end
+        local totalTimedMs = math.max(1, timelineExtendMs + minGapMs)
+        local extensionX = fallX
+            + (218 - fallX) * (timelineExtendMs / totalTimedMs)
+        if self.display_input_fall_time >= 0 then
+            drawLine(fallX, 27, fallX, 42, 8)
+        else
+            drawLine(fallX, 30, fallX, 38, 3)
+        end
+        drawLine(extensionX, 25, extensionX, 43, 12)
+        drawCircle(extensionX, baseY, 1, 15)
+
+        -- The protected gap is a dotted recovery segment.
+        local hatchStart = math.floor(extensionX + 4)
+        for x = hatchStart, 218, 7 do
+            drawLine(x, baseY - 3, x + 3, baseY + 3, 5)
+        end
+
+        -- A gate arriving during extension/GAP presses visibly against the
+        -- input peg without lighting the output.
+        local bump = self.display_retrigger_flash
+        if hasPendingGate or bump > 0 then
+            local bumpHeight = 3 + bump * 5
+            local bumpShade = 7 + math.floor(bump * 8)
+            drawSmoothLine(inputX, baseY, inputX + 8, baseY - bumpHeight, bumpShade)
+            drawSmoothLine(
+                inputX + 8,
+                baseY - bumpHeight,
+                inputX + 18,
+                baseY,
+                bumpShade
+            )
+            drawSmoothCircle(inputX + 8, baseY - bumpHeight, 1.5, bumpShade)
+        end
+
+        drawTinyText(
+            4,
+            63,
+            string.format("EXT %dms", math.floor(effectiveMs + 0.5)),
+            8
+        )
+        drawTinyText(128, 63, stateName, state == STATE_ACTIVE and 15 or 7, "centre")
+        drawTinyText(
+            252,
+            63,
+            string.format("GAP %dms", minGapMs),
+            8,
+            "right"
+        )
+
+        return true
     end
 }
