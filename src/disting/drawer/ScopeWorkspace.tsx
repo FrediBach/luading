@@ -12,7 +12,10 @@ import type {
   ScopeSource,
   TracePoint,
 } from '../types'
-import { scopeSourceLabel } from './scope-controls'
+import {
+  downsampleScopeTrace,
+  scopeSourceLabel,
+} from './scope-controls'
 import { ScopeLegend } from './ScopeLegend'
 import { ScopeToolbar } from './ScopeToolbar'
 import './drawer.css'
@@ -43,7 +46,7 @@ function yForVoltage(voltage: number, voltsPerDivision: number) {
 }
 
 function pathFor(
-  trace: TracePoint[],
+  trace: readonly TracePoint[],
   source: ScopeSource | null,
   startTime: number,
   endTime: number,
@@ -111,6 +114,14 @@ export function ScopeWorkspace({
       PRE_TRIGGER_RATIO,
     ),
     [durationSeconds, selectedTrigger, trace, triggerEdge],
+  )
+  const renderPoints = useMemo(
+    () => downsampleScopeTrace(
+      scopeWindow.points,
+      probes.map((probe) => probe.source),
+      WIDTH,
+    ),
+    [probes, scopeWindow.points],
   )
 
   const triggerStatus = !syncEnabled
@@ -219,7 +230,7 @@ export function ScopeWorkspace({
                 focusedProbeIndex === index ? ' is-focused' : ''
               }`}
               d={pathFor(
-                scopeWindow.points,
+                renderPoints,
                 probe.source,
                 scopeWindow.startTime,
                 scopeWindow.endTime,

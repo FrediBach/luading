@@ -2,7 +2,9 @@ import type {
   LoadedProgram,
   ScopeProbe,
   ScopeSource,
+  TracePoint,
 } from '../types'
+import { readTracePoint } from '../emulation/scope-model'
 
 export function scopeSourcesEqual(
   left: ScopeSource | null,
@@ -123,4 +125,63 @@ export function scopeSourceValue(
   return source.kind === 'input'
     ? inputs[source.index] ?? 0
     : outputs[source.index] ?? 0
+}
+
+export function downsampleScopeTrace(
+  trace: readonly TracePoint[],
+  sources: readonly (ScopeSource | null)[],
+  maxPoints: number,
+) {
+  if (maxPoints <= 0 || trace.length === 0) return []
+  if (trace.length <= maxPoints) return trace
+  if (maxPoints === 1) return [trace[trace.length - 1]!]
+
+  const activeSources = sources.filter(
+    (source): source is ScopeSource => source !== null,
+  )
+  if (activeSources.length === 0 || maxPoints < 4) {
+    return Array.from({ length: maxPoints }, (_, index) => (
+      trace[Math.round(index * (trace.length - 1) / (maxPoints - 1))]!
+    ))
+  }
+
+  const result: TracePoint[] = [trace[0]!]
+  const interiorLength = trace.length - 2
+  const bucketCount = Math.max(1, Math.floor((maxPoints - 2) / 2))
+
+  for (let bucket = 0; bucket < bucketCount; bucket += 1) {
+    const start = 1 + Math.floor(bucket * interiorLength / bucketCount)
+    const end = 1 + Math.floor((bucket + 1) * interiorLength / bucketCount)
+    let minimum = Number.POSITIVE_INFINITY
+    let maximum = Number.NEGATIVE_INFINITY
+    let minimumIndex = start
+    let maximumIndex = start
+
+    for (let index = start; index < end; index += 1) {
+      const point = trace[index]
+      if (!point) continue
+      for (const source of activeSources) {
+        const value = readTracePoint(point, source)
+        if (value < minimum) {
+          minimum = value
+          minimumIndex = index
+        }
+        if (value > maximum) {
+          maximum = value
+          maximumIndex = index
+        }
+      }
+    }
+
+    if (minimumIndex === maximumIndex) {
+      result.push(trace[minimumIndex]!)
+    } else if (minimumIndex < maximumIndex) {
+      result.push(trace[minimumIndex]!, trace[maximumIndex]!)
+    } else {
+      result.push(trace[maximumIndex]!, trace[minimumIndex]!)
+    }
+  }
+
+  result.push(trace[trace.length - 1]!)
+  return result.slice(0, maxPoints)
 }

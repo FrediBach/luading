@@ -53,4 +53,17 @@ describe('output audio controls', () => {
       max: 4.48,
     })
   })
+
+  it('downsamples output plots directly while retaining extrema', () => {
+    const trace = Array.from({ length: 1000 }, (_, index) => ({
+      time: index / 1000,
+      inputs: [],
+      outputs: [index === 120 ? 8 : index === 760 ? -7 : 0],
+    }))
+    const values = outputTraceValues(trace, 0)
+
+    expect(values).toHaveLength(64)
+    expect(values).toContain(8)
+    expect(values).toContain(-7)
+  })
 })

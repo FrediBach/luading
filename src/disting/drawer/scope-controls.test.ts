@@ -4,6 +4,7 @@ import {
   assignScopeSource,
   createDefaultScopeProbes,
   decodeScopeSource,
+  downsampleScopeTrace,
   encodeScopeSource,
   scopeAssignmentIntent,
   scopeSourceLabel,
@@ -97,5 +98,27 @@ describe('scope controls', () => {
       'OUT 1 · Envelope',
     )
     expect(scopeSourceValue({ kind: 'input', index: 0 }, [5], [2])).toBe(5)
+  })
+
+  it('bounds scope rendering while preserving routed extrema and endpoints', () => {
+    const trace = Array.from({ length: 5000 }, (_, index) => ({
+      time: index / 1000,
+      inputs: [index === 777 ? 9 : 0],
+      outputs: [index === 3222 ? -8 : 0],
+    }))
+    const sampled = downsampleScopeTrace(
+      trace,
+      [
+        { kind: 'input', index: 0 },
+        { kind: 'output', index: 0 },
+      ],
+      1000,
+    )
+
+    expect(sampled.length).toBeLessThanOrEqual(1000)
+    expect(sampled[0]).toBe(trace[0])
+    expect(sampled.at(-1)).toBe(trace.at(-1))
+    expect(sampled.some((point) => point.inputs[0] === 9)).toBe(true)
+    expect(sampled.some((point) => point.outputs[0] === -8)).toBe(true)
   })
 })

@@ -25,7 +25,7 @@ Current milestone: command bar completion and utilities.
 | 9. Problems, console, performance | Implemented; browser QA pending | Added compact health/diagnostic, typed console, and browser-local performance workspaces. Lists are bounded; console filtering, copy, clear-view, and autoscroll controls are present; new blocking diagnostics and runtime errors open the relevant drawer tab. |
 | 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. The global test-signal clock now has a compact custom control in the I/O deck; final command-bar placement, MIDI, workspace presets, shortcuts, and About remain pending. |
 | 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
-| 12. Performance and release gate | Not started | Full gate was run for the first shell increment; final profiling and legacy cleanup remain pending. |
+| 12. Performance and release gate | Partial | Removed frame-driven Monaco marker resets, scheduled simulator frames as non-urgent React work, froze inactive drawer workspaces while preserving local state, bounded scope rendering to 1,000 extrema-preserving points, and downsampled output traces before rendering. Live browser profiling and final legacy cleanup remain pending. |
 
 Implemented files:
 
@@ -38,6 +38,8 @@ Implemented files:
 - `src/disting/workbench/useWorkbenchLayout.ts`
 - `src/disting/workbench/workbench-layout.ts`
 - `src/disting/workbench/workbench-layout.test.ts`
+- `src/disting/workbench/drawer-panel.ts`
+- `src/disting/workbench/drawer-panel.test.ts`
 - `src/disting/workbench/workbench.css`
 - `src/disting/controls/control-math.ts`
 - `src/disting/controls/ControlIcon.tsx`
@@ -102,6 +104,9 @@ Implemented files:
 - focused tests in `src/disting/drawer/drawer-workspaces.test.ts` and
   `src/disting/drawer/workspace-rendering.test.tsx`
 - `src/disting/workbench/HealthBadge.tsx`
+- `src/disting/editor/diagnostic-markers.ts`
+- `src/disting/editor/diagnostic-markers.test.ts`
+- `src/disting/io/trace-values.ts`
 
 Verification completed through Session 9:
 
@@ -115,7 +120,7 @@ Verification completed through Session 9:
 - focused drawer workspace helper/rendering tests: 8 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 50 files and 227 tests passed;
+- complete test suite: 52 files and 234 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
@@ -125,6 +130,8 @@ Visual QA of the shell, custom controls, and Session 9 drawer workspaces at the
 target viewports remains required. A local Vite server was available during
 Session 9, but the browser-control runtime reported no connected browser
 backend, so viewport and live interaction claims remain intentionally pending.
+The same limitation prevented an interactive running-versus-paused typing and
+heap comparison after the targeted responsiveness remediation.
 
 ## Objective
 

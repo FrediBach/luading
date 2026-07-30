@@ -1,4 +1,10 @@
-import { useRef, type CSSProperties, type ReactNode } from 'react'
+import {
+  memo,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
+import { shouldReuseDrawerPanel } from './drawer-panel'
 import type { DrawerTabId } from './workbench-layout'
 
 export interface DrawerTabDefinition {
@@ -16,6 +22,29 @@ interface Props {
   onToggleTab(tab: DrawerTabId): void
   onHeightChange(height: number): void
 }
+
+interface DrawerPanelProps {
+  id: DrawerTabId
+  active: boolean
+  content: ReactNode
+}
+
+const DrawerPanel = memo(function DrawerPanel({
+  id,
+  active,
+  content,
+}: DrawerPanelProps) {
+  return (
+    <div
+      id={`workbench-drawer-panel-${id}`}
+      role="tabpanel"
+      className="workbench-drawer-panel"
+      hidden={!active}
+    >
+      {content}
+    </div>
+  )
+}, shouldReuseDrawerPanel)
 
 export function BottomDrawer({
   tabs,
@@ -94,18 +123,14 @@ export function BottomDrawer({
 
       <div className="workbench-drawer-panels">
         {tabs.map((tab) => (
-          <div
-            id={`workbench-drawer-panel-${tab.id}`}
-            role="tabpanel"
-            className="workbench-drawer-panel"
-            hidden={!open || activeTab !== tab.id}
+          <DrawerPanel
+            id={tab.id}
+            active={open && activeTab === tab.id}
+            content={tab.content}
             key={tab.id}
-          >
-            {tab.content}
-          </div>
+          />
         ))}
       </div>
     </section>
   )
 }
-

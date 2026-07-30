@@ -34,10 +34,20 @@ function grade(score: number): ScriptQualityReport['grade'] {
   return 'F'
 }
 
-export function runtimePerformanceDiagnostics(stats: RuntimeStats): ScriptDiagnostic[] {
-  if (stats.steps < 1000) return []
+export function runtimePerformanceDiagnosticKey(stats: RuntimeStats) {
+  if (stats.steps < 1000) return null
   const p95BudgetPercent = stats.p95Us / 10
-  if (p95BudgetPercent >= 75) {
+  if (p95BudgetPercent < 25) return null
+  return `${p95BudgetPercent >= 75 ? 'critical' : 'watch'}:${p95BudgetPercent.toFixed(1)}`
+}
+
+export function runtimePerformanceDiagnosticsForKey(
+  key: string | null,
+): ScriptDiagnostic[] {
+  if (!key) return []
+  const [level, percentText] = key.split(':')
+  const p95BudgetPercent = Number(percentText)
+  if (level === 'critical') {
     return [{
       id: 'runtime:step-p95-critical',
       ruleId: 'step-p95-critical',
@@ -52,7 +62,7 @@ export function runtimePerformanceDiagnostics(stats: RuntimeStats): ScriptDiagno
       penalty: 15,
     }]
   }
-  if (p95BudgetPercent >= 25) {
+  if (level === 'watch') {
     return [{
       id: 'runtime:step-p95-watch',
       ruleId: 'step-p95-watch',
@@ -68,6 +78,10 @@ export function runtimePerformanceDiagnostics(stats: RuntimeStats): ScriptDiagno
     }]
   }
   return []
+}
+
+export function runtimePerformanceDiagnostics(stats: RuntimeStats): ScriptDiagnostic[] {
+  return runtimePerformanceDiagnosticsForKey(runtimePerformanceDiagnosticKey(stats))
 }
 
 export function dedupeDiagnostics(diagnostics: ScriptDiagnostic[]) {

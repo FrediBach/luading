@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { DEFAULT_DISTING_SCRIPT } from './default-script'
 import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
@@ -49,7 +56,8 @@ import type {
 import {
   calculateQualityReport,
   dedupeDiagnostics,
-  runtimePerformanceDiagnostics,
+  runtimePerformanceDiagnosticKey,
+  runtimePerformanceDiagnosticsForKey,
 } from './validation/score'
 import type {
   ScriptDiagnostic,
@@ -249,14 +257,16 @@ export function DistingPlayground() {
       runningRef.current = message.running
       setStatus(message.running ? 'running' : 'paused')
     } else if (message.type === 'frame') {
-      setInputs(message.inputs)
-      setOutputs(message.outputs)
-      setParameterValues(message.parameterValues)
-      setStats(message.stats)
-      setDisplay(message.display)
-      if (message.trace.length > 0) {
-        setTrace((previous) => [...previous, ...message.trace].slice(-MAX_TRACE_POINTS))
-      }
+      startTransition(() => {
+        setInputs(message.inputs)
+        setOutputs(message.outputs)
+        setParameterValues(message.parameterValues)
+        setStats(message.stats)
+        setDisplay(message.display)
+        if (message.trace.length > 0) {
+          setTrace((previous) => [...previous, ...message.trace].slice(-MAX_TRACE_POINTS))
+        }
+      })
     } else if (message.type === 'log') {
       appendConsoleEntry('lua', message.line)
     } else if (message.type === 'hardware') {
@@ -455,12 +465,22 @@ export function DistingPlayground() {
     dispatchLayout({ type: 'openDrawer', tab: 'scope' })
   }
 
+  const performanceDiagnosticKey = runtimePerformanceDiagnosticKey(stats)
+  const performanceDiagnostics = useMemo(
+    () => runtimePerformanceDiagnosticsForKey(performanceDiagnosticKey),
+    [performanceDiagnosticKey],
+  )
   const diagnostics = useMemo(() => dedupeDiagnostics([
     ...staticDiagnostics,
     ...contractDiagnostics,
     ...runtimeDiagnostics,
-    ...runtimePerformanceDiagnostics(stats),
-  ]), [contractDiagnostics, runtimeDiagnostics, staticDiagnostics, stats])
+    ...performanceDiagnostics,
+  ]), [
+    contractDiagnostics,
+    performanceDiagnostics,
+    runtimeDiagnostics,
+    staticDiagnostics,
+  ])
   const qualityReport = useMemo(
     () => calculateQualityReport(diagnostics, stats, sourceIsLoaded),
     [diagnostics, sourceIsLoaded, stats],

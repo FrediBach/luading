@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import type { ScriptDiagnostic, SourceRange } from '../validation/types'
+import { diagnosticMarkerSignature } from './diagnostic-markers'
 
 type DistingCodeEditorProps = {
   value: string
@@ -34,6 +35,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   const [lineCount, setLineCount] = useState(() => value.split('\n').length)
   const [loadingState, setLoadingState] = useState<'waiting' | 'loading' | 'ready' | 'fallback'>('waiting')
   const [fallbackValue, setFallbackValue] = useState(value)
+  const markerSignature = diagnosticMarkerSignature(diagnostics)
 
   onChangeRef.current = onChange
   onRunRef.current = onRun
@@ -92,7 +94,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
 
   useEffect(() => {
     applyMarkers()
-  }, [diagnostics])
+  }, [markerSignature])
 
   useEffect(() => {
     revealLocation()

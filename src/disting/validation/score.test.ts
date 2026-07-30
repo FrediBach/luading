@@ -3,6 +3,7 @@ import type { RuntimeStats } from '../types'
 import {
   calculateQualityReport,
   dedupeDiagnostics,
+  runtimePerformanceDiagnosticKey,
   runtimePerformanceDiagnostics,
 } from './score'
 import type { ScriptDiagnostic } from './types'
@@ -143,6 +144,29 @@ describe('calculateQualityReport', () => {
 })
 
 describe('runtimePerformanceDiagnostics', () => {
+  it('uses a stable key while no timing diagnostic is visible', () => {
+    expect(runtimePerformanceDiagnosticKey({
+      ...EMPTY_STATS,
+      steps: 10,
+      p95Us: 900,
+    })).toBeNull()
+    expect(runtimePerformanceDiagnosticKey({
+      ...EMPTY_STATS,
+      steps: 1000,
+      p95Us: 249.9,
+    })).toBeNull()
+    expect(runtimePerformanceDiagnosticKey({
+      ...EMPTY_STATS,
+      steps: 1000,
+      p95Us: 250.1,
+    })).toBe('watch:25.0')
+    expect(runtimePerformanceDiagnostics({
+      ...EMPTY_STATS,
+      steps: 1000,
+      p95Us: 749.6,
+    })[0]?.ruleId).toBe('step-p95-watch')
+  })
+
   it('labels timing as a local measurement', () => {
     const findings = runtimePerformanceDiagnostics({
       ...EMPTY_STATS,

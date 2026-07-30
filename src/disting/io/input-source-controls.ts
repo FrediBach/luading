@@ -6,6 +6,7 @@ import type {
   SignalSourceConfig,
   TracePoint,
 } from '../types'
+import { downsampleTraceChannel } from './trace-values'
 
 export function inputUsesTiming(source: SignalSourceConfig) {
   return source.shape !== 'manual' && source.shape !== 'noise'
@@ -75,44 +76,13 @@ export function inputTraceValues(
   maxPoints = 64,
   windowPoints = 1000,
 ) {
-  if (trace.length === 0 || maxPoints <= 0) return []
-  const start = Math.max(0, trace.length - windowPoints)
-  const count = trace.length - start
-  if (count <= maxPoints) {
-    return trace.slice(start).map((point) => point.inputs[inputIndex] ?? 0)
-  }
-  if (maxPoints === 1) {
-    return [trace[trace.length - 1]?.inputs[inputIndex] ?? 0]
-  }
-
-  const result: number[] = []
-  const bucketCount = Math.max(1, Math.floor(maxPoints / 2))
-
-  for (let bucket = 0; bucket < bucketCount; bucket += 1) {
-    const bucketStart = start + Math.floor(bucket * count / bucketCount)
-    const bucketEnd = start + Math.floor((bucket + 1) * count / bucketCount)
-    let minimum = Number.POSITIVE_INFINITY
-    let maximum = Number.NEGATIVE_INFINITY
-    let minimumIndex = bucketStart
-    let maximumIndex = bucketStart
-
-    for (let index = bucketStart; index < bucketEnd; index += 1) {
-      const value = trace[index]?.inputs[inputIndex] ?? 0
-      if (value < minimum) {
-        minimum = value
-        minimumIndex = index
-      }
-      if (value > maximum) {
-        maximum = value
-        maximumIndex = index
-      }
-    }
-
-    if (minimumIndex <= maximumIndex) result.push(minimum, maximum)
-    else result.push(maximum, minimum)
-  }
-
-  return result.slice(-maxPoints)
+  return downsampleTraceChannel(
+    trace,
+    'input',
+    inputIndex,
+    maxPoints,
+    windowPoints,
+  )
 }
 
 export function inputPlotRange(

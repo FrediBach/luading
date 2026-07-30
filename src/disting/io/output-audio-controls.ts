@@ -4,6 +4,7 @@ import type {
 } from '../emulation/audio-routing'
 import type { SynthWaveform } from '../emulation/web-audio'
 import type { TracePoint } from '../types'
+import { downsampleTraceChannel } from './trace-values'
 
 export const AUDIO_DESTINATIONS: ReadonlyArray<{
   value: AudioRouteDestination
@@ -96,11 +97,15 @@ export function outputTraceValues(
   trace: readonly TracePoint[],
   outputIndex: number,
   windowPoints = 1000,
+  maxPoints = 64,
 ) {
-  const start = Math.max(0, trace.length - Math.max(0, windowPoints))
-  return trace
-    .slice(start)
-    .map((point) => point.outputs[outputIndex] ?? 0)
+  return downsampleTraceChannel(
+    trace,
+    'output',
+    outputIndex,
+    maxPoints,
+    windowPoints,
+  )
 }
 
 export function outputPlotRange(values: readonly number[]) {
