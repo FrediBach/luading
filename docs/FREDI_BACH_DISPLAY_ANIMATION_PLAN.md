@@ -407,6 +407,8 @@ close as feedback becomes unsafe.
 
 ### 15. Gate Cutter Configurable
 
+Status: Implemented
+
 **Concept: scissors repeatedly cutting gaps in a moving gate ribbon.**
 
 - **Composition:** A ribbon travels left-to-right across the center. A simple
