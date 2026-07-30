@@ -25,6 +25,7 @@ describe('workbench layout', () => {
       drawerOpen: false,
       activeDrawerTab: 'console',
       density: 'comfortable',
+      responsiveMode: 'editor',
       workspacePreset: 'monitor',
     })).toEqual({
       splitPercent: 72,
@@ -32,12 +33,14 @@ describe('workbench layout', () => {
       drawerOpen: false,
       activeDrawerTab: 'console',
       density: 'comfortable',
+      responsiveMode: 'editor',
       workspacePreset: null,
     })
 
     expect(normalizeWorkbenchLayout({
       activeDrawerTab: 'unknown',
       density: 'touch',
+      responsiveMode: 'unknown',
     })).toEqual({
       ...DEFAULT_WORKBENCH_LAYOUT,
       workspacePreset: null,
@@ -45,6 +48,22 @@ describe('workbench layout', () => {
 
     expect(normalizeWorkbenchLayout(DEFAULT_WORKBENCH_LAYOUT))
       .toEqual(DEFAULT_WORKBENCH_LAYOUT)
+  })
+
+  it('persists the narrow Editor or Instrument view independently of presets', () => {
+    const editorMode = workbenchLayoutReducer(DEFAULT_WORKBENCH_LAYOUT, {
+      type: 'setResponsiveMode',
+      mode: 'editor',
+    })
+    expect(editorMode.responsiveMode).toBe('editor')
+    expect(editorMode.workspacePreset).toBe('patch')
+
+    const compact = workbenchLayoutReducer(editorMode, {
+      type: 'applyPreset',
+      preset: 'compact',
+    })
+    expect(compact.responsiveMode).toBe('editor')
+    expect(compact.workspacePreset).toBe('compact')
   })
 
   it('opens, switches, and collapses drawer tabs predictably', () => {
@@ -95,6 +114,7 @@ describe('workbench layout', () => {
         preset,
       })).toEqual({
         ...WORKSPACE_PRESET_LAYOUTS[preset],
+        responsiveMode: DEFAULT_WORKBENCH_LAYOUT.responsiveMode,
         workspacePreset: preset,
       })
     }

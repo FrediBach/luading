@@ -2,15 +2,15 @@
 
 ## Status
 
-Implementation in progress. This document describes a presentation and
-interaction redesign; it does not change the documented Disting NT Lua
-contract.
+Implementation complete; live browser acceptance remains pending. This
+document describes a presentation and interaction redesign; it does not change
+the documented Disting NT Lua contract.
 
 ### Progress ledger
 
 Last updated: 2026-07-30
 
-Current milestone: responsive behavior and accessibility.
+Current milestone: browser visual, accessibility, and performance acceptance.
 
 | Session | Status | Notes |
 | --- | --- | --- |
@@ -24,8 +24,8 @@ Current milestone: responsive behavior and accessibility.
 | 8. Scope workspace | Implemented; browser QA pending | Replaced the legacy scope panel with a drawer-native workspace, compact toolbar, routed legend chips, responsive graph, focused-probe highlighting, and input/output tile assignment. First-free assignment never overwrites occupied probes; a chooser makes replacements explicit. Live resize and target-viewport checks remain pending because no controllable browser was available. |
 | 9. Problems, console, performance | Implemented; browser QA pending | Added compact health/diagnostic, typed console, and browser-local performance workspaces. Lists are bounded; console filtering, copy, clear-view, and autoscroll controls are present; new blocking diagnostics and runtime errors open the relevant drawer tab. |
 | 10. Command bar and utilities | Implemented; browser QA pending | Consolidated searchable script selection, Lua Run/Reload and Pause/Resume, the explicitly labelled test-signal clock, saved-state status, health, runtime state, workspace presets, conditional MIDI input, and About content in the command bar. Added guarded shortcuts and removed duplicate editor, device, clock, and MIDI rows. |
-| 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
-| 12. Performance and release gate | Partial | Removed frame-driven Monaco marker resets, scheduled simulator frames as non-urgent React work with commit-aware worker backpressure, froze inactive drawer workspaces while preserving local state, bounded scope rendering to 1,000 extrema-preserving points, and downsampled output traces before rendering. Popover focus and pointer-capture teardown were hardened after an intermittent workbench-freeze report. Live browser profiling and final legacy cleanup remain pending. |
+| 11. Responsive and accessibility | Implemented; browser QA pending | Below 900 px the center workspace now uses persisted, keyboard-navigable Editor/Instrument tabs instead of vertical stacking. Added coarse-pointer touch density, linked responsive and drawer tab semantics, roving tab stops, drawer focus restoration, stable runtime announcements, blocking-error announcements, and focused rendering/state coverage. Live screen-reader, zoom, contrast, and target-viewport review remains pending because no browser backend was available. |
+| 12. Performance and release gate | Implemented; browser profiling pending | Removed frame-driven Monaco marker resets, scheduled simulator frames as non-urgent React work with commit-aware worker backpressure, froze inactive drawer workspaces while preserving local state, bounded scope rendering to 1,000 extrema-preserving points, and downsampled output traces before rendering. Removed the unused `InputPatchBay` and `ScriptQualityPanel`, reduced the superseded playground stylesheet to the live token/editor layer, consolidated probe tokens, updated architecture and user documentation, and passed the complete release gate. Live browser profiling and the visual acceptance matrix remain pending because no browser backend was available. |
 
 Implemented files:
 
@@ -38,6 +38,9 @@ Implemented files:
 - `src/disting/workbench/useWorkbenchLayout.ts`
 - `src/disting/workbench/workbench-layout.ts`
 - `src/disting/workbench/workbench-layout.test.ts`
+- `src/disting/workbench/useWorkbenchViewport.ts`
+- `src/disting/workbench/useWorkbenchViewport.test.ts`
+- `src/disting/workbench/responsive-rendering.test.tsx`
 - `src/disting/workbench/drawer-panel.ts`
 - `src/disting/workbench/drawer-panel.test.ts`
 - `src/disting/workbench/workbench.css`
@@ -123,9 +126,9 @@ Implemented files:
 - `src/disting/frame-commit.ts`
 - `src/disting/frame-commit.test.ts`
 
-Verification completed through Session 10:
+Verification completed through Session 12:
 
-- focused workbench layout tests: 5 passed;
+- focused workbench layout, viewport, and responsive rendering tests: 10 passed;
 - focused command-bar, MIDI, shortcut, and About tests: 14 passed;
 - focused control math and rendering tests: 11 passed;
 - focused device mapping/rendering tests: 7 passed;
@@ -136,23 +139,24 @@ Verification completed through Session 10:
 - focused drawer workspace helper/rendering tests: 8 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 58 files and 261 tests passed;
+- complete test suite: 60 files and 266 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next implementation session is Session 11: complete responsive behavior
-and accessibility. Visual QA of the shell, custom controls, drawer workspaces,
-and command utilities at the target viewports remains required. A local Vite
-server was available during Session 10, but the browser-control runtime again
-reported no connected browser backend, so viewport and live interaction claims
-remain intentionally pending.
-The same limitation prevented an interactive running-versus-paused typing and
-heap comparison after the targeted responsiveness remediation. Simulator frame
-acknowledgements now occur only after the matching React frame commit, so the
-worker cannot continuously supersede pending transition work. Replaced workers
-cannot receive stale acknowledgements. Popovers retain stable document
-listeners while open, and drag controls clear state when pointer capture is
-lost.
+All source implementation tasks are complete. Visual QA of the shell, custom
+controls, drawer workspaces, and command utilities at the target viewports
+remains required. During Session 12 a local Vite server started successfully,
+but the browser-control runtime reported zero available browser backends, so
+viewport, screen-reader, live interaction, and profiling claims remain
+intentionally pending.
+
+That limitation also prevents an interactive running-versus-paused typing and
+heap comparison. Simulator frame acknowledgements occur only after the matching
+React frame commit, so the worker cannot continuously supersede pending
+transition work. Replaced workers cannot receive stale acknowledgements.
+Popovers retain stable document listeners while open, drag controls clear state
+when pointer capture is lost, and inactive drawer panels reuse their rendered
+content.
 
 ## Objective
 

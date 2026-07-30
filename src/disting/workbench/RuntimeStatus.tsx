@@ -16,7 +16,8 @@ export function RuntimeStatus({ status, simulatedSeconds }: Props) {
       className={`workbench-runtime-state workbench-runtime-state--${status}`}
       role="status"
       aria-live="polite"
-      aria-label={`Lua runtime ${status}; ${simulatedSeconds.toFixed(3)} simulated seconds`}
+      aria-atomic="true"
+      aria-label={`Lua runtime ${status}`}
       title={`${simulatedSeconds.toFixed(3)} s simulated`}
     >
       <i aria-hidden="true" />

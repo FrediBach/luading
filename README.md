@@ -71,7 +71,9 @@ docs/                        Disting NT Lua scripting reference
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the complete system
 architecture and [`src/disting/ARCHITECTURE.md`](src/disting/ARCHITECTURE.md)
-for lower-level emulator implementation notes.
+for lower-level emulator implementation notes. See
+[`docs/WORKBENCH_GUIDE.md`](docs/WORKBENCH_GUIDE.md) for the workspace layout,
+controls, shortcuts, and narrow-screen behavior.
 
 ## Deploying to Vercel
 

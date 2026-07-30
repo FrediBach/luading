@@ -42,6 +42,10 @@ import { StatusBar } from './workbench/StatusBar'
 import { useWorkbenchLayout } from './workbench/useWorkbenchLayout'
 import { WorkbenchShell } from './workbench/WorkbenchShell'
 import { useWorkbenchShortcuts } from './workbench/workbench-shortcuts'
+import {
+  resolveWorkbenchDensity,
+  useWorkbenchViewport,
+} from './workbench/useWorkbenchViewport'
 import { createMidiEventRequest } from './workbench/midi-event'
 import type {
   DistingHardwareEvent,
@@ -119,6 +123,7 @@ function hardwareEventEntry(event: DistingHardwareEvent): {
 
 export function DistingPlayground() {
   const { layout, dispatch: dispatchLayout } = useWorkbenchLayout()
+  const { narrow, touchOriented } = useWorkbenchViewport()
   const [program, setProgram] = useState<LoadedProgram | null>(null)
   const [status, setStatus] = useState<'booting' | 'loading' | 'paused' | 'running' | 'error'>('booting')
   const [error, setError] = useState<string | null>(null)
@@ -511,6 +516,10 @@ export function DistingPlayground() {
       ? `${qualityReport.errorCount} errors`
       : 'Run to score'
     : `${qualityReport.score} · ${qualityReport.grade}`
+  const accessibilityAnnouncement = error
+    ?? (qualityReport.errorCount > 0
+      ? `${qualityReport.errorCount} validation ${qualityReport.errorCount === 1 ? 'error' : 'errors'}. Open Problems for details.`
+      : '')
 
   useEffect(() => {
     const current = {
@@ -538,7 +547,8 @@ export function DistingPlayground() {
 
   return (
     <WorkbenchShell
-      density={layout.density}
+      density={resolveWorkbenchDensity(layout.density, touchOriented)}
+      announcement={accessibilityAnnouncement}
       commandBar={(
         <CommandBar
           programName={program?.name ?? 'Lua script'}
@@ -576,8 +586,13 @@ export function DistingPlayground() {
       workspace={(
         <SplitPane
           splitPercent={layout.splitPercent}
+          narrow={narrow}
+          responsiveMode={layout.responsiveMode}
           onSplitChange={(value) => dispatchLayout({ type: 'setSplit', value })}
           onSplitReset={() => dispatchLayout({ type: 'resetSplit' })}
+          onResponsiveModeChange={(mode) => (
+            dispatchLayout({ type: 'setResponsiveMode', mode })
+          )}
           primary={(
             <div className="disting-editor-panel workbench-editor">
               <DistingCodeEditor
@@ -591,7 +606,7 @@ export function DistingPlayground() {
           )}
           secondary={(
             <InstrumentRack>
-              <div className="disting-device-panel">
+              <div className="workbench-instrument-panel">
                 <DistingDeviceFace
                   commands={display}
                   programName={program?.name ?? 'Lua script'}

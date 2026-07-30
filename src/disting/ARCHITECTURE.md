@@ -44,6 +44,10 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   samples live in native private fields and consumers receive a scalar revision,
   preventing React development instrumentation from cloning the nested history
   into every component-render performance measure.
+- `workbench/`, `controls/`, `device/`, `io/`, and `drawer/` form the
+  presentation boundary below `DistingPlayground`. Layout state and feature
+  inspectors stay in React, while all simulator actions return through typed
+  coordinator callbacks.
 - `io/IoDeck.tsx` and `drawer/ScopeWorkspace.tsx` are controls over typed worker
   messages and trace data. They do not contain signal-generation or Lua
   behavior; reusable triggering and window selection remain in
@@ -101,7 +105,7 @@ canvas component.
 
 New Disting API entries belong in `validation/api-manifest.ts`; the editor
 consumes that catalog. Keep editor state local to `DistingCodeEditor` so typing
-cannot rerender the live display, scope, patch bay, or runtime telemetry.
+cannot rerender the live display, scope, I/O controls, or runtime telemetry.
 
 New validation rules should have a stable rule ID, an explicit target
 (`hardware`, `simulator`, or `local`), and a bounded score penalty. Syntax and

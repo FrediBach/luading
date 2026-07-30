@@ -1,6 +1,7 @@
 export type DrawerTabId = 'scope' | 'problems' | 'console' | 'performance'
 export type WorkbenchDensity = 'compact' | 'comfortable'
 export type WorkspacePresetId = 'code' | 'patch' | 'monitor' | 'compact'
+export type ResponsiveWorkbenchMode = 'editor' | 'instrument'
 
 export interface WorkbenchLayoutState {
   splitPercent: number
@@ -8,6 +9,7 @@ export interface WorkbenchLayoutState {
   drawerOpen: boolean
   activeDrawerTab: DrawerTabId
   density: WorkbenchDensity
+  responsiveMode: ResponsiveWorkbenchMode
   workspacePreset: WorkspacePresetId | null
 }
 
@@ -19,11 +21,12 @@ export type WorkbenchLayoutAction =
   | { type: 'closeDrawer' }
   | { type: 'toggleDrawer'; tab: DrawerTabId }
   | { type: 'setDensity'; density: WorkbenchDensity }
+  | { type: 'setResponsiveMode'; mode: ResponsiveWorkbenchMode }
   | { type: 'applyPreset'; preset: WorkspacePresetId }
 
 export const WORKSPACE_PRESET_LAYOUTS: Record<
   WorkspacePresetId,
-  Omit<WorkbenchLayoutState, 'workspacePreset'>
+  Omit<WorkbenchLayoutState, 'responsiveMode' | 'workspacePreset'>
 > = {
   code: {
     splitPercent: 72,
@@ -57,6 +60,7 @@ export const WORKSPACE_PRESET_LAYOUTS: Record<
 
 export const DEFAULT_WORKBENCH_LAYOUT: WorkbenchLayoutState = {
   ...WORKSPACE_PRESET_LAYOUTS.patch,
+  responsiveMode: 'instrument',
   workspacePreset: 'patch',
 }
 
@@ -83,6 +87,10 @@ function isDensity(value: unknown): value is WorkbenchDensity {
   return value === 'compact' || value === 'comfortable'
 }
 
+function isResponsiveMode(value: unknown): value is ResponsiveWorkbenchMode {
+  return value === 'editor' || value === 'instrument'
+}
+
 function isWorkspacePreset(value: unknown): value is WorkspacePresetId {
   return value === 'code'
     || value === 'patch'
@@ -91,7 +99,7 @@ function isWorkspacePreset(value: unknown): value is WorkspacePresetId {
 }
 
 function matchesPreset(
-  state: Omit<WorkbenchLayoutState, 'workspacePreset'>,
+  state: Omit<WorkbenchLayoutState, 'responsiveMode' | 'workspacePreset'>,
   preset: WorkspacePresetId,
 ) {
   const expected = WORKSPACE_PRESET_LAYOUTS[preset]
@@ -126,6 +134,9 @@ export function normalizeWorkbenchLayout(value: unknown): WorkbenchLayoutState {
     density: isDensity(candidate.density)
       ? candidate.density
       : DEFAULT_WORKBENCH_LAYOUT.density,
+    responsiveMode: isResponsiveMode(candidate.responsiveMode)
+      ? candidate.responsiveMode
+      : DEFAULT_WORKBENCH_LAYOUT.responsiveMode,
   }
   const requestedPreset = isWorkspacePreset(candidate.workspacePreset)
     ? candidate.workspacePreset
@@ -182,8 +193,11 @@ export function workbenchLayoutReducer(
           }
     case 'setDensity':
       return { ...state, density: action.density, workspacePreset: null }
+    case 'setResponsiveMode':
+      return { ...state, responsiveMode: action.mode }
     case 'applyPreset':
       return {
+        ...state,
         ...WORKSPACE_PRESET_LAYOUTS[action.preset],
         workspacePreset: action.preset,
       }

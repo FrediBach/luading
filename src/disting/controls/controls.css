@@ -71,8 +71,8 @@
 
 .control-corner-action,
 .control-icon-toggle {
-  min-width: 28px;
-  min-height: 28px;
+  min-width: var(--control-target, 28px);
+  min-height: var(--control-target, 28px);
   padding: 0;
   display: inline-grid;
   place-items: center;
@@ -648,11 +648,6 @@ button.control-value-field:hover:not(:disabled) {
     max-height: min(70svh, 560px);
   }
 
-  .control-corner-action,
-  .control-icon-toggle {
-    min-width: 36px;
-    min-height: 36px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

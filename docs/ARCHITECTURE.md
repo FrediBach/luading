@@ -65,6 +65,35 @@ do not install that cleanup.
 The application is served at `/`. Vercel permanently redirects the former
 `/disting` route to `/`.
 
+### Workbench presentation boundary
+
+The fixed-height workbench is a presentation layer over `DistingPlayground`;
+it does not communicate with either worker. Its main boundaries are:
+
+- `workbench/` owns the command bar, desktop split, responsive
+  Editor/Instrument mode, bottom drawer, layout presets, shortcuts, and
+  persisted presentation preferences.
+- `controls/` owns reusable pointer, wheel, keyboard, exact-entry, tooltip, and
+  popover behavior. It receives values and callbacks rather than simulator
+  state.
+- `device/` adapts the display, front-panel events, and parameter metadata to
+  the shared controls.
+- `io/` presents input sources, output traces, scope assignment, and opt-in
+  Web Audio routing. Signal generation remains in `emulation/`.
+- `drawer/` presents scope, diagnostics, console, and browser-local performance
+  data. Its pure selection and filtering helpers remain independently tested.
+
+`useWorkbenchLayout` persists only split position, drawer geometry and tab,
+density, workspace preset, and the narrow Editor/Instrument choice. Below
+900 CSS pixels, only the selected Editor or Instrument tab is rendered into the
+accessibility tree; desktop keeps both split regions available. Coarse-pointer
+media queries select the larger touch density without changing the saved
+compact or comfortable preference.
+
+Inactive drawer workspaces remain mounted so filters and local view state are
+preserved, but their memoized panels do not consume live frame work. Popovers
+own transient focus behavior and return focus to their trigger when closed.
+
 ## Simulation worker
 
 `src/disting/disting.worker.ts` is the runtime orchestrator. It owns:

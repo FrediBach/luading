@@ -1,7 +1,9 @@
 import {
   memo,
+  useEffect,
   useRef,
   type CSSProperties,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react'
 import { shouldReuseDrawerPanel } from './drawer-panel'
@@ -39,6 +41,7 @@ const DrawerPanel = memo(function DrawerPanel({
     <div
       id={`workbench-drawer-panel-${id}`}
       role="tabpanel"
+      aria-labelledby={`workbench-drawer-tab-${id}`}
       className="workbench-drawer-panel"
       hidden={!active}
     >
@@ -55,10 +58,48 @@ export function BottomDrawer({
   onToggleTab,
   onHeightChange,
 }: Props) {
+  const drawerRef = useRef<HTMLElement>(null)
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const wasOpenRef = useRef(open)
+
+  useEffect(() => {
+    if (
+      wasOpenRef.current
+      && !open
+      && drawerRef.current?.contains(document.activeElement)
+    ) {
+      const activeIndex = tabs.findIndex((tab) => tab.id === activeTab)
+      tabRefs.current[activeIndex]?.focus()
+    }
+    wasOpenRef.current = open
+  }, [activeTab, open, tabs])
+
+  const handleTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + tabs.length) % tabs.length
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % tabs.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = tabs.length - 1
+    }
+    if (nextIndex === null) return
+    event.preventDefault()
+    const nextTab = tabs[nextIndex]
+    if (!nextTab) return
+    onToggleTab(nextTab.id)
+    tabRefs.current[nextIndex]?.focus()
+  }
 
   return (
     <section
+      ref={drawerRef}
       className={`workbench-drawer${open ? ' is-open' : ''}`}
       style={{ '--workbench-drawer-height': `${height}px` } as CSSProperties}
       aria-label="Workbench tools"
@@ -81,6 +122,12 @@ export function BottomDrawer({
             } else if (event.key === 'ArrowDown') {
               event.preventDefault()
               onHeightChange(height - step)
+            } else if (event.key === 'Home') {
+              event.preventDefault()
+              onHeightChange(140)
+            } else if (event.key === 'End') {
+              event.preventDefault()
+              onHeightChange(420)
             }
           }}
           onPointerDown={(event) => {
@@ -108,15 +155,22 @@ export function BottomDrawer({
       )}
 
       <div className="workbench-drawer-tabs" role="tablist" aria-label="Workbench tools">
-        {tabs.map((tab) => (
+        {tabs.map((tab, index) => (
           <button
+            ref={(element) => {
+              tabRefs.current[index] = element
+            }}
             type="button"
+            id={`workbench-drawer-tab-${tab.id}`}
             role="tab"
-            aria-selected={open && activeTab === tab.id}
+            aria-selected={activeTab === tab.id}
+            aria-expanded={open && activeTab === tab.id}
             aria-controls={`workbench-drawer-panel-${tab.id}`}
             aria-keyshortcuts={DRAWER_SHORTCUTS[tab.id].aria}
             className={open && activeTab === tab.id ? 'is-active' : ''}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => onToggleTab(tab.id)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
             key={tab.id}
           >
             {tab.label}

@@ -1,7 +1,7 @@
-.scope-probe--1 { --probe-color: #7f918a; }
-.scope-probe--2 { --probe-color: var(--nt-green); }
-.scope-probe--3 { --probe-color: var(--nt-amber); }
-.scope-probe--4 { --probe-color: #8bb8ff; }
+.scope-probe--1 { --probe-color: var(--probe-1); }
+.scope-probe--2 { --probe-color: var(--probe-2); }
+.scope-probe--3 { --probe-color: var(--probe-3); }
+.scope-probe--4 { --probe-color: var(--probe-4); }
 
 .problems-workspace,
 .console-workspace,
@@ -233,7 +233,7 @@
   margin-top: 3px;
   border: 1px solid currentColor;
   border-radius: 50%;
-  color: #8bb8ff;
+  color: var(--probe-4);
 }
 
 .diagnostic-row--error > i {
@@ -427,7 +427,7 @@
 }
 
 .console-entry--midi > span {
-  color: #8bb8ff;
+  color: var(--probe-4);
 }
 
 .console-entry--i2c > span {
@@ -898,10 +898,10 @@
   filter: drop-shadow(0 0 3px var(--probe-color));
 }
 
-.scope-path--1 { --probe-color: #7f918a; stroke: var(--probe-color); stroke-dasharray: 4 4; }
-.scope-path--2 { --probe-color: var(--nt-green); stroke: var(--probe-color); }
-.scope-path--3 { --probe-color: var(--nt-amber); stroke: var(--probe-color); }
-.scope-path--4 { --probe-color: #8bb8ff; stroke: var(--probe-color); }
+.scope-path--1 { --probe-color: var(--probe-1); stroke: var(--probe-color); stroke-dasharray: 4 4; }
+.scope-path--2 { --probe-color: var(--probe-2); stroke: var(--probe-color); }
+.scope-path--3 { --probe-color: var(--probe-3); stroke: var(--probe-color); }
+.scope-path--4 { --probe-color: var(--probe-4); stroke: var(--probe-color); }
 
 .scope-axis-label {
   position: absolute;
