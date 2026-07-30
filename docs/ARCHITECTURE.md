@@ -86,10 +86,11 @@ When the UI sends a `load` request, the worker:
 
 1. pauses and disposes the previous runtime;
 2. resets clock, display, preset, telemetry, and signal state;
-3. creates an isolated Wasmoon engine with a callback timeout;
+3. creates an isolated Wasmoon engine;
 4. registers Disting constants and global API adapters;
 5. registers bundled Lua modules through `package.preload`;
-6. executes the script through `emulation/lua-runtime.ts`;
+6. executes the script and installs its reusable callback thread and timeout
+   hook through `emulation/lua-runtime.ts`;
 7. restores `self.state` before calling `init`;
 8. validates the raw `init` result;
 9. normalizes metadata through `emulation/lua-contract.ts`;
@@ -121,8 +122,11 @@ retain their previous voltages.
 
 The core emulator is split by hardware-facing responsibility:
 
-- `lua-runtime.ts` loads chunks, binds lifecycle methods to `self`, and registers
-  Lua modules.
+- `lua-runtime.ts` loads chunks, binds lifecycle methods to `self`, registers
+  Lua modules, and invokes callbacks through one runtime-owned Lua thread with
+  one reusable instruction-timeout hook. The 1 kHz step boundary passes inputs
+  as scalar arguments and reconstructs the Lua input table in the VM, avoiding
+  per-callback Wasm function and table-bridge allocation.
 - `lua-contract.ts` maps Lua `init` tables, constants, buses, names, parameters,
   output modes, and MIDI metadata into typed host data.
 - `runtime-helpers.ts` applies callback output tables, detects trigger/gate

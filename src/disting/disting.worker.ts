@@ -107,6 +107,7 @@ function post(message: WorkerResponse) {
 const hardware = new DistingHardwareApi((event) => post({ type: 'hardware', event }))
 
 function closeEngine() {
+  runtime?.close?.()
   lua?.global.close()
   lua = null
   program = null
@@ -444,7 +445,7 @@ async function loadProgram(
   resetRuntime()
 
   try {
-    lua = await factory.createEngine({ functionTimeout: 25 })
+    lua = await factory.createEngine()
     await registerDistingGlobals()
     await registerLuaModules(lua, modules)
     const result: unknown = await loadLuaProgramRuntime(lua, source)

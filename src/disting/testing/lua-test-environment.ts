@@ -1,9 +1,11 @@
 import { LuaFactory } from 'wasmoon'
 import { DISTING_CONSTANTS } from '../emulation/lua-contract'
+import { configureLuaCallbackTimeout } from '../emulation/lua-runtime'
 import { DISTING_API } from '../validation/api-manifest'
 
 export async function createDistingLuaTestEngine(functionTimeout = 50) {
   const lua = await new LuaFactory().createEngine({ functionTimeout })
+  configureLuaCallbackTimeout(lua, functionTimeout)
 
   for (const [name, value] of Object.entries(DISTING_CONSTANTS)) {
     lua.global.set(name, value)

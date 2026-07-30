@@ -8,6 +8,10 @@ The emulator is split at the same boundaries as the hardware-facing script API:
 
 - `disting.worker.ts` owns scheduling only: the 1 ms control loop, 30 fps draw loop,
   Lua VM lifetime, trace batching, and messages to the UI.
+- `emulation/lua-runtime.ts` owns the JavaScript/Lua invocation boundary. One
+  persistent Lua callback thread and instruction-timeout hook are reused for the
+  runtime lifetime; scalar step inputs are rebuilt into the firmware-facing Lua
+  table inside the VM.
 - `emulation/lua-contract.ts` translates Disting NT constants and `init()` metadata
   into typed host data. Lua-specific table conventions stop at this boundary.
 - `emulation/signal-sources.ts` owns the global musical clock and deterministic

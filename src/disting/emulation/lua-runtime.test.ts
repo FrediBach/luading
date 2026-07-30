@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { LuaFactory } from 'wasmoon'
 import { DISTING_CONSTANTS } from './lua-contract'
 import {
+  configureLuaCallbackTimeout,
   loadLuaProgramRuntime,
   registerLuaModules,
   type LuaEngineLike,
@@ -12,6 +13,7 @@ const engines: Engine[] = []
 
 async function createEngine() {
   const engine = await new LuaFactory().createEngine({ functionTimeout: 50 })
+  configureLuaCallbackTimeout(engine, 50)
   engines.push(engine)
   for (const [name, value] of Object.entries(DISTING_CONSTANTS)) {
     engine.global.set(name, value)
@@ -102,6 +104,60 @@ describe('Lua program runtime bridge', () => {
     `)
 
     expect(runtime.step?.(0.001, [0.5])).toEqual([2.5])
+  })
+
+  it('reuses one timeout hook across repeated real-time callbacks', async () => {
+    const lua = await createEngine()
+    const module = lua.global.lua.module
+    const originalAddFunction = module.addFunction
+    const originalRemoveFunction = module.removeFunction
+    let additions = 0
+    let removals = 0
+    module.addFunction = ((callback, signature) => {
+      additions += 1
+      return originalAddFunction.call(module, callback, signature)
+    }) as typeof module.addFunction
+    module.removeFunction = ((pointer) => {
+      removals += 1
+      return originalRemoveFunction.call(module, pointer)
+    }) as typeof module.removeFunction
+
+    const runtime = await loadLuaProgramRuntime(lua, `
+      local out = {}
+      return {
+        step = function(self, dt, inputs)
+          out[1] = (inputs[1] or 0) + dt
+          return out
+        end,
+      }
+    `)
+    const additionsAfterLoad = additions
+
+    for (let index = 0; index < 10_000; index += 1) {
+      expect(runtime.step?.(0.001, [index])).toEqual([index + 0.001])
+    }
+
+    expect(additionsAfterLoad).toBe(1)
+    expect(additions).toBe(additionsAfterLoad)
+    runtime.close?.()
+    expect(removals).toBe(1)
+  })
+
+  it('still interrupts runaway callbacks and can run again afterward', async () => {
+    const lua = await createEngine()
+    const runtime = await loadLuaProgramRuntime(lua, `
+      return {
+        step = function(self, dt, inputs)
+          if inputs[1] > 0 then
+            while true do end
+          end
+          return { 4 }
+        end,
+      }
+    `)
+
+    expect(() => runtime.step?.(0.001, [1])).toThrow(/thread timeout exceeded/)
+    expect(runtime.step?.(0.001, [0])).toEqual([4])
   })
 
   it('clears source globals after syntax failures', async () => {

@@ -39,6 +39,7 @@ export type LuaProgramRuntime = {
   serialise?: () => unknown
   setState: (state: unknown) => void
   callUi: (callback: string, value?: number) => unknown
+  close?: () => void
 }
 
 export type LuaInitResult = {
