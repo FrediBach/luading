@@ -25,7 +25,7 @@ Current milestone: command bar completion and utilities.
 | 9. Problems, console, performance | Implemented; browser QA pending | Added compact health/diagnostic, typed console, and browser-local performance workspaces. Lists are bounded; console filtering, copy, clear-view, and autoscroll controls are present; new blocking diagnostics and runtime errors open the relevant drawer tab. |
 | 10. Command bar and utilities | Partial | Script selection, Run, Pause/Resume, health, and runtime state are in the command bar. The global test-signal clock now has a compact custom control in the I/O deck; final command-bar placement, MIDI, workspace presets, shortcuts, and About remain pending. |
 | 11. Responsive and accessibility | Partial | Split and drawer resizers are keyboard accessible, focus styles are present, and an interim narrow layout is retained. Editor/Instrument responsive modes and full accessibility QA are pending. |
-| 12. Performance and release gate | Partial | Removed frame-driven Monaco marker resets, scheduled simulator frames as non-urgent React work, froze inactive drawer workspaces while preserving local state, bounded scope rendering to 1,000 extrema-preserving points, and downsampled output traces before rendering. Live browser profiling and final legacy cleanup remain pending. |
+| 12. Performance and release gate | Partial | Removed frame-driven Monaco marker resets, scheduled simulator frames as non-urgent React work with commit-aware worker backpressure, froze inactive drawer workspaces while preserving local state, bounded scope rendering to 1,000 extrema-preserving points, and downsampled output traces before rendering. Popover focus and pointer-capture teardown were hardened after an intermittent workbench-freeze report. Live browser profiling and final legacy cleanup remain pending. |
 
 Implemented files:
 
@@ -107,6 +107,8 @@ Implemented files:
 - `src/disting/editor/diagnostic-markers.ts`
 - `src/disting/editor/diagnostic-markers.test.ts`
 - `src/disting/io/trace-values.ts`
+- `src/disting/frame-commit.ts`
+- `src/disting/frame-commit.test.ts`
 
 Verification completed through Session 9:
 
@@ -120,7 +122,7 @@ Verification completed through Session 9:
 - focused drawer workspace helper/rendering tests: 8 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 52 files and 234 tests passed;
+- complete test suite: 53 files and 238 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
@@ -131,7 +133,12 @@ target viewports remains required. A local Vite server was available during
 Session 9, but the browser-control runtime reported no connected browser
 backend, so viewport and live interaction claims remain intentionally pending.
 The same limitation prevented an interactive running-versus-paused typing and
-heap comparison after the targeted responsiveness remediation.
+heap comparison after the targeted responsiveness remediation. Simulator frame
+acknowledgements now occur only after the matching React frame commit, so the
+worker cannot continuously supersede pending transition work. Replaced workers
+cannot receive stale acknowledgements. Popovers retain stable document
+listeners while open, and drag controls clear state when pointer capture is
+lost.
 
 ## Objective
 

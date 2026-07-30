@@ -93,9 +93,14 @@ export function BottomDrawer({
           }}
           onPointerUp={(event) => {
             dragRef.current = null
-            event.currentTarget.releasePointerCapture(event.pointerId)
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }
           }}
           onPointerCancel={() => {
+            dragRef.current = null
+          }}
+          onLostPointerCapture={() => {
             dragRef.current = null
           }}
         />

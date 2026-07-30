@@ -74,9 +74,14 @@ export function SplitPane({
         }}
         onPointerUp={(event) => {
           draggingRef.current = false
-          event.currentTarget.releasePointerCapture(event.pointerId)
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }
         }}
         onPointerCancel={() => {
+          draggingRef.current = false
+        }}
+        onLostPointerCapture={() => {
           draggingRef.current = false
         }}
       />
@@ -86,4 +91,3 @@ export function SplitPane({
     </div>
   )
 }
-

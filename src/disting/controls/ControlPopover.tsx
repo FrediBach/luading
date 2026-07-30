@@ -1,4 +1,10 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { ControlIcon } from './ControlIcon'
 
 interface Props {
@@ -17,6 +23,7 @@ export function ControlPopover({
   onClose,
 }: Props) {
   const popoverRef = useRef<HTMLDivElement>(null)
+  const closePopover = useEffectEvent(onClose)
 
   useEffect(() => {
     if (!open) return
@@ -25,7 +32,7 @@ export function ControlPopover({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        closePopover()
       }
     }
     const handlePointerDown = (event: PointerEvent) => {
@@ -33,23 +40,24 @@ export function ControlPopover({
       if (!(target instanceof Node)) return
       if (popoverRef.current?.contains(target)) return
       if (anchor?.contains(target)) return
-      onClose()
+      closePopover()
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
     window.addEventListener('keydown', handleKeyDown)
-    window.requestAnimationFrame(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
       popoverRef.current
         ?.querySelector<HTMLElement>('.control-popover-content input, .control-popover-content select, .control-popover-content button, .control-popover-content [tabindex]:not([tabindex="-1"])')
         ?.focus()
     })
 
     return () => {
+      window.cancelAnimationFrame(focusFrame)
       document.removeEventListener('pointerdown', handlePointerDown)
       window.removeEventListener('keydown', handleKeyDown)
       anchor?.focus()
     }
-  }, [anchorRef, onClose, open])
+  }, [anchorRef, open])
 
   if (!open) return null
 

@@ -71,6 +71,9 @@ export function EndlessEncoder({
         onPointerCancel={() => {
           dragRef.current = null
         }}
+        onLostPointerCapture={() => {
+          dragRef.current = null
+        }}
       >
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <circle className="endless-encoder-ring" cx="50" cy="50" r="39" />
@@ -97,4 +100,3 @@ export function EndlessEncoder({
     </div>
   )
 }
-

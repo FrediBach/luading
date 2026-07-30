@@ -2,6 +2,7 @@ import {
   startTransition,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -11,6 +12,7 @@ import { DistingDeviceFace, ParameterBank } from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
+import { FrameCommitGate } from './frame-commit'
 import {
   ConsoleWorkspace,
   PerformanceWorkspace,
@@ -140,8 +142,10 @@ export function DistingPlayground() {
   const [potPositions, setPotPositions] = useState([0.5, 0.5, 0.5])
   const [midiBytes, setMidiBytes] = useState([0x90, 60, 100])
   const [hasSavedState, setHasSavedState] = useState(false)
+  const [committedFrameRevision, setCommittedFrameRevision] = useState(0)
 
   const workerRef = useRef<Worker | null>(null)
+  const frameCommitGateRef = useRef(new FrameCommitGate<Worker>())
   const validationWorkerRef = useRef<Worker | null>(null)
   const validationVersionRef = useRef(0)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -193,12 +197,13 @@ export function DistingPlayground() {
 
   const terminateWorker = useCallback(() => {
     clearLoadTimeout()
+    frameCommitGateRef.current.clear()
     workerRef.current?.terminate()
     workerRef.current = null
     runningRef.current = false
   }, [clearLoadTimeout])
 
-  const handleWorkerMessage = useCallback((message: WorkerResponse) => {
+  const handleWorkerMessage = useCallback((message: WorkerResponse, worker: Worker) => {
     if (message.type === 'ready') {
       workerRef.current?.postMessage({
         type: 'load',
@@ -257,6 +262,7 @@ export function DistingPlayground() {
       runningRef.current = message.running
       setStatus(message.running ? 'running' : 'paused')
     } else if (message.type === 'frame') {
+      const revision = frameCommitGateRef.current.schedule(worker)
       startTransition(() => {
         setInputs(message.inputs)
         setOutputs(message.outputs)
@@ -266,6 +272,7 @@ export function DistingPlayground() {
         if (message.trace.length > 0) {
           setTrace((previous) => [...previous, ...message.trace].slice(-MAX_TRACE_POINTS))
         }
+        setCommittedFrameRevision(revision)
       })
     } else if (message.type === 'log') {
       appendConsoleEntry('lua', message.line)
@@ -297,10 +304,8 @@ export function DistingPlayground() {
     const worker = new Worker(new URL('./disting.worker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      handleWorkerMessage(event.data)
-      if (event.data.type === 'frame') {
-        worker.postMessage({ type: 'frameAck' } satisfies WorkerRequest)
-      }
+      if (worker !== workerRef.current) return
+      handleWorkerMessage(event.data, worker)
     }
     worker.onerror = (event) => {
       clearLoadTimeout()
@@ -310,6 +315,14 @@ export function DistingPlayground() {
       appendConsoleEntry('error', message)
     }
   }, [appendConsoleEntry, clearLoadTimeout, handleWorkerMessage, terminateWorker])
+
+  useLayoutEffect(() => {
+    const worker = frameCommitGateRef.current.commit(
+      committedFrameRevision,
+      workerRef.current,
+    )
+    worker?.postMessage({ type: 'frameAck' } satisfies WorkerRequest)
+  }, [committedFrameRevision])
 
   const loadScript = useCallback(() => {
     runningRef.current = false

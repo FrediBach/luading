@@ -50,7 +50,8 @@ worker uses the typed messages in `src/disting/types.ts`.
 - creates, replaces, and terminates workers;
 - sends typed user actions to the simulation worker;
 - rejects stale validation-worker responses;
-- batches trace data into the scope and audio router; and
+- batches trace data into the scope and audio router;
+- acknowledges simulator frames only after the matching React commit; and
 - pauses simulation when the page is hidden.
 
 The application is served at `/`. Vercel permanently redirects the former
@@ -69,6 +70,12 @@ The application is served at `/`. Vercel permanently redirects the former
 - callback timing and runtime diagnostics;
 - front-panel and MIDI event dispatch; and
 - preset-state serialization.
+
+Only one simulator frame may be awaiting a main-thread commit at a time. The
+worker sets its frame-in-flight flag before posting a frame, and
+`DistingPlayground` returns `frameAck` after React commits that revision. This
+backpressure prevents non-urgent renders from being superseded indefinitely and
+discards acknowledgements associated with a replaced worker.
 
 The worker must remain an orchestrator. Reusable behavior belongs in
 `src/disting/emulation/` so it can be tested independently.

@@ -138,6 +138,9 @@ export function RotaryControl({
         onPointerCancel={() => {
           dragRef.current = null
         }}
+        onLostPointerCapture={() => {
+          dragRef.current = null
+        }}
       >
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <path className="rotary-control-track" d={arcPath(-135, 135)} />
@@ -177,4 +180,3 @@ export function RotaryControl({
     </div>
   )
 }
-
