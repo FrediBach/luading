@@ -10,14 +10,14 @@ contract.
 
 Last updated: 2026-07-30
 
-Current milestone: fixed-height workbench foundation.
+Current milestone: shared custom-control foundation.
 
 | Session | Status | Notes |
 | --- | --- | --- |
 | 1. Baseline and interaction contract | Partial | Source/CSS inventory, workflow inventory, density targets, and interaction rules are documented. Before screenshots and viewport measurements remain pending because a controllable browser was unavailable in the implementation session. |
 | 2. Workbench shell | Implemented; visual QA pending | Added the fixed-height shell, compact command bar, persisted split/drawer layout state, keyboard-accessible resizers, instrument rack, tabbed bottom drawer, and status bar. Existing device, patch, audio, scope, quality, console, and performance behavior was recomposed without changing worker messages. |
-| 3. Shared control primitives | Not started | Next major implementation session after shell visual QA. |
-| 4. Disting device face | Not started | Existing form controls remain in the new instrument rack. |
+| 3. Shared control primitives | Implemented; visual QA pending | Added the project-local icon set, tooltip, corner action, icon toggle, exact value field, popover, tile, rotary, endless encoder, push rotary, momentary button, segmented selector, meter, signal glyph, and downsampled mini signal plot. Pure interaction math and server-rendered accessibility semantics are covered by focused tests. |
+| 4. Disting device face | Not started | Next implementation session. Existing form controls remain in the new instrument rack until they are replaced with the new primitives. |
 | 5. Parameter bank | Not started | Existing parameter sliders remain functional. |
 | 6. Input channel tiles | Not started | Existing input patch bay remains functional inside the rack. |
 | 7. Output tiles and WebAudio | Not started | Existing output cards and audio router remain functional inside the rack. |
@@ -39,19 +39,41 @@ Implemented files:
 - `src/disting/workbench/workbench-layout.ts`
 - `src/disting/workbench/workbench-layout.test.ts`
 - `src/disting/workbench/workbench.css`
+- `src/disting/controls/control-math.ts`
+- `src/disting/controls/ControlIcon.tsx`
+- `src/disting/controls/Tooltip.tsx`
+- `src/disting/controls/CornerAction.tsx`
+- `src/disting/controls/IconToggle.tsx`
+- `src/disting/controls/ValueField.tsx`
+- `src/disting/controls/ControlPopover.tsx`
+- `src/disting/controls/ControlTile.tsx`
+- `src/disting/controls/RotaryControl.tsx`
+- `src/disting/controls/EndlessEncoder.tsx`
+- `src/disting/controls/PushRotaryControl.tsx`
+- `src/disting/controls/MomentaryButton.tsx`
+- `src/disting/controls/SegmentedSelector.tsx`
+- `src/disting/controls/LevelMeter.tsx`
+- `src/disting/controls/SignalShapeGlyph.tsx`
+- `src/disting/controls/MiniSignalPlot.tsx`
+- `src/disting/controls/controls.css`
+- focused tests in `src/disting/controls/control-math.test.ts` and
+  `src/disting/controls/control-rendering.test.tsx`
 
 Verification completed for the first increment:
 
 - focused workbench layout tests: 4 passed;
+- focused control math and rendering tests: 11 passed;
 - TypeScript project build: passed;
 - lint: passed;
-- complete test suite: 36 files and 171 tests passed;
+- complete test suite: 38 files and 182 tests passed;
 - coverage thresholds: passed; and
 - production build through `npm run check`: passed.
 
-The next session should begin with visual QA of the shell at the target
-viewports, fix any sizing or overflow issues found, and then implement the
-shared control primitives from Session 3.
+The next implementation session is Session 4: replace the existing simulated
+pot, encoder, and button form controls with `DistingDeviceFace`,
+`DistingDisplayBezel`, and `HardwareControlBank` composed from these
+primitives. Visual QA of both the shell and controls at the target viewports
+remains required when a controllable browser is available.
 
 ## Objective
 

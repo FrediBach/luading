@@ -39,6 +39,7 @@ import type {
   SourceRange,
   ValidationWorkerResponse,
 } from './validation/types'
+import './controls/controls.css'
 import './DistingPlayground.css'
 import './workbench/workbench.css'
 
