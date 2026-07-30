@@ -194,6 +194,8 @@ physical before the multiplier is read.
 
 ### 6. Complexity CV Generator
 
+Status: Implemented
+
 **Concept: eight streams filling a shared complexity reservoir.** Input activity
 becomes a literal accumulation that crosses a gate threshold.
 

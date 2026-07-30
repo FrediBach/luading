@@ -14,6 +14,7 @@ local NUM_INPUTS = 8           -- Number of gate/trigger inputs to monitor
 local MAX_ACTIVITY = 100.0     -- Maximum internal activity score
 local TRIGGER_IMPULSE = 12.5   -- Activity added per trigger (100/8 = full scale)
 local GATE_WEIGHT = 1.0        -- Multiplier for gate contribution per ms
+local MODE_NAMES = { "STD", "DRM", "AMB", "RCT" }
 
 --------------------------------------------------------------------------------
 -- Local State Variables
@@ -103,16 +104,22 @@ return {
     ----------------------------------------------------------------------------
     , init = function(self)
         -- Initialize state arrays
+        self.display_input_flashes = {}
+        self.display_input_peaks = {}
         for i = 1, NUM_INPUTS do
             inputActivity[i] = 0.0
             gateStates[i] = false
             triggerCounts[i] = 0
+            self.display_input_flashes[i] = 0.0
+            self.display_input_peaks[i] = 0.0
         end
         
         rawComplexity = 0.0
         smoothedComplexity = 0.0
         gateOutput = false
         lastActivityTime = 0
+        self.display_threshold_flash = 0.0
+        self.display_output_voltage = 0.0
         
         return {
             -- 8 trigger/gate inputs for activity monitoring
@@ -168,6 +175,7 @@ return {
             )
             triggerCounts[input] = triggerCounts[input] + 1
             lastActivityTime = 0
+            self.display_input_flashes[input] = 1.0
         end
         
         return {}
@@ -209,6 +217,8 @@ return {
         local attackRate = 1000 / attackMs
         local decayRate = 1000 / decayMs
         local activityDecayRate = 1000 / activityWindowMs
+        local eventLifetime = math.max(0.08, activityWindowMs / 1000)
+        local peakLifetime = math.max(0.12, eventLifetime * 1.5)
         
         -- Update activity tracking for each input
         local totalActivity = 0.0
@@ -227,6 +237,20 @@ return {
             
             -- Sum total activity
             totalActivity = totalActivity + inputActivity[i]
+
+            -- Presentation latches retain fast events for the 30 fps screen.
+            -- Their lifetimes follow the effective activity window, including
+            -- the selected mode's timing adjustments.
+            local normalizedActivity = inputActivity[i]
+                / (MAX_ACTIVITY / NUM_INPUTS)
+            self.display_input_flashes[i] = math.max(
+                0,
+                self.display_input_flashes[i] - dt / eventLifetime
+            )
+            self.display_input_peaks[i] = math.max(
+                normalizedActivity,
+                self.display_input_peaks[i] - dt / peakLifetime
+            )
         end
         
         -- Normalize to 0-1 range
@@ -249,11 +273,13 @@ return {
         local maxV = p[5]
         local invert = (p[7] == 2)
         local outputVoltage = toVoltage(curvedComplexity, minV, maxV, invert)
+        self.display_output_voltage = outputVoltage
         
         -- Calculate threshold gate with hysteresis
         local threshold = p[8] / 100.0
         local hysteresis = p[9] / 100.0
         
+        local previousGateOutput = gateOutput
         if gateOutput then
             -- Gate is high, check for low threshold
             if smoothedComplexity < (threshold - hysteresis) then
@@ -264,6 +290,15 @@ return {
             if smoothedComplexity > (threshold + hysteresis) then
                 gateOutput = true
             end
+        end
+
+        if gateOutput ~= previousGateOutput then
+            self.display_threshold_flash = 1.0
+        else
+            self.display_threshold_flash = math.max(
+                0,
+                self.display_threshold_flash - dt * 8
+            )
         end
         
         local gateVoltage = gateOutput and 5.0 or 0.0
@@ -279,99 +314,139 @@ return {
     ----------------------------------------------------------------------------
     , draw = function(self)
         local p = self.parameters
-        
-        -- Mode names for display
-        local modeNames = { "STD", "DRM", "AMB", "RCT" }
-        local modeName = modeNames[p[10]] or "???"
-        
-        -- Draw mode indicator
-        drawTinyText(240, 8, modeName, 10, "right")
-        
-        -- Draw activity bars for each input (bottom section)
-        local barWidth = 28
-        local barHeight = 16
-        local barY = 46
-        local barSpacing = 32
-        local startX = 4
-        
+
+        drawStandardParameterLine()
+
+        local tankLeft = 7
+        local tankRight = 200
+        local tankTop = 31
+        local tankBottom = 54
+        local pipeTop = 14
+        local pipeBottom = tankTop
+
+        -- Eight activity pipes feed one shared reservoir. Current activity
+        -- forms the live column; the slower peak is its fading wake.
         for i = 1, NUM_INPUTS do
-            local x = startX + (i - 1) * barSpacing
+            local x = 16 + (i - 1) * 24
             local activity = inputActivity[i] / (MAX_ACTIVITY / NUM_INPUTS)
-            
-            -- Draw bar outline
-            drawBox(x, barY, x + barWidth - 2, barY + barHeight, 3)
-            
-            -- Draw filled portion based on activity
+            local peak = self.display_input_peaks[i]
+            local gateShade = gateStates[i] and 15 or 8
+
+            drawTinyText(
+                x,
+                13,
+                tostring(i),
+                gateStates[i] and 15 or 5,
+                "centre"
+            )
+            drawLine(x - 3, pipeTop, x - 3, pipeBottom, 2)
+            drawLine(x + 3, pipeTop, x + 3, pipeBottom, 2)
+
+            if peak > 0.01 then
+                local peakTop = pipeBottom
+                    - math.floor(peak * (pipeBottom - pipeTop - 1))
+                drawLine(x, peakTop, x, pipeBottom - 1, 4)
+            end
+
             if activity > 0.01 then
-                local fillHeight = math.floor(activity * barHeight)
-                local fillY = barY + barHeight - fillHeight
-                drawRectangle(x + 1, fillY, x + barWidth - 3, barY + barHeight - 1, 
-                    gateStates[i] and 15 or 8)
+                local activityTop = pipeBottom
+                    - math.floor(activity * (pipeBottom - pipeTop - 1))
+                drawRectangle(
+                    x - 1,
+                    activityTop,
+                    x + 1,
+                    pipeBottom - 1,
+                    gateShade
+                )
             end
-            
-            -- Draw gate indicator dot
-            if gateStates[i] then
-                drawRectangle(x + 12, barY - 3, x + 14, barY - 1, 15)
+
+            -- A rising gate sends a bright droplet down the pipe. The elapsed
+            -- position is derived from the latched flash, never draw frames.
+            local flash = self.display_input_flashes[i]
+            if flash > 0 then
+                local dropletY = pipeTop
+                    + (1 - flash) * (pipeBottom - pipeTop - 1)
+                drawSmoothCircle(
+                    x,
+                    dropletY,
+                    gateStates[i] and 2.2 or 1.7,
+                    9 + math.floor(flash * 6)
+                )
             end
-            
-            -- Draw input number
-            drawTinyText(x + 13, barY + barHeight + 8, tostring(i), 6, "centre")
         end
-        
-        -- Draw main complexity meter (top right area)
-        local meterX = 180
-        local meterY = 16
-        local meterWidth = 70
-        local meterHeight = 24
-        
-        -- Meter outline
-        drawBox(meterX, meterY, meterX + meterWidth, meterY + meterHeight, 6)
-        
-        -- Filled portion
-        local fillWidth = math.floor(smoothedComplexity * (meterWidth - 2))
-        if fillWidth > 0 then
-            -- Color based on level
-            local brightness = 4 + math.floor(smoothedComplexity * 11)
-            drawRectangle(meterX + 1, meterY + 1, 
-                meterX + 1 + fillWidth, meterY + meterHeight - 1, brightness)
+
+        -- Complexity literally fills the shared tank. The threshold remains
+        -- linear even when Response curves or Invert alter the CV output.
+        drawBox(tankLeft, tankTop, tankRight, tankBottom, 4)
+        local fillHeight = math.floor(
+            smoothedComplexity * (tankBottom - tankTop - 3)
+        )
+        if fillHeight > 0 then
+            local surfaceY = tankBottom - 1 - fillHeight
+            local fillShade = 5 + math.floor(smoothedComplexity * 6)
+            drawRectangle(
+                tankLeft + 2,
+                surfaceY,
+                tankRight - 2,
+                tankBottom - 2,
+                fillShade
+            )
+            drawLine(
+                tankLeft + 2,
+                surfaceY,
+                tankRight - 2,
+                surfaceY,
+                12
+            )
         end
-        
-        -- Draw threshold marker
+
         local threshold = p[8] / 100.0
-        local thresholdX = meterX + math.floor(threshold * meterWidth)
-        drawLine(thresholdX, meterY - 2, thresholdX, meterY + meterHeight + 2, 
-            gateOutput and 15 or 5)
-        
-        -- Draw percentage text
-        local pctText = string.format("%d%%", math.floor(smoothedComplexity * 100))
-        drawText(meterX + meterWidth / 2, meterY + 18, pctText, 15, "centre")
-        
-        -- Draw output voltage
-        local minV = p[4]
-        local maxV = p[5]
-        local invert = (p[7] == 2)
-        local curvedComplexity = applyCurve(smoothedComplexity, p[6])
-        local outV = toVoltage(curvedComplexity, minV, maxV, invert)
-        local voltText = string.format("%.2fV", outV)
-        drawText(meterX + meterWidth / 2, meterY - 4, voltText, 12, "centre")
-        
-        -- Draw gate output indicator
+        local thresholdY = tankBottom - 2
+            - math.floor(threshold * (tankBottom - tankTop - 4))
+        drawRectangle(
+            tankLeft + 1,
+            thresholdY - 1,
+            tankRight - 1,
+            thresholdY + 1,
+            gateOutput and 15 or 7
+        )
+
+        drawText(
+            104,
+            49,
+            string.format("%d%%", math.floor(smoothedComplexity * 100)),
+            15,
+            "centre"
+        )
+
+        -- The threshold gate opens the outlet valve. Invert flips only this
+        -- output indicator vertically; the activity story remains unchanged.
+        local invert = p[7] == 2
+        local outletY = invert and 48 or 38
+        local flash = self.display_threshold_flash
+        local valveShade = gateOutput and 15 or 5
+        drawLine(tankRight, outletY, 204, outletY, valveShade)
+        drawBox(204, outletY - 3, 212, outletY + 3, valveShade)
         if gateOutput then
-            drawRectangle(meterX + meterWidth + 4, meterY + 4, 
-                meterX + meterWidth + 12, meterY + meterHeight - 4, 15)
-            drawTinyText(meterX + meterWidth + 8, meterY + meterHeight + 6, "G", 10, "centre")
-        else
-            drawBox(meterX + meterWidth + 4, meterY + 4,
-                meterX + meterWidth + 12, meterY + meterHeight - 4, 4)
-            drawTinyText(meterX + meterWidth + 8, meterY + meterHeight + 6, "G", 4, "centre")
+            drawRectangle(205, outletY - 2, 211, outletY + 2, 15)
         end
-        
-        -- Label
-        drawTinyText(meterX, meterY - 4, "OUT", 8)
-        
-        -- Draw invert indicator if active
-        if invert then
-            drawTinyText(meterX + meterWidth - 8, meterY - 4, "INV", 10, "right")
-        end
+        drawLine(212, outletY, 218, outletY, valveShade)
+        drawSmoothCircle(
+            218 + flash * 3,
+            outletY,
+            flash > 0 and 2.2 or 1.2,
+            math.min(15, valveShade + math.floor(flash * 7))
+        )
+        drawTinyText(
+            252,
+            outletY + 2,
+            string.format("%+.2fV", self.display_output_voltage),
+            gateOutput and 13 or 8,
+            "right"
+        )
+
+        drawTinyText(252, 13, MODE_NAMES[p[10]] or "???", 10, "right")
+
+        return true
     end
 }
