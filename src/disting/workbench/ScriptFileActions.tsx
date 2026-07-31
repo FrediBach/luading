@@ -3,11 +3,12 @@ import { ControlIcon } from '../controls'
 import { Tooltip } from '../controls/Tooltip'
 
 interface Props {
+  onNew(): void
   onImport(file: File): void
   onExport(): void
 }
 
-export function ScriptFileActions({ onImport, onExport }: Props) {
+export function ScriptFileActions({ onNew, onImport, onExport }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -27,6 +28,17 @@ export function ScriptFileActions({ onImport, onExport }: Props) {
         tabIndex={-1}
         onChange={selectFile}
       />
+      <Tooltip content="Create new Lua script" placement="bottom">
+        <button
+          type="button"
+          className="commandbar-icon-command"
+          aria-label="Create new Lua script"
+          onClick={onNew}
+        >
+          <ControlIcon name="new" size={14} />
+          <span>New</span>
+        </button>
+      </Tooltip>
       <Tooltip content="Import Lua script" placement="bottom">
         <button
           type="button"

@@ -101,6 +101,10 @@ authority.
 
 ## Importing and exporting scripts
 
+Use **New** to replace the editor with a minimal, working one-input/one-output
+script. Its short comments mark where to add shared state, I/O and parameters,
+signal processing, and optional lifecycle callbacks.
+
 Use **Import** in the command bar to open a local `.lua` file. Luading replaces
 the editor contents and runs the imported script through the same isolated Lua
 worker used for bundled scripts. Imported files do not inherit helper modules

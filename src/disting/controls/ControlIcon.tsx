@@ -8,6 +8,7 @@ export type ControlIconName =
   | 'scope'
   | 'reset'
   | 'save'
+  | 'new'
   | 'import'
   | 'export'
   | 'warning'
@@ -51,6 +52,8 @@ function IconPaths({ name }: { name: ControlIconName }) {
       return <path d="M5.1 6.2V3.5H3.3v6h6V7.7H6.4A4.7 4.7 0 1 1 5.8 13l-1.5 1a6.5 6.5 0 1 0 .8-7.8Z" />
     case 'save':
       return <path d="M3 3h12l2 2v12H3Zm3 1.8v4.1h8V4.8Zm0 7V16h8v-4.2Z" />
+    case 'new':
+      return <path d="M4 2.5h8.3L16 6.2V17.5H4Zm1.8 1.8v11.4h8.4V7h-2.7V4.3ZM9.1 8h1.8v2.1H13v1.8h-2.1V14H9.1v-2.1H7v-1.8h2.1Z" />
     case 'import':
       return <path d="M9.1 3h1.8v8.1l2.8-2.8 1.3 1.3-5 5-5-5 1.3-1.3 2.8 2.8ZM3 15h14v2H3Z" />
     case 'export':

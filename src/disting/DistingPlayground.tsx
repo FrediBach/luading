@@ -60,6 +60,7 @@ import { createMidiEventRequest } from './workbench/midi-event'
 import {
   createLuaScriptDownload,
   luaDownloadFilename,
+  NEW_DISTING_SCRIPT,
   readLuaScriptFile,
 } from './workbench/script-file'
 import type {
@@ -432,6 +433,14 @@ export function DistingPlayground() {
     }
   }
 
+  const createNewScript = () => {
+    modulesRef.current = {}
+    setScriptFileName('New Script.lua')
+    setFileError(null)
+    updateSource(NEW_DISTING_SCRIPT)
+    loadScript()
+  }
+
   const exportScript = () => {
     try {
       const download = createLuaScriptDownload(sourceRef.current, scriptFileName)
@@ -674,6 +683,7 @@ export function DistingPlayground() {
             && (status === 'running' || status === 'paused')}
           theme={theme}
           onSelectExample={selectExample}
+          onNewScript={createNewScript}
           onImportScript={(file) => void importScript(file)}
           onExportScript={exportScript}
           onToggleRunning={toggleRunning}

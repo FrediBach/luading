@@ -35,6 +35,7 @@ interface Props {
   canToggleRunning: boolean
   theme: ThemeMode
   onSelectExample(id: string): void
+  onNewScript(): void
   onImportScript(file: File): void
   onExportScript(): void
   onToggleRunning(): void
@@ -66,6 +67,7 @@ export function CommandBar({
   canToggleRunning,
   theme,
   onSelectExample,
+  onNewScript,
   onImportScript,
   onExportScript,
   onToggleRunning,
@@ -94,6 +96,7 @@ export function CommandBar({
       />
 
       <ScriptFileActions
+        onNew={onNewScript}
         onImport={onImportScript}
         onExport={onExportScript}
       />

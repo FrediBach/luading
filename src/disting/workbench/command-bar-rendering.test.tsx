@@ -60,6 +60,7 @@ describe('command bar utilities', () => {
         canToggleRunning
         theme="dark"
         onSelectExample={() => undefined}
+        onNewScript={() => undefined}
         onImportScript={() => undefined}
         onExportScript={() => undefined}
         onToggleRunning={() => undefined}
@@ -75,6 +76,7 @@ describe('command bar utilities', () => {
     )
 
     expect(markup).toContain('Clock tool')
+    expect(markup).toContain('aria-label="Create new Lua script"')
     expect(markup).toContain('aria-label="Import Lua script"')
     expect(markup).toContain('aria-label="Export Lua script"')
     expect(markup).toContain('accept=".lua,text/x-lua,application/x-lua"')
@@ -111,6 +113,7 @@ describe('command bar utilities', () => {
         canToggleRunning={false}
         theme="light"
         onSelectExample={() => undefined}
+        onNewScript={() => undefined}
         onImportScript={() => undefined}
         onExportScript={() => undefined}
         onToggleRunning={() => undefined}
