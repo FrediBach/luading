@@ -54,6 +54,8 @@ describe('validateProgramContract', () => {
     expect(rules).toContain('parameter-1-default')
     expect(rules).toContain('parameter-1-unit')
     expect(rules).toContain('parameter-2-default')
+    expect(findings.find((item) => item.ruleId === 'outputs-type-1')?.semanticLocation).toBe('init.outputs')
+    expect(findings.find((item) => item.ruleId === 'parameter-1-default')?.semanticLocation).toBe('parameters[1].default')
   })
 
   it('blocks execution on contract errors but not warnings or informational findings', () => {
@@ -70,8 +72,8 @@ describe('validateProgramContract', () => {
     })
 
     expect(findings).toEqual(expect.arrayContaining([
-      expect.objectContaining({ ruleId: 'missing-trigger-callback', severity: 'info' }),
-      expect.objectContaining({ ruleId: 'missing-gate-callback', severity: 'info' }),
+      expect.objectContaining({ ruleId: 'missing-trigger-callback', severity: 'info', semanticLocation: 'init.inputs' }),
+      expect.objectContaining({ ruleId: 'missing-gate-callback', severity: 'info', semanticLocation: 'init.inputs' }),
     ]))
   })
 

@@ -109,6 +109,11 @@ Performance gates:
 
 ### Phase 4: Build a compact source index
 
+Implementation status: complete. The validation worker now returns a
+failure-tolerant balanced structural index with the same source version as its
+diagnostics. Contract and runtime semantic location hints are resolved only
+against the current index; Wasmoon remains the syntax authority.
+
 A syntax compiler reports errors but does not provide the structure needed for contextual editor features.
 
 Changes:

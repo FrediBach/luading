@@ -76,6 +76,10 @@ import {
   clearOutdatedSyntaxDiagnostics,
   isCurrentValidationResponse,
 } from './validation/worker-protocol'
+import {
+  resolveDiagnosticLocations,
+  type LuaSourceIndex,
+} from './validation/source-index'
 import './DistingPlayground.css'
 import './controls/controls.css'
 import './device/device.css'
@@ -148,6 +152,8 @@ export function DistingPlayground() {
   const [staticDiagnostics, setStaticDiagnostics] = useState<ScriptDiagnostic[]>([])
   const [contractDiagnostics, setContractDiagnostics] = useState<ScriptDiagnostic[]>([])
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<ScriptDiagnostic[]>([])
+  const [sourceIndex, setSourceIndex] = useState<LuaSourceIndex | null>(null)
+  const [sourceVersion, setSourceVersion] = useState(1)
   const [sourceIsLoaded, setSourceIsLoaded] = useState(false)
   const [revealRequest, setRevealRequest] = useState<{ range: SourceRange; nonce: number }>()
   const [potPositions, setPotPositions] = useState([0.5, 0.5, 0.5])
@@ -158,7 +164,7 @@ export function DistingPlayground() {
   const workerRef = useRef<Worker | null>(null)
   const frameCommitGateRef = useRef(new FrameCommitGate<Worker>())
   const validationWorkerRef = useRef<Worker | null>(null)
-  const validationVersionRef = useRef(0)
+  const validationVersionRef = useRef(1)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sourceRef = useRef(DEFAULT_DISTING_SCRIPT)
   const modulesRef = useRef<Record<string, string>>({})
@@ -190,8 +196,12 @@ export function DistingPlayground() {
   }, [])
 
   const updateSource = useCallback((nextSource: string) => {
+    const nextVersion = validationVersionRef.current + 1
+    validationVersionRef.current = nextVersion
+    setSourceVersion(nextVersion)
     sourceRef.current = nextSource
     setEditorSource(nextSource)
+    setSourceIndex(null)
     setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
     setSelectedExampleId('')
     sourceIsLoadedRef.current = false
@@ -369,8 +379,12 @@ export function DistingPlayground() {
     if (!example) return
 
     sourceRef.current = example.source
+    const nextVersion = validationVersionRef.current + 1
+    validationVersionRef.current = nextVersion
+    setSourceVersion(nextVersion)
     modulesRef.current = example.modules
     setEditorSource(example.source)
+    setSourceIndex(null)
     setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
     setSelectedExampleId(example.id)
     savedStateRef.current = undefined
@@ -391,6 +405,7 @@ export function DistingPlayground() {
     validationWorker.onmessage = (event: MessageEvent<ValidationWorkerResponse>) => {
       if (!isCurrentValidationResponse(event.data, validationVersionRef.current)) return
       setStaticDiagnostics(event.data.diagnostics)
+      setSourceIndex(event.data.sourceIndex)
     }
     return () => {
       validationWorker.terminate()
@@ -399,8 +414,7 @@ export function DistingPlayground() {
   }, [])
 
   useEffect(() => {
-    const version = validationVersionRef.current + 1
-    validationVersionRef.current = version
+    const version = sourceVersion
     const timeout = window.setTimeout(() => {
       validationWorkerRef.current?.postMessage({
         type: 'validate',
@@ -409,7 +423,7 @@ export function DistingPlayground() {
       })
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [editorSource])
+  }, [editorSource, sourceVersion])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -503,15 +517,17 @@ export function DistingPlayground() {
     () => runtimePerformanceDiagnosticsForKey(performanceDiagnosticKey),
     [performanceDiagnosticKey],
   )
-  const diagnostics = useMemo(() => dedupeDiagnostics([
+  const diagnostics = useMemo(() => resolveDiagnosticLocations(dedupeDiagnostics([
     ...staticDiagnostics,
     ...contractDiagnostics,
     ...runtimeDiagnostics,
     ...performanceDiagnostics,
-  ]), [
+  ]), sourceIndex, sourceVersion), [
     contractDiagnostics,
     performanceDiagnostics,
     runtimeDiagnostics,
+    sourceIndex,
+    sourceVersion,
     staticDiagnostics,
   ])
   const qualityReport = useMemo(

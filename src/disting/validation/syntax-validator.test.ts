@@ -16,6 +16,7 @@ import {
   createValidationResponse,
   isCurrentValidationResponse,
 } from './worker-protocol'
+import { createLuaSourceIndex } from './source-index'
 
 type Engine = Awaited<ReturnType<LuaFactory['createEngine']>>
 let lua: Engine
@@ -133,9 +134,14 @@ describe('Lua syntax validation', () => {
   })
 
   it('rejects responses for stale source versions', () => {
-    const response: ValidationWorkerResponse = createValidationResponse(4, [])
+    const response: ValidationWorkerResponse = createValidationResponse(
+      4,
+      [],
+      createLuaSourceIndex('return {}', 4),
+    )
 
     expect(response.version).toBe(4)
+    expect(response.sourceIndex.version).toBe(4)
     expect(isCurrentValidationResponse(response, 4)).toBe(true)
     expect(isCurrentValidationResponse(response, 5)).toBe(false)
   })

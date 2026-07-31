@@ -2,12 +2,14 @@ import type {
   ScriptDiagnostic,
   ValidationWorkerResponse,
 } from './types'
+import type { LuaSourceIndex } from './source-index'
 
 export function createValidationResponse(
   version: number,
   diagnostics: ScriptDiagnostic[],
+  sourceIndex: LuaSourceIndex,
 ): ValidationWorkerResponse {
-  return { type: 'validated', version, diagnostics }
+  return { type: 'validated', version, diagnostics, sourceIndex }
 }
 
 export function isCurrentValidationResponse(

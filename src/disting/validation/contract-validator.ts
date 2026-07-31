@@ -6,6 +6,36 @@ import {
 } from './api-manifest'
 import type { ScriptDiagnostic } from './types'
 
+function semanticLocationForRule(ruleId: string) {
+  const parameter = ruleId.match(/^parameter-(\d+)-(\w+)$/)
+  if (parameter) {
+    const [, index, field] = parameter
+    if (['name', 'enum', 'default', 'unit', 'scale'].includes(field)) {
+      return `parameters[${index}].${field}`
+    }
+    return `parameters[${index}]`
+  }
+  if (ruleId === 'parameters-shape') return 'init.parameters'
+  if (ruleId.startsWith('inputNames-')) return 'init.inputNames'
+  if (ruleId.startsWith('outputNames-')) return 'init.outputNames'
+  if (ruleId.startsWith('inputs-')) return 'init.inputs'
+  if (ruleId.startsWith('outputs-')) return 'init.outputs'
+  if (ruleId === 'midi-channel-parameter') return 'init.midi.channelParameter'
+  if (ruleId === 'midi-messages') return 'init.midi.messages'
+  if (ruleId === 'midi-shape') return 'init.midi'
+  if (ruleId === 'init-return') return 'callback:init'
+  if (ruleId === 'missing-trigger-callback' || ruleId === 'missing-gate-callback') return 'init.inputs'
+  if (ruleId === 'unused-trigger-callback') return 'callback:trigger'
+  if (ruleId === 'unused-gate-callback') return 'callback:gate'
+  if (ruleId === 'outputs-never-updated') return 'init.outputs'
+  if (ruleId === 'missing-program-name' || ruleId === 'missing-program-author') return 'top-level'
+  const callbackType = ruleId.match(/^(.+)-type$/)
+  if (callbackType && DISTING_LIFECYCLE.some((entry) => entry.name === callbackType[1])) {
+    return `callback:${callbackType[1]}`
+  }
+  return undefined
+}
+
 const PARAMETER_UNITS = new Set([
   ...distingConstantValues('parameter-unit'),
   ...distingConstantValues('compatibility-alias'),
@@ -55,6 +85,7 @@ function finding(
     detail,
     suggestion,
     penalty,
+    semanticLocation: semanticLocationForRule(ruleId),
   }
 }
 

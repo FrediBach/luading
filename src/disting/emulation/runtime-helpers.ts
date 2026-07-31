@@ -17,6 +17,7 @@ function runtimeDiagnostic(
     target: 'hardware',
     origin: 'runtime',
     callback,
+    semanticLocation: `callback:${callback}`,
     message,
     detail,
     suggestion,

@@ -75,6 +75,14 @@ non-execution of returned chunks, serialized engine reuse, stale source
 versions, and immediate removal of outdated syntax findings. All 58 bundled
 scripts also compile through the same editor validation path on one engine.
 
+Source-index tests cover inline and referenced lifecycle functions, returned
+program and `init()` tables, metadata and nested MIDI fields, numeric and enum
+parameter positions, balanced API arguments, local/function declarations,
+partial results for malformed source, and representative Lua 5.4 syntax. They
+also require all 58 bundled scripts to produce a complete structural index and
+verify that semantic diagnostic locations are resolved only for the matching
+model version.
+
 ### Script corpus regression
 
 All bundled scripts are loaded and exercised:

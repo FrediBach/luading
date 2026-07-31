@@ -27,6 +27,7 @@ export interface ScriptDiagnostic {
   penalty: number
   range?: SourceRange
   callback?: LuaCallbackName
+  semanticLocation?: string
 }
 
 export interface QualityCategoryScore {
@@ -58,4 +59,5 @@ export interface ValidationWorkerResponse {
   type: 'validated'
   diagnostics: ScriptDiagnostic[]
   version: number
+  sourceIndex: import('./source-index').LuaSourceIndex
 }

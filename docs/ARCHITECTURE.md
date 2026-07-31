@@ -279,6 +279,24 @@ rerendering the display, scope, and runtime controls.
 signatures, and lifecycle snippets. It consumes API metadata but does not
 communicate with the simulation worker.
 
+`validation/source-index.ts` is the compact structural layer used for source
+mapping. It scans Lua tokens without executing source, balances delimiter and
+Lua block pairs, and indexes returned program fields, lifecycle callbacks,
+`init()` metadata, parameter definitions, Disting API calls and argument spans,
+and local/function declarations. It also follows simple local table references
+used by returned program and metadata tables. Wasmoon compilation remains the
+syntax authority; an incomplete structural scan produces a partial index and
+does not block validation or editing.
+
+The validation worker creates the index alongside syntax and static findings
+and returns both with the same model version. The application rejects the
+entire response after a subsequent edit. Contract findings carry semantic
+location hints such as `init.outputs` or `parameters[2].default`, while runtime
+callback findings fall back to `callback:<name>`. These hints are resolved only
+through an index whose version matches the current editor source, so load-time
+and runtime diagnostics can navigate to useful source without trusting stale
+ranges.
+
 ## Testing boundaries
 
 The tests mirror the production boundaries:
