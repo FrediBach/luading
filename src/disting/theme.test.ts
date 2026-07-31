@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
   browserThemeStorage,
@@ -7,6 +8,15 @@ import {
   THEME_STORAGE_KEY,
   toggledTheme,
 } from './theme'
+
+const playgroundStyles = readFileSync(
+  new URL('./DistingPlayground.css', import.meta.url),
+  'utf8',
+)
+const monacoThemeSource = readFileSync(
+  new URL('./editor/monaco.ts', import.meta.url),
+  'utf8',
+)
 
 describe('workbench theme', () => {
   it('keeps the existing dark appearance as the default', () => {
@@ -40,5 +50,14 @@ describe('workbench theme', () => {
     expect(toggledTheme('light')).toBe('dark')
     expect(monacoTheme('dark')).toBe('disting-nt')
     expect(monacoTheme('light')).toBe('disting-nt-light')
+  })
+
+  it('gives the central workspace a distinct, eye-friendly surface', () => {
+    expect(playgroundStyles).toContain('--surface-canvas: #0f1412')
+    expect(playgroundStyles).toContain('--editor-bg: #111614')
+    expect(playgroundStyles).toContain('--surface-canvas: #e9efec')
+    expect(playgroundStyles).toContain('--editor-bg: #edf2ef')
+    expect(monacoThemeSource).toContain("'editor.background': '#111614'")
+    expect(monacoThemeSource).toContain("'editor.background': '#EDF2EF'")
   })
 })
