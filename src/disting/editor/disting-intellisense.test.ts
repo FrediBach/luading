@@ -278,4 +278,35 @@ describe('Disting IntelliSense API support', () => {
     expect(name?.range).toMatchObject({ startColumn: 3, endColumn: 5 })
     registration.dispose()
   })
+
+  it('provides hover documentation for APIs, Lua keywords, lifecycle fields, metadata, and locals', () => {
+    const { providers, registration } = providerHarness()
+    const hoverProvider = providers.hover as {
+      provideHover(model: unknown, position: unknown): { contents: Array<{ value: string }> } | null
+    }
+    const source = `local function amplify(value)
+  return value * 2
+end
+return {
+  init = function()
+    return { inputs = { kCV } }
+  end,
+  step = function(self, dt, inputs)
+    drawText(2, 10, tostring(amplify(inputs[1])), 15)
+    return { inputs[1] }
+  end,
+}`
+    const hover = (text: string, occurrence = 1) => {
+      let offset = -1
+      for (let count = 0; count < occurrence; count += 1) offset = source.indexOf(text, offset + 1)
+      return hoverProvider.provideHover(modelFor(source), cursorPosition(source, offset + 1))
+    }
+
+    expect(hover('local')?.contents[1].value).toContain('Lua 5.4 keyword')
+    expect(hover('drawText')?.contents[1].value).toContain('disting NT')
+    expect(hover('step =')?.contents[1].value).toContain('lifecycle')
+    expect(hover('inputs =')?.contents[1].value).toContain('init metadata')
+    expect(hover('amplify(inputs')?.contents[1].value).toContain('local function')
+    registration.dispose()
+  })
 })

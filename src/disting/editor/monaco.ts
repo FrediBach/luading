@@ -1,5 +1,6 @@
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
+import './monaco-features'
 import { registerDistingIntelliSense } from './disting-intellisense'
 import { registerDistingLuaLanguage } from './disting-lua'
 import { registerDistingNavigation } from './disting-navigation'

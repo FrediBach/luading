@@ -23,6 +23,7 @@ import {
   selfParameterReferenceAt,
 } from './disting-intellisense-context'
 import { DISTING_LUA_LANGUAGE_ID } from './disting-lua'
+import { resolvedLocalSymbolAt } from './disting-navigation-context'
 
 type MonacoApi = typeof Monaco
 type CompletionKind = 'constant' | 'field' | 'function' | 'method' | 'snippet' | 'variable'
@@ -117,6 +118,37 @@ const LUA_GLOBALS: IntelliSenseEntry[] = [
   insertText: `${label}(\${1:value})`,
   parameters: signature.slice(signature.indexOf('(') + 1, -1).split(',').map((value) => value.trim()),
   completionKind: 'function',
+  sortText: '200',
+}))
+
+const LUA_KEYWORDS: IntelliSenseEntry[] = [
+  ['and', 'Logical conjunction; returns the first false/nil operand or the second operand.'],
+  ['break', 'Exit the nearest enclosing while, repeat, or for loop.'],
+  ['do', 'Begin an explicitly scoped block, or the body of a loop.'],
+  ['else', 'Run the fallback branch of an if statement.'],
+  ['elseif', 'Test another condition in an if statement.'],
+  ['end', 'Close a function, if statement, loop, or do block.'],
+  ['false', 'The Boolean false value.'],
+  ['for', 'Begin a numeric or generic for loop.'],
+  ['function', 'Declare or create a Lua function.'],
+  ['goto', 'Jump to a visible label in the current function.'],
+  ['if', 'Begin a conditional statement.'],
+  ['in', 'Separate iterator expressions from variables in a generic for loop.'],
+  ['local', 'Declare a binding whose scope is limited to the current block.'],
+  ['nil', 'The absence of a useful value; assigning nil removes a table key.'],
+  ['not', 'Logical negation.'],
+  ['or', 'Logical disjunction; returns the first truthy operand or the second operand.'],
+  ['repeat', 'Begin a loop whose condition is checked by the closing until clause.'],
+  ['return', 'Return zero or more values from the current function.'],
+  ['then', 'Begin the body of an if or elseif branch.'],
+  ['true', 'The Boolean true value.'],
+  ['until', 'Close a repeat loop and provide its terminating condition.'],
+  ['while', 'Begin a loop that continues while its condition is truthy.'],
+].map(([label, documentation]) => ({
+  label,
+  signature: label,
+  detail: 'Lua 5.4 keyword',
+  documentation,
   sortText: '200',
 }))
 
@@ -424,8 +456,40 @@ for (const [owner, entries] of Object.entries(MEMBER_COMPLETIONS)) {
 }
 
 const HOVER_ENTRIES = new Map(
-  [...DISTING_FUNCTIONS, ...DISTING_CONSTANTS, ...LUA_GLOBALS].map((entry) => [entry.label, entry]),
+  [...DISTING_FUNCTIONS, ...DISTING_CONSTANTS, ...LUA_GLOBALS, ...LUA_KEYWORDS]
+    .map((entry) => [entry.label, entry]),
 )
+
+function containsPosition(range: SourceIndexSymbol['selectionRange'], line: number, column: number) {
+  const startsBefore = range.startLine < line
+    || (range.startLine === line && range.startColumn <= column)
+  const endsAfter = range.endLine > line
+    || (range.endLine === line && range.endColumn >= column)
+  return startsBefore && endsAfter
+}
+
+function structuralHoverEntry(index: LuaSourceIndex, line: number, column: number) {
+  const topLevel = index.topLevelFields.find((field) => (
+    containsPosition(field.nameRange, line, column)
+  ))
+  if (topLevel) return TOP_LEVEL_FIELDS.find((entry) => entry.label === topLevel.name)
+  const init = index.initFields.find((field) => containsPosition(field.nameRange, line, column))
+  return init ? INIT_FIELDS.find((entry) => entry.label === init.name) : undefined
+}
+
+function localHoverEntry(symbol: SourceIndexSymbol): IntelliSenseEntry {
+  const kind = symbol.kind === 'function'
+    ? 'local function'
+    : symbol.kind === 'parameter'
+      ? 'function parameter'
+      : 'local variable'
+  return {
+    label: symbol.name,
+    signature: symbol.kind === 'function' ? `function ${symbol.name}(…)` : symbol.name,
+    detail: `Lua ${kind}`,
+    documentation: `A ${kind} declared on line ${symbol.selectionRange.startLine} of this script.`,
+  }
+}
 
 function activeSignatureIndex(signatures: readonly SignatureEntry[], argumentIndex: number, argumentText: string) {
   if (signatures.length < 2) return 0
@@ -537,16 +601,19 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
       const line = model.getLineContent(position.lineNumber)
       const prefix = line.slice(0, word.startColumn - 1)
       const owner = prefix.match(/([A-Za-z_]\w*)\.$/)?.[1]
+      const index = sourceIndex(model)
+      const local = resolvedLocalSymbolAt(source, offset, index)
       const entry = owner
         ? MEMBER_COMPLETIONS[owner]?.find((candidate) => candidate.label === word.word)
-        : HOVER_ENTRIES.get(word.word)
+        : structuralHoverEntry(index, position.lineNumber, position.column)
+          ?? (local ? localHoverEntry(local.definition) : HOVER_ENTRIES.get(word.word))
       if (!entry) return null
 
       return {
         range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
         contents: [
           { value: `\`\`\`lua\n${entry.signature ?? entry.label}\n\`\`\`` },
-          { value: entry.documentation },
+          { value: `**${entry.detail}.** ${entry.documentation}` },
         ],
       }
     },

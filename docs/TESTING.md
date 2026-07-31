@@ -88,7 +88,9 @@ family, input/output/unit/scale filtering, all three parameter snippets, MIDI
 messages, display modes, text alignment, documented `self` members, scoped
 locals and callback parameters, and suppression inside comments and strings.
 Provider-adapter tests pin exact replacement ranges, parameter-specific hover,
-balanced nested signature arguments, and overload selection. Default API,
+API/keyword/lifecycle/metadata/local hover content, balanced nested signature
+arguments, and overload selection. A feature-wiring regression test pins the
+Monaco UI contributions needed to render each registered provider. Default API,
 lifecycle, complete-script, metadata, and parameter snippets are compiled with
 Wasmoon after placeholder expansion.
 

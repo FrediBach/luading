@@ -171,6 +171,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           wordBasedSuggestionsOnlySameLanguage: true,
           quickSuggestions: { other: true, comments: false, strings: false },
           suggestOnTriggerCharacters: true,
+          hover: { enabled: true, delay: 250, sticky: true },
           parameterHints: { enabled: true, cycle: true },
           bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
           guides: { bracketPairs: true, indentation: true },

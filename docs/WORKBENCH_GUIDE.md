@@ -47,6 +47,7 @@ blocking errors are announced and open the relevant drawer workspace.
 | Action | Shortcut |
 | --- | --- |
 | Run or reload Lua | Command/Ctrl+Enter |
+| Show or focus hover documentation | Command/Ctrl+K, then Command/Ctrl+I |
 | Go to symbol in the script | Command/Ctrl+Shift+O |
 | Go to local definition | F12 |
 | Rename a resolved local symbol | F2 |
@@ -65,6 +66,12 @@ functions, algorithm metadata, `init()` metadata sections, and named script
 parameters. Go to Definition and Rename Symbol work for confidently resolved
 local variables, local functions, and callback parameters. Rename does not
 rewrite globals, object members, table keys, strings, or comments.
+
+Hover over a Disting API or constant, supported Lua global/library member, Lua
+keyword, lifecycle or metadata field, or resolved local symbol to see its
+documentation. Hover appears after a short delay; a plain click only moves the
+cursor. Use Command/Ctrl+K followed by Command/Ctrl+I to open or focus the same
+documentation from the keyboard.
 
 Callback bodies, local functions, and metadata tables spanning at least three
 lines can be folded from the gutter. Formatting is not offered until a Lua

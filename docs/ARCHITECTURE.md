@@ -257,6 +257,13 @@ signature providers register only for this model language. Their registrations
 and the language configuration/tokenizer are disposable and replaced safely
 during hot updates; the base language ID itself is registered only once.
 
+The application imports Monaco's slim `editor.api` entry point and explicitly
+loads the UI contributions corresponding to registered providers. Hover,
+suggestions/snippets, parameter hints, code actions, document symbols, folding,
+definition, rename, quick outline, and reference-search affordances therefore
+remain inside the lazy Monaco chunk while still having visible controllers and
+keyboard commands.
+
 The runtime constant table, static API arity checks, contract callback checks,
 and Monaco Disting completions all derive from this catalog. Manual-backed,
 hardware-verified, official-corpus, and simulator-extension provenance remain
@@ -306,6 +313,12 @@ arguments preserve the active parameter. Every catalog overload is shown, with
 the table form selected when the current overload argument begins with a table
 constructor. Statically indexed `self.parameters[n]` expressions display the
 matching script parameter name in hover documentation.
+
+Hover documentation also covers Disting APIs and constants, supported Lua
+globals and library members, Lua 5.4 keywords, lifecycle and metadata fields,
+and confidently resolved local symbols. Metadata names are matched through
+their indexed source ranges rather than globally, so a local variable called
+`name` is not described as algorithm metadata.
 
 `validation/source-index.ts` is the compact structural layer used for source
 mapping. It scans Lua tokens without executing source, balances delimiter and
