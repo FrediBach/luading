@@ -14,17 +14,14 @@ It is not yet a faithful simulator of the full contract in
 [`Disting NT Lua Scripting.md`](Disting%20NT%20Lua%20Scripting.md). The largest
 gaps are:
 
-1. The firmware-wide parameter namespace is absent. Every script gets
-   `self.parameterOffset = 0`, and the routing/program parameters described by
-   the manual do not exist.
-2. There is no 28-bus, multi-algorithm preset pipeline. `getBusVoltage()` reads
+1. There is no 28-bus, multi-algorithm preset pipeline. `getBusVoltage()` reads
    the script's logical input array, while preset APIs operate on one fixed
    `Looper` fixture.
-3. `kLinear` is metadata and presentation only; output interpolation between
+2. `kLinear` is metadata and presentation only; output interpolation between
    1 ms callbacks is not emulated.
-4. saved state does not include parameter values, although the manual says
+3. saved state does not include parameter values, although the manual says
    firmware stores parameter values automatically.
-5. separate UI scripts, the shared machine-wide Lua instance, the documented
+4. separate UI scripts, the shared machine-wide Lua instance, the documented
    library search path, and the interactive Lua console are not implemented.
 
 The current conformance and corpus tests all pass, but they do not establish
@@ -100,18 +97,18 @@ result:
 ### F-01 — Firmware-wide parameter indices and system parameters are absent
 
 **Severity:** High  
-**Status:** Confirmed contract mismatch
+**Status:** Resolved for namespace/indexing 2026-07-31
 
 The manual says script parameters are added after firmware-maintained program and
 routing parameters. `self.parameters` is script-relative, while global parameter
 APIs use firmware-wide indices; `self.parameterOffset` bridges those namespaces.
 
-The worker hard-codes both:
+The worker previously hard-coded both:
 
 - `program.algorithmIndex = 1`
 - `program.parameterOffset = 0`
 
-It then exposes only `metadata.parameters` through `getParameterCount`,
+It then exposed only `metadata.parameters` through `getParameterCount`,
 `getParameter`, `getParameterName`, `findParameter`, `focusParameter`, and the
 standard parameter line
 ([`disting.worker.ts:216`](../src/disting/disting.worker.ts#L216),
@@ -119,7 +116,7 @@ standard parameter line
 [`disting.worker.ts:353`](../src/disting/disting.worker.ts#L353),
 [`disting.worker.ts:375`](../src/disting/disting.worker.ts#L375)).
 
-Consequences:
+Consequences were:
 
 - scripts cannot inspect or change their program/routing parameters;
 - the numeric indices exercised in the simulator differ from hardware;
@@ -127,9 +124,15 @@ Consequences:
 - `drawStandardParameterLine()` cannot display a system parameter;
 - standard UI behavior is operating on a different parameter list.
 
-**Recommendation:** model the Lua Script algorithm's system parameters, assign a
-real offset, keep script-relative `self.parameters`, and route all global APIs
-through the combined parameter list.
+**Resolution:** `parameter-model.ts` now owns the fixed 85-parameter firmware
+prefix: Program, 28 input routes, and 28 output bus/mode pairs. Script
+parameters begin at firmware index 86 while `self.parameters` remains
+script-relative. Lookup, focus, reads, writes, standard pot actions, and
+parameter-line drawing use the combined list. The offset and storage layout were
+cross-checked against the [official Lua Script user-manual section](https://expert-sleepers.co.uk/downloads/manuals/disting_NT_user_manual_1.9.pdf)
+and an [official preset containing a Lua Script algorithm](https://github.com/expertsleepersltd/distingNT/blob/main/presets/SyncLatchDemo.json).
+Routing values do not yet affect a real bus graph; that behavior remains tracked
+by F-02.
 
 ### F-02 — There is no 28-bus, multi-algorithm preset pipeline
 
@@ -237,30 +240,33 @@ that hardware does not promise.
 **Resolution:** the worker now closes the runtime and rejects the load before
 metadata normalization whenever contract validation reports an error. All
 contract diagnostics are returned to the Problems panel. Warnings and
-informational findings remain non-blocking.
+informational findings remain non-blocking. The bundled official-script corpus
+now requires zero contract errors; three upstream metadata mistakes were
+corrected locally instead of weakening the contract gate.
 
 ### F-06 — Numeric parameter integer semantics are not enforced
 
 **Severity:** Medium  
-**Status:** Confirmed contract mismatch
+**Status:** Resolved 2026-07-31
 
 The manual says the numeric definition fields are integers and unscaled
 parameter values are passed to Lua as integers. A scale constant divides those
 integer fields and exposes the scaled value as a float.
 
-The validator checks only for finite numbers, not integers
+The validator previously checked only for finite numbers, not integers
 ([`contract-validator.ts:267`](../src/disting/validation/contract-validator.ts#L267)).
-The normalizer and `setParameter()` path retain arbitrary fractional values for
+The normalizer and `setParameter()` path retained arbitrary fractional values for
 all non-enum parameters
 ([`lua-contract.ts:145`](../src/disting/emulation/lua-contract.ts#L145),
 [`disting.worker.ts:267`](../src/disting/disting.worker.ts#L267)).
 
 A definition such as `{ "Mode", 0, 10, 0.5, kNone }`, or a later
-`setParameter(..., 1.25)`, therefore works in the simulator without a scale even
-though it is outside the documented contract.
+`setParameter(..., 1.25)`, therefore worked in the simulator without a scale
+even though it was outside the documented contract.
 
-**Recommendation:** require integer raw min/max/default fields, quantize
-unscaled writes to integers, and quantize scaled writes to `1 / scale`.
+**Resolution:** contract validation now rejects fractional raw min/max/default
+fields. The shared parameter model clamps and quantizes unscaled writes to
+integers and scaled writes to `1 / scale`, including normalized writes.
 
 ### F-07 — Several primitive colour arguments are incorrectly optional
 
@@ -733,7 +739,7 @@ does not implement interpolation.
 
 The following regression tests would have caught the highest-impact findings:
 
-- nonzero `parameterOffset` with system and script parameters;
+- nonzero `parameterOffset` with system and script parameters (covered);
 - parameter values automatically saved and restored alongside `self.state`;
 - bus snapshots at algorithm indices 0, middle, and final output;
 - stepped hold versus linear midpoint behavior;

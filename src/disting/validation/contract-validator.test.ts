@@ -176,6 +176,23 @@ describe('validateProgramContract', () => {
     expect(findings.filter((item) => item.severity === 'error')).toEqual([])
   })
 
+  it('requires integer raw parameter fields even when values are scaled', () => {
+    const invalid = validateProgramContract({}, {
+      parameters: [['Fractional raw', 0, 10.5, 0.5, 0]],
+    })
+    const scaled = validateProgramContract({}, {
+      parameters: [['Scaled', 0, 105, 5, 0, 10]],
+    })
+
+    expect(invalid).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: 'parameter-1-integers',
+        severity: 'error',
+      }),
+    ]))
+    expect(scaled.filter((item) => item.severity === 'error')).toEqual([])
+  })
+
   it('reports unused edge callbacks, inert outputs, and missing identity metadata', () => {
     const findings = validateProgramContract({
       trigger: () => [],

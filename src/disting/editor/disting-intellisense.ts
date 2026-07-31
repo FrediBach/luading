@@ -150,7 +150,7 @@ const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
     {
       label: 'parameterOffset',
       detail: 'disting NT · parameter offset',
-      documentation: 'The firmware parameter offset for this algorithm instance.',
+      documentation: 'The firmware parameter offset for this algorithm instance. Lua Script reserves 85 system parameters before script-defined values.',
     },
     {
       label: 'name',

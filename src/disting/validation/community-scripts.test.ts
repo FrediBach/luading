@@ -9,6 +9,7 @@ import {
   type LuaInitResult,
 } from '../emulation/lua-contract'
 import { loadLuaProgramRuntime } from '../emulation/lua-runtime'
+import { LUA_SCRIPT_PARAMETER_OFFSET } from '../emulation/parameter-model'
 import { serialiseJsonState } from '../emulation/runtime-helpers'
 import { createDistingLuaTestEngine } from '../testing/lua-test-environment'
 
@@ -30,7 +31,7 @@ describe('bundled community scripts', () => {
           continue
         }
 
-        runtime.configure(1, 0)
+        runtime.configure(1, LUA_SCRIPT_PARAMETER_OFFSET)
         const rawInit = runtime.init?.()
         const init = rawInit && typeof rawInit === 'object'
           ? rawInit as LuaInitResult

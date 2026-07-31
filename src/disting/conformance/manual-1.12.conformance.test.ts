@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DISTING_DISPLAY } from '../types'
 import { DISTING_CONSTANTS } from '../emulation/lua-contract'
+import { LUA_SCRIPT_PARAMETER_OFFSET } from '../emulation/parameter-model'
 import {
   DISTING_API,
   DISTING_API_PROFILE,
@@ -53,6 +54,7 @@ describe('Disting NT Lua 1.12 manual conformance', () => {
       drawFps: 30,
       stepSeconds: 0.001,
     })
+    expect(LUA_SCRIPT_PARAMETER_OFFSET).toBe(85)
   })
 
   it('contains every global documented in the 1.12 language extensions', () => {

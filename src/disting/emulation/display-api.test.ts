@@ -119,6 +119,26 @@ describe('Disting display API', () => {
     ])
   })
 
+  it('formats zero-based firmware enums', () => {
+    const parameter: ParameterDefinition = {
+      name: 'Output mode',
+      min: 0,
+      max: 1,
+      value: 0,
+      unit: '',
+      scale: 1,
+      enumValues: ['Add', 'Replace'],
+      enumOffset: 0,
+    }
+    const { display } = registeredDisplay(undefined, parameter)
+
+    display.finish(false, parameter, 0)
+
+    expect(display.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'text', text: 'Add' }),
+    ]))
+  })
+
   it('resets state and renders non-algorithm system screens', () => {
     const { call, display } = registeredDisplay()
     call('drawText', 1, 2, 'Old')

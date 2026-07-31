@@ -132,7 +132,7 @@ return {
             parameters = {
                 {"Number of Steps", 1, MAX_STEPS, 8, kInt},
                 {"Min Voltage", -100, 100, -100, kVolts, kBy10},
-                {"Max Voltage", -100, 100, 200, kVolts, kBy10},
+                {"Max Voltage", -100, 100, 50, kVolts, kBy10},
                 {"Polarity", polarityNames, 1},
                 {"Value Resolution (bits)", 2, 16, 16, kInt},
                 {"Freeze", {"Off", "On"}, 1, kEnum},

@@ -74,6 +74,8 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   `lua-contract.ts` normalizes it for the simulator. Runtime output checks and
   lifecycle timing remain in `disting.worker.ts`, where the actual behavior can
   be observed.
+- `emulation/parameter-model.ts` owns the Lua Script firmware-wide parameter
+  prefix and translates between global indices and script-relative values.
 - `validation/score.ts` is the only place that converts findings into the
   100-point quality score. Hardware-valid APIs that the simulator does not
   implement are compatibility notes and never reduce the score.

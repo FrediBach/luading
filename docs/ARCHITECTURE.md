@@ -168,6 +168,9 @@ The core emulator is split by hardware-facing responsibility:
   per-callback Wasm function and table-bridge allocation.
 - `lua-contract.ts` maps Lua `init` tables, constants, buses, names, parameters,
   output modes, and MIDI metadata into typed host data.
+- `parameter-model.ts` owns the Lua Script algorithm's combined firmware-wide
+  parameter namespace: the fixed 85 system slots, script-relative values,
+  lookup, clamping, and integer/scaled quantization.
 - `runtime-helpers.ts` applies callback output tables, detects trigger/gate
   edges, filters MIDI, normalizes serialized state, and maps runtime errors.
 - `display-api.ts` implements Disting drawing globals and emits

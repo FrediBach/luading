@@ -32,7 +32,9 @@ function alignment(value: unknown): TextAlignment {
 
 function parameterValue(parameter: ParameterDefinition | undefined, value: number | undefined) {
   if (!parameter || value === undefined) return ''
-  if (parameter.enumValues) return parameter.enumValues[Math.round(value) - 1] ?? ''
+  if (parameter.enumValues) {
+    return parameter.enumValues[Math.round(value) - (parameter.enumOffset ?? 1)] ?? ''
+  }
   const formatted = Number.isInteger(value) ? String(value) : value.toFixed(2)
   return parameter.unit ? `${formatted} ${parameter.unit}` : formatted
 }

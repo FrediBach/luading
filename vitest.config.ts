@@ -18,6 +18,7 @@ export default defineConfig({
         'src/disting/emulation/hardware-api.ts',
         'src/disting/emulation/lua-contract.ts',
         'src/disting/emulation/lua-runtime.ts',
+        'src/disting/emulation/parameter-model.ts',
         'src/disting/emulation/preset-api.ts',
         'src/disting/emulation/runtime-helpers.ts',
         'src/disting/emulation/scope-model.ts',

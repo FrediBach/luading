@@ -7,6 +7,7 @@ import {
   registerLuaModules,
   type LuaEngineLike,
 } from './lua-runtime'
+import { LUA_SCRIPT_PARAMETER_OFFSET } from './parameter-model'
 
 type Engine = Awaited<ReturnType<LuaFactory['createEngine']>>
 const engines: Engine[] = []
@@ -60,7 +61,7 @@ describe('Lua program runtime bridge', () => {
       }
     `)
 
-    runtime.configure(4, 6)
+    runtime.configure(4, LUA_SCRIPT_PARAMETER_OFFSET)
     runtime.setState({ seed: 12 })
     runtime.setParameters([3])
 
@@ -84,7 +85,7 @@ describe('Lua program runtime bridge', () => {
       pot: 0.75,
       midi: 0x91,
       algorithmIndex: 4,
-      parameterOffset: 6,
+      parameterOffset: LUA_SCRIPT_PARAMETER_OFFSET,
     })
     expect(runtime.callUi('missing')).toBeNull()
   })

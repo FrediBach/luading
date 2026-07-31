@@ -28,9 +28,10 @@ export const ParameterControl = memo(function ParameterControl({
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const kind = parameterControlKind(definition)
   const enumValues = definition.enumValues ?? []
+  const enumOffset = definition.enumOffset ?? 1
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredEnumValues = enumValues
-    .map((label, index) => ({ label, value: index + 1 }))
+    .map((label, index) => ({ label, value: index + enumOffset }))
     .filter((option) => (
       !normalizedQuery || option.label.toLocaleLowerCase().includes(normalizedQuery)
     ))
@@ -48,7 +49,7 @@ export const ParameterControl = memo(function ParameterControl({
           label={definition.name}
           value={String(Math.round(value))}
           options={enumValues.map((label, index) => ({
-            value: String(index + 1),
+            value: String(index + enumOffset),
             label,
           }))}
           onChange={(nextValue) => onChange(Number(nextValue))}

@@ -34,6 +34,7 @@ export interface ParameterDefinition {
   unit: string
   scale: number
   enumValues?: string[]
+  enumOffset?: number
 }
 
 export interface LoadedProgram {

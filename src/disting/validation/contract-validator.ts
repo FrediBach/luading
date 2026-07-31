@@ -283,6 +283,17 @@ function validateParameters(raw: unknown, diagnostics: ScriptDiagnostic[]) {
       ))
       return
     }
+    if (![minimum, maximum, defaultValue].every(Number.isInteger)) {
+      diagnostics.push(finding(
+        `parameter-${index + 1}-integers`,
+        'error',
+        'contract',
+        `${label} uses fractional raw values`,
+        'Numeric parameter minimum, maximum, and default fields must be integers. A scale constant exposes fractional values to Lua.',
+        'Use integer raw fields and add kBy10, kBy100, or kBy1000 when the parameter needs fractional steps.',
+        0,
+      ))
+    }
     if ((minimum as number) > (maximum as number)) {
       diagnostics.push(finding(
         `parameter-${index + 1}-range`,

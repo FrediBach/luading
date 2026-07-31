@@ -99,7 +99,7 @@ return {
         randomizeCV()
         return {
             inputs = {kGate, kTrigger},
-            outputs = {kLinear, kTrigger},
+            outputs = {kLinear, kStepped},
             inputNames = {"Clock", "Reset"},
             outputNames = {"CV Output", "BOC Trigger Output"},
             parameters = {

@@ -46,7 +46,7 @@ return {
             parameters = {
                 {"P1", 0, 100, 50, kPercent}, {"P2", 0, 100, 50, kPercent},
                 {"P3", 0, 100, 50, kPercent}, {"P4", 0, 100, 50, kPercent},
-                {"Release", {"Immediate", "Sticky"}, 0}
+                {"Release", {"Immediate", "Sticky"}, 1}
             }
         }
     end,
@@ -58,7 +58,7 @@ return {
         if rising then
             if rnd <= probability then gateStates[input] = rising end
         else
-            if self.parameters[5] == 0 then -- Immediately release the gate
+            if self.parameters[5] == 1 then -- Immediately release the gate
                 gateStates[input] = rising
             else
                 if rnd <= probability then -- Sticky only release the gate if probable

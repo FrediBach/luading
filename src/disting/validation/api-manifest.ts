@@ -75,7 +75,7 @@ function api(
 
 const DRAW_CONTEXT: LuaCallbackName[] = ['draw']
 const PRESET_SUPPORT_DETAIL = 'The simulator currently uses one Lua Script plus a fixed Looper fixture instead of a configurable firmware preset.'
-const PARAMETER_SUPPORT_DETAIL = 'The simulator exposes script parameters and a fixed companion fixture, but not the firmware-wide system and routing parameter namespace.'
+const PARAMETER_SUPPORT_DETAIL = 'The Lua Script system and script namespaces are modeled, but companion algorithms still use a fixed fixture and routing changes do not yet feed a 28-bus preset pipeline.'
 
 export const DISTING_API_PROFILE = 'Disting NT Lua 1.12'
 

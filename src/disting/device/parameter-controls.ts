@@ -39,7 +39,9 @@ export function formatParameterValue(
   value: number,
 ) {
   if (definition.enumValues) {
-    return definition.enumValues[Math.round(value) - 1] ?? `Option ${Math.round(value)}`
+    return definition.enumValues[
+      Math.round(value) - (definition.enumOffset ?? 1)
+    ] ?? `Option ${Math.round(value)}`
   }
   return value.toFixed(parameterPrecision(definition))
 }
@@ -75,4 +77,3 @@ export function parameterPageRange(
     end: Math.min(parameterCount, start + pageSize),
   }
 }
-

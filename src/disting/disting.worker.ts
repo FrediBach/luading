@@ -17,6 +17,10 @@ import {
   type LuaProgramRuntime,
 } from './emulation/lua-contract'
 import {
+  LUA_SCRIPT_PARAMETER_OFFSET,
+  LuaScriptParameterModel,
+} from './emulation/parameter-model'
+import {
   ClockTransport,
   DEFAULT_CLOCK,
   SignalBank,
@@ -74,7 +78,6 @@ let stepCount = 0
 let droppedSteps = 0
 let lastFrameTime = 0
 let lastDrawTime = 0
-let lastParameterIndex = 0
 let frameInFlight = false
 let inputs: number[] = []
 let outputs: number[] = []
@@ -86,6 +89,7 @@ let callbackDurationSamples: Partial<Record<LuaCallbackName, number[]>> = {}
 let runtimeDiagnosticIds = new Set<string>()
 let runtimeDiagnosticList: ScriptDiagnostic[] = []
 let loadNotificationSent = false
+let parameterModel: LuaScriptParameterModel | null = null
 let currentAlgorithmIndex = 1
 let currentParameters = new Map<number, number>()
 let customUiActive = false
@@ -117,6 +121,7 @@ function closeEngine() {
   program = null
   runtime = null
   metadata = null
+  parameterModel = null
 }
 
 function runtimeDiagnostic(
@@ -217,13 +222,6 @@ function finiteIndex(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : undefined
 }
 
-function currentProgramParameterIndex(parameterIndex: unknown) {
-  const index = finiteIndex(parameterIndex)
-  if (!program || index === undefined) return undefined
-  const relative = index - (program.parameterOffset ?? 0) - 1
-  return relative >= 0 && relative < (metadata?.parameters.length ?? 0) ? relative : undefined
-}
-
 function algorithmName(algorithmIndex: unknown) {
   const index = finiteIndex(algorithmIndex)
   if (program && index === program.algorithmIndex) return program.name ?? 'Lua Script'
@@ -233,10 +231,7 @@ function algorithmName(algorithmIndex: unknown) {
 function parameterInfo(algorithmIndex: unknown, parameterIndex: unknown) {
   const index = finiteIndex(algorithmIndex)
   if (index === program?.algorithmIndex) {
-    const relative = currentProgramParameterIndex(parameterIndex)
-    const definition = relative === undefined ? undefined : metadata?.parameters[relative]
-    const value = relative === undefined ? undefined : program?.parameters?.[relative]
-    return definition && typeof value === 'number' ? { definition, value } : undefined
+    return parameterModel?.info(parameterIndex)
   }
   const companion = preset.getParameterInfo(index, parameterIndex)
   if (!companion) return undefined
@@ -258,13 +253,11 @@ function focusParameter(algorithmIndex: unknown, parameterIndex: unknown) {
   const parameter = finiteIndex(parameterIndex)
   if (algorithm === undefined || !algorithmName(algorithm) || parameter === undefined) return false
   const count = algorithm === program?.algorithmIndex
-    ? metadata?.parameters.length ?? 0
+    ? parameterModel?.count ?? 0
     : preset.getParameterCount(algorithm) ?? 0
-  const offset = algorithm === program?.algorithmIndex ? program?.parameterOffset ?? 0 : 0
-  if (parameter <= offset || parameter > offset + count) return false
+  if (parameter < 1 || parameter > count) return false
   currentAlgorithmIndex = algorithm
   currentParameters.set(algorithm, parameter)
-  if (algorithm === program?.algorithmIndex) lastParameterIndex = parameter - offset - 1
   return true
 }
 
@@ -277,12 +270,12 @@ function setParameterValue(
   const algorithm = finiteIndex(algorithmIndex)
   if (typeof value !== 'number' || !Number.isFinite(value)) return false
   if (algorithm === program?.algorithmIndex) {
-    const relative = currentProgramParameterIndex(parameterIndex)
-    const definition = relative === undefined ? undefined : metadata?.parameters[relative]
-    if (relative === undefined || !definition || !program?.parameters) return false
-    const clamped = Math.min(definition.max, Math.max(definition.min, value))
-    program.parameters[relative] = definition.enumValues ? Math.round(clamped) : clamped
-    runtime?.setParameter(relative + 1, program.parameters[relative] as number)
+    const changed = parameterModel?.set(parameterIndex, value)
+    if (!changed) return false
+    if (changed.scriptIndex !== undefined && program?.parameters) {
+      program.parameters[changed.scriptIndex] = changed.value
+      runtime?.setParameter(changed.scriptIndex + 1, changed.value)
+    }
     if (focus !== false) focusParameter(algorithm, parameterIndex)
     return true
   }
@@ -313,18 +306,24 @@ function standardPotTurn(pot: 1 | 2 | 3, value: unknown) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return
   const algorithm = currentAlgorithmIndex
   const count = algorithm === program?.algorithmIndex
-    ? metadata?.parameters.length ?? 0
+    ? parameterModel?.count ?? 0
     : preset.getParameterCount(algorithm) ?? 0
   if (count === 0) return
-  const offset = algorithm === program?.algorithmIndex ? program?.parameterOffset ?? 0 : 0
+  const defaultParameter = algorithm === program?.algorithmIndex
+    ? parameterModel?.defaultParameterIndex ?? 1
+    : 1
   if (pot === 3) {
-    setParameterNormalized(algorithm, currentParameters.get(algorithm) ?? offset + 1, value)
+    setParameterNormalized(
+      algorithm,
+      currentParameters.get(algorithm) ?? defaultParameter,
+      value,
+    )
     return
   }
   const normalized = Math.min(1, Math.max(0, value))
   const index = Math.min(count - 1, Math.floor(normalized * count))
   const selected = pot === 1 ? Math.floor(index / 3) * 3 : index
-  focusParameter(algorithm, offset + selected + 1)
+  focusParameter(algorithm, selected + 1)
 }
 
 async function registerDistingGlobals() {
@@ -344,8 +343,10 @@ async function registerDistingGlobals() {
   lua.global.set('getCurrentParameter', (algorithmIndex: unknown) => {
     const algorithm = finiteIndex(algorithmIndex)
     if (algorithm === undefined || !algorithmName(algorithm)) return undefined
-    const offset = algorithm === program?.algorithmIndex ? program?.parameterOffset ?? 0 : 0
-    return currentParameters.get(algorithm) ?? offset + 1
+    const defaultParameter = algorithm === program?.algorithmIndex
+      ? parameterModel?.defaultParameterIndex ?? 1
+      : 1
+    return currentParameters.get(algorithm) ?? defaultParameter
   })
   lua.global.set('__findAlgorithmMatches', (name: unknown) => {
     const matches: number[] = []
@@ -356,9 +357,7 @@ async function registerDistingGlobals() {
   })
   lua.global.set('__findParameterMatches', (algorithmIndex: unknown, name: unknown) => {
     if (program && algorithmIndex === program.algorithmIndex) {
-      return metadata?.parameters.flatMap((parameter, index) => (
-        parameter.name === name ? [(program?.parameterOffset ?? 0) + index + 1] : []
-      )) ?? []
+      return parameterModel?.findParameters(name) ?? []
     }
     return preset.findParameters(algorithmIndex, name) ?? []
   })
@@ -379,7 +378,7 @@ async function registerDistingGlobals() {
   lua.global.set('getParameterCount', (algorithmIndex: unknown) => {
     const algorithm = finiteIndex(algorithmIndex)
     return algorithm === program?.algorithmIndex
-      ? metadata?.parameters.length ?? 0
+      ? parameterModel?.count ?? 0
       : preset.getParameterCount(algorithm)
   })
   lua.global.set('getParameterName', (algorithmIndex: unknown, parameterIndex: unknown) => (
@@ -463,7 +462,7 @@ async function loadProgram(
       throw new Error('The script must return a table containing init/step/draw callbacks.')
     }
     program.algorithmIndex = 1
-    program.parameterOffset = 0
+    program.parameterOffset = LUA_SCRIPT_PARAMETER_OFFSET
     runtime.configure(program.algorithmIndex, program.parameterOffset)
     if (restoredState !== undefined) runtime.setState(restoredState)
     currentAlgorithmIndex = program.algorithmIndex
@@ -488,13 +487,14 @@ async function loadProgram(
       ? rawInitResult as LuaInitResult
       : {}
     metadata = describeProgram(program, initResult)
+    parameterModel = new LuaScriptParameterModel(metadata)
     inputs = Array.from({ length: metadata.inputCount }, () => 0)
     outputs = Array.from({ length: metadata.outputCount }, () => 0)
     inputHigh = Array.from({ length: metadata.inputCount }, () => false)
     signals.configure(metadata.inputKinds)
-    program.parameters = metadata.parameters.map((parameter) => parameter.value)
+    program.parameters = parameterModel.scriptValues()
     runtime.setParameters(program.parameters as number[])
-    currentParameters.set(program.algorithmIndex, program.parameterOffset + 1)
+    currentParameters.set(program.algorithmIndex, parameterModel.defaultParameterIndex)
     customUiActive = runtime.ui?.() === true
     metadata.customUi = customUiActive
     if (customUiActive && runtime.setupUi) {
@@ -531,7 +531,6 @@ function resetRuntime() {
   droppedSteps = 0
   lastFrameTime = 0
   lastDrawTime = 0
-  lastParameterIndex = 0
   frameInFlight = false
   inputs = []
   outputs = []
@@ -593,18 +592,31 @@ function renderDisplay() {
     display.showSystemScreen(displayMode, algorithmName(currentAlgorithmIndex) ?? 'Lua Script')
     return
   }
+  const focusedAlgorithmIndex = program?.algorithmIndex ?? 1
+  const focusedParameter = program
+    ? parameterInfo(
+        focusedAlgorithmIndex,
+        currentParameters.get(focusedAlgorithmIndex)
+          ?? parameterModel?.defaultParameterIndex
+          ?? 1,
+      )
+    : undefined
   if (displayMode === 'algorithm' && metadata?.customUi && !customUiActive) {
-    const parameter = metadata.parameters[lastParameterIndex]
-    const value = program?.parameters?.[lastParameterIndex]
-    display.finish(false, parameter, typeof value === 'number' ? value : undefined)
+    display.finish(
+      false,
+      focusedParameter?.definition,
+      focusedParameter?.value,
+    )
     return
   }
   const suppressStandardLine = runtime?.draw
     ? measureCallback('draw', () => runtime?.draw?.()) === true
     : false
-  const parameter = metadata?.parameters[lastParameterIndex]
-  const value = program?.parameters?.[lastParameterIndex]
-  display.finish(suppressStandardLine, parameter, typeof value === 'number' ? value : undefined)
+  display.finish(
+    suppressStandardLine,
+    focusedParameter?.definition,
+    focusedParameter?.value,
+  )
   observeDisplayOverflow()
 }
 

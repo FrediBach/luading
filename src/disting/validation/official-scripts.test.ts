@@ -13,17 +13,12 @@ import {
   loadLuaProgramRuntime,
   registerLuaModules,
 } from '../emulation/lua-runtime'
+import { LUA_SCRIPT_PARAMETER_OFFSET } from '../emulation/parameter-model'
 import { createDistingLuaTestEngine } from '../testing/lua-test-environment'
 import { luaSequence, validateProgramContract } from './contract-validator'
 
-const EXPECTED_SCRIPT_ERRORS = {
-  'ae_random_stepped_voltage.lua': ['parameter-3-default'],
-  'clep_disting.lua': ['outputs-type-2'],
-  'quad_bernoulli.lua': ['parameter-5-default'],
-}
-
 describe('bundled Expert Sleepers scripts', () => {
-  it('reports only confirmed contract errors and accepts nil callback returns', async () => {
+  it('loads every script without contract errors and accepts nil callback returns', async () => {
     const root = join(process.cwd(), 'lua-scripts/expert-sleepers')
     const moduleRoot = join(root, 'lib')
     const modules = Object.fromEntries(
@@ -43,7 +38,7 @@ describe('bundled Expert Sleepers scripts', () => {
         readFileSync(join(root, filename), 'utf8'),
       )
 
-      runtime.configure(1, 0)
+      runtime.configure(1, LUA_SCRIPT_PARAMETER_OFFSET)
       const rawInit = runtime.init?.()
       const init = (rawInit && typeof rawInit === 'object' ? rawInit : {}) as LuaInitResult
       const described = describeProgram(runtime.program, init)
@@ -76,7 +71,7 @@ describe('bundled Expert Sleepers scripts', () => {
       lua.global.close()
     }
 
-    expect(actualErrors).toEqual(EXPECTED_SCRIPT_ERRORS)
+    expect(actualErrors).toEqual({})
     expect(invalidCallbackReturns).toEqual([])
   }, 15_000)
 })

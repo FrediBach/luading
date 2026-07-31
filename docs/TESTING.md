@@ -29,6 +29,8 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - sparse input/output names and sparse callback output updates
 - stepped and linear output metadata
 - integer, scaled, and enum parameters
+- the fixed Lua Script parameter offset, system/routing indices, and quantized
+  global parameter writes
 - every parameter unit
 - trigger rising edges and gate rising/falling edges
 - MIDI message classification, type filters, channel filters, and byte clamping
@@ -63,7 +65,9 @@ All bundled scripts are loaded and exercised:
 
 The corpus tests call applicable `init`, `step`, `trigger`, `gate`, `draw`,
 custom UI, MIDI, and serialization callbacks and verify callback values survive
-the JavaScript/Lua boundary.
+the JavaScript/Lua boundary. Every bundled script must also pass contract
+validation; known-invalid metadata is corrected in the bundled copy rather than
+added to an expected-error allowlist.
 
 ## Commands
 
