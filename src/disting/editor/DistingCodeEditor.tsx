@@ -154,7 +154,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           occurrencesHighlight: 'off',
           selectionHighlight: false,
           codeLens: false,
-          wordBasedSuggestions: 'currentDocument',
+          wordBasedSuggestions: 'off',
           wordBasedSuggestionsOnlySameLanguage: true,
           quickSuggestions: { other: true, comments: false, strings: false },
           suggestOnTriggerCharacters: true,
@@ -162,7 +162,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
           guides: { bracketPairs: true, indentation: true },
           suggest: {
-            showWords: true,
+            showWords: false,
             showSnippets: true,
             snippetsPreventQuickSuggestions: false,
             localityBonus: true,

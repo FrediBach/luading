@@ -5,22 +5,49 @@ import {
   DISTING_CONSTANTS as DISTING_CONSTANT_CATALOG,
   DISTING_CONTRACT_PROVENANCE,
   DISTING_LIFECYCLE,
+  formatApiSignature,
   type DistingApiEntry,
   type DistingApiParameter,
   type DistingConstantEntry,
   type DistingLifecycleEntry,
+  type DistingValueType,
 } from '../validation/api-manifest'
+import {
+  createLuaSourceIndex,
+  type LuaSourceIndex,
+  type SourceIndexSymbol,
+} from '../validation/source-index'
+import {
+  activeLuaCallAt,
+  completionContextAt,
+  selfParameterReferenceAt,
+} from './disting-intellisense-context'
 import { DISTING_LUA_LANGUAGE_ID } from './disting-lua'
 
 type MonacoApi = typeof Monaco
+type CompletionKind = 'constant' | 'field' | 'function' | 'method' | 'snippet' | 'variable'
 
-type ApiEntry = {
+export type IntelliSenseEntry = {
   label: string
   signature?: string
   detail: string
   documentation: string
   insertText?: string
   parameters?: string[]
+  completionKind?: CompletionKind
+  sortText?: string
+}
+
+type SignatureParameter = {
+  label: string
+  acceptedTypes?: readonly DistingValueType[]
+  variadic?: boolean
+}
+
+type SignatureEntry = {
+  label: string
+  documentation: string
+  parameters: SignatureParameter[]
 }
 
 function apiInsertText(name: string, parameters: readonly DistingApiParameter[], explicit?: string) {
@@ -31,7 +58,11 @@ function apiInsertText(name: string, parameters: readonly DistingApiParameter[],
   return `${name}(${placeholders.join(', ')})`
 }
 
-export function apiEntryForIntelliSense(entry: DistingApiEntry): ApiEntry {
+function provenanceSortText(provenance: DistingApiEntry['provenance'] | DistingConstantEntry['provenance']) {
+  return provenance === 'manual-1.12' || provenance === 'hardware-verified' ? '100' : '300'
+}
+
+export function apiEntryForIntelliSense(entry: DistingApiEntry): IntelliSenseEntry {
   const primaryParameters = entry.overloads[0].parameters
   const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
   const documentation = `${entry.documentation}\n\n**Contract source: ${provenance.label}.** ${provenance.detail}`
@@ -48,25 +79,27 @@ export function apiEntryForIntelliSense(entry: DistingApiEntry): ApiEntry {
     parameters: primaryParameters.map((parameter) => (
       `${parameter.variadic ? '...' : ''}${parameter.name}${parameter.optional ? '?' : ''}`
     )),
+    completionKind: 'function',
+    sortText: provenanceSortText(entry.provenance),
   }
 }
 
-const DISTING_FUNCTIONS: ApiEntry[] = DISTING_API.map(apiEntryForIntelliSense)
+const DISTING_FUNCTIONS = DISTING_API.map(apiEntryForIntelliSense)
 
-export function constantEntryForIntelliSense(entry: DistingConstantEntry): ApiEntry {
+export function constantEntryForIntelliSense(entry: DistingConstantEntry): IntelliSenseEntry {
   const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
   return {
     label: entry.name,
     detail: `disting NT constant · ${entry.category} · ${provenance.label}`,
     documentation: `${entry.documentation}\n\n**Contract source: ${provenance.label}.** ${provenance.detail}`,
+    completionKind: 'constant',
+    sortText: provenanceSortText(entry.provenance),
   }
 }
 
-const DISTING_CONSTANTS: ApiEntry[] = DISTING_CONSTANT_CATALOG.map(
-  constantEntryForIntelliSense,
-)
+const DISTING_CONSTANTS = DISTING_CONSTANT_CATALOG.map(constantEntryForIntelliSense)
 
-const LUA_GLOBALS: ApiEntry[] = [
+const LUA_GLOBALS: IntelliSenseEntry[] = [
   ['pairs', 'pairs(table)', 'Iterate over all key/value pairs in a table.'],
   ['ipairs', 'ipairs(table)', 'Iterate over consecutive integer keys starting at 1.'],
   ['type', 'type(value)', 'Return the Lua type name of a value.'],
@@ -83,9 +116,11 @@ const LUA_GLOBALS: ApiEntry[] = [
   documentation,
   insertText: `${label}(\${1:value})`,
   parameters: signature.slice(signature.indexOf('(') + 1, -1).split(',').map((value) => value.trim()),
+  completionKind: 'function',
+  sortText: '200',
 }))
 
-const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
+const MEMBER_COMPLETIONS: Record<string, IntelliSenseEntry[]> = {
   math: [
     ['abs', 'math.abs(x)'],
     ['ceil', 'math.ceil(x)'],
@@ -103,6 +138,8 @@ const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
     documentation: `Lua 5.4 \`${signature}\`.`,
     insertText: `${label}(\${1:value})`,
     parameters: signature.slice(signature.indexOf('(') + 1, -1).split(',').map((value) => value.trim()),
+    completionKind: 'method',
+    sortText: '200',
   })),
   string: [
     ['format', 'string.format(format, ...)'],
@@ -117,6 +154,8 @@ const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
     documentation: `Lua 5.4 \`${signature}\`.`,
     insertText: `${label}(\${1:value})`,
     parameters: signature.slice(signature.indexOf('(') + 1, -1).split(',').map((value) => value.trim()),
+    completionKind: 'method',
+    sortText: '200',
   })),
   table: [
     ['concat', 'table.concat(list, separator?, i?, j?)'],
@@ -131,12 +170,14 @@ const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
     documentation: `Lua 5.4 \`${signature}\`.`,
     insertText: `${label}(\${1:value})`,
     parameters: signature.slice(signature.indexOf('(') + 1, -1).split(',').map((value) => value.trim()),
+    completionKind: 'method',
+    sortText: '200',
   })),
   self: [
     {
       label: 'parameters',
       detail: 'disting NT · current parameter values',
-      documentation: 'A 1-based array containing the current scaled value of each parameter.',
+      documentation: 'A read-only 1-based array containing the current scaled value of each script-defined parameter.',
     },
     {
       label: 'algorithmIndex',
@@ -158,13 +199,15 @@ const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
       detail: 'disting NT · script author',
       documentation: 'The author declared by the returned script table.',
     },
-  ],
+  ].map((entry) => ({ ...entry, completionKind: 'field' as const, sortText: '000' })),
 }
 
-export const COMPLETE_SCRIPT_SNIPPET: ApiEntry = {
+export const COMPLETE_SCRIPT_SNIPPET: IntelliSenseEntry = {
   label: 'disting script',
   detail: 'disting NT · complete script scaffold',
   documentation: 'Create a complete Disting NT Lua lifecycle table with the two required descriptive header comments.',
+  completionKind: 'snippet',
+  sortText: '000',
   insertText: [
     '-- ${1:Algorithm name}',
     '-- ${2:Describe what the script does.}',
@@ -199,7 +242,7 @@ export const COMPLETE_SCRIPT_SNIPPET: ApiEntry = {
   ].join('\n'),
 }
 
-export function lifecycleEntryForIntelliSense(entry: DistingLifecycleEntry): ApiEntry {
+export function lifecycleEntryForIntelliSense(entry: DistingLifecycleEntry): IntelliSenseEntry {
   const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
   return {
     label: `${entry.name} callback`,
@@ -208,29 +251,175 @@ export function lifecycleEntryForIntelliSense(entry: DistingLifecycleEntry): Api
     documentation: `${entry.documentation}\n\n${entry.returnSemantics}\n\n**Cadence:** ${entry.cadence}\n\n**Contract source: ${provenance.label}.** ${provenance.detail}`,
     insertText: entry.snippet,
     parameters: entry.parameters.map((parameter) => parameter.name),
+    completionKind: 'snippet',
+    sortText: provenanceSortText(entry.provenance),
   }
 }
 
-const LIFECYCLE_SNIPPETS: ApiEntry[] = [
-  COMPLETE_SCRIPT_SNIPPET,
-  ...DISTING_LIFECYCLE.map(lifecycleEntryForIntelliSense),
+const TOP_LEVEL_FIELDS: IntelliSenseEntry[] = [
   {
-    label: 'parameter definition',
-    detail: 'disting NT · numeric parameter',
-    documentation: 'Insert `{ name, min, max, default, unit, scale? }` in an `init()` parameter list.',
-    insertText: '{ "${1:Name}", ${2:0}, ${3:100}, ${4:50}, ${5:kPercent} }',
+    label: 'name',
+    detail: 'disting NT program field · script name',
+    documentation: 'The name shown for the Lua algorithm.',
+    insertText: 'name = "${1:Script name}",',
+    completionKind: 'field',
+    sortText: '000',
   },
+  {
+    label: 'author',
+    detail: 'disting NT program field · author',
+    documentation: 'The script author shown with the algorithm metadata.',
+    insertText: 'author = "${1:Author}",',
+    completionKind: 'field',
+    sortText: '000',
+  },
+  ...DISTING_LIFECYCLE.map((entry) => ({
+    ...lifecycleEntryForIntelliSense(entry),
+    label: entry.name,
+  })),
 ]
 
-const SIGNATURES = new Map<string, ApiEntry>()
+const INIT_FIELDS: IntelliSenseEntry[] = [
+  ['inputs', 'inputs = { ${1:kCV} },', 'Declare input bus types with kCV, kGate, or kTrigger.'],
+  ['inputNames', 'inputNames = { "${1:Input}" },', 'Name input buses by their 1-based indices.'],
+  ['outputs', 'outputs = { ${1:kLinear} },', 'Declare output interpolation with kStepped or kLinear.'],
+  ['outputNames', 'outputNames = { "${1:Output}" },', 'Name output buses by their 1-based indices.'],
+  ['parameters', 'parameters = {\n  { "${1:Amount}", ${2:0}, ${3:100}, ${4:50}, ${5:kPercent} },\n},', 'Declare script parameters.'],
+  ['midi', 'midi = {\n  channelParameter = ${1:1},\n  messages = { "${2:note}" },\n},', 'Filter MIDI by a channel parameter and documented message types.'],
+].map(([label, insertText, documentation]) => ({
+  label,
+  detail: `disting NT init metadata · ${label}`,
+  documentation,
+  insertText,
+  completionKind: 'field',
+  sortText: '000',
+}))
 
-for (const entry of [...DISTING_FUNCTIONS, ...LUA_GLOBALS]) {
-  if (entry.signature) SIGNATURES.set(entry.label, entry)
+const PARAMETER_SNIPPETS: IntelliSenseEntry[] = [
+  {
+    label: 'numeric parameter',
+    detail: 'disting NT parameter · numeric',
+    documentation: 'Insert `{ name, minimum, maximum, default, unit }`.',
+    insertText: '{ "${1:Name}", ${2:0}, ${3:100}, ${4:50}, ${5:kPercent} },',
+  },
+  {
+    label: 'scaled parameter',
+    detail: 'disting NT parameter · scaled numeric',
+    documentation: 'Insert `{ name, minimum, maximum, default, unit, scale }`.',
+    insertText: '{ "${1:Name}", ${2:0}, ${3:1000}, ${4:500}, ${5:kHz}, ${6:kBy100} },',
+  },
+  {
+    label: 'enum parameter',
+    detail: 'disting NT parameter · enum',
+    documentation: 'Insert `{ name, choices, defaultIndex }` using a 1-based default.',
+    insertText: '{ "${1:Mode}", { "${2:Off}", "${3:On}" }, ${4:1} },',
+  },
+].map((entry) => ({ ...entry, completionKind: 'snippet' as const, sortText: '000' }))
+
+function localEntry(symbol: SourceIndexSymbol): IntelliSenseEntry {
+  return {
+    label: symbol.name,
+    detail: symbol.kind === 'function'
+      ? 'Lua local function'
+      : symbol.kind === 'parameter'
+        ? 'Lua function parameter'
+        : 'Lua local variable',
+    documentation: `Declared ${symbol.kind} in the current script.`,
+    completionKind: symbol.kind === 'function' ? 'function' : 'variable',
+    sortText: '050',
+  }
 }
 
+function choiceEntry(choice: string, detail: string): IntelliSenseEntry {
+  return {
+    label: `"${choice}"`,
+    detail,
+    documentation: `Documented value: \`${choice}\`.`,
+    insertText: `"${choice}"`,
+    completionKind: 'constant',
+    sortText: '000',
+  }
+}
+
+export function completionEntriesForSource(
+  source: string,
+  offset: number,
+  index = createLuaSourceIndex(source, 1),
+): IntelliSenseEntry[] {
+  const context = completionContextAt(source, offset, index)
+  if (context.kind === 'suppressed') return []
+  if (context.kind === 'empty-document') return [COMPLETE_SCRIPT_SNIPPET]
+  if (context.kind === 'choices') {
+    return context.choices.map((choice) => choiceEntry(choice, context.detail))
+  }
+  if (context.kind === 'constant-category') {
+    return DISTING_CONSTANT_CATALOG
+      .filter((entry) => entry.category === context.category || (
+        context.category === 'parameter-unit' && entry.category === 'compatibility-alias'
+      ))
+      .map(constantEntryForIntelliSense)
+  }
+  if (context.kind === 'parameter-list') return PARAMETER_SNIPPETS
+  if (context.kind === 'member') return MEMBER_COMPLETIONS[context.owner] ?? []
+  if (context.kind === 'top-level') {
+    const existing = new Set(index.topLevelFields.map((field) => field.name))
+    return TOP_LEVEL_FIELDS.filter((entry) => !existing.has(entry.label))
+  }
+  if (context.kind === 'init') {
+    const existing = new Set(index.initFields.map((field) => field.name))
+    return INIT_FIELDS.filter((entry) => !existing.has(entry.label))
+  }
+
+  const declaredBeforeCursor = index.symbols.filter((symbol) => {
+    const lines = source.split('\n')
+    const lineOffset = lines.slice(0, symbol.selectionRange.startLine - 1)
+      .reduce((total, line) => total + line.length + 1, 0)
+    const scopeStart = lines.slice(0, symbol.scopeRange.startLine - 1)
+      .reduce((total, line) => total + line.length + 1, 0) + symbol.scopeRange.startColumn - 1
+    const scopeEnd = lines.slice(0, symbol.scopeRange.endLine - 1)
+      .reduce((total, line) => total + line.length + 1, 0) + symbol.scopeRange.endColumn - 1
+    return lineOffset + symbol.selectionRange.startColumn - 1 <= offset
+      && offset >= scopeStart
+      && offset <= scopeEnd
+  })
+  const locals = [...new Map(declaredBeforeCursor.map((symbol) => [symbol.name, symbol])).values()]
+    .map(localEntry)
+  return [...locals, ...DISTING_FUNCTIONS, ...DISTING_CONSTANTS, ...LUA_GLOBALS]
+}
+
+function signatureDocumentation(entry: DistingApiEntry) {
+  const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
+  return `${entry.documentation}\n\nContract source: ${provenance.label}.`
+}
+
+const SIGNATURES = new Map<string, SignatureEntry[]>()
+for (const entry of DISTING_API) {
+  SIGNATURES.set(entry.name, entry.overloads.map((overload) => ({
+    label: formatApiSignature(entry.name, overload),
+    documentation: signatureDocumentation(entry),
+    parameters: overload.parameters.map((parameter) => ({
+      label: `${parameter.variadic ? '...' : ''}${parameter.name}${parameter.optional ? '?' : ''}`,
+      acceptedTypes: parameter.acceptedTypes,
+      variadic: Boolean(parameter.variadic),
+    })),
+  })))
+}
+for (const entry of LUA_GLOBALS) {
+  if (!entry.signature) continue
+  SIGNATURES.set(entry.label, [{
+    label: entry.signature,
+    documentation: entry.documentation,
+    parameters: (entry.parameters ?? []).map((label) => ({ label })),
+  }])
+}
 for (const [owner, entries] of Object.entries(MEMBER_COMPLETIONS)) {
   for (const entry of entries) {
-    if (entry.signature) SIGNATURES.set(`${owner}.${entry.label}`, entry)
+    if (!entry.signature) continue
+    SIGNATURES.set(`${owner}.${entry.label}`, [{
+      label: entry.signature,
+      documentation: entry.documentation,
+      parameters: (entry.parameters ?? []).map((label) => ({ label })),
+    }])
   }
 }
 
@@ -238,28 +427,60 @@ const HOVER_ENTRIES = new Map(
   [...DISTING_FUNCTIONS, ...DISTING_CONSTANTS, ...LUA_GLOBALS].map((entry) => [entry.label, entry]),
 )
 
+function activeSignatureIndex(signatures: readonly SignatureEntry[], argumentIndex: number, argumentText: string) {
+  if (signatures.length < 2) return 0
+  const wantsTable = argumentText.startsWith('{')
+  const typedMatch = signatures.findIndex((signature) => {
+    const parameter = signature.parameters[Math.min(argumentIndex, signature.parameters.length - 1)]
+    if (!parameter?.acceptedTypes || argumentText.length === 0) return false
+    return parameter.acceptedTypes.includes('table') === wantsTable
+  })
+  return typedMatch >= 0 ? typedMatch : 0
+}
+
+function activeParameterIndex(signature: SignatureEntry, argumentIndex: number) {
+  if (signature.parameters.length === 0) return 0
+  const last = signature.parameters.length - 1
+  return Math.min(argumentIndex, last)
+}
+
 function wordRange(monaco: MonacoApi, model: Monaco.editor.ITextModel, position: Monaco.Position) {
   const word = model.getWordUntilPosition(position)
   return new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn)
 }
 
-function completion(monaco: MonacoApi, entry: ApiEntry, range: Monaco.Range, kind: Monaco.languages.CompletionItemKind) {
+function monacoCompletionKind(monaco: MonacoApi, kind: CompletionKind | undefined) {
+  const kinds = monaco.languages.CompletionItemKind
+  if (kind === 'constant') return kinds.Constant
+  if (kind === 'field') return kinds.Field
+  if (kind === 'method') return kinds.Method
+  if (kind === 'snippet') return kinds.Snippet
+  if (kind === 'variable') return kinds.Variable
+  return kinds.Function
+}
+
+function completion(monaco: MonacoApi, entry: IntelliSenseEntry, range: Monaco.Range) {
   return {
     label: entry.label,
-    kind,
+    kind: monacoCompletionKind(monaco, entry.completionKind),
     detail: entry.detail,
     documentation: { value: entry.documentation },
     insertText: entry.insertText ?? entry.label,
     insertTextRules: entry.insertText
       ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
       : undefined,
+    sortText: `${entry.sortText ?? '200'}:${entry.label}`,
     range,
   }
 }
 
-function ownerBeforePosition(model: Monaco.editor.ITextModel, position: Monaco.Position) {
-  const line = model.getLineContent(position.lineNumber).slice(0, position.column - 1)
-  return line.match(/([A-Za-z_]\w*)\.\w*$/)?.[1]
+function parameterName(source: string, index: LuaSourceIndex, parameterIndex: number) {
+  const range = index.parameters[parameterIndex - 1]?.fields.name
+  if (!range) return undefined
+  const lines = source.split('\n')
+  if (range.startLine !== range.endLine) return undefined
+  const raw = lines[range.startLine - 1]?.slice(range.startColumn - 1, range.endColumn - 1).trim()
+  return raw?.match(/^["'](.*)["']$/)?.[1]
 }
 
 let activeRegistration: { monaco: MonacoApi; disposable: Monaco.IDisposable } | undefined
@@ -269,63 +490,50 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
 
   activeRegistration?.disposable.dispose()
   const disposables: Monaco.IDisposable[] = []
+  const indexes = new WeakMap<Monaco.editor.ITextModel, { version: number; index: LuaSourceIndex }>()
+  const sourceIndex = (model: Monaco.editor.ITextModel) => {
+    const version = model.getVersionId()
+    const cached = indexes.get(model)
+    if (cached?.version === version) return cached.index
+    const index = createLuaSourceIndex(model.getValue(), version)
+    indexes.set(model, { version, index })
+    return index
+  }
 
   disposables.push(monaco.languages.registerCompletionItemProvider(DISTING_LUA_LANGUAGE_ID, {
     triggerCharacters: ['.', 'k'],
     provideCompletionItems(model, position) {
+      const source = model.getValue()
+      const offset = model.getOffsetAt(position)
+      const entries = completionEntriesForSource(source, offset, sourceIndex(model))
       const range = wordRange(monaco, model, position)
-      const owner = ownerBeforePosition(model, position)
-      const members = owner ? MEMBER_COMPLETIONS[owner] : undefined
-
-      if (members) {
-        return {
-          suggestions: members.map((entry) => completion(
-            monaco,
-            entry,
-            range,
-            entry.signature
-              ? monaco.languages.CompletionItemKind.Method
-              : monaco.languages.CompletionItemKind.Field,
-          )),
-        }
-      }
-
-      return {
-        suggestions: [
-          ...DISTING_FUNCTIONS.map((entry) => completion(
-            monaco,
-            entry,
-            range,
-            monaco.languages.CompletionItemKind.Function,
-          )),
-          ...DISTING_CONSTANTS.map((entry) => completion(
-            monaco,
-            entry,
-            range,
-            monaco.languages.CompletionItemKind.Constant,
-          )),
-          ...LUA_GLOBALS.map((entry) => completion(
-            monaco,
-            entry,
-            range,
-            monaco.languages.CompletionItemKind.Function,
-          )),
-          ...LIFECYCLE_SNIPPETS.map((entry) => completion(
-            monaco,
-            entry,
-            range,
-            monaco.languages.CompletionItemKind.Snippet,
-          )),
-        ],
-      }
+      return { suggestions: entries.map((entry) => completion(monaco, entry, range)) }
     },
   }))
 
   disposables.push(monaco.languages.registerHoverProvider(DISTING_LUA_LANGUAGE_ID, {
     provideHover(model, position) {
+      const source = model.getValue()
+      const offset = model.getOffsetAt(position)
+      const parameter = selfParameterReferenceAt(source, offset)
+      if (parameter) {
+        const index = sourceIndex(model)
+        const name = parameterName(source, index, parameter.index)
+        const start = model.getPositionAt(parameter.start)
+        const end = model.getPositionAt(parameter.end)
+        return {
+          range: new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column),
+          contents: [
+            { value: `\`\`\`lua\nself.parameters[${parameter.index}]\n\`\`\`` },
+            { value: name
+              ? `**Script parameter ${parameter.index}: ${name}.** Read-only current scaled value declared by \`init().parameters\`.`
+              : `Read-only current scaled value of script parameter ${parameter.index}.` },
+          ],
+        }
+      }
+
       const word = model.getWordAtPosition(position)
       if (!word) return null
-
       const line = model.getLineContent(position.lineNumber)
       const prefix = line.slice(0, word.startColumn - 1)
       const owner = prefix.match(/([A-Za-z_]\w*)\.$/)?.[1]
@@ -348,31 +556,23 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
     signatureHelpTriggerCharacters: ['(', ','],
     signatureHelpRetriggerCharacters: [','],
     provideSignatureHelp(model, position) {
-      const prefix = model.getValueInRange({
-        startLineNumber: Math.max(1, position.lineNumber - 8),
-        startColumn: 1,
-        endLineNumber: position.lineNumber,
-        endColumn: position.column,
-      })
-      const call = prefix.match(/([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)\s*\(([^()]*)$/)
+      const source = model.getValue()
+      const call = activeLuaCallAt(source, model.getOffsetAt(position))
       if (!call) return null
-
-      const entry = SIGNATURES.get(call[1])
-      if (!entry?.signature) return null
-      const activeParameter = Math.min(
-        entry.parameters?.length ? entry.parameters.length - 1 : 0,
-        call[2].split(',').length - 1,
-      )
+      const signatures = SIGNATURES.get(call.name)
+      if (!signatures?.length) return null
+      const activeSignature = activeSignatureIndex(signatures, call.argumentIndex, call.argumentText)
+      const selected = signatures[activeSignature]
 
       return {
         value: {
-          signatures: [{
-            label: entry.signature,
-            documentation: entry.documentation,
-            parameters: (entry.parameters ?? []).map((label) => ({ label })),
-          }],
-          activeSignature: 0,
-          activeParameter,
+          signatures: signatures.map((signature) => ({
+            label: signature.label,
+            documentation: signature.documentation,
+            parameters: signature.parameters.map((parameter) => ({ label: parameter.label })),
+          })),
+          activeSignature,
+          activeParameter: activeParameterIndex(selected, call.argumentIndex),
         },
         dispose() {},
       }

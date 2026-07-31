@@ -83,6 +83,15 @@ also require all 58 bundled scripts to produce a complete structural index and
 verify that semantic diagnostic locations are resolved only for the matching
 model version.
 
+IntelliSense context tests exercise missing-field suppression, every lifecycle
+family, input/output/unit/scale filtering, all three parameter snippets, MIDI
+messages, display modes, text alignment, documented `self` members, scoped
+locals and callback parameters, and suppression inside comments and strings.
+Provider-adapter tests pin exact replacement ranges, parameter-specific hover,
+balanced nested signature arguments, and overload selection. Default API,
+lifecycle, complete-script, metadata, and parameter snippets are compiled with
+Wasmoon after placeholder expansion.
+
 ### Script corpus regression
 
 All bundled scripts are loaded and exercised:

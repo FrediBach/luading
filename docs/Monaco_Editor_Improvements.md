@@ -139,6 +139,11 @@ Acceptance criteria:
 
 ### Phase 5: Replace broad suggestions with contextual IntelliSense
 
+Implementation status: complete. Pure cursor-context analysis now drives thin
+Monaco providers for structural completions, scoped indexed symbols,
+parameter-aware hover, and balanced overload-aware signature help. Generic
+document-word suggestions are disabled in favor of indexed declarations.
+
 Refactor `disting-intellisense.ts` into pure context analysis plus thin Monaco adapters.
 
 Contexts to support:

@@ -275,9 +275,27 @@ be misrepresented as hardware contract failures.
 mirrored through React on every keystroke, preventing editor activity from
 rerendering the display, scope, and runtime controls.
 
-`editor/disting-intellisense.ts` provides Lua and Disting completions, hovers,
-signatures, and lifecycle snippets. It consumes API metadata but does not
-communicate with the simulation worker.
+`editor/disting-intellisense-context.ts` performs pure cursor analysis over
+source text and the compact index. `editor/disting-intellisense.ts` is the thin
+Monaco adapter for contextual completions, hovers, and signature help. It
+caches an index by Monaco model version and does not communicate with the
+simulation worker.
+
+Completion lists follow the surrounding Disting structure: returned program
+fields and lifecycle callbacks, `init()` metadata, input/output constant
+categories, numeric parameter units and scales, parameter definition variants,
+MIDI filters, display modes, text alignment, and documented `self` members.
+Already-declared fields are omitted. Local declarations, function names, and
+callback parameters come from their indexed source scopes; Monaco's generic
+document-word suggestions are disabled. Manual-backed entries sort before Lua
+globals and compatibility-only entries.
+
+Signature help uses a balanced Lua call scan rather than a line-limited regular
+expression, so nested calls, tables, strings containing commas, and multiline
+arguments preserve the active parameter. Every catalog overload is shown, with
+the table form selected when the current overload argument begins with a table
+constructor. Statically indexed `self.parameters[n]` expressions display the
+matching script parameter name in hover documentation.
 
 `validation/source-index.ts` is the compact structural layer used for source
 mapping. It scans Lua tokens without executing source, balances delimiter and

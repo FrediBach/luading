@@ -48,9 +48,10 @@ export interface SourceIndexApiCall {
 
 export interface SourceIndexSymbol {
   name: string
-  kind: 'local' | 'function'
+  kind: 'local' | 'function' | 'parameter'
   range: SourceRange
   selectionRange: SourceRange
+  scopeRange: SourceRange
 }
 
 export interface LuaSourceIndex {
@@ -416,6 +417,7 @@ function functionDefinitions(state: ScannerState) {
         kind: 'function',
         range: offsetRange(state, token.start, state.tokens[closeIndex].end),
         selectionRange: tokenRange(state, state.tokens[nameIndex]),
+        scopeRange: declarationScope(state, state.tokens[index - 1]?.value === 'local' ? index - 1 : index),
       })
       continue
     }
@@ -437,6 +439,7 @@ function functionDefinitions(state: ScannerState) {
         kind: 'function',
         range: offsetRange(state, token.start, state.tokens[closeIndex].end),
         selectionRange: tokenRange(state, state.tokens[nameIndex]),
+        scopeRange: declarationScope(state, index),
       })
       continue
     }
@@ -451,12 +454,69 @@ function functionDefinitions(state: ScannerState) {
           kind: 'local',
           range: tokenRange(state, candidate),
           selectionRange: tokenRange(state, candidate),
+          scopeRange: declarationScope(state, index),
         })
       }
       if (candidate.value !== ',' && cursor > index + 1) break
     }
   }
+  symbols.push(...functionParameterSymbols(state))
   return { definitions, symbols }
+}
+
+function declarationScope(state: ScannerState, declarationIndex: number) {
+  let containingClose: number | undefined
+  let closestOpen = -1
+  for (const [open, close] of state.blockPairs) {
+    if (
+      open >= declarationIndex
+      || close <= declarationIndex
+      || open < closestOpen
+      || state.blockPairs.get(open) !== close
+    ) continue
+    closestOpen = open
+    containingClose = close
+  }
+  const start = state.tokens[declarationIndex]?.start ?? 0
+  const end = containingClose === undefined
+    ? state.source.length
+    : state.tokens[containingClose].end
+  return offsetRange(state, start, end)
+}
+
+function functionParameterSymbols(state: ScannerState): SourceIndexSymbol[] {
+  const symbols: SourceIndexSymbol[] = []
+  state.tokens.forEach((token, functionIndex) => {
+    if (token.value !== 'function') return
+    const functionClose = state.blockPairs.get(functionIndex)
+    if (functionClose === undefined) return
+    let parametersOpen = functionIndex + 1
+    while (
+      parametersOpen < functionClose
+      && state.tokens[parametersOpen].value !== '('
+      && parametersOpen - functionIndex < 12
+    ) parametersOpen += 1
+    if (state.tokens[parametersOpen]?.value !== '(') return
+    const parametersClose = state.symbolPairs.get(parametersOpen)
+    if (parametersClose === undefined || parametersClose > functionClose) return
+    const scopeRange = offsetRange(
+      state,
+      state.tokens[parametersClose].end,
+      state.tokens[functionClose].end,
+    )
+    splitDelimited(state, parametersOpen, parametersClose).forEach(([start]) => {
+      const parameter = state.tokens[start]
+      if (!/^[A-Za-z_]\w*$/.test(parameter?.value ?? '')) return
+      symbols.push({
+        name: parameter.value,
+        kind: 'parameter',
+        range: tokenRange(state, parameter),
+        selectionRange: tokenRange(state, parameter),
+        scopeRange,
+      })
+    })
+  })
+  return symbols
 }
 
 function callbackIndex(
@@ -585,6 +645,11 @@ export function createLuaSourceIndex(source: string, version: number): LuaSource
     const rootFields = root ? namedTableFields(state, root.openIndex, root.closeIndex) : []
     if (root) {
       semanticLocations['top-level'] = tokenRange(state, state.tokens[root.returnIndex])
+      semanticLocations['top-level-table'] = offsetRange(
+        state,
+        state.tokens[root.openIndex].start,
+        state.tokens[root.closeIndex].end,
+      )
     }
     rootFields.forEach((field) => {
       semanticLocations[`topLevel:${field.name}`] = field.valueRange
@@ -602,8 +667,23 @@ export function createLuaSourceIndex(source: string, version: number): LuaSource
     const initFields = initTable
       ? namedTableFields(state, initTable.openIndex, initTable.closeIndex)
       : []
+    if (initTable) {
+      semanticLocations['init-table'] = offsetRange(
+        state,
+        state.tokens[initTable.openIndex].start,
+        state.tokens[initTable.closeIndex].end,
+      )
+    }
     initFields.forEach((field) => {
       semanticLocations[`init.${field.name}`] = field.valueRange
+      const table = fieldTable(state, field)
+      if (table) {
+        semanticLocations[`init.${field.name}-table`] = offsetRange(
+          state,
+          state.tokens[table.openIndex].start,
+          state.tokens[table.closeIndex].end,
+        )
+      }
     })
 
     const midiField = initFields.find((field) => field.name === 'midi')
