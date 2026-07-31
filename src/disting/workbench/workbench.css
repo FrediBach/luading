@@ -793,6 +793,7 @@
 }
 
 .workbench-instrument-rack {
+  container-type: inline-size;
   height: 100%;
   min-height: 0;
   box-sizing: border-box;
@@ -804,14 +805,77 @@
 
 .workbench-instrument-panel {
   margin: 0 0 8px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
   border: 1px solid var(--nt-line);
   border-radius: 7px;
-  overflow: hidden;
-  padding-bottom: 10px;
+  background:
+    radial-gradient(circle at 26% 18%, color-mix(in srgb, var(--nt-green) 4.5%, transparent), transparent 32%),
+    var(--device-face);
 }
 
-.workbench-instrument-rack .disting-display {
-  margin-block: 12px;
+.draggable-display-preview {
+  position: fixed;
+  z-index: 50;
+  top: calc(var(--workbench-command-height) + 10px);
+  right: 10px;
+  width: min(294px, calc(100vw - 16px));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--nt-green) 38%, var(--nt-line));
+  border-radius: 7px;
+  background: var(--device-section);
+  box-shadow: 0 12px 32px var(--shadow-strong);
+}
+
+.draggable-display-handle {
+  width: 100%;
+  min-height: 26px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-bottom: 1px solid var(--nt-line);
+  background: var(--surface-command);
+  color: var(--nt-muted);
+  font: 7px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.draggable-display-handle:hover {
+  color: var(--nt-text);
+}
+
+.draggable-display-handle:active {
+  cursor: grabbing;
+}
+
+.draggable-display-handle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--nt-green) 75%, white);
+  outline-offset: -2px;
+}
+
+.draggable-display-preview .device-display-bezel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.draggable-display-preview .device-display-recess {
+  min-height: 82px;
+}
+
+@container (max-width: 520px) {
+  .workbench-instrument-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .workbench-drawer {
@@ -986,7 +1050,6 @@
     flex-basis: 210px;
   }
 
-  .disting-device-face-grid,
   .io-channel-groups {
     grid-template-columns: 1fr;
   }

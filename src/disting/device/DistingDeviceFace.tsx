@@ -1,13 +1,9 @@
-import type { DistingUiControl, DrawCommand } from '../types'
-import { DistingDisplayBezel } from './DistingDisplayBezel'
+import type { DistingUiControl } from '../types'
 import { HardwareControlBank } from './HardwareControlBank'
 
 interface Props {
-  commands: DrawCommand[]
-  programName: string
-  customUi: boolean | null
-  simulatedSeconds: number
   potPositions: number[]
+  disabled?: boolean
   onPotTurn(index: number, value: number): void
   onEncoderTurn(index: 0 | 1, direction: -1 | 1): void
   onControlPress(control: DistingUiControl): void
@@ -15,36 +11,23 @@ interface Props {
 }
 
 export function DistingDeviceFace({
-  commands,
-  programName,
-  customUi,
-  simulatedSeconds,
   potPositions,
+  disabled = false,
   onPotTurn,
   onEncoderTurn,
   onControlPress,
   onControlRelease,
 }: Props) {
-  const loaded = customUi !== null
-
   return (
     <section className="disting-device-face" aria-label="Simulated Disting NT front panel">
-      <div className="disting-device-face-grid">
-        <DistingDisplayBezel
-          commands={commands}
-          programName={programName}
-          uiMode={!loaded ? 'unloaded' : customUi ? 'custom' : 'standard'}
-          simulatedSeconds={simulatedSeconds}
-        />
-        <HardwareControlBank
-          potPositions={potPositions}
-          disabled={!loaded}
-          onPotTurn={onPotTurn}
-          onEncoderTurn={onEncoderTurn}
-          onControlPress={onControlPress}
-          onControlRelease={onControlRelease}
-        />
-      </div>
+      <HardwareControlBank
+        potPositions={potPositions}
+        disabled={disabled}
+        onPotTurn={onPotTurn}
+        onEncoderTurn={onEncoderTurn}
+        onControlPress={onControlPress}
+        onControlRelease={onControlRelease}
+      />
     </section>
   )
 }

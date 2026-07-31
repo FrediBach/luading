@@ -1,5 +1,6 @@
 export { DistingDeviceFace } from './DistingDeviceFace'
 export { DistingDisplayBezel } from './DistingDisplayBezel'
+export { DraggableDisplayPreview } from './DraggableDisplayPreview'
 export { HardwareControlBank } from './HardwareControlBank'
 export { ParameterBank } from './ParameterBank'
 export { ParameterControl } from './ParameterControl'

@@ -8,7 +8,11 @@ import {
   useState,
 } from 'react'
 import { DEFAULT_DISTING_SCRIPT } from './default-script'
-import { DistingDeviceFace, ParameterBank } from './device'
+import {
+  DistingDeviceFace,
+  DraggableDisplayPreview,
+  ParameterBank,
+} from './device'
 import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
@@ -587,6 +591,14 @@ export function DistingPlayground() {
       density={resolveWorkbenchDensity(layout.density, touchOriented)}
       theme={theme}
       announcement={accessibilityAnnouncement}
+      overlay={(
+        <DraggableDisplayPreview
+          commands={display}
+          programName={program?.name ?? 'Lua script'}
+          customUi={program?.customUi ?? null}
+          simulatedSeconds={stats.simulatedSeconds}
+        />
+      )}
       commandBar={(
         <CommandBar
           programName={program?.name ?? 'Lua script'}
@@ -649,11 +661,8 @@ export function DistingPlayground() {
             <InstrumentRack>
               <div className="workbench-instrument-panel">
                 <DistingDeviceFace
-                  commands={display}
-                  programName={program?.name ?? 'Lua script'}
-                  customUi={program?.customUi ?? null}
-                  simulatedSeconds={stats.simulatedSeconds}
                   potPositions={potPositions}
+                  disabled={!program}
                   onPotTurn={turnPot}
                   onEncoderTurn={turnEncoder}
                   onControlPress={(control) => sendControlEvent(control, 'push')}
