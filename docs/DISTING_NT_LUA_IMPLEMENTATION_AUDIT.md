@@ -29,7 +29,7 @@ gaps are:
 
 The current conformance and corpus tests all pass, but they do not establish
 behavioral conformance for these areas. In particular, the conformance test
-checks API names and `simulator: true` flags, and the corpus test environment
+checks API names and support metadata, while the corpus test environment
 installs most Disting globals as no-op functions.
 
 ## Scope and method
@@ -535,7 +535,7 @@ major/minor compatibility is the actual project guarantee.
 ### F-21 — CPU-cycle and physical-I/O APIs are compatibility mocks
 
 **Severity:** Medium  
-**Status:** Intentional approximation, clearly disclosed in architecture
+**Status:** Resolved as explicit compatibility disclosure 2026-07-31
 
 `getCpuCycleCount()` scales browser `performance.now()` as if it were a 600 MHz
 counter
@@ -546,14 +546,18 @@ I2C getters return zero-filled arrays, I2C commands only log events, and MIDI
 output only logs up to three bytes
 ([`hardware-api.ts:33`](../src/disting/emulation/hardware-api.ts#L33)).
 
-The architecture and About panel correctly warn that browser timing is not
-calibrated hardware performance. The API manifest is less careful: it marks
-these functions fully simulated and describes the CPU function as the 600 MHz
+The architecture and About panel already warned that browser timing is not
+calibrated hardware performance. The API manifest previously marked these
+functions fully simulated and described the CPU function as the 600 MHz
 counter.
 
-**Recommendation:** give API entries a support level such as `full`,
-`approximation`, `mock`, or `unsupported`, and display that status in
-IntelliSense and diagnostics.
+**Resolution:** the API manifest now classifies every entry as `full`, `partial`,
+`approximation`, `mock`, or `unsupported`. IntelliSense displays the support
+level and its API-specific limitation, while static validation emits
+non-penalizing simulator compatibility notes. CPU cycles and smooth vector
+rasterization are labeled approximations; MIDI and I2C output are labeled
+mocks. This resolves the disclosure problem, not the underlying hardware
+emulation limitations.
 
 ### F-22 — Smooth vector primitives are not quantized to a deterministic 16-shade framebuffer
 
@@ -698,7 +702,7 @@ The test named “manual conformance” checks:
 
 - timing/display constants;
 - that every documented global name is in `DISTING_API`;
-- that every entry says `simulator: true`;
+- that every entry has support metadata;
 - constant numeric values;
 - metadata formatting.
 
@@ -768,9 +772,9 @@ The following regression tests would have caught the highest-impact findings:
 Luading is already useful as a single-script Lua workbench, especially for
 lifecycle execution, sparse outputs, typed input callbacks, parameter metadata,
 MIDI filtering, and display development. It should not yet claim complete
-Disting NT Lua 1.12 behavioral conformance. The current `simulator: true` flags
-collapse fully implemented APIs, simplified fixtures, placeholders, browser
-approximations, and event logs into one status.
+Disting NT Lua 1.12 behavioral conformance. API support metadata now separates
+fully implemented behavior, simplified fixtures, placeholders, browser
+approximations, mocks, and unsupported surfaces.
 
 The most important correction is architectural rather than cosmetic: represent
 the same combined preset, bus, parameter, and state model that the firmware APIs

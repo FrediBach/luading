@@ -40,8 +40,8 @@ export function QualitySummary({ diagnostics, report }: Props) {
         <span>{report.profile}</span>
         <span>
           {compatibilityCount > 0
-            ? `${compatibilityCount} hardware API ${compatibilityCount === 1 ? 'gap' : 'gaps'}`
-            : 'Simulator compatible'}
+            ? `${compatibilityCount} simulator API ${compatibilityCount === 1 ? 'caveat' : 'caveats'}`
+            : 'Fully simulated APIs only'}
         </span>
         <span>
           {report.status === 'scored'

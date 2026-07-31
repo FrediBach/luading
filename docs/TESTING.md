@@ -40,6 +40,7 @@ Tests beside `src/disting/emulation/*.ts` cover:
   baseline placement, clipping and overflow detection, exact `#02F1EF`
   full-bright pixels, and 16-shade text quantization
 - I2C and MIDI output adapters
+- audited API support-level classification and compatibility diagnostics
 - clocked/free-running signal sources and oscilloscope triggering
 
 ### Lua boundary integration

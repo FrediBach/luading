@@ -59,7 +59,7 @@ describe('Disting NT Lua 1.12 manual conformance', () => {
     const implemented = new Set(DISTING_API.map((entry) => entry.name))
     expect(MANUAL_1_12_GLOBALS.filter((name) => !implemented.has(name))).toEqual([])
     expect(new Set(DISTING_API.map((entry) => entry.name)).size).toBe(DISTING_API.length)
-    expect(DISTING_API.every((entry) => entry.simulator)).toBe(true)
+    expect(DISTING_API.every((entry) => entry.support.length > 0)).toBe(true)
   })
 
   it('marks every drawing function as draw-only', () => {

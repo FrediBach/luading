@@ -226,7 +226,10 @@ Validation deliberately has three layers:
    undeclared outputs, drawing context, Lua errors, and browser-local timing.
 
 `validation/api-manifest.ts` is the canonical catalog for firmware-facing global
-functions. IntelliSense and compatibility validation consume the same catalog.
+functions. Every entry carries a `full`, `partial`, `approximation`, `mock`, or
+`unsupported` simulator support level plus an API-specific limitation when it
+is not full. IntelliSense and non-penalizing compatibility diagnostics consume
+the same catalog.
 
 `validation/score.ts` is the only module that converts findings into the
 100-point quality score. Compatibility notes and browser-local timing must not

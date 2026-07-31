@@ -1,4 +1,7 @@
-import { DISTING_API_BY_NAME } from './api-manifest'
+import {
+  DISTING_API_BY_NAME,
+  DISTING_API_SUPPORT,
+} from './api-manifest'
 import type {
   LuaCallbackName,
   ScriptDiagnostic,
@@ -217,7 +220,7 @@ function hasSequence(tokens: Token[], index: number, sequence: string[]) {
 
 function staticApiDiagnostics(source: string, tokens: Token[], regions: CallbackRegion[]) {
   const diagnostics: ScriptDiagnostic[] = []
-  const reportedUnsupported = new Set<string>()
+  const reportedSupportCaveats = new Set<string>()
 
   for (let index = 0; index < tokens.length; index += 1) {
     if (!isCall(tokens, index)) continue
@@ -252,15 +255,15 @@ function staticApiDiagnostics(source: string, tokens: Token[], regions: Callback
       }))
     }
 
-    if (!entry.simulator && !reportedUnsupported.has(entry.name)) {
-      reportedUnsupported.add(entry.name)
-      diagnostics.push(diagnostic('simulator-api-unsupported', token, {
+    if (entry.support !== 'full' && !reportedSupportCaveats.has(entry.name)) {
+      reportedSupportCaveats.add(entry.name)
+      diagnostics.push(diagnostic(`simulator-api-${entry.support}`, token, {
         severity: 'info',
         category: 'compatibility',
         target: 'simulator',
         callback,
-        message: `${entry.name}() is valid on hardware but is not emulated here`,
-        detail: `The ${entry.signature} API belongs to the Disting NT 1.12 hardware profile. Running this path in the simulator will fail until the API is implemented.`,
+        message: `${entry.name}() ${DISTING_API_SUPPORT[entry.support].diagnostic}`,
+        detail: entry.supportDetail ?? `The ${entry.signature} API is not fully emulated.`,
         suggestion: 'Test this behavior on hardware and use the simulator for the supported portions of the script.',
         penalty: 0,
       }))

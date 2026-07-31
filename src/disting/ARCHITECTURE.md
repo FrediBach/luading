@@ -64,7 +64,9 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   hover, signature, and lifecycle-snippet catalog. It does not import or message
   the simulation worker.
 - `validation/api-manifest.ts` is the Disting NT Lua 1.12 API catalog shared by
-  IntelliSense, simulator-compatibility checks, and the validation rules.
+  IntelliSense, simulator-compatibility checks, and the validation rules. Its
+  support levels distinguish full behavior, partial implementations, browser
+  approximations, mocks, and unsupported APIs.
 - `validation.worker.ts` runs debounced source checks away from React and the
   simulation loop. Findings are versioned so results for stale editor revisions
   are discarded.

@@ -69,18 +69,42 @@ return {
     `)).toContain('readonly-parameters')
   })
 
-  it('recognizes newly implemented hardware APIs as simulator-compatible', () => {
+  it('reports a compatibility note for partially simulated APIs', () => {
     const findings = validateLuaSource(`
--- Simulated UI
--- Uses a documented API implemented by the simulator.
+-- Partial UI
+-- Uses a documented API with placeholder behavior.
 return {
   draw = function(self)
+    drawAlgorithmUI(self.algorithmIndex)
     drawAlgorithmUI(self.algorithmIndex)
   end,
 }
     `)
 
-    expect(findings.some((item) => item.ruleId === 'simulator-api-unsupported')).toBe(false)
+    expect(findings.filter((item) => item.ruleId === 'simulator-api-partial')).toEqual([
+      expect.objectContaining({
+        severity: 'info',
+        category: 'compatibility',
+        target: 'simulator',
+        message: 'drawAlgorithmUI() is only partially simulated',
+      }),
+    ])
+  })
+
+  it('distinguishes browser approximations, mocks, and unsupported APIs', () => {
+    const findings = validateLuaSource(`
+-- Support levels
+-- Exercises non-full simulator adapters.
+getCpuCycleCount()
+sendMIDI(1, 0x90, 60, 100)
+exit()
+    `)
+
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'simulator-api-approximation' }),
+      expect.objectContaining({ ruleId: 'simulator-api-mock' }),
+      expect.objectContaining({ ruleId: 'simulator-api-unsupported' }),
+    ]))
   })
 
   it('checks documented API argument counts', () => {

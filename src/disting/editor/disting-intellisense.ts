@@ -1,5 +1,9 @@
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
-import { DISTING_API } from '../validation/api-manifest'
+import {
+  DISTING_API,
+  DISTING_API_SUPPORT,
+  type DistingApiEntry,
+} from '../validation/api-manifest'
 
 type MonacoApi = typeof Monaco
 
@@ -20,16 +24,22 @@ function apiInsertText(name: string, parameters: string[], explicit?: string) {
   return `${name}(${placeholders.join(', ')})`
 }
 
-const DISTING_FUNCTIONS: ApiEntry[] = DISTING_API.map((entry) => ({
-  label: entry.name,
-  signature: entry.signature,
-  detail: entry.simulator ? entry.detail : `${entry.detail} · hardware only`,
-  documentation: entry.simulator
-    ? entry.documentation
-    : `${entry.documentation} Valid on Disting NT hardware; not currently emulated by this simulator.`,
-  insertText: apiInsertText(entry.name, entry.parameters, entry.insertText),
-  parameters: entry.parameters,
-}))
+export function apiEntryForIntelliSense(entry: DistingApiEntry): ApiEntry {
+  return {
+    label: entry.name,
+    signature: entry.signature,
+    detail: entry.support === 'full'
+      ? entry.detail
+      : `${entry.detail} · ${DISTING_API_SUPPORT[entry.support].label}`,
+    documentation: entry.support === 'full'
+      ? entry.documentation
+      : `${entry.documentation}\n\n**Simulator support: ${DISTING_API_SUPPORT[entry.support].label}.** ${entry.supportDetail}`,
+    insertText: apiInsertText(entry.name, entry.parameters, entry.insertText),
+    parameters: entry.parameters,
+  }
+}
+
+const DISTING_FUNCTIONS: ApiEntry[] = DISTING_API.map(apiEntryForIntelliSense)
 
 const DISTING_CONSTANTS: ApiEntry[] = [
   ['kCV', 'CV input'],
