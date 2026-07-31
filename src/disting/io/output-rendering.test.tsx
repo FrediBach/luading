@@ -46,6 +46,7 @@ describe('output channel rendering', () => {
     expect(markup).toContain('Kick')
     expect(markup).toContain('Live')
     expect(markup).toContain('aria-pressed="true"')
+    expect(markup).toContain('output-channel-tile-shell scope-probe--1')
   })
 
   it('renders every channel-local destination and the disabled-master notice', () => {

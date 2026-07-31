@@ -12,6 +12,7 @@ import type {
   ScopeProbe,
   ScopeSource,
 } from '../types'
+import { assignedProbeIndex } from '../drawer/scope-controls'
 import {
   audioDestinationLabel,
   outputPlotRange,
@@ -60,6 +61,7 @@ export function OutputChannelTile({
   const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
   const tileRef = useRef<HTMLElement>(null)
   const scopeSource = { kind: 'output' as const, index }
+  const assignedScopeProbe = assignedProbeIndex(probes, scopeSource)
   const trace = traceHistory.snapshot(traceRevision)
   const traceValues = outputTraceValues(trace, index)
   const range = outputPlotRange(traceValues)
@@ -68,7 +70,9 @@ export function OutputChannelTile({
   const monitoring = routed && audioEnabled
 
   return (
-    <div className="output-channel-tile-shell">
+    <div className={`output-channel-tile-shell${
+      assignedScopeProbe >= 0 ? ` scope-probe--${assignedScopeProbe + 1}` : ''
+    }`}>
       <ControlTile
         ref={tileRef}
         label={`OUT ${index + 1}`}

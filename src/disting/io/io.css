@@ -81,6 +81,12 @@
 .output-channel-tile-shell {
   position: relative;
   min-width: 0;
+  --channel-signal-color: var(--nt-green);
+}
+
+.input-channel-tile-shell[class*='scope-probe--'],
+.output-channel-tile-shell[class*='scope-probe--'] {
+  --channel-signal-color: var(--probe-color);
 }
 
 .input-channel-tile-shell > .control-tile,
@@ -88,6 +94,23 @@
   width: 100%;
   min-height: 142px;
   grid-template-rows: auto minmax(44px, 1fr) auto auto;
+}
+
+.input-channel-tile-shell[class*='scope-probe--'] > .control-tile:not(.control-tile--error),
+.output-channel-tile-shell[class*='scope-probe--'] > .control-tile:not(.control-tile--error) {
+  border-color: color-mix(in srgb, var(--probe-color) 58%, var(--nt-line));
+  box-shadow: inset 3px 0 0 var(--probe-color);
+}
+
+.input-channel-tile-shell[class*='scope-probe--'] .control-tile > header > span,
+.output-channel-tile-shell[class*='scope-probe--'] .control-tile > header > span {
+  color: var(--probe-color);
+}
+
+.input-channel-tile-shell .mini-signal-path,
+.input-channel-tile-shell .signal-shape-glyph path,
+.output-channel-tile-shell .mini-signal-path {
+  stroke: var(--channel-signal-color);
 }
 
 .input-channel-tile-shell .control-tile > header,
@@ -122,7 +145,7 @@
 
 .input-channel-value > output {
   overflow: hidden;
-  color: var(--nt-green);
+  color: var(--channel-signal-color);
   font: 10px/1 var(--mono);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -192,7 +215,7 @@
 
 .output-channel-value > output {
   overflow: hidden;
-  color: var(--nt-green);
+  color: var(--channel-signal-color);
   font: 10px/1 var(--mono);
   text-overflow: ellipsis;
   white-space: nowrap;

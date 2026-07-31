@@ -1,8 +1,3 @@
-.scope-probe--1 { --probe-color: var(--probe-1); }
-.scope-probe--2 { --probe-color: var(--probe-2); }
-.scope-probe--3 { --probe-color: var(--probe-3); }
-.scope-probe--4 { --probe-color: var(--probe-4); }
-
 .problems-workspace,
 .console-workspace,
 .performance-workspace {

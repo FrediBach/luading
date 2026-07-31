@@ -15,6 +15,7 @@ import type {
   ScopeSource,
   SignalSourceConfig,
 } from '../types'
+import { assignedProbeIndex } from '../drawer/scope-controls'
 import { InputChannelInspector } from './InputChannelInspector'
 import {
   ScopeAssignmentButton,
@@ -75,6 +76,7 @@ export function InputChannelTile({
   const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
   const tileRef = useRef<HTMLElement>(null)
   const scopeSource = { kind: 'input' as const, index }
+  const assignedScopeProbe = assignedProbeIndex(probes, scopeSource)
   const trace = traceHistory.snapshot(traceRevision)
   const traceValues = inputTraceValues(trace, index)
   const range = inputPlotRange(source, traceValues)
@@ -154,7 +156,9 @@ export function InputChannelTile({
   )
 
   return (
-    <div className="input-channel-tile-shell">
+    <div className={`input-channel-tile-shell${
+      assignedScopeProbe >= 0 ? ` scope-probe--${assignedScopeProbe + 1}` : ''
+    }`}>
       <ControlTile
         ref={tileRef}
         label={`IN ${index + 1}`}

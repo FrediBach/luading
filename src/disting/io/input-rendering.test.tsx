@@ -63,6 +63,7 @@ describe('input channel rendering', () => {
     expect(markup).toContain('aria-pressed="true"')
     expect(markup).toContain('aria-label="Fire Reset"')
     expect(markup).toContain('mini-signal-path')
+    expect(markup).toContain('input-channel-tile-shell scope-probe--1')
   })
 
   it('renders all signal shapes and applicable advanced controls', () => {
@@ -128,6 +129,8 @@ describe('input channel rendering', () => {
     expect(markup).toContain('IN 1')
     expect(markup).toContain('IN 2')
     expect(markup).toContain('1.250 V')
+    expect(markup).toContain('input-channel-tile-shell scope-probe--1')
+    expect(markup).toContain('output-channel-tile-shell scope-probe--2')
     expect(markup).toContain('OUT 1')
     expect(markup).toContain('OUT 2')
     expect(markup).toContain('stepped · Gate')
