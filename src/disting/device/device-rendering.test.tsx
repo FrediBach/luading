@@ -2,10 +2,15 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DistingDeviceFace } from './DistingDeviceFace'
 import { DraggableDisplayPreview } from './DraggableDisplayPreview'
-import { clampDisplayPosition } from './display-position'
+import {
+  clampDisplayPosition,
+  positionDisplayAtBottomRight,
+} from './display-position'
 import { HardwareControlBank } from './HardwareControlBank'
 
 describe('Disting device face rendering', () => {
+  const anchorRef = { current: null }
+
   it('renders all typed physical controls with accessible names', () => {
     const markup = renderToStaticMarkup(
       <HardwareControlBank
@@ -28,6 +33,7 @@ describe('Disting device face rendering', () => {
     const markup = renderToStaticMarkup(
       <DraggableDisplayPreview
         commands={[]}
+        anchorRef={anchorRef}
       />,
     )
 
@@ -59,5 +65,13 @@ describe('Disting device face rendering', () => {
       { width: 1000, height: 600 },
       8,
     )).toEqual({ x: 8, y: 442 })
+  })
+
+  it('insets the initial display position from the code panel bottom right', () => {
+    expect(positionDisplayAtBottomRight(
+      { right: 720, bottom: 600 },
+      { width: 294, height: 124 },
+      12,
+    )).toEqual({ x: 414, y: 464 })
   })
 })

@@ -1,27 +1,33 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent,
+  type RefObject,
 } from 'react'
 import type { DrawCommand } from '../types'
 import { DistingDisplayBezel } from './DistingDisplayBezel'
 import {
   clampDisplayPosition,
+  positionDisplayAtBottomRight,
   type DisplayPosition,
 } from './display-position'
 
 const VIEWPORT_MARGIN = 8
+const ANCHOR_SPACING = 12
 const KEYBOARD_DRAG_STEP = 10
 
 interface Props {
   commands: DrawCommand[]
+  anchorRef: RefObject<HTMLElement | null>
 }
 
 export function DraggableDisplayPreview({
   commands,
+  anchorRef,
 }: Props) {
   const overlayRef = useRef<HTMLElement>(null)
   const dragRef = useRef<{
@@ -41,6 +47,19 @@ export function DraggableDisplayPreview({
       VIEWPORT_MARGIN,
     )
   }, [])
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current
+    const overlay = overlayRef.current
+    if (!anchor || !overlay) return
+    const anchorBounds = anchor.getBoundingClientRect()
+    if (anchorBounds.width <= 0 || anchorBounds.height <= 0) return
+    setPosition(clampedPosition(positionDisplayAtBottomRight(
+      anchorBounds,
+      { width: overlay.offsetWidth, height: overlay.offsetHeight },
+      ANCHOR_SPACING,
+    )))
+  }, [anchorRef, clampedPosition])
 
   useEffect(() => {
     const keepInsideViewport = () => {

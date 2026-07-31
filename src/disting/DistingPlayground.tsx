@@ -182,6 +182,7 @@ export function DistingPlayground() {
   const runningRef = useRef(false)
   const resumeWhenVisibleRef = useRef(false)
   const sourceIsLoadedRef = useRef(false)
+  const editorPanelRef = useRef<HTMLDivElement>(null)
   const savedStateRef = useRef<unknown>(undefined)
   const consoleEntryIdRef = useRef(0)
   const blockingStateRef = useRef<BlockingState>({
@@ -594,6 +595,7 @@ export function DistingPlayground() {
       overlay={(
         <DraggableDisplayPreview
           commands={display}
+          anchorRef={editorPanelRef}
         />
       )}
       commandBar={(
@@ -643,7 +645,10 @@ export function DistingPlayground() {
             dispatchLayout({ type: 'setResponsiveMode', mode })
           )}
           primary={(
-            <div className="disting-editor-panel workbench-editor">
+            <div
+              ref={editorPanelRef}
+              className="disting-editor-panel workbench-editor"
+            >
               <DistingCodeEditor
                 value={editorSource}
                 diagnostics={diagnostics}

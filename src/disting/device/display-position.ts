@@ -8,6 +8,22 @@ interface Size {
   height: number
 }
 
+interface BottomRightAnchor {
+  right: number
+  bottom: number
+}
+
+export function positionDisplayAtBottomRight(
+  anchor: BottomRightAnchor,
+  overlay: Size,
+  spacing: number,
+): DisplayPosition {
+  return {
+    x: anchor.right - overlay.width - spacing,
+    y: anchor.bottom - overlay.height - spacing,
+  }
+}
+
 export function clampDisplayPosition(
   position: DisplayPosition,
   overlay: Size,
