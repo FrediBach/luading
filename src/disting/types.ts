@@ -193,4 +193,5 @@ export type WorkerResponse =
       type: 'error'
       message: string
       diagnostic?: import('./validation/types').ScriptDiagnostic
+      diagnostics?: import('./validation/types').ScriptDiagnostic[]
     }

@@ -130,9 +130,11 @@ When the UI sends a `load` request, the worker:
    hook through `emulation/lua-runtime.ts`;
 7. restores `self.state` before calling `init`;
 8. validates the raw `init` result;
-9. normalizes metadata through `emulation/lua-contract.ts`;
-10. initializes parameters, buses, signals, UI state, and display; and
-11. returns the loaded program and diagnostics to the main thread.
+9. rejects the load and closes the runtime if contract validation reports an
+   error;
+10. normalizes metadata through `emulation/lua-contract.ts`;
+11. initializes parameters, buses, signals, UI state, and display; and
+12. returns the loaded program and diagnostics to the main thread.
 
 The production Lua runtime bridge is also used by integration and bundled-script
 tests. Test-only Lua wrappers must not diverge from this path.

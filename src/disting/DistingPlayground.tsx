@@ -308,6 +308,7 @@ export function DistingPlayground() {
       appendConsoleEntry('error', message.message)
       sourceIsLoadedRef.current = false
       setSourceIsLoaded(false)
+      if (message.diagnostics) setContractDiagnostics(message.diagnostics)
       if (message.diagnostic) setRuntimeDiagnostics([message.diagnostic])
     }
   }, [appendConsoleEntry, clearLoadTimeout, traceHistory])

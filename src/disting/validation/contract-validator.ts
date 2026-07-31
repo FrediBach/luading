@@ -77,6 +77,12 @@ function finding(
   }
 }
 
+export function blocksContractExecution(diagnostics: ScriptDiagnostic[]) {
+  return diagnostics.some((diagnostic) => (
+    diagnostic.origin === 'contract' && diagnostic.severity === 'error'
+  ))
+}
+
 function validateIo(
   name: 'inputs' | 'outputs',
   raw: unknown,

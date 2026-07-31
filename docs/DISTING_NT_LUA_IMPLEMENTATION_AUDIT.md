@@ -24,9 +24,7 @@ gaps are:
    1 ms callbacks is not emulated.
 4. saved state does not include parameter values, although the manual says
    firmware stores parameter values automatically.
-5. contract errors are reported but do not stop the worker from normalizing and
-   running configurations that hardware cannot represent.
-6. separate UI scripts, the shared machine-wide Lua instance, the documented
+5. separate UI scripts, the shared machine-wide Lua instance, the documented
    library search path, and the interactive Lua console are not implemented.
 
 The current conformance and corpus tests all pass, but they do not establish
@@ -217,28 +215,29 @@ through the same normalization path used for live parameter changes.
 ### F-05 — Contract errors do not prevent non-hardware configurations from running
 
 **Severity:** High  
-**Status:** Confirmed simulator-validation bug
+**Status:** Resolved 2026-07-31
 
-The contract validator correctly reports errors such as more than 28 buses,
+The contract validator already reported errors such as more than 28 buses,
 invalid I/O shapes, bad parameter definitions, and non-table `init()` results.
-The worker nevertheless calls `describeProgram()`, configures signal sources,
-posts `loaded`, and auto-starts the script
+Before this fix, the worker nevertheless called `describeProgram()`, configured
+signal sources, posted `loaded`, and auto-started the script
 ([`disting.worker.ts:467`](../src/disting/disting.worker.ts#L467),
 [`disting.worker.ts:474`](../src/disting/disting.worker.ts#L474),
 [`DistingPlayground.tsx:236`](../src/disting/DistingPlayground.tsx#L236)).
 
-For example, an input table longer than 28 produces an error but
-`describeProgram()` still uses its full length
+For example, an input table longer than 28 produced an error but
+`describeProgram()` still used its full length
 ([`lua-contract.ts:166`](../src/disting/emulation/lua-contract.ts#L166)).
-An `init()` function returning a string is converted to empty metadata and still
-loads.
+An `init()` function returning a string was converted to empty metadata and
+still loaded.
 
-This allows invalid scripts to produce stable simulator behavior that hardware
-does not promise.
+This previously allowed invalid scripts to produce stable simulator behavior
+that hardware does not promise.
 
-**Recommendation:** make contract errors block conformant execution. If running
-invalid code is useful for debugging, require an explicit “run non-conformant”
-mode and label all resulting behavior as simulator-defined.
+**Resolution:** the worker now closes the runtime and rejects the load before
+metadata normalization whenever contract validation reports an error. All
+contract diagnostics are returned to the Problems panel. Warnings and
+informational findings remain non-blocking.
 
 ### F-06 — Numeric parameter integer semantics are not enforced
 
@@ -734,7 +733,7 @@ The following regression tests would have caught the highest-impact findings:
 - parameter values automatically saved and restored alongside `self.state`;
 - bus snapshots at algorithm indices 0, middle, and final output;
 - stepped hold versus linear midpoint behavior;
-- contract-error load blocking;
+- contract-error load blocking (covered);
 - `setupUi()` on every UI-entry transition;
 - standard pot page/parameter/value navigation;
 - trigger-button input pulse and callback ordering;

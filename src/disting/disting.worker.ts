@@ -42,7 +42,11 @@ import {
   type WorkerRequest,
   type WorkerResponse,
 } from './types'
-import { luaSequence, validateProgramContract } from './validation/contract-validator'
+import {
+  blocksContractExecution,
+  luaSequence,
+  validateProgramContract,
+} from './validation/contract-validator'
 import type {
   LuaCallbackName,
   ScriptDiagnostic,
@@ -468,6 +472,18 @@ async function loadProgram(
       ? measureCallback('init', () => runtime?.init?.())
       : undefined
     const diagnostics = validateProgramContract(program, rawInitResult)
+    if (blocksContractExecution(diagnostics)) {
+      const errorCount = diagnostics.filter((diagnostic) => (
+        diagnostic.origin === 'contract' && diagnostic.severity === 'error'
+      )).length
+      closeEngine()
+      post({
+        type: 'error',
+        message: `${errorCount} contract ${errorCount === 1 ? 'error prevents' : 'errors prevent'} this script from running.`,
+        diagnostics,
+      })
+      return
+    }
     const initResult = rawInitResult && typeof rawInitResult === 'object'
       ? rawInitResult as LuaInitResult
       : {}

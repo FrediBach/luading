@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { LuaProgram } from '../emulation/lua-contract'
-import { validateProgramContract } from './contract-validator'
+import {
+  blocksContractExecution,
+  validateProgramContract,
+} from './contract-validator'
 
 describe('validateProgramContract', () => {
   it('accepts a trigger-only script with sparse callback updates', () => {
@@ -50,6 +53,14 @@ describe('validateProgramContract', () => {
     expect(rules).toContain('parameter-1-default')
     expect(rules).toContain('parameter-1-unit')
     expect(rules).toContain('parameter-2-default')
+  })
+
+  it('blocks execution on contract errors but not warnings or informational findings', () => {
+    const invalid = validateProgramContract({}, { inputs: 29 })
+    const nonBlocking = validateProgramContract({}, { inputs: [2] })
+
+    expect(blocksContractExecution(invalid)).toBe(true)
+    expect(blocksContractExecution(nonBlocking)).toBe(false)
   })
 
   it('notes when edge inputs have no corresponding callback', () => {

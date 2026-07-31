@@ -33,6 +33,7 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - trigger rising edges and gate rising/falling edges
 - MIDI message classification, type filters, channel filters, and byte clamping
 - JSON-friendly preset state
+- contract errors blocking script execution while warnings remain non-blocking
 - integer and antialiased drawing commands, shades, alignment, and the standard
   parameter line
 - firmware-derived standard/tiny font metrics, glyph coverage, fallback,
