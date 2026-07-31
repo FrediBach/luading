@@ -135,5 +135,49 @@ describe('input channel rendering', () => {
     expect(markup).toContain('OUT 2')
     expect(markup).toContain('stepped · Gate')
     expect(markup).toContain('linear · Pitch')
+    expect(markup.match(/io-channel-grid-spacer/g)).toHaveLength(4)
+  })
+
+  it('reserves a four-channel footprint without rendering fake channels', () => {
+    const program: LoadedProgram = {
+      name: 'Single channel',
+      author: 'Test',
+      inputCount: 1,
+      outputCount: 1,
+      inputNames: ['CV'],
+      outputNames: ['Signal'],
+      inputKinds: ['cv'],
+      outputKinds: ['linear'],
+      parameters: [],
+      customUi: false,
+      uiPotPositions: [null, null, null],
+    }
+    const markup = renderToStaticMarkup(
+      <IoDeck
+        program={program}
+        sources={[source({ shape: 'manual' })]}
+        values={[0]}
+        outputs={[0]}
+        probes={[
+          { id: 'probe-1', source: null },
+          { id: 'probe-2', source: null },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={null}
+        traceHistory={traceHistory}
+        traceRevision={1}
+        onSourceChange={() => undefined}
+        onTrigger={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
+      />,
+    )
+
+    expect(markup.match(/io-channel-grid-spacer/g)).toHaveLength(6)
+    expect(markup.match(/input-channel-tile-shell/g)).toHaveLength(1)
+    expect(markup.match(/output-channel-tile-shell/g)).toHaveLength(1)
+    expect(markup).not.toContain('IN 2')
+    expect(markup).not.toContain('OUT 2')
   })
 })

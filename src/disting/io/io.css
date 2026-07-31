@@ -84,6 +84,13 @@
   --channel-signal-color: var(--nt-green);
 }
 
+.io-channel-grid-spacer {
+  min-width: 0;
+  min-height: 142px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .input-channel-tile-shell[class*='scope-probe--'],
 .output-channel-tile-shell[class*='scope-probe--'] {
   --channel-signal-color: var(--probe-color);

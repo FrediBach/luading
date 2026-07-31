@@ -10,6 +10,21 @@ import { AudioMasterControl } from './AudioMasterControl'
 import { OutputChannelTile } from './OutputChannelTile'
 import { useOutputAudio } from './useOutputAudio'
 
+const MINIMUM_CHANNEL_SLOTS = 4
+
+function ChannelGridSpacers({ count }: { count: number }) {
+  return Array.from(
+    { length: Math.max(0, MINIMUM_CHANNEL_SLOTS - count) },
+    (_, index) => (
+      <div
+        className="io-channel-grid-spacer"
+        aria-hidden="true"
+        key={`spacer-${index}`}
+      />
+    ),
+  )
+}
+
 interface Props {
   program: LoadedProgram
   sources: SignalSourceConfig[]
@@ -80,6 +95,7 @@ export function IoDeck({
                 key={`${program.inputNames[index] ?? 'input'}-${index}`}
               />
             ))}
+            <ChannelGridSpacers count={sources.length} />
           </div>
         </section>
 
@@ -107,6 +123,7 @@ export function IoDeck({
                 key={`${program.outputNames[index] ?? 'output'}-${index}`}
               />
             ))}
+            <ChannelGridSpacers count={outputAudio.routes.length} />
           </div>
         </section>
       </div>

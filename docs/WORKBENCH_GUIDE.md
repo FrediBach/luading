@@ -15,6 +15,9 @@ The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the
 default ratio. The instrument rack contains the display and hardware controls,
 script parameters, inputs, outputs, scope assignments, and opt-in Web Audio.
+Input and output banks reserve a four-channel footprint, so scripts with fewer
+channels keep the same tile width and minimum bank height without showing fake
+controls.
 
 Scope, Problems, Console, and Performance share the bottom drawer. Select the
 active tab again to collapse it. The drawer handle supports pointer drag and
