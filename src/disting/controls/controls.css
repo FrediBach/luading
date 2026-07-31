@@ -203,6 +203,20 @@ button.control-value-field:hover:not(:disabled) {
   box-shadow: 0 16px 48px var(--shadow-strong);
 }
 
+.control-popover--viewport {
+  position: fixed;
+  z-index: 90;
+  right: auto;
+  bottom: auto;
+  box-sizing: border-box;
+}
+
+.control-popover--viewport *,
+.control-popover--viewport *::before,
+.control-popover--viewport *::after {
+  box-sizing: border-box;
+}
+
 .control-popover-heading {
   min-height: 36px;
   padding: 0 8px 0 11px;
@@ -638,7 +652,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 @media (max-width: 620px) {
-  .control-popover {
+  .control-popover:not(.control-popover--viewport) {
     position: fixed;
     top: auto;
     right: 8px;

@@ -228,6 +228,8 @@ export function InputChannelTile({
         open={inspectorOpen}
         label={`IN ${index + 1} · ${name}`}
         anchorRef={tileRef}
+        positioning="viewport"
+        preferredWidth={470}
         onClose={() => setInspectorOpen(false)}
       >
         <InputChannelInspector source={source} onChange={onChange} />
@@ -237,6 +239,8 @@ export function InputChannelTile({
         open={scopeChooserOpen}
         label={`IN ${index + 1} · scope assignment`}
         anchorRef={tileRef}
+        positioning="viewport"
+        preferredWidth={470}
         onClose={() => setScopeChooserOpen(false)}
       >
         <ScopeProbeChooser

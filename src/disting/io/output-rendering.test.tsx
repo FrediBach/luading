@@ -69,6 +69,7 @@ describe('output channel rendering', () => {
     expect(markup).toContain('Synth trigger')
     expect(markup).toContain('Enable WebAudio in the I/O header')
     expect(markup).toContain('aria-pressed="true"')
+    expect(markup).toContain('control-popover control-popover--viewport')
   })
 
   it('distinguishes disabled, enabled, and unavailable audio states', () => {

@@ -27,6 +27,8 @@ export function OutputRoutingPopover({
       open={open}
       label={`${label} · WebAudio route`}
       anchorRef={anchorRef}
+      positioning="viewport"
+      preferredWidth={390}
       onClose={onClose}
     >
       <fieldset className="output-routing-options">

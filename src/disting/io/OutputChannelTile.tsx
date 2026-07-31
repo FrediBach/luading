@@ -139,6 +139,8 @@ export function OutputChannelTile({
         open={scopeChooserOpen}
         label={`OUT ${index + 1} · scope assignment`}
         anchorRef={tileRef}
+        positioning="viewport"
+        preferredWidth={390}
         onClose={() => setScopeChooserOpen(false)}
       >
         <ScopeProbeChooser
