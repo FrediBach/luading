@@ -77,6 +77,12 @@
   align-items: stretch;
 }
 
+.io-input-grid > .panel-empty-state,
+.io-output-grid > .panel-empty-state {
+  min-height: 142px;
+  grid-column: 1 / -1;
+}
+
 .input-channel-tile-shell,
 .output-channel-tile-shell {
   position: relative;

@@ -180,4 +180,47 @@ describe('input channel rendering', () => {
     expect(markup).not.toContain('IN 2')
     expect(markup).not.toContain('OUT 2')
   })
+
+  it('explains how to populate empty input and output panels', () => {
+    const program: LoadedProgram = {
+      name: 'No channels',
+      author: 'Test',
+      inputCount: 0,
+      outputCount: 0,
+      inputNames: [],
+      outputNames: [],
+      inputKinds: [],
+      outputKinds: [],
+      parameters: [],
+      customUi: false,
+      uiPotPositions: [null, null, null],
+    }
+    const markup = renderToStaticMarkup(
+      <IoDeck
+        program={program}
+        sources={[]}
+        values={[]}
+        outputs={[]}
+        probes={[
+          { id: 'probe-1', source: null },
+          { id: 'probe-2', source: null },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={null}
+        traceHistory={traceHistory}
+        traceRevision={1}
+        onSourceChange={() => undefined}
+        onTrigger={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('No inputs')
+    expect(markup).toContain('No outputs')
+    expect(markup).toContain('create test signals here')
+    expect(markup).toContain('inspect and monitor signals here')
+    expect(markup).not.toContain('io-channel-grid-spacer')
+  })
 })

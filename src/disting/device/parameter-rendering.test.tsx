@@ -113,5 +113,22 @@ describe('parameter control rendering', () => {
     expect(markup).toContain('1 / 2')
     expect(markup).toContain('aria-label="Next parameter page"')
   })
-})
 
+  it('keeps an informative parameter panel when none are defined', () => {
+    const markup = renderToStaticMarkup(
+      <ParameterBank
+        definitions={[]}
+        values={[]}
+        onChange={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('aria-label="Script parameters"')
+    expect(markup).toContain('0 defined')
+    expect(markup).toContain('No parameters')
+    expect(markup).toContain(
+      'Add parameters to the script&#x27;s init configuration',
+    )
+    expect(markup).not.toContain('role="slider"')
+  })
+})

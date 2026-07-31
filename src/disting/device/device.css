@@ -243,6 +243,11 @@
   align-items: stretch;
 }
 
+.parameter-bank-grid > .panel-empty-state {
+  min-height: 116px;
+  grid-column: 1 / -1;
+}
+
 .parameter-control {
   position: relative;
   min-width: 0;

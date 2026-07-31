@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PanelEmptyState } from '../PanelEmptyState'
 import type { ParameterDefinition } from '../types'
 import { ParameterControl } from './ParameterControl'
 import {
@@ -21,7 +22,6 @@ export function ParameterBank({
   onChange,
 }: Props) {
   const [requestedPage, setRequestedPage] = useState(0)
-  if (definitions.length === 0) return null
 
   const range = parameterPageRange(
     requestedPage,
@@ -37,7 +37,9 @@ export function ParameterBank({
         <span>
           <small>Parameters</small>
           <strong>
-            {range.start + 1}–{range.end} of {definitions.length}
+            {definitions.length === 0
+              ? '0 defined'
+              : `${range.start + 1}–${range.end} of ${definitions.length}`}
           </strong>
         </span>
         {pageCount > 1 && (
@@ -64,17 +66,24 @@ export function ParameterBank({
       </header>
 
       <div className="parameter-bank-grid">
-        {visibleDefinitions.map((definition, relativeIndex) => {
-          const index = range.start + relativeIndex
-          return (
-            <ParameterControl
-              definition={definition}
-              value={values[index] ?? definition.value}
-              onChange={(value) => onChange(index, value)}
-              key={`${definition.name}-${index}`}
-            />
-          )
-        })}
+        {definitions.length === 0 ? (
+          <PanelEmptyState title="No parameters">
+            Add parameters to the script&apos;s init configuration to expose
+            adjustable controls here.
+          </PanelEmptyState>
+        ) : (
+          visibleDefinitions.map((definition, relativeIndex) => {
+            const index = range.start + relativeIndex
+            return (
+              <ParameterControl
+                definition={definition}
+                value={values[index] ?? definition.value}
+                onChange={(value) => onChange(index, value)}
+                key={`${definition.name}-${index}`}
+              />
+            )
+          })
+        )}
       </div>
     </section>
   )
