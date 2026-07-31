@@ -77,11 +77,17 @@ return
         return
         {
             -- Two CV inputs for range modulation
-            inputs = { kCV, kCV }
+            inputs = {
+                kCV, -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV, -- Type: Triangle LFO, Synced: true, Division: 1 bar
+            }
             , inputNames = { "Min CV", "Max CV" }
             
             -- Gate output and filtered trigger
-            , outputs = { kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+            }
             , outputNames = { "Gate Out", "Filtered" }
             
             , parameters = 

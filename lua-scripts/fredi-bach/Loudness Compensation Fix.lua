@@ -59,9 +59,13 @@ return
     , init = function(self)
         return
         {
-            inputs = { kCV }
+            inputs = {
+                kCV, -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+            }
             , inputNames = { "V/Oct In" }
-            , outputs = { kLinear }
+            , outputs = {
+                kLinear, -- Type: Off
+            }
             , outputNames = { "Comp CV" }
             , parameters = 
             {

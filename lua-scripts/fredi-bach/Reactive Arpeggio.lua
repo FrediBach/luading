@@ -140,9 +140,16 @@ return {
         self.clockReceived = false  -- Flag for initial clock after gate
         
         return {
-            inputs = {kCV, kGate, kTrigger}
+            inputs = {
+                kCV,      -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate,    -- Type: Gate, Synced: true, Division: 1 bar
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+            }
             , inputNames = {"Pitch", "Gate", "Clock"}
-            , outputs = {kLinear, kStepped}
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = {"Pitch Out", "Gate Out"}
             , parameters = {
                 {"Scale", scaleNames, 1}                           -- 1: Scale type

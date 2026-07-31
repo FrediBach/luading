@@ -34,9 +34,15 @@ return
         
         return
         {
-            inputs = { kGate, kCV }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+            }
             , inputNames = { "Gate In", "CV In" }
-            , outputs = { kStepped, kLinear }
+            , outputs = {
+                kStepped, -- Type: Synth Trigger
+                kLinear,  -- Type: Synth Note
+            }
             , outputNames = { "Gate Out", "CV Out" }
             , parameters = 
             {

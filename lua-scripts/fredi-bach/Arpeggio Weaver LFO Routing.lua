@@ -384,11 +384,20 @@ return {
         
         return {
             -- Input configuration
-            inputs = { kTrigger, kCV, kTrigger }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 1 bar
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Clock", "LFO CV", "Reset" }
             
             -- Output configuration (V/Oct and Weave are linear for smooth CV)
-            , outputs = { kLinear, kStepped, kStepped, kLinear }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kLinear,  -- Type: Off
+            }
             , outputNames = { "V/Oct", "Gate", "Trigger", "Weave" }
             
             -- Parameters

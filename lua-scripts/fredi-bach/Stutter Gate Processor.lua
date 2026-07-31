@@ -44,9 +44,16 @@ return {
         self.stuttersDone = 0         -- Counter for display
         
         return {
-            inputs = { kGate, kCV, kCV }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV,   -- Type: Triangle LFO, Synced: true, Division: 1 bar
+            }
             , inputNames = { "Gate In", "Prob CV", "Count CV" }
-            , outputs = { kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { "Gate Out", "EOC Trig" }
             , parameters = {
                 { "Probability", 0, 100, 50, kPercent }

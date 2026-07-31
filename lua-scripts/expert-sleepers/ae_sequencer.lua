@@ -140,8 +140,15 @@ return {
         return {
             -- Three inputs:
             -- 1 = clock (stepping), 2 = reset trigger, 3 = global randomize trigger
-            inputs = {kGate, kTrigger, kTrigger},
-            outputs = {kStepped, kGate},
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1 bar
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            },
+            outputs = {
+                kStepped, -- Type: Synth Note
+                kGate,    -- Type: Synth Trigger
+            },
             inputNames = {"Clock", "Reset", "Randomize"},
             outputNames = {"CV Output", "Gate Output"},
             parameters = {

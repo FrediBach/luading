@@ -150,8 +150,19 @@ return {
     init = function(self)
         return {
             -- Inputs: 1=Clock (Gate), 2=Reset, 3=Arm, 4=Fill
-            inputs = {kGate, kGate, kTrigger, kTrigger},
-            outputs = 5,
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kGate,    -- Type: Gate, Synced: true, Division: 1 bar
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/2
+            },
+            outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Synth Trigger
+            },
             inputNames = {"Clock input", "Reset input", "Arm input", "Fill input"},
             outputNames = {"Slave Run gate", "Fill gate", "End of Bar trig", "End of Loop trig", "Reset Out"},
             parameters = {

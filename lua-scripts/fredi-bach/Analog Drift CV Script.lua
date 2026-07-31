@@ -188,12 +188,17 @@ return {
         
         return {
             -- Input 1: CV to process (pass-through with drift added)
-            inputs = { kCV }
+            inputs = {
+                kCV, -- Type: Manual / DC
+            }
             , inputNames = { "CV In" }
             
             -- Output 1: Processed CV (input + drift)
             -- Output 2: Raw drift signal (for parallel/mult use)
-            , outputs = { kLinear, kLinear }
+            , outputs = {
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+            }
             , outputNames = { "CV + Drift", "Drift Only" }
             
             , parameters = {

@@ -358,8 +358,14 @@ return {
 
     init = function(self)
         return {
-            inputs = {kGate, kTrigger},
-            outputs = 2,
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1 bar
+            },
+            outputs = {
+                kStepped, -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            },
             inputNames = {"Clock Input", "Trigger Input"},
             outputNames = {"V/OCT Output", "Gate Output"},
             parameters = {

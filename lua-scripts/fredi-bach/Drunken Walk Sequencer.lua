@@ -127,7 +127,12 @@ return
         
         return
         {
-            inputs = { kCV, kTrigger, kCV, kTrigger }
+            inputs = {
+                kCV,      -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/4
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { 
                 "Signal", 
                 "Clock", 
@@ -135,9 +140,15 @@ return
                 "Reset" 
             }
             , outputs = { 
-                kStepped, kStepped, kStepped, kStepped,  -- Steps 1-4
-                kStepped, kStepped, kStepped, kStepped,  -- Steps 5-8
-                kLinear                                   -- Step CV output
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kLinear,  -- Type: Synth Note
             }
             , outputNames = { 
                 "Step 1", "Step 2", "Step 3", "Step 4",

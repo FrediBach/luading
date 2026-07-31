@@ -87,12 +87,6 @@ return
             self.phases[i] = 0.0
         end
         
-        -- Build outputs array - all linear for smooth triangle waves
-        local outputs = {}
-        for i = 1, MAX_LFOS do
-            outputs[i] = kLinear
-        end
-        
         -- Build output names
         local outputNames = {}
         for i = 1, MAX_LFOS do
@@ -101,9 +95,21 @@ return
         
         return
         {
-            inputs = { kCV, kTrigger }
+            inputs = {
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Speed CV", "Reset" }
-            , outputs = outputs
+            , outputs = {
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+            }
             , outputNames = outputNames
             , parameters = 
             {

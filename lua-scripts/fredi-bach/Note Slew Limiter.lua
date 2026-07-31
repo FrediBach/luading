@@ -92,13 +92,19 @@ return
             -- Input configuration
             -- Input 1: V/Oct pitch (CV for continuous reading)
             -- Input 2: Slew rate CV modulation
-            inputs = { kCV, kCV }
+            inputs = {
+                kCV, -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kCV, -- Type: Sine LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { "V/Oct In", "Slew CV" }
 
             -- Output configuration
             -- Output 1: Slewed pitch (linear for smooth transitions)
             -- Output 2: Gate (stepped, fires on note changes)
-            , outputs = { kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { "V/Oct Out", "Gate Out" }
 
             -- Parameters

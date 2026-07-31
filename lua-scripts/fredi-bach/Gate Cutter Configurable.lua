@@ -51,11 +51,15 @@ return {
 
         return {
             -- Single gate input for efficient edge detection
-            inputs = { kGate }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+            }
             , inputNames = { "Gate In" }
 
             -- Stepped output (gates don't need interpolation)
-            , outputs = { kStepped }
+            , outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { "Gate Out" }
 
             -- User parameters

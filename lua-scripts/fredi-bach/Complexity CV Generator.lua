@@ -124,8 +124,14 @@ return {
         return {
             -- 8 trigger/gate inputs for activity monitoring
             inputs = { 
-                kGate, kGate, kGate, kGate,
-                kGate, kGate, kGate, kGate
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/8
+                kGate, -- Type: Gate, Synced: true, Division: 1/2
+                kGate, -- Type: Gate, Synced: true, Division: 1 bar
+                kGate, -- Type: Gate, Synced: true, Division: 1/16
+                kGate, -- Type: Gate, Synced: true, Division: 2 bars
+                kGate, -- Type: Gate, Synced: true, Division: 1/32
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
             }
             , inputNames = {
                 "Gate 1", "Gate 2", "Gate 3", "Gate 4",
@@ -133,7 +139,10 @@ return {
             }
             
             -- 2 outputs: main CV and threshold gate
-            , outputs = { kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Off
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { "Complexity CV", "Threshold Gate" }
             
             -- Algorithm parameters

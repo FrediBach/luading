@@ -190,8 +190,15 @@ return {
         evolutionCount = 0
 
         return {
-            inputs = {kGate, kTrigger, kTrigger},
-            outputs = 2,
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1 bar
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            },
+            outputs = {
+                kStepped, -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            },
             inputNames = {"Clock", "Reset", "Evolve"},
             outputNames = {"CV Output", "Gate Output"},
             parameters = {

@@ -106,11 +106,18 @@ return
         {
             -- No CV inputs needed - this is a generator
             -- But we add a gate input for external sync/trigger
-            inputs = { kGate }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Run Gate" }
             
             -- Four CV outputs, all smoothly interpolated
-            , outputs = { kLinear, kLinear, kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kLinear,  -- Type: Off
+                kLinear,  -- Type: Off
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { 
                 "VCO Pitch",    -- Pitch CV for oscillator
                 "VCF Cutoff",   -- Filter cutoff modulation

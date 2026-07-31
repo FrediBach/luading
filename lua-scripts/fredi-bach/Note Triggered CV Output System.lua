@@ -56,11 +56,17 @@ return
         return
         {
             -- One CV input for note offset
-            inputs = { kCV }
+            inputs = {
+                kCV, -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+            }
             , inputNames = { "Note CV" }
             
             -- Three outputs: trigger, gate, velocity
-            , outputs = { kStepped, kStepped, kLinear }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Off
+                kLinear,  -- Type: Off
+            }
             , outputNames = { "Trigger", "Gate", "Velocity" }
             
             -- User-configurable parameters

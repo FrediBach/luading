@@ -34,8 +34,13 @@ return
 ,	init = function( self )
 		return
 		{
-			inputs = { kTrigger, kTrigger }
-		,	outputs = 1
+			inputs = {
+				kTrigger, -- Type: Trigger, Synced: true, Division: 1/4
+				kTrigger, -- Type: Trigger, Synced: true, Division: 1/2
+			}
+		,	outputs = {
+				kStepped, -- Type: Hi-hat Trigger
+			}
 		}
 	end
 	

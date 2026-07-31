@@ -28,14 +28,27 @@ return {
     init = function(self)
         return {
             inputs = {
-                kCV, kGate, -- Channel 1
-                kCV, kGate, -- Channel 2
-                kCV, kGate, -- Channel 3
-                kCV, kGate, -- Channel 4
-                kCV, kGate, -- Channel 5
-                kCV, kGate -- Channel 6
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/8
+                kGate, -- Type: Gate, Synced: true, Division: 1/8
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/2
+                kGate, -- Type: Gate, Synced: true, Division: 1/2
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1 bar
+                kGate, -- Type: Gate, Synced: true, Division: 1 bar
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/16
+                kGate, -- Type: Gate, Synced: true, Division: 1/16
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 2 bars
+                kGate, -- Type: Gate, Synced: true, Division: 2 bars
             },
-            outputs = 6, -- 6 Sample and Hold outputs
+            outputs = {
+                kStepped, -- Type: Synth Note
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+            }, -- 6 Sample and Hold outputs
             inputNames = {
                 "CV 1", "Gate 1", "CV 2", "Gate 2", "CV 3", "Gate 3", "CV 4",
                 "Gate 4", "CV 5", "Gate 5", "CV 6", "Gate 6"

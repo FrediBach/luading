@@ -38,11 +38,16 @@ return {
         return {
             -- Input 1: Gate to process
             -- Input 2: CV for modulating minimum distance
-            inputs = { kGate, kCV }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/8
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Gate In", "Min Dist CV" }
             
             -- Output 1: Filtered gate (stepped is appropriate for gates)
-            , outputs = { kStepped }
+            , outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { "Gate Out" }
             
             -- Parameters

@@ -37,7 +37,22 @@ return {
         -- Pre-allocate the output table with eight zeros.
         self.outs = {}
         for i = 1, NUM_LFOS do self.outs[i] = 0 end
-        return {inputs = 1, inputNames = {"FM"}, outputs = NUM_LFOS}
+        return {
+            inputs = {
+                kCV, -- Type: Sine LFO, Synced: true, Division: 2 bars
+            },
+            inputNames = {"FM"},
+            outputs = {
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+            },
+        }
     end,
 
     step = function(self, dt, inputs)

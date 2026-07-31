@@ -113,7 +113,11 @@ return {
             -- Input 1: Note CV (1V/oct pitch)
             -- Input 2: Gate signal
             -- Input 3: Mirror line CV modulation
-            inputs = { kCV, kGate, kCV }
+            inputs = {
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { 
                 "Note In", 
                 "Gate In", 
@@ -123,7 +127,10 @@ return {
             -- Output configuration
             -- Output 1: Mirrored note CV (linear interpolation for smooth glides)
             -- Output 2: Gate pass-through (stepped for clean gates)
-            , outputs = { kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { 
                 "Note Out", 
                 "Gate Out" 

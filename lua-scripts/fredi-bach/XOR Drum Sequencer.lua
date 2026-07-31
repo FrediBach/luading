@@ -84,7 +84,12 @@ return
             -- Input 2: Reset (trigger)
             -- Input 3: Layers CV (-5V to +5V mapped to parameter range)
             -- Input 4: Start Layer CV (-5V to +5V mapped to parameter range)
-            inputs = { kTrigger, kTrigger, kCV, kCV }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV,      -- Type: Triangle LFO, Synced: true, Division: 1 bar
+            }
             , inputNames = { 
                 "Clock", 
                 "Reset", 
@@ -94,7 +99,10 @@ return
             
             -- Output 1: Main XOR trigger output
             -- Output 2: Inverse output (for complementary patterns)
-            , outputs = { kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+            }
             , outputNames = { 
                 "XOR Out", 
                 "Inv Out" 

@@ -79,10 +79,18 @@ return {
     self.motif_range = 2  -- Track what range the motif was generated with
 
     return {
-      inputs      = { kGate, kGate, kLinear },
+      inputs      = {
+        kGate,   -- Type: Gate, Synced: true, Division: 1/4
+        kGate,   -- Type: Gate, Synced: true, Division: 1/2
+        kLinear, -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+      },
       inputNames  = { 'Clock', 'Gate In', 'Pitch In' },
 
-      outputs     = { kLinear, kLinear, kLinear },
+      outputs     = {
+        kLinear, -- Type: Synth Note
+        kLinear, -- Type: Synth Trigger
+        kLinear, -- Type: Off
+      },
       outputNames = { 'Pitch Out', 'Gate Out', 'Avg p' },
 
       parameters  = {

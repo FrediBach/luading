@@ -66,9 +66,16 @@ return
 ,	init = function( self )
 		return
 		{
-			inputs = { kCV, kTrigger, kGate }		-- or inputs = integer if all CVs
+			inputs = {
+				kCV,      -- Type: Sine LFO, Synced: true, Division: 1 bar
+				kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+				kGate,    -- Type: Gate, Synced: true, Division: 1/4
+			}		-- or inputs = integer if all CVs
 		,	inputNames = { [2]="Trigger input" }
-		,	outputs = 2
+		,	outputs = {
+				kStepped, -- Type: Off
+				kStepped, -- Type: Off
+			}
 		,	outputNames = { "X output", "Y output" }
 		,	parameters = 
 			{

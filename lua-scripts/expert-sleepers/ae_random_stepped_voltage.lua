@@ -125,8 +125,13 @@ return {
 
     init = function(self)
         return {
-            inputs = {kGate, kTrigger},
-            outputs = {kStepped},
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            },
+            outputs = {
+                kStepped, -- Type: Synth Note
+            },
             inputNames = {"Clock", "Reset"},
             outputNames = {"CV Output"},
             parameters = {

@@ -33,8 +33,13 @@ return
 		self.t = 0.0
 		return
 		{
-			inputs = 1
-		,	outputs = { kStepped, kLinear }
+			inputs = {
+				kCV, -- Type: Sine LFO, Synced: true, Division: 2 bars
+			}
+		,	outputs = {
+				kStepped, -- Type: Off
+				kLinear,  -- Type: Off
+			}
 		}
 	end
 

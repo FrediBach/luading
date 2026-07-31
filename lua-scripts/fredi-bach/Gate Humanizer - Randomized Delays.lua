@@ -52,9 +52,19 @@ return {
         
         return {
             -- Use kGate for efficient edge detection by the system
-            inputs = { kGate, kGate, kGate, kGate }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/8
+                kGate, -- Type: Gate, Synced: true, Division: 1/2
+                kGate, -- Type: Gate, Synced: true, Division: 1 bar
+            }
             , inputNames = { "Gate 1", "Gate 2", "Gate 3", "Gate 4" }
-            , outputs = 4
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { "Out 1", "Out 2", "Out 3", "Out 4" }
             , parameters = {
                 -- Amount: Scales the randomness (0% = no delay, 100% = full random range)

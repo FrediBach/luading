@@ -98,8 +98,14 @@ return {
     init = function(self)
         randomizeCV()
         return {
-            inputs = {kGate, kTrigger},
-            outputs = {kLinear, kStepped},
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            },
+            outputs = {
+                kLinear,  -- Type: Off
+                kStepped, -- Type: Hi-hat Trigger
+            },
             inputNames = {"Clock", "Reset"},
             outputNames = {"CV Output", "BOC Trigger Output"},
             parameters = {

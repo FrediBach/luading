@@ -36,8 +36,18 @@ return {
 
     init = function(self)
         return {
-            inputs = {kCV, kGate}, -- CV input and Gate/Trigger input
-            outputs = 6, -- Number of output CV slots (stack size)
+            inputs = {
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+            }, -- CV input and Gate/Trigger input
+            outputs = {
+                kStepped, -- Type: Synth Note
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+                kStepped, -- Type: Off
+            }, -- Number of output CV slots (stack size)
             inputNames = {"CV", "Gate"},
             outputNames = {"CV 1", "CV 2", "CV 3", "CV 4", "CV 5", "CV 6"},
             parameters = {}

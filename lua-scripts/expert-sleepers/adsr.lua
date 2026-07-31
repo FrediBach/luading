@@ -131,8 +131,12 @@ return {
 
     init = function(self)
         return {
-            inputs = {kGate},
-            outputs = {kLinear},
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+            },
+            outputs = {
+                kLinear, -- Type: Off
+            },
             inputNames = {"Gate"},
             outputNames = {"Envelope"},
             parameters = {

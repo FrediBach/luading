@@ -58,14 +58,24 @@ return
             -- 2: Phase A CV (adds to Phase A offset)
             -- 3: Phase B CV (adds to Phase B offset)
             -- 4: Phase C CV (adds to Phase C offset)
-            inputs = 4
+            inputs = {
+                kCV, -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV, -- Type: Sine LFO, Synced: true, Division: 1 bar
+                kCV, -- Type: Triangle LFO, Synced: true, Division: 1/2
+                kCV, -- Type: Sine LFO, Synced: true, Division: 1/4
+            }
 
             -- Outputs:
             -- 1: Gate (stepped - binary on/off)
             -- 2: LFO A - Upper threshold (linear for smooth CV)
             -- 3: LFO B - Lower threshold (linear for smooth CV)
             -- 4: LFO C - Compared signal (linear for smooth CV)
-            , outputs = { kStepped, kLinear, kLinear, kLinear }
+            , outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+                kLinear,  -- Type: Off
+                kLinear,  -- Type: Off
+                kLinear,  -- Type: Off
+            }
 
             -- Custom names for clarity in routing
             , inputNames = {

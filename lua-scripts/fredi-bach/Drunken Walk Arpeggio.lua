@@ -151,13 +151,20 @@ return
             -- Input 1: Clock trigger - advances the arpeggio
             -- Input 2: Probability CV - controls forward/backward bias
             -- Input 3: Reset trigger - returns to step 1
-            inputs = { kTrigger, kCV, kTrigger }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Clock", "Prob CV", "Reset" }
             
             -- Output definitions
             -- Output 1: V/Oct pitch CV (linear for smooth portamento if desired)
             -- Output 2: Gate output (stepped, on/off)
-            , outputs = { kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { "V/Oct", "Gate" }
             
             -- Parameter definitions

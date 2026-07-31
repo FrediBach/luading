@@ -280,12 +280,19 @@ return
             -- Input definitions
             -- kTrigger: system calls trigger() on rising edge
             -- kCV: continuous voltage available in step()
-            inputs = { kTrigger, kTrigger, kCV }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Clock", "Reset", "Dist CV" }
             
             -- Output definitions
             -- kStepped: discrete values, no interpolation between steps
-            , outputs = { kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+            }
             , outputNames = { "Trigger", "Inverted" }
             
             -- Parameter definitions

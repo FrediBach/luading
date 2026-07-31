@@ -284,10 +284,18 @@ return {
 
         -- Define Inputs, Outputs, and Parameters
         return {
-            inputs = {kGate, kTrigger, kTrigger},
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1 bar
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            },
             inputNames = {[1] = "Clock", [2] = "Reset", [3] = "Randomize"},
 
-            outputs = {kGate, kStepped, kStepped},
+            outputs = {
+                kGate,    -- Type: Synth Trigger
+                kStepped, -- Type: Synth Note
+                kStepped, -- Type: Off
+            },
             outputNames = {"Gate Output", "Pitch Output", "Velocity Output"},
 
             parameters = {

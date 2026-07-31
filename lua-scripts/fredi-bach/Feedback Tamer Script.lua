@@ -118,10 +118,15 @@ return {
 
         return {
             -- Input: Audio signal to monitor (typically feedback return)
-            inputs = 1
+            inputs = {
+                kCV, -- Type: Sine LFO, Synced: false
+            }
             -- Outputs: CV control (linear for smooth VCA control)
             --          Audio passthrough (linear for clean audio)
-            , outputs = { kLinear, kLinear }
+            , outputs = {
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+            }
             , inputNames = { "Audio In" }
             , outputNames = { "CV Out", "Audio Out" }
             , parameters = {

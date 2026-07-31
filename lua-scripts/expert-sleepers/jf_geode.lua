@@ -267,7 +267,9 @@ return {
         currentVoiceIndex = 1
 
         return {
-            inputs  = {kGate},
+            inputs  = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+            },
             outputs = {},
 
             inputNames  = {"Gate/Trig"},

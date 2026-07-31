@@ -33,7 +33,13 @@ return {
         self.offTimer = { 0, 0, 0, 0 }
         
         return {
-            inputs = { kTrigger, kGate, kGate, kGate, kGate }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/4
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kGate,    -- Type: Gate, Synced: true, Division: 1/8
+                kGate,    -- Type: Gate, Synced: true, Division: 1/2
+                kGate,    -- Type: Gate, Synced: true, Division: 1 bar
+            }
             , inputNames = { 
                 "Clock", 
                 "In 1", 
@@ -41,7 +47,12 @@ return {
                 "In 3", 
                 "In 4" 
             }
-            , outputs = { kStepped, kStepped, kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { 
                 "Out 1", 
                 "Out 2", 

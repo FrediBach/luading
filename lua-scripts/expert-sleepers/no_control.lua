@@ -39,9 +39,13 @@ return
 ,	init = function( self )
 		return
 		{
-			inputs = { kTrigger }
+			inputs = {
+				kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+			}
 		,	inputNames = { "Reset" }
-		,	outputs = 1
+		,	outputs = {
+				kStepped, -- Type: Hi-hat Trigger
+			}
 		,	parameters = 
 			{
 				{ "Time 1", 10, 2000, 500, kMs }

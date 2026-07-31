@@ -54,8 +54,13 @@ return {
 
     init = function(self)
         return {
-            inputs = {kGate, kTrigger},
-            outputs = {kGate},
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            },
+            outputs = {
+                kGate, -- Type: Hi-hat Trigger
+            },
             inputNames = {"Clock", "Reset"},
             outputNames = {"Gate Output"},
             parameters = {

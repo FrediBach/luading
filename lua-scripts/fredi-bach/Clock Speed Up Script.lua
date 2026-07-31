@@ -143,11 +143,16 @@ return
         {
             -- Input 1: Clock trigger to pass through or measure
             -- Input 2: Gate to enable acceleration mode
-            inputs = { kTrigger, kGate }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/4
+                kGate,    -- Type: Gate, Synced: true, Division: 1 bar
+            }
         ,   inputNames = { "Clock In", "Accel Gate" }
         
             -- Single clock output
-        ,   outputs = { kStepped }
+        ,   outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+            }
         ,   outputNames = { "Clock Out" }
         
             -- User-configurable parameters

@@ -201,7 +201,12 @@ return {
             -- Input 2: Gate (triggers note processing)
             -- Input 3: Memory Size CV
             -- Input 4: Probability CV
-            inputs = { kCV, kGate, kCV, kCV }
+            inputs = {
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV,   -- Type: Triangle LFO, Synced: true, Division: 1 bar
+            }
             , inputNames = { 
                 "Pitch In", 
                 "Gate In", 
@@ -211,7 +216,10 @@ return {
             
             -- Output 1: Processed Pitch CV (linear for smooth output)
             -- Output 2: Gate pass-through
-            , outputs = { kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { 
                 "Pitch Out", 
                 "Gate Out" 

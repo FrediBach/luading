@@ -47,10 +47,17 @@ return {
     end
 
     return {
-      inputs      = { kGate, kGate },
+      inputs      = {
+        kGate, -- Type: Gate, Synced: true, Division: 1/4
+        kGate, -- Type: Gate, Synced: true, Division: 2 bars
+      },
       inputNames  = { 'Clock', 'Reset' },
 
-      outputs     = { kStepped, kStepped, kStepped },
+      outputs     = {
+        kStepped, -- Type: Synth Note
+        kStepped, -- Type: Off
+        kStepped, -- Type: Off
+      },
       outputNames = { 'Lane 1', 'Lane 2', 'Lane 3' },
 
       parameters  = params

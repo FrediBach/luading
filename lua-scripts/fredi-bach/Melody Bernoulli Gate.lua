@@ -63,12 +63,21 @@ return
         {
             -- Input configuration
             -- kCV for continuous voltage, kGate for gate detection
-            inputs = { kCV, kGate, kCV }
+            inputs = {
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { "CV In", "Gate In", "Prob CV" }
             
             -- Output configuration
             -- All stepped since we're dealing with discrete note events
-            , outputs = { kStepped, kStepped, kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+                kStepped, -- Type: Off
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { "CV A", "Gate A", "CV B", "Gate B" }
             
             -- User-adjustable parameters

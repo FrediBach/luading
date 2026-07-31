@@ -172,9 +172,15 @@ return {
         self.lastHits = 4
         
         return {
-            inputs = { kGate, kTrigger }
+            inputs = {
+                kGate,    -- Type: Gate, Synced: true, Division: 1/8
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Gate In", "Reset" }
-            , outputs = 2
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+            }
             , outputNames = { "Gate Out", "Skipped" }
             , parameters = {
                 { "Steps", 1, 32, 16, kNone }

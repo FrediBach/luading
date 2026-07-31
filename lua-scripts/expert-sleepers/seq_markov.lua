@@ -282,8 +282,17 @@ end
 
 local function init_params(self)
     local params = {
-        inputs = {kGate, kTrigger, kTrigger, kTrigger},
-        outputs = 3,
+        inputs = {
+            kGate,    -- Type: Gate, Synced: true, Division: 1/4
+            kTrigger, -- Type: Trigger, Synced: true, Division: 1 bar
+            kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+        },
+        outputs = {
+            kStepped, -- Type: Synth Note
+            kStepped, -- Type: Synth Trigger
+            kStepped, -- Type: Off
+        },
         inputNames = {"Clock", "Reset", "Randomize", "Regenerate"},
         outputNames = {"V/Oct", "Gate", "Velocity"},
         parameters = {

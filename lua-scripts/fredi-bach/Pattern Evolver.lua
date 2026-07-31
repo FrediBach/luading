@@ -180,13 +180,21 @@ return
             -- Input 1: Clock (trigger)
             -- Input 2: Pattern (gate to record/evolve)
             -- Input 3: Reset (trigger)
-            inputs = { kTrigger, kGate, kTrigger }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+                kGate,    -- Type: Gate, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Clock", "Pattern In", "Reset" }
             
             -- Output 1: Evolved pattern
             -- Output 2: End of cycle trigger
             -- Output 3: Original pattern (for comparison)
-            , outputs = { kStepped, kStepped, kStepped }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Snare Trigger
+            }
             , outputNames = { "Evolved Out", "EOC", "Original Out" }
             
             , parameters = 

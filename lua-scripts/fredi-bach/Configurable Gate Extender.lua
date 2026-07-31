@@ -109,9 +109,14 @@ return
         self.display_cv_bend = 0
         
         return {
-            inputs = { kGate, kCV }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Gate In", "Extend CV" }
-            , outputs = { kStepped }
+            , outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { "Gate Out" }
             , parameters = {
                 { "Extend Time", 0, 2000, 100, kMs }

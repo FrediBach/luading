@@ -326,9 +326,21 @@ return {
         self.display_clock_period = nil
         
         return {
-            inputs = { kTrigger, kTrigger, kCV, kCV, kCV }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/16
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV,      -- Type: Triangle LFO, Synced: true, Division: 2 bars
+                kCV,      -- Type: Sine LFO, Synced: true, Division: 1 bar
+            }
             , inputNames = { "Clock", "Reset", "Pattern", "Swing", "Density" }
-            , outputs = { kStepped, kStepped, kStepped, kStepped, kLinear }
+            , outputs = {
+                kStepped, -- Type: Kick Trigger
+                kStepped, -- Type: Snare Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kStepped, -- Type: Hi-hat Trigger
+                kLinear,  -- Type: Off
+            }
             , outputNames = { "Kick", "Snare", "HH Closed", "HH Open", "Accent" }
             , parameters = {
                 { "Tempo", 60, 200, 136, kBPM }

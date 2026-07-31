@@ -103,9 +103,16 @@ return
         
         return
         {
-            inputs = { kCV, kCV }                       -- X and Y position CVs
+            inputs = {
+                kCV, -- Type: Sine LFO, Synced: true, Division: 1 bar
+                kCV, -- Type: Triangle LFO, Synced: true, Division: 2 bars
+            }                                           -- X and Y position CVs
             , inputNames = { "X Position", "Y Position" }
-            , outputs = { kLinear, kLinear, kLinear }   -- Three VCA CVs
+            , outputs = {
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+            }                                           -- Three VCA CVs
             , outputNames = { "VCO A Level", "VCO B Level", "VCO C Level" }
             , parameters = 
             {

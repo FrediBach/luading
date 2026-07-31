@@ -107,11 +107,17 @@ return
         return
         {
             -- Inputs: Clock and Reset as triggers
-            inputs = { kTrigger, kTrigger }
+            inputs = {
+                kTrigger, -- Type: Trigger, Synced: true, Division: 1/4
+                kTrigger, -- Type: Trigger, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Clock", "Reset" }
             
             -- Outputs: Gate (stepped) and Ramp (linear for smooth CV)
-            , outputs = { kStepped, kLinear }
+            , outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+                kLinear,  -- Type: Off
+            }
             , outputNames = { "Gate", "Ramp" }
             
             -- Parameters

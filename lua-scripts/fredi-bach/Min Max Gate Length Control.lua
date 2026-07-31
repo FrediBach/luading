@@ -60,11 +60,17 @@ return
         return
         {
             -- Input configuration: Gate input + 2 CV inputs for modulation
-            inputs = { kGate, kCV, kCV }
+            inputs = {
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV,   -- Type: Triangle LFO, Synced: true, Division: 1 bar
+            }
             , inputNames = { "Gate", "Min CV", "Max CV" }
             
             -- Output configuration: Single stepped gate output
-            , outputs = { kStepped }
+            , outputs = {
+                kStepped, -- Type: Hi-hat Trigger
+            }
             , outputNames = { "Out" }
             
             -- User-adjustable parameters

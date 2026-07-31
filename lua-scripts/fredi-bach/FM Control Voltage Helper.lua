@@ -159,8 +159,15 @@ return {
         self.display_pitch_change_started = -1
         
         return {
-            inputs = 1
-            , outputs = { kLinear, kLinear, kLinear, kLinear }
+            inputs = {
+                kCV, -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+            }
+            , outputs = {
+                kLinear, -- Type: Synth Note
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+                kLinear, -- Type: Off
+            }
             , inputNames = { "V/Oct In" }
             , outputNames = { "Ratio 1", "Ratio 2", "Ratio 3", "Ratio 4" }
             , parameters = {

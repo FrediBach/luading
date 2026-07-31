@@ -66,12 +66,20 @@ return
             -- Input configuration
             -- All inputs appear in the inputs[] array
             -- kGate additionally triggers the gate() callback
-            inputs = { kCV, kGate, kCV, kCV }
+            inputs = {
+                kCV,   -- Type: Note Sequencer (V/Oct), Synced: true, Division: 1/4
+                kGate, -- Type: Gate, Synced: true, Division: 1/4
+                kCV,   -- Type: Sine LFO, Synced: true, Division: 2 bars
+                kCV,   -- Type: Triangle LFO, Synced: true, Division: 2 bars
+            }
             , inputNames = { "Pitch", "Gate", "Min CV", "Max CV" }
             
             -- Output configuration
             -- kLinear for smooth pitch output, kStepped for gate
-            , outputs = { kLinear, kStepped }
+            , outputs = {
+                kLinear,  -- Type: Synth Note
+                kStepped, -- Type: Synth Trigger
+            }
             , outputNames = { "Pitch", "Gate" }
             
             -- Parameters exposed in the UI
