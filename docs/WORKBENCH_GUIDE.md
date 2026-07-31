@@ -6,9 +6,10 @@ still runs at `/`; the layout does not change the Disting NT Lua contract.
 
 ## Main regions
 
-The command bar contains script selection, Lua Run/Reload and Pause/Resume, the
-separate test-signal clock, preset-state save, script health, runtime status,
-workspace presets, conditional MIDI input, and About.
+The command bar contains script selection, Lua file import/export, Lua
+Run/Reload and Pause/Resume, the separate test-signal clock, preset-state save,
+script health, runtime status, workspace presets, conditional MIDI input, and
+About.
 
 The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the
@@ -97,3 +98,14 @@ The Performance drawer reports the current browser's callback and scheduling
 measurements. It is useful for finding simulator-local regressions, but it is
 not calibrated Disting NT CPU usage. Real Disting NT hardware remains the final
 authority.
+
+## Importing and exporting scripts
+
+Use **Import** in the command bar to open a local `.lua` file. Luading replaces
+the editor contents and runs the imported script through the same isolated Lua
+worker used for bundled scripts. Imported files do not inherit helper modules
+from a previously selected bundled script.
+
+Use **Export** to download the editor's current contents as a `.lua` file. This
+exports the source exactly as shown in the editor; simulator state and workspace
+layout are not included.

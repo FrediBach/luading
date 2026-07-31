@@ -231,6 +231,15 @@
   text-align: center;
 }
 
+.script-file-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.script-file-input {
+  display: none;
+}
+
 .run-controls {
   display: inline-flex;
   gap: 4px;
@@ -1100,6 +1109,10 @@
   .clock-transport-label,
   .workspace-preset-menu .commandbar-icon-command > span,
   .device-save-state > span {
+    display: none;
+  }
+
+  .script-file-actions .commandbar-icon-command > span {
     display: none;
   }
 

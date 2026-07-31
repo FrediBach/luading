@@ -57,6 +57,11 @@ import {
   useWorkbenchViewport,
 } from './workbench/useWorkbenchViewport'
 import { createMidiEventRequest } from './workbench/midi-event'
+import {
+  createLuaScriptDownload,
+  luaDownloadFilename,
+  readLuaScriptFile,
+} from './workbench/script-file'
 import type {
   DistingHardwareEvent,
   DistingUiControl,
@@ -171,6 +176,8 @@ export function DistingPlayground() {
   const [hasSavedState, setHasSavedState] = useState(false)
   const [committedFrameRevision, setCommittedFrameRevision] = useState(0)
   const [theme, setTheme] = useState(() => storedTheme(browserThemeStorage()))
+  const [scriptFileName, setScriptFileName] = useState('Vector LFO.lua')
+  const [fileError, setFileError] = useState<string | null>(null)
 
   const workerRef = useRef<Worker | null>(null)
   const frameCommitGateRef = useRef(new FrameCommitGate<Worker>())
@@ -395,6 +402,8 @@ export function DistingPlayground() {
     validationVersionRef.current = nextVersion
     setSourceVersion(nextVersion)
     modulesRef.current = example.modules
+    setScriptFileName(luaDownloadFilename(example.id.split('/').at(-1) ?? example.name))
+    setFileError(null)
     setEditorSource(example.source)
     setSourceIndex(null)
     setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
@@ -404,6 +413,50 @@ export function DistingPlayground() {
     sourceIsLoadedRef.current = false
     setSourceIsLoaded(false)
     loadScript()
+  }
+
+  const importScript = async (file: File) => {
+    try {
+      const source = await readLuaScriptFile(file)
+      modulesRef.current = {}
+      setScriptFileName(luaDownloadFilename(file.name))
+      setFileError(null)
+      updateSource(source)
+      loadScript()
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause)
+      const message = `Could not import ${file.name}: ${detail}`
+      setFileError(message)
+      appendConsoleEntry('error', message)
+      dispatchLayout({ type: 'openDrawer', tab: 'console' })
+    }
+  }
+
+  const exportScript = () => {
+    try {
+      const download = createLuaScriptDownload(sourceRef.current, scriptFileName)
+      const url = URL.createObjectURL(download.blob)
+      try {
+        const link = document.createElement('a')
+        link.href = url
+        link.download = download.filename
+        document.body.append(link)
+        try {
+          link.click()
+        } finally {
+          link.remove()
+        }
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+      setFileError(null)
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause)
+      const message = `Could not export ${scriptFileName}: ${detail}`
+      setFileError(message)
+      appendConsoleEntry('error', message)
+      dispatchLayout({ type: 'openDrawer', tab: 'console' })
+    }
   }
 
   useEffect(() => {
@@ -551,7 +604,7 @@ export function DistingPlayground() {
       ? `${qualityReport.errorCount} errors`
       : 'Run to score'
     : `${qualityReport.score} · ${qualityReport.grade}`
-  const accessibilityAnnouncement = error
+  const accessibilityAnnouncement = fileError ?? error
     ?? (qualityReport.errorCount > 0
       ? `${qualityReport.errorCount} validation ${qualityReport.errorCount === 1 ? 'error' : 'errors'}. Open Problems for details.`
       : '')
@@ -621,6 +674,8 @@ export function DistingPlayground() {
             && (status === 'running' || status === 'paused')}
           theme={theme}
           onSelectExample={selectExample}
+          onImportScript={(file) => void importScript(file)}
+          onExportScript={exportScript}
           onToggleRunning={toggleRunning}
           onRun={loadScript}
           onClockChange={changeClock}

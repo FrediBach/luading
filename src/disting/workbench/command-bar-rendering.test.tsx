@@ -60,6 +60,8 @@ describe('command bar utilities', () => {
         canToggleRunning
         theme="dark"
         onSelectExample={() => undefined}
+        onImportScript={() => undefined}
+        onExportScript={() => undefined}
         onToggleRunning={() => undefined}
         onRun={() => undefined}
         onClockChange={() => undefined}
@@ -73,6 +75,9 @@ describe('command bar utilities', () => {
     )
 
     expect(markup).toContain('Clock tool')
+    expect(markup).toContain('aria-label="Import Lua script"')
+    expect(markup).toContain('aria-label="Export Lua script"')
+    expect(markup).toContain('accept=".lua,text/x-lua,application/x-lua"')
     expect(markup).toContain('Pause Lua runtime')
     expect(markup).toContain('Control+Alt+P Meta+Alt+P')
     expect(markup).toContain('Stop global test-signal clock')
@@ -106,6 +111,8 @@ describe('command bar utilities', () => {
         canToggleRunning={false}
         theme="light"
         onSelectExample={() => undefined}
+        onImportScript={() => undefined}
+        onExportScript={() => undefined}
         onToggleRunning={() => undefined}
         onRun={() => undefined}
         onClockChange={() => undefined}

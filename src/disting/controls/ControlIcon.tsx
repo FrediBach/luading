@@ -8,6 +8,8 @@ export type ControlIconName =
   | 'scope'
   | 'reset'
   | 'save'
+  | 'import'
+  | 'export'
   | 'warning'
   | 'error'
   | 'drawer'
@@ -49,6 +51,10 @@ function IconPaths({ name }: { name: ControlIconName }) {
       return <path d="M5.1 6.2V3.5H3.3v6h6V7.7H6.4A4.7 4.7 0 1 1 5.8 13l-1.5 1a6.5 6.5 0 1 0 .8-7.8Z" />
     case 'save':
       return <path d="M3 3h12l2 2v12H3Zm3 1.8v4.1h8V4.8Zm0 7V16h8v-4.2Z" />
+    case 'import':
+      return <path d="M9.1 3h1.8v8.1l2.8-2.8 1.3 1.3-5 5-5-5 1.3-1.3 2.8 2.8ZM3 15h14v2H3Z" />
+    case 'export':
+      return <path d="M9.1 6.9 6.3 9.7 5 8.4l5-5 5 5-1.3 1.3-2.8-2.8V15H9.1ZM3 15h14v2H3Z" />
     case 'warning':
       return <path d="M10 2.3 18 17H2Zm-.9 5v5h1.8v-5Zm0 6.6v1.8h1.8v-1.8Z" />
     case 'error':

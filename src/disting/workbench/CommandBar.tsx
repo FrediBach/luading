@@ -8,6 +8,7 @@ import { HealthBadge } from './HealthBadge'
 import { MidiEventTool } from './MidiEventTool'
 import { RunControls } from './RunControls'
 import { RuntimeStatus, type RuntimeStateValue } from './RuntimeStatus'
+import { ScriptFileActions } from './ScriptFileActions'
 import { ScriptMenu } from './ScriptMenu'
 import { ThemeToggle } from './ThemeToggle'
 import { WorkspacePresetMenu } from './WorkspacePresetMenu'
@@ -34,6 +35,8 @@ interface Props {
   canToggleRunning: boolean
   theme: ThemeMode
   onSelectExample(id: string): void
+  onImportScript(file: File): void
+  onExportScript(): void
   onToggleRunning(): void
   onRun(): void
   onClockChange(clock: GlobalClockConfig): void
@@ -63,6 +66,8 @@ export function CommandBar({
   canToggleRunning,
   theme,
   onSelectExample,
+  onImportScript,
+  onExportScript,
   onToggleRunning,
   onRun,
   onClockChange,
@@ -86,6 +91,11 @@ export function CommandBar({
         scriptGroups={scriptGroups}
         loading={status === 'booting' || status === 'loading'}
         onSelectExample={onSelectExample}
+      />
+
+      <ScriptFileActions
+        onImport={onImportScript}
+        onExport={onExportScript}
       />
 
       <RunControls
