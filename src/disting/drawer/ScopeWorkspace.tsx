@@ -140,36 +140,38 @@ export function ScopeWorkspace({
 
   return (
     <section className="scope-workspace" aria-label="Oscilloscope workspace">
-      <ScopeToolbar
-        syncEnabled={syncEnabled}
-        triggerProbe={triggerProbe}
-        triggerEdge={triggerEdge}
-        triggerLevel={triggerLevel}
-        timeZoomIndex={timeZoomIndex}
-        voltageZoomIndex={voltageZoomIndex}
-        timeOptions={TIME_PER_DIVISION_MS}
-        voltageOptions={VOLTS_PER_DIVISION}
-        probes={probes}
-        program={program}
-        triggerStatus={triggerStatus}
-        triggerLocked={scopeWindow.locked}
-        onSyncChange={setSyncEnabled}
-        onTriggerProbeChange={setTriggerProbe}
-        onTriggerEdgeChange={setTriggerEdge}
-        onTriggerLevelChange={setTriggerLevel}
-        onTimeZoomChange={setTimeZoomIndex}
-        onVoltageZoomChange={setVoltageZoomIndex}
-      />
+      <div className="scope-controls">
+        <ScopeToolbar
+          syncEnabled={syncEnabled}
+          triggerProbe={triggerProbe}
+          triggerEdge={triggerEdge}
+          triggerLevel={triggerLevel}
+          timeZoomIndex={timeZoomIndex}
+          voltageZoomIndex={voltageZoomIndex}
+          timeOptions={TIME_PER_DIVISION_MS}
+          voltageOptions={VOLTS_PER_DIVISION}
+          probes={probes}
+          program={program}
+          triggerStatus={triggerStatus}
+          triggerLocked={scopeWindow.locked}
+          onSyncChange={setSyncEnabled}
+          onTriggerProbeChange={setTriggerProbe}
+          onTriggerEdgeChange={setTriggerEdge}
+          onTriggerLevelChange={setTriggerLevel}
+          onTimeZoomChange={setTimeZoomIndex}
+          onVoltageZoomChange={setVoltageZoomIndex}
+        />
 
-      <ScopeLegend
-        probes={probes}
-        program={program}
-        inputs={inputs}
-        outputs={outputs}
-        focusedProbeIndex={focusedProbeIndex}
-        onProbeChange={onProbeChange}
-        onProbeFocus={onProbeFocus}
-      />
+        <ScopeLegend
+          probes={probes}
+          program={program}
+          inputs={inputs}
+          outputs={outputs}
+          focusedProbeIndex={focusedProbeIndex}
+          onProbeChange={onProbeChange}
+          onProbeFocus={onProbeFocus}
+        />
+      </div>
 
       <div className="scope-graph">
         <svg

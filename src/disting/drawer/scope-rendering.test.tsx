@@ -51,7 +51,9 @@ describe('scope workspace rendering', () => {
     )
 
     expect(markup).toContain('Oscilloscope controls')
-    expect(markup).toContain('Scope synchronization')
+    expect(markup).toContain('class="scope-controls"')
+    expect(markup).toContain('role="switch" aria-label="Sync" checked=""')
+    expect(markup).not.toContain('Scope synchronization')
     expect(markup).toContain('Trigger edge')
     expect(markup).toContain('50 ms/div')
     expect(markup).toContain('5 V/div')

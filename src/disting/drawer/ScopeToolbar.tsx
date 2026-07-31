@@ -1,5 +1,4 @@
 import {
-  IconToggle,
   SegmentedSelector,
   ValueField,
 } from '../controls'
@@ -50,13 +49,17 @@ export function ScopeToolbar({
 }: Props) {
   return (
     <div className="scope-toolbar" aria-label="Oscilloscope controls">
-      <IconToggle
-        icon="sync"
-        label="Scope synchronization"
-        pressed={syncEnabled}
-        showLabel
-        onChange={onSyncChange}
-      />
+      <label className="scope-sync-switch">
+        <span>Sync</span>
+        <input
+          type="checkbox"
+          role="switch"
+          aria-label="Sync"
+          checked={syncEnabled}
+          onChange={(event) => onSyncChange(event.target.checked)}
+        />
+        <i aria-hidden="true" />
+      </label>
 
       {syncEnabled && (
         <>
