@@ -49,6 +49,7 @@ export interface SourceIndexApiCall {
 export interface SourceIndexSymbol {
   name: string
   kind: 'local' | 'function' | 'parameter'
+  isLocal: boolean
   range: SourceRange
   selectionRange: SourceRange
   scopeRange: SourceRange
@@ -415,6 +416,7 @@ function functionDefinitions(state: ScannerState) {
       symbols.push({
         name,
         kind: 'function',
+        isLocal: state.tokens[index - 1]?.value === 'local',
         range: offsetRange(state, token.start, state.tokens[closeIndex].end),
         selectionRange: tokenRange(state, state.tokens[nameIndex]),
         scopeRange: declarationScope(state, state.tokens[index - 1]?.value === 'local' ? index - 1 : index),
@@ -437,6 +439,7 @@ function functionDefinitions(state: ScannerState) {
       symbols.push({
         name,
         kind: 'function',
+        isLocal: true,
         range: offsetRange(state, token.start, state.tokens[closeIndex].end),
         selectionRange: tokenRange(state, state.tokens[nameIndex]),
         scopeRange: declarationScope(state, index),
@@ -452,6 +455,7 @@ function functionDefinitions(state: ScannerState) {
         symbols.push({
           name: candidate.value,
           kind: 'local',
+          isLocal: true,
           range: tokenRange(state, candidate),
           selectionRange: tokenRange(state, candidate),
           scopeRange: declarationScope(state, index),
@@ -510,6 +514,7 @@ function functionParameterSymbols(state: ScannerState): SourceIndexSymbol[] {
       symbols.push({
         name: parameter.value,
         kind: 'parameter',
+        isLocal: true,
         range: tokenRange(state, parameter),
         selectionRange: tokenRange(state, parameter),
         scopeRange,

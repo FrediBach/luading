@@ -92,6 +92,14 @@ balanced nested signature arguments, and overload selection. Default API,
 lifecycle, complete-script, metadata, and parameter snippets are compiled with
 Wasmoon after placeholder expansion.
 
+Navigation tests pin outline entries for lifecycle callbacks, local functions,
+metadata sections and named parameters; folding ranges for function bodies and
+large metadata tables; and scope-aware definition/rename behavior. Fixtures
+cover shadowed bindings and require fields, table keys, globals, comments, and
+strings to remain outside local-symbol edits. Monaco adapter tests also pin
+language isolation, model-versioned edits, invalid-name rejection, idempotent
+registration, and disposal.
+
 Diagnostic-action tests apply exact domain edits for header comments, returned
 identity fields, edge and MIDI callbacks, categorized constants, drawing
 colour, MIDI metadata, and direct parameter writes. Generated callback and

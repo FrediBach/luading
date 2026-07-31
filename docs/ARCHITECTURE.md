@@ -281,6 +281,16 @@ Monaco adapter for contextual completions, hovers, and signature help. It
 caches an index by Monaco model version and does not communicate with the
 simulation worker.
 
+`editor/disting-navigation-context.ts` provides the corresponding pure outline,
+local-symbol, and folding analysis. `editor/disting-navigation.ts` adapts it to
+Monaco document-symbol, definition, rename, and folding providers. The outline
+contains lifecycle callbacks, local functions, algorithm and `init()` metadata,
+and named script parameters. Definition and rename are intentionally limited to
+locals, local functions, and callback parameters that resolve through a
+complete current-version index; globals, members, table keys, comments, and
+strings are never rewritten. Callback bodies, local functions, and metadata
+tables spanning at least three lines receive explicit folding ranges.
+
 Completion lists follow the surrounding Disting structure: returned program
 fields and lifecycle callbacks, `init()` metadata, input/output constant
 categories, numeric parameter units and scales, parameter definition variants,
@@ -301,10 +311,12 @@ matching script parameter name in hover documentation.
 mapping. It scans Lua tokens without executing source, balances delimiter and
 Lua block pairs, and indexes returned program fields, lifecycle callbacks,
 `init()` metadata, parameter definitions, Disting API calls and argument spans,
-and local/function declarations. It also follows simple local table references
-used by returned program and metadata tables. Wasmoon compilation remains the
-syntax authority; an incomplete structural scan produces a partial index and
-does not block validation or editing.
+and local/function declarations, including whether function bindings are local.
+It also follows simple local table references used by returned program and
+metadata tables. Wasmoon compilation remains the syntax authority; an
+incomplete structural scan produces a partial index and does not block
+validation or editing. Navigation that could edit or redirect a symbol is
+withheld for an incomplete index.
 
 The validation worker creates the index alongside syntax and static findings
 and returns both with the same model version. The application rejects the
@@ -331,6 +343,12 @@ Marker hover text stays concise while Problems retains diagnostic detail and
 suggestions. Marker source identifies both the Disting NT Lua 1.12 profile and
 the diagnostic origin. Contract and runtime owners are cleared synchronously on
 model edits before React or either worker responds.
+
+No document formatter is registered. Phase 7 requires Lua 5.4 compatibility
+and corpus-wide idempotence before formatting can become an editor action; no
+browser-compatible formatter currently meets that project gate. Inlay hints are
+also omitted until the workbench has an explicit opt-in preference, avoiding
+always-on parameter/input/output annotations in compact scripts.
 
 ## Testing boundaries
 

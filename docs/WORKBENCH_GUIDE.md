@@ -47,6 +47,9 @@ blocking errors are announced and open the relevant drawer workspace.
 | Action | Shortcut |
 | --- | --- |
 | Run or reload Lua | Command/Ctrl+Enter |
+| Go to symbol in the script | Command/Ctrl+Shift+O |
+| Go to local definition | F12 |
+| Rename a resolved local symbol | F2 |
 | Pause or resume Lua | Command/Ctrl+Alt+P |
 | Code, Patch, Monitor, Compact preset | Command/Ctrl+Alt+1 through 4 |
 | Scope, Problems, Console, Performance drawer | Command/Ctrl+Alt+Shift+1 through 4 |
@@ -54,6 +57,20 @@ blocking errors are announced and open the relevant drawer workspace.
 Shortcuts that intentionally apply while editing are fully modified to avoid
 capturing ordinary Monaco keystrokes. Workspace presets change presentation
 only; they do not change script, simulator, preset, or audio state.
+
+## Editor navigation
+
+Monaco's Go to Symbol outline lists lifecycle callbacks, local
+functions, algorithm metadata, `init()` metadata sections, and named script
+parameters. Go to Definition and Rename Symbol work for confidently resolved
+local variables, local functions, and callback parameters. Rename does not
+rewrite globals, object members, table keys, strings, or comments.
+
+Callback bodies, local functions, and metadata tables spanning at least three
+lines can be folded from the gutter. Formatting is not offered until a Lua
+5.4-compatible formatter proves idempotent across every bundled script. Inlay
+hints are not enabled because the compact editor does not yet expose an opt-in
+preference for them.
 
 ## Accessibility and motion
 

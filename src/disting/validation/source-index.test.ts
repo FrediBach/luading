@@ -64,8 +64,8 @@ return {
     expect(textAt(source, index.semanticLocations['parameters[2].enum'])).toBe('{ "A", "B" }')
     expect(textAt(source, index.semanticLocations['init.midi.messages'])).toBe('{ "note", "cc" }')
     expect(index.symbols).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'out', kind: 'local' }),
-      expect.objectContaining({ name: 'edge', kind: 'function' }),
+      expect.objectContaining({ name: 'out', kind: 'local', isLocal: true }),
+      expect.objectContaining({ name: 'edge', kind: 'function', isLocal: true }),
     ]))
 
     const drawText = index.apiCalls.find((call) => call.name === 'drawText')
@@ -131,6 +131,19 @@ return { name = text, step = function() return { choose(1) } end }
     expect(index.complete).toBe(true)
     expect(index.callbacks.map((callback) => callback.name)).toContain('step')
     expect(index.symbols.map((symbol) => symbol.name)).toEqual(expect.arrayContaining(['mask', 'text', 'choose']))
+  })
+
+  it('distinguishes local functions from global declarations for safe navigation', () => {
+    const indexed = createLuaSourceIndex(`
+function exposed() end
+local function hidden() end
+local assigned = function() end
+return { step = hidden }
+`, 4)
+
+    expect(indexed.symbols.find((symbol) => symbol.name === 'exposed')?.isLocal).toBe(false)
+    expect(indexed.symbols.find((symbol) => symbol.name === 'hidden')?.isLocal).toBe(true)
+    expect(indexed.symbols.find((symbol) => symbol.name === 'assigned')?.isLocal).toBe(true)
   })
 
   it('follows local tables returned by init metadata', () => {

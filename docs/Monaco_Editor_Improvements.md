@@ -204,6 +204,12 @@ Avoid automatic edits for unsafe transformations such as moving arbitrary drawin
 
 ### Phase 7: Navigation, formatting, and polish
 
+Implementation status: complete. The compact source index now drives document
+symbols, local definition/rename, and Disting-aware folding. Formatting and
+inlay hints remain deliberately unregistered: no browser-compatible Lua 5.4
+formatter has yet passed the required corpus-wide idempotence gate, and the
+compact editor has no opt-in inlay-hint preference.
+
 After correctness features are stable:
 
 - Add document symbols for lifecycle callbacks, local functions, and metadata sections.

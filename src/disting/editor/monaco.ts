@@ -2,6 +2,7 @@ import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { registerDistingIntelliSense } from './disting-intellisense'
 import { registerDistingLuaLanguage } from './disting-lua'
+import { registerDistingNavigation } from './disting-navigation'
 
 window.MonacoEnvironment = {
   getWorker() {
@@ -57,9 +58,11 @@ monaco.editor.defineTheme('disting-nt', {
 
 const languageRegistration = registerDistingLuaLanguage(monaco)
 const intelliSenseRegistration = registerDistingIntelliSense(monaco)
+const navigationRegistration = registerDistingNavigation(monaco)
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
+    navigationRegistration.dispose()
     intelliSenseRegistration.dispose()
     languageRegistration.dispose()
   })
