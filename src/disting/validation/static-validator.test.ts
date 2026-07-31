@@ -123,6 +123,57 @@ return {
       category: 'api',
     })
   })
+
+  it('requires drawing colours documented by the manual', () => {
+    const findings = validateLuaSource(`
+-- Drawing colours
+-- Omits required primitive colours.
+return {
+  draw = function()
+    drawBox(0, 0, 10, 10)
+    drawCircle(5, 5, 2)
+    drawLine(0, 0, 10, 10)
+    drawRectangle(0, 0, 10, 10)
+    drawSmoothCircle(5, 5, 2)
+    drawSmoothLine(0, 0, 10, 10)
+  end,
+}
+    `).filter((item) => item.ruleId === 'api-argument-count')
+
+    expect(findings).toHaveLength(6)
+    expect(findings.every((item) => item.detail.includes('expects 5 arguments')
+      || item.detail.includes('expects 4 arguments'))).toBe(true)
+  })
+
+  it('enforces the one-to-three MIDI-byte range', () => {
+    const findings = validateLuaSource(`
+-- MIDI arity
+-- Exercises the bounded byte list.
+sendMIDI(0x4)
+sendMIDI(0x4, 0x90)
+sendMIDI(0x4, 0x90, 60, 100)
+sendMIDI(0x4, 0x90, 60, 100, 0)
+    `).filter((item) => item.ruleId === 'api-argument-count')
+
+    expect(findings.map((item) => item.message)).toEqual([
+      'sendMIDI() received 1 arguments',
+      'sendMIDI() received 5 arguments',
+    ])
+    expect(findings.every((item) => item.detail.includes('expects 2–4 arguments'))).toBe(true)
+  })
+
+  it('accepts byte-list and table I2C overloads', () => {
+    const findings = validateLuaSource(`
+-- I2C overloads
+-- Uses both documented command forms.
+sendI2CCommand(0x32, 0x46, 7)
+sendI2CCommand(0x32, { 0x46, 7 })
+sendI2CGetter(0x32, 2, 0x48, 7)
+sendI2CGetter(0x32, 2, { 0x48, 7 })
+    `)
+
+    expect(findings.filter((item) => item.ruleId === 'api-argument-count')).toEqual([])
+  })
 })
 
 describe('bundled script corpus', () => {

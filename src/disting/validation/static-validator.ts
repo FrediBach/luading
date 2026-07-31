@@ -1,6 +1,9 @@
 import {
+  apiAcceptsArgumentCount,
   DISTING_API_BY_NAME,
   DISTING_API_SUPPORT,
+  DISTING_LIFECYCLE_NAMES,
+  formatApiArity,
 } from './api-manifest'
 import type {
   LuaCallbackName,
@@ -22,7 +25,7 @@ type CallbackRegion = {
   end: number
 }
 
-const CALLBACK_NAMES = new Set<LuaCallbackName>(['init', 'step', 'trigger', 'gate', 'draw'])
+const CALLBACK_NAMES = new Set<LuaCallbackName>(DISTING_LIFECYCLE_NAMES)
 const HOT_CALLBACKS = new Set<LuaCallbackName>(['step'])
 
 function longBracketEnd(source: string, index: number) {
@@ -229,27 +232,17 @@ function staticApiDiagnostics(source: string, tokens: Token[], regions: Callback
     if (!entry) continue
     const callback = callbackFor(token, regions)
     const argumentCount = callArgumentCount(source, tokens, index)
-    const requiredArguments = entry.parameters.filter((parameter) => (
-      !parameter.endsWith('?') && !parameter.startsWith('...')
-    )).length
-    const variadic = entry.parameters.some((parameter) => parameter.startsWith('...'))
-
     if (
       argumentCount !== undefined
-      && (argumentCount < requiredArguments || (!variadic && argumentCount > entry.parameters.length))
+      && !apiAcceptsArgumentCount(entry, argumentCount)
     ) {
-      const expected = variadic
-        ? `at least ${requiredArguments}`
-        : requiredArguments === entry.parameters.length
-          ? String(requiredArguments)
-          : `${requiredArguments}–${entry.parameters.length}`
       diagnostics.push(diagnostic('api-argument-count', token, {
         severity: 'warning',
         category: 'api',
         target: 'hardware',
         callback,
         message: `${entry.name}() received ${argumentCount} arguments`,
-        detail: `${entry.signature} expects ${expected} arguments.`,
+        detail: `${entry.signature} expects ${formatApiArity(entry)} arguments.`,
         suggestion: `Use the documented ${entry.signature} signature.`,
         penalty: 0,
       }))

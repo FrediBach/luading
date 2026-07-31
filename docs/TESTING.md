@@ -14,6 +14,8 @@ failure points to the boundary that changed.
 - 256x64 pixels and 16 display shades
 - input, output, parameter-unit, and scale constants
 - the documented global Lua API and draw-only function contexts
+- structured API parameters, overload arity, return metadata, provenance, and
+  the core algorithm lifecycle catalog
 
 Run only this layer with:
 
@@ -55,6 +57,12 @@ custom UI callbacks, `setupUi`, MIDI, serialization, syntax errors, and
 The reusable test engine in
 `src/disting/testing/lua-test-environment.ts` installs the same Disting constants
 and global API surface used by the simulator.
+
+Editor contract tests also expand the default API, lifecycle, and complete-script
+snippets and compile them with Wasmoon without executing the returned chunks.
+This keeps snippets syntactically valid at their default placeholder values and
+checks that constants exposed by the runtime stay aligned with the canonical
+language catalog.
 
 ### Script corpus regression
 

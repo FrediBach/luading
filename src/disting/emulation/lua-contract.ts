@@ -4,8 +4,10 @@ import type {
   OutputKind,
   ParameterDefinition,
 } from '../types'
+import { DISTING_CONSTANT_VALUES } from '../validation/api-manifest'
 
 export type LuaProgram = {
+  [key: string]: unknown
   name?: string
   author?: string
   algorithmIndex?: number
@@ -51,35 +53,7 @@ export type LuaInitResult = {
   midi?: unknown
 }
 
-export const DISTING_CONSTANTS: Record<string, number> = {
-  kCV: 0,
-  kGate: 1,
-  kTrigger: 2,
-  kStepped: 0,
-  kLinear: 1,
-  kNone: 0,
-  kDb: 1,
-  kDb_minInf: 13,
-  kPercent: 2,
-  kHz: 3,
-  kSemitones: 4,
-  kCents: 5,
-  kMs: 6,
-  kMilliseconds: 6,
-  kSeconds: 7,
-  kFrames: 8,
-  kMIDINote: 9,
-  kMillivolts: 10,
-  kVolts: 11,
-  kBPM: 12,
-  kBy10: 10,
-  kBy100: 100,
-  kBy1000: 1000,
-  kInt: 0,
-  kInteger: 0,
-  kEnum: 0,
-  kBool: 0,
-}
+export const DISTING_CONSTANTS = DISTING_CONSTANT_VALUES
 
 function numeric(value: unknown, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback

@@ -51,6 +51,11 @@ import {
   luaSequence,
   validateProgramContract,
 } from './validation/contract-validator'
+import {
+  compareDistingApiSurface,
+  DISTING_API,
+  DISTING_API_BY_NAME,
+} from './validation/api-manifest'
 import type {
   LuaCallbackName,
   ScriptDiagnostic,
@@ -329,18 +334,29 @@ function standardPotTurn(pot: 1 | 2 | 3, value: unknown) {
 async function registerDistingGlobals() {
   if (!lua) return
 
+  const registeredApiNames = new Set<string>()
+  const apiGlobals = {
+    set(name: string, value: unknown) {
+      if (!DISTING_API_BY_NAME.has(name)) {
+        throw new Error(`Runtime Disting API ${name} is missing contract metadata.`)
+      }
+      registeredApiNames.add(name)
+      lua?.global.set(name, value)
+    },
+  }
+
   for (const [name, value] of Object.entries(DISTING_CONSTANTS)) {
     lua.global.set(name, value)
   }
 
-  lua.global.set('print', (...values: unknown[]) => {
+  apiGlobals.set('print', (...values: unknown[]) => {
     post({ type: 'log', line: values.map(String).join('\t') })
   })
-  lua.global.set('getCpuCycleCount', () => Math.floor(performance.now() * 600_000) >>> 0)
-  lua.global.set('getAlgorithmCount', () => preset.getAlgorithmCount())
-  lua.global.set('getAlgorithmName', algorithmName)
-  lua.global.set('getCurrentAlgorithm', () => currentAlgorithmIndex)
-  lua.global.set('getCurrentParameter', (algorithmIndex: unknown) => {
+  apiGlobals.set('getCpuCycleCount', () => Math.floor(performance.now() * 600_000) >>> 0)
+  apiGlobals.set('getAlgorithmCount', () => preset.getAlgorithmCount())
+  apiGlobals.set('getAlgorithmName', algorithmName)
+  apiGlobals.set('getCurrentAlgorithm', () => currentAlgorithmIndex)
+  apiGlobals.set('getCurrentParameter', (algorithmIndex: unknown) => {
     const algorithm = finiteIndex(algorithmIndex)
     if (algorithm === undefined || !algorithmName(algorithm)) return undefined
     const defaultParameter = algorithm === program?.algorithmIndex
@@ -369,22 +385,25 @@ async function registerDistingGlobals() {
       return table.unpack(__findParameterMatches(algorithmIndex, name))
     end
   `)
-  lua.global.set('focusParameter', (algorithmIndex: unknown, parameterIndex: unknown) => {
+  for (const entry of DISTING_API) {
+    if (entry.runtimeRegistration === 'lua') registeredApiNames.add(entry.name)
+  }
+  apiGlobals.set('focusParameter', (algorithmIndex: unknown, parameterIndex: unknown) => {
     focusParameter(algorithmIndex, parameterIndex)
   })
-  lua.global.set('getParameter', (algorithmIndex: unknown, parameterIndex: unknown) => (
+  apiGlobals.set('getParameter', (algorithmIndex: unknown, parameterIndex: unknown) => (
     parameterInfo(algorithmIndex, parameterIndex)?.value
   ))
-  lua.global.set('getParameterCount', (algorithmIndex: unknown) => {
+  apiGlobals.set('getParameterCount', (algorithmIndex: unknown) => {
     const algorithm = finiteIndex(algorithmIndex)
     return algorithm === program?.algorithmIndex
       ? parameterModel?.count ?? 0
       : preset.getParameterCount(algorithm)
   })
-  lua.global.set('getParameterName', (algorithmIndex: unknown, parameterIndex: unknown) => (
+  apiGlobals.set('getParameterName', (algorithmIndex: unknown, parameterIndex: unknown) => (
     parameterInfo(algorithmIndex, parameterIndex)?.definition.name
   ))
-  lua.global.set('setParameter', (
+  apiGlobals.set('setParameter', (
     algorithmIndex: unknown,
     parameterIndex: unknown,
     value: unknown,
@@ -392,7 +411,7 @@ async function registerDistingGlobals() {
   ) => {
     setParameterValue(algorithmIndex, parameterIndex, value, focus)
   })
-  lua.global.set('setParameterNormalized', (
+  apiGlobals.set('setParameterNormalized', (
     algorithmIndex: unknown,
     parameterIndex: unknown,
     value: unknown,
@@ -400,42 +419,50 @@ async function registerDistingGlobals() {
   ) => {
     setParameterNormalized(algorithmIndex, parameterIndex, value, focus)
   })
-  lua.global.set('standardPot1Turn', (value: unknown) => standardPotTurn(1, value))
-  lua.global.set('standardPot2Turn', (value: unknown) => standardPotTurn(2, value))
-  lua.global.set('standardPot3Turn', (value: unknown) => standardPotTurn(3, value))
-  lua.global.set('getBusVoltage', (algorithmIndex: unknown, busIndex: unknown) => {
+  apiGlobals.set('standardPot1Turn', (value: unknown) => standardPotTurn(1, value))
+  apiGlobals.set('standardPot2Turn', (value: unknown) => standardPotTurn(2, value))
+  apiGlobals.set('standardPot3Turn', (value: unknown) => standardPotTurn(3, value))
+  apiGlobals.set('getBusVoltage', (algorithmIndex: unknown, busIndex: unknown) => {
     const algorithm = finiteIndex(algorithmIndex)
     const index = finiteIndex(busIndex) ?? -1
     if (algorithm === 0 || algorithm === program?.algorithmIndex) return inputs[index] ?? 0
     return 0
   })
-  lua.global.set('sendI2CCommand', (address: unknown, ...data: unknown[]) => (
+  apiGlobals.set('sendI2CCommand', (address: unknown, ...data: unknown[]) => (
     hardware.sendI2CCommand(address, ...data)
   ))
-  lua.global.set('sendI2CGetter', (
+  apiGlobals.set('sendI2CGetter', (
     address: unknown,
     responseLength: unknown,
     ...data: unknown[]
   ) => hardware.sendI2CGetter(address, responseLength, ...data))
-  lua.global.set('sendMIDI', (destinations: unknown, ...data: unknown[]) => (
+  apiGlobals.set('sendMIDI', (destinations: unknown, ...data: unknown[]) => (
     hardware.sendMIDI(destinations, ...data)
   ))
-  lua.global.set('setDisplayMode', (mode: unknown) => {
+  apiGlobals.set('setDisplayMode', (mode: unknown) => {
     if (typeof mode !== 'string' || !DISPLAY_MODES.has(mode as DistingDisplayMode)) return
     displayMode = mode as DistingDisplayMode
     customUiActive = displayMode === 'ui'
       || (displayMode === 'algorithm' && metadata?.customUi === true)
     post({ type: 'hardware', event: { kind: 'displayMode', mode: displayMode } })
   })
-  lua.global.set('exit', () => {
+  apiGlobals.set('exit', () => {
     customUiActive = false
     displayMode = 'algorithm'
     post({ type: 'hardware', event: { kind: 'exit' } })
   })
-  display.register(lua.global, observeDisplayCall, {
+  display.register(apiGlobals, observeDisplayCall, {
     algorithmName,
     parameter: parameterInfo,
   })
+
+  const surface = compareDistingApiSurface(registeredApiNames)
+  if (surface.missing.length > 0 || surface.unexpected.length > 0) {
+    throw new Error([
+      surface.missing.length > 0 ? `missing: ${surface.missing.join(', ')}` : '',
+      surface.unexpected.length > 0 ? `unexpected: ${surface.unexpected.join(', ')}` : '',
+    ].filter(Boolean).join('; '))
+  }
 }
 
 async function loadProgram(

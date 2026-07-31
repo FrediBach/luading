@@ -2,7 +2,13 @@ import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import {
   DISTING_API,
   DISTING_API_SUPPORT,
+  DISTING_CONSTANTS as DISTING_CONSTANT_CATALOG,
+  DISTING_CONTRACT_PROVENANCE,
+  DISTING_LIFECYCLE,
   type DistingApiEntry,
+  type DistingApiParameter,
+  type DistingConstantEntry,
+  type DistingLifecycleEntry,
 } from '../validation/api-manifest'
 
 type MonacoApi = typeof Monaco
@@ -16,15 +22,18 @@ type ApiEntry = {
   parameters?: string[]
 }
 
-function apiInsertText(name: string, parameters: string[], explicit?: string) {
+function apiInsertText(name: string, parameters: readonly DistingApiParameter[], explicit?: string) {
   if (explicit) return explicit
   const placeholders = parameters.map((parameter, index) => (
-    `\${${index + 1}:${parameter.replace(/\?$/, '')}}`
+    `\${${index + 1}:${parameter.snippetDefault ?? parameter.name}}`
   ))
   return `${name}(${placeholders.join(', ')})`
 }
 
 export function apiEntryForIntelliSense(entry: DistingApiEntry): ApiEntry {
+  const primaryParameters = entry.overloads[0].parameters
+  const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
+  const documentation = `${entry.documentation}\n\n**Contract source: ${provenance.label}.** ${provenance.detail}`
   return {
     label: entry.name,
     signature: entry.signature,
@@ -32,43 +41,29 @@ export function apiEntryForIntelliSense(entry: DistingApiEntry): ApiEntry {
       ? entry.detail
       : `${entry.detail} · ${DISTING_API_SUPPORT[entry.support].label}`,
     documentation: entry.support === 'full'
-      ? entry.documentation
-      : `${entry.documentation}\n\n**Simulator support: ${DISTING_API_SUPPORT[entry.support].label}.** ${entry.supportDetail}`,
-    insertText: apiInsertText(entry.name, entry.parameters, entry.insertText),
-    parameters: entry.parameters,
+      ? documentation
+      : `${documentation}\n\n**Simulator support: ${DISTING_API_SUPPORT[entry.support].label}.** ${entry.supportDetail}`,
+    insertText: apiInsertText(entry.name, primaryParameters, entry.insertText),
+    parameters: primaryParameters.map((parameter) => (
+      `${parameter.variadic ? '...' : ''}${parameter.name}${parameter.optional ? '?' : ''}`
+    )),
   }
 }
 
 const DISTING_FUNCTIONS: ApiEntry[] = DISTING_API.map(apiEntryForIntelliSense)
 
-const DISTING_CONSTANTS: ApiEntry[] = [
-  ['kCV', 'CV input'],
-  ['kGate', 'Gate input'],
-  ['kTrigger', 'Trigger input'],
-  ['kStepped', 'Stepped output'],
-  ['kLinear', 'Linear output'],
-  ['kNone', 'No parameter unit'],
-  ['kDb', 'Decibel parameter unit'],
-  ['kDb_minInf', 'Decibel unit with −∞ minimum'],
-  ['kPercent', 'Percent parameter unit'],
-  ['kHz', 'Hertz parameter unit'],
-  ['kSemitones', 'Semitone parameter unit'],
-  ['kCents', 'Cents parameter unit'],
-  ['kMs', 'Milliseconds parameter unit'],
-  ['kSeconds', 'Seconds parameter unit'],
-  ['kFrames', 'Frames parameter unit'],
-  ['kMIDINote', 'MIDI note parameter unit'],
-  ['kMillivolts', 'Millivolts parameter unit'],
-  ['kVolts', 'Volts parameter unit'],
-  ['kBPM', 'Beats-per-minute parameter unit'],
-  ['kBy10', 'Parameter scaling ÷ 10'],
-  ['kBy100', 'Parameter scaling ÷ 100'],
-  ['kBy1000', 'Parameter scaling ÷ 1000'],
-].map(([label, detail]) => ({
-  label,
-  detail: `disting NT constant · ${detail}`,
-  documentation: detail,
-}))
+export function constantEntryForIntelliSense(entry: DistingConstantEntry): ApiEntry {
+  const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
+  return {
+    label: entry.name,
+    detail: `disting NT constant · ${entry.category} · ${provenance.label}`,
+    documentation: `${entry.documentation}\n\n**Contract source: ${provenance.label}.** ${provenance.detail}`,
+  }
+}
+
+const DISTING_CONSTANTS: ApiEntry[] = DISTING_CONSTANT_CATALOG.map(
+  constantEntryForIntelliSense,
+)
 
 const LUA_GLOBALS: ApiEntry[] = [
   ['pairs', 'pairs(table)', 'Iterate over all key/value pairs in a table.'],
@@ -165,141 +160,59 @@ const MEMBER_COMPLETIONS: Record<string, ApiEntry[]> = {
   ],
 }
 
+export const COMPLETE_SCRIPT_SNIPPET: ApiEntry = {
+  label: 'disting script',
+  detail: 'disting NT · complete script scaffold',
+  documentation: 'Create a complete Disting NT Lua lifecycle table with the two required descriptive header comments.',
+  insertText: [
+    '-- ${1:Algorithm name}',
+    '-- ${2:Describe what the script does.}',
+    'local out = {}',
+    '',
+    'return {',
+    '  name = "${1:Algorithm name}",',
+    '  author = "${3:Author}",',
+    '',
+    '  init = function(self)',
+    '    return {',
+    '      inputs = { kCV },',
+    '      inputNames = { "Input" },',
+    '      outputs = { kLinear },',
+    '      outputNames = { "Output" },',
+    '      parameters = {',
+    '        { "${4:Amount}", 0, 100, 50, kPercent },',
+    '      },',
+    '    }',
+    '  end,',
+    '',
+    '  step = function(self, dt, inputs)',
+    '    out[1] = ${5:inputs[1]}',
+    '    return out',
+    '  end,',
+    '',
+    '  draw = function(self)',
+    '    ${6:drawText(8, 20, self.name)}',
+    '    return true',
+    '  end,',
+    '}',
+  ].join('\n'),
+}
+
+export function lifecycleEntryForIntelliSense(entry: DistingLifecycleEntry): ApiEntry {
+  const provenance = DISTING_CONTRACT_PROVENANCE[entry.provenance]
+  return {
+    label: `${entry.name} callback`,
+    signature: entry.signature,
+    detail: `disting NT lifecycle · ${entry.cadence}`,
+    documentation: `${entry.documentation}\n\n${entry.returnSemantics}\n\n**Cadence:** ${entry.cadence}\n\n**Contract source: ${provenance.label}.** ${provenance.detail}`,
+    insertText: entry.snippet,
+    parameters: entry.parameters.map((parameter) => parameter.name),
+  }
+}
+
 const LIFECYCLE_SNIPPETS: ApiEntry[] = [
-  {
-    label: 'disting script',
-    detail: 'disting NT · complete script scaffold',
-    documentation: 'Create a complete Disting NT Lua lifecycle table.',
-    insertText: [
-      'local out = {}',
-      '',
-      'return {',
-      '  name = "${1:Algorithm name}",',
-      '  author = "${2:Author}",',
-      '',
-      '  init = function(self)',
-      '    return {',
-      '      inputs = { kCV },',
-      '      inputNames = { "Input" },',
-      '      outputs = { kLinear },',
-      '      outputNames = { "Output" },',
-      '      parameters = {',
-      '        { "${3:Amount}", 0, 100, 50, kPercent },',
-      '      },',
-      '    }',
-      '  end,',
-      '',
-      '  step = function(self, dt, inputs)',
-      '    out[1] = ${4:inputs[1]}',
-      '    return out',
-      '  end,',
-      '',
-      '  draw = function(self)',
-      '    ${5:drawText(8, 20, self.name)}',
-      '    return true',
-      '  end,',
-      '}',
-    ].join('\n'),
-  },
-  {
-    label: 'init callback',
-    detail: 'disting NT lifecycle · declare I/O and parameters',
-    documentation: 'Runs once when the script loads. Return the input, output, and parameter metadata.',
-    insertText: [
-      'init = function(self)',
-      '  return {',
-      '    inputs = { ${1:kCV} },',
-      '    inputNames = { "${2:Input}" },',
-      '    outputs = { ${3:kLinear} },',
-      '    outputNames = { "${4:Output}" },',
-      '    parameters = {',
-      '      ${5:{ "Amount", 0, 100, 50, kPercent }},',
-      '    },',
-      '  }',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'step callback',
-    detail: 'disting NT lifecycle · 1 kHz control step',
-    documentation: 'Runs every 1 ms in this playground. Return a 1-based table of output voltages.',
-    insertText: [
-      'step = function(self, dt, inputs)',
-      '  ${1:out[1] = inputs[1]}',
-      '  return out',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'trigger callback',
-    detail: 'disting NT lifecycle · rising trigger edge',
-    documentation: 'Runs when a declared trigger input crosses the high threshold. Input numbers are 1-based.',
-    insertText: [
-      'trigger = function(self, input)',
-      '  ${1:-- Handle the rising edge}',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'gate callback',
-    detail: 'disting NT lifecycle · gate edge',
-    documentation: 'Runs on both edges of a declared gate input. `rising` is true for the rising edge.',
-    insertText: [
-      'gate = function(self, input, rising)',
-      '  ${1:-- Handle the gate edge}',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'draw callback',
-    detail: 'disting NT lifecycle · 30 fps display',
-    documentation: 'Draws the custom 256×64 UI. Return true to suppress the standard firmware parameter line.',
-    insertText: [
-      'draw = function(self)',
-      '  ${1:drawText(8, 20, self.name)}',
-      '  return true',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'custom UI callbacks',
-    detail: 'disting NT lifecycle · custom front-panel behavior',
-    documentation: 'Opt into custom UI dispatch and handle a front-panel control.',
-    insertText: [
-      'ui = function(self)',
-      '  return true',
-      'end,',
-      'setupUi = function(self)',
-      '  return { ${1:0.5}, ${2:0.5}, ${3:0.5} }',
-      'end,',
-      'pot3Turn = function(self, value)',
-      '  ${4:-- Handle normalized pot position}',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'MIDI receive callback',
-    detail: 'disting NT lifecycle · filtered MIDI input',
-    documentation: 'Handle messages selected by the `midi` metadata returned from init().',
-    insertText: [
-      'midiMessage = function(self, message)',
-      '  local status = message[1]',
-      '  ${1:-- Handle the MIDI bytes}',
-      'end,',
-    ].join('\n'),
-  },
-  {
-    label: 'serialise callback',
-    detail: 'disting NT lifecycle · preset state',
-    documentation: 'Return JSON-compatible state that will be restored as `self.state`.',
-    insertText: [
-      'serialise = function(self)',
-      '  return {',
-      '    ${1:value = self.value},',
-      '  }',
-      'end,',
-    ].join('\n'),
-  },
+  COMPLETE_SCRIPT_SNIPPET,
+  ...DISTING_LIFECYCLE.map(lifecycleEntryForIntelliSense),
   {
     label: 'parameter definition',
     detail: 'disting NT · numeric parameter',

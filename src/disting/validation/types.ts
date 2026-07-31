@@ -1,9 +1,11 @@
+import type { DistingLifecycleName } from './api-manifest'
+
 export type DiagnosticSeverity = 'error' | 'warning' | 'info'
 export type DiagnosticCategory = 'contract' | 'realtime' | 'api' | 'clarity' | 'compatibility'
 export type DiagnosticTarget = 'hardware' | 'simulator' | 'local'
 export type DiagnosticOrigin = 'static' | 'contract' | 'runtime'
 
-export type LuaCallbackName = 'init' | 'step' | 'trigger' | 'gate' | 'draw'
+export type LuaCallbackName = DistingLifecycleName
 
 export interface SourceRange {
   startLine: number

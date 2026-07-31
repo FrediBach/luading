@@ -1,35 +1,16 @@
 import type { LuaInitResult, LuaProgram } from '../emulation/lua-contract'
 import { DISTING_CONSTANTS } from '../emulation/lua-contract'
+import {
+  DISTING_LIFECYCLE,
+  distingConstantValues,
+} from './api-manifest'
 import type { ScriptDiagnostic } from './types'
 
-const CALLBACKS = [
-  'init',
-  'step',
-  'trigger',
-  'gate',
-  'draw',
-  'ui',
-  'setupUi',
-  'midiMessage',
-  'serialise',
-] as const
 const PARAMETER_UNITS = new Set([
-  DISTING_CONSTANTS.kNone,
-  DISTING_CONSTANTS.kDb,
-  DISTING_CONSTANTS.kDb_minInf,
-  DISTING_CONSTANTS.kPercent,
-  DISTING_CONSTANTS.kHz,
-  DISTING_CONSTANTS.kSemitones,
-  DISTING_CONSTANTS.kCents,
-  DISTING_CONSTANTS.kMs,
-  DISTING_CONSTANTS.kSeconds,
-  DISTING_CONSTANTS.kFrames,
-  DISTING_CONSTANTS.kMIDINote,
-  DISTING_CONSTANTS.kMillivolts,
-  DISTING_CONSTANTS.kVolts,
-  DISTING_CONSTANTS.kBPM,
+  ...distingConstantValues('parameter-unit'),
+  ...distingConstantValues('compatibility-alias'),
 ])
-const PARAMETER_SCALES = new Set([1, DISTING_CONSTANTS.kBy10, DISTING_CONSTANTS.kBy100, DISTING_CONSTANTS.kBy1000])
+const PARAMETER_SCALES = new Set([1, ...distingConstantValues('parameter-scale')])
 const MIDI_MESSAGE_TYPES = new Set([
   'note',
   'cc',
@@ -395,7 +376,7 @@ function validateMidi(raw: unknown, parameterCount: number, diagnostics: ScriptD
 export function validateProgramContract(program: LuaProgram, init: unknown): ScriptDiagnostic[] {
   const diagnostics: ScriptDiagnostic[] = []
 
-  for (const callback of CALLBACKS) {
+  for (const { name: callback } of DISTING_LIFECYCLE) {
     const value = program[callback]
     if (value !== undefined && typeof value !== 'function') {
       diagnostics.push(finding(

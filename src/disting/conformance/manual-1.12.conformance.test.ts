@@ -4,8 +4,11 @@ import { DISTING_CONSTANTS } from '../emulation/lua-contract'
 import { LUA_SCRIPT_PARAMETER_OFFSET } from '../emulation/parameter-model'
 import {
   DISTING_API,
+  DISTING_API_BY_NAME,
   DISTING_API_PROFILE,
+  DISTING_CONSTANTS as DISTING_CONSTANT_CATALOG,
   DISTING_CONSTANT_NAMES,
+  DISTING_LIFECYCLE_BY_NAME,
 } from '../validation/api-manifest'
 
 const MANUAL_1_12_GLOBALS = [
@@ -103,6 +106,65 @@ describe('Disting NT Lua 1.12 manual conformance', () => {
       expect(entry.signature).toMatch(new RegExp(`^${entry.name}\\(`))
       expect(entry.documentation.length).toBeGreaterThan(10)
       expect(entry.detail).toContain('disting NT')
+      expect(entry.overloads.length).toBeGreaterThan(0)
+      expect(entry.overloads.every((overload) => overload.returns.length > 0)).toBe(true)
     }
+  })
+
+  it('pins required drawing colours and bounded MIDI arity structurally', () => {
+    for (const name of [
+      'drawBox',
+      'drawCircle',
+      'drawLine',
+      'drawRectangle',
+      'drawSmoothCircle',
+      'drawSmoothLine',
+    ]) {
+      expect(DISTING_API_BY_NAME.get(name)?.overloads[0].parameters.at(-1)).toMatchObject({
+        name: 'colour',
+        acceptedTypes: ['number'],
+      })
+    }
+
+    expect(DISTING_API_BY_NAME.get('sendMIDI')?.overloads[0].parameters).toEqual([
+      expect.objectContaining({ name: 'destinations', acceptedTypes: ['integer'] }),
+      expect.objectContaining({
+        name: 'bytes',
+        acceptedTypes: ['byte'],
+        variadic: { min: 1, max: 3 },
+      }),
+    ])
+  })
+
+  it('separates manual constants from observed compatibility aliases', () => {
+    const manual = DISTING_CONSTANT_CATALOG.filter((entry) => entry.provenance === 'manual-1.12')
+    const aliases = DISTING_CONSTANT_CATALOG.filter((entry) => entry.category === 'compatibility-alias')
+
+    expect(manual.every((entry) => entry.category !== 'compatibility-alias')).toBe(true)
+    expect(aliases.map((entry) => entry.name)).toEqual([
+      'kMilliseconds',
+      'kInt',
+      'kInteger',
+      'kEnum',
+      'kBool',
+    ])
+    expect(aliases.every((entry) => entry.provenance === 'official-corpus')).toBe(true)
+  })
+
+  it('pins the core algorithm lifecycle contract', () => {
+    expect(DISTING_LIFECYCLE_BY_NAME.get('step')).toMatchObject({
+      signature: 'step = function(self, dt, inputs)',
+      validScriptKinds: ['algorithm'],
+      cadence: 'Every 1 ms.',
+    })
+    expect(DISTING_LIFECYCLE_BY_NAME.get('draw')).toMatchObject({
+      signature: 'draw = function(self)',
+      validScriptKinds: ['algorithm'],
+      cadence: 'Approximately 30 fps.',
+    })
+    expect(DISTING_LIFECYCLE_BY_NAME.get('midiMessage')).toMatchObject({
+      signature: 'midiMessage = function(self, message)',
+      validScriptKinds: ['algorithm'],
+    })
   })
 })

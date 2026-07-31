@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LuaProgram } from '../emulation/lua-contract'
+import { DISTING_LIFECYCLE } from './api-manifest'
 import {
   blocksContractExecution,
   validateProgramContract,
@@ -127,6 +128,19 @@ describe('validateProgramContract', () => {
     expect(initFindings).toEqual(expect.arrayContaining([
       expect.objectContaining({ ruleId: 'init-return', severity: 'error' }),
     ]))
+  })
+
+  it('validates custom UI callback types from the lifecycle catalog', () => {
+    const customCallbacks = Object.fromEntries(
+      DISTING_LIFECYCLE
+        .filter((entry) => entry.customUi)
+        .map((entry) => [entry.name, true]),
+    )
+    const findings = validateProgramContract(customCallbacks as LuaProgram, undefined)
+
+    expect(findings.filter((item) => item.ruleId.endsWith('-type'))).toHaveLength(
+      DISTING_LIFECYCLE.filter((entry) => entry.customUi).length,
+    )
   })
 
   it('reports malformed I/O, names, and parameter shapes', () => {

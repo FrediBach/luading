@@ -228,11 +228,22 @@ Validation deliberately has three layers:
 3. Runtime validation observes actual callback results, invalid voltages,
    undeclared outputs, drawing context, Lua errors, and browser-local timing.
 
-`validation/api-manifest.ts` is the canonical catalog for firmware-facing global
-functions. Every entry carries a `full`, `partial`, `approximation`, `mock`, or
-`unsupported` simulator support level plus an API-specific limitation when it
-is not full. IntelliSense and non-penalizing compatibility diagnostics consume
-the same catalog.
+`validation/api-manifest.ts` is the canonical language-contract catalog for
+firmware-facing global functions, constants, and lifecycle callbacks. Function
+entries describe typed parameters, overloads, optional/default values, bounded
+variadics, return multiplicity, provenance, and simulator support. Constant
+entries provide the values registered in the Lua VM together with their input,
+output, unit, scale, or compatibility-alias category. Lifecycle entries provide
+callback signatures, script kind, cadence, return semantics, provenance, and
+editor snippets.
+
+The runtime constant table, static API arity checks, contract callback checks,
+and Monaco Disting completions all derive from this catalog. Manual-backed,
+hardware-verified, official-corpus, and simulator-extension provenance remain
+separate from the `full`, `partial`, `approximation`, `mock`, or `unsupported`
+simulator support level. This prevents editor documentation from presenting an
+observed compatibility alias as a documented hardware contract, while still
+making simulator limitations visible.
 
 `validation/score.ts` is the only module that converts findings into the
 100-point quality score. Compatibility notes and browser-local timing must not
