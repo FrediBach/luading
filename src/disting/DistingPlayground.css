@@ -56,10 +56,10 @@
   --signal-primary: var(--nt-green);
   --signal-warning: var(--nt-amber);
   --signal-error: var(--nt-red);
-  --probe-1: #7f918a;
-  --probe-2: var(--nt-green);
-  --probe-3: var(--nt-amber);
-  --probe-4: #8bb8ff;
+  --probe-1: #d795ff;
+  --probe-2: #61e6ad;
+  --probe-3: #ffc66d;
+  --probe-4: #72b7ff;
   --control-arc-width: 6;
   --focus-ring: 2px solid color-mix(in srgb, var(--nt-green) 75%, white);
   color-scheme: dark;
@@ -117,7 +117,7 @@
   --device-section: #edf2ef;
   --device-control-panel: #f8faf9;
   --device-parameter-panel: #f2f5f3;
-  --probe-1: #596d64;
+  --probe-1: #7e3fb2;
   --probe-2: #087a48;
   --probe-3: #946000;
   --probe-4: #176daa;
