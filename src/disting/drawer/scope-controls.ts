@@ -6,6 +6,28 @@ import type {
 } from '../types'
 import { readTracePoint } from '../emulation/scope-model'
 
+export interface CapturedScopeFrame {
+  trace: readonly TracePoint[]
+  inputs: readonly number[]
+  outputs: readonly number[]
+}
+
+export function captureScopeFrame(
+  trace: readonly TracePoint[],
+  inputs: readonly number[],
+  outputs: readonly number[],
+): CapturedScopeFrame {
+  return {
+    trace: trace.map((point) => ({
+      ...point,
+      inputs: [...point.inputs],
+      outputs: [...point.outputs],
+    })),
+    inputs: [...inputs],
+    outputs: [...outputs],
+  }
+}
+
 export function scopeSourcesEqual(
   left: ScopeSource | null,
   right: ScopeSource | null,

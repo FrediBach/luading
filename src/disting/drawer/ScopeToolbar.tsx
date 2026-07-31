@@ -1,5 +1,7 @@
 import {
+  ControlIcon,
   SegmentedSelector,
+  Tooltip,
   ValueField,
 } from '../controls'
 import type { TriggerEdge } from '../emulation/scope-model'
@@ -7,6 +9,7 @@ import type { LoadedProgram, ScopeProbe } from '../types'
 import { scopeSourceLabel } from './scope-controls'
 
 interface Props {
+  paused: boolean
   syncEnabled: boolean
   triggerProbe: 'auto' | number
   triggerEdge: TriggerEdge
@@ -19,6 +22,7 @@ interface Props {
   program: LoadedProgram | null
   triggerStatus: string
   triggerLocked: boolean
+  onPausedChange(paused: boolean): void
   onSyncChange(enabled: boolean): void
   onTriggerProbeChange(probe: 'auto' | number): void
   onTriggerEdgeChange(edge: TriggerEdge): void
@@ -28,6 +32,7 @@ interface Props {
 }
 
 export function ScopeToolbar({
+  paused,
   syncEnabled,
   triggerProbe,
   triggerEdge,
@@ -40,6 +45,7 @@ export function ScopeToolbar({
   program,
   triggerStatus,
   triggerLocked,
+  onPausedChange,
   onSyncChange,
   onTriggerProbeChange,
   onTriggerEdgeChange,
@@ -49,6 +55,19 @@ export function ScopeToolbar({
 }: Props) {
   return (
     <div className="scope-toolbar" aria-label="Oscilloscope controls">
+      <Tooltip content={paused ? 'Resume live oscilloscope' : 'Pause oscilloscope'}>
+        <button
+          type="button"
+          className={`control-icon-toggle${paused ? ' is-active' : ''}`}
+          aria-label={paused ? 'Resume oscilloscope' : 'Pause oscilloscope'}
+          aria-pressed={paused}
+          onClick={() => onPausedChange(!paused)}
+        >
+          <ControlIcon name={paused ? 'play' : 'pause'} />
+          <span>{paused ? 'Resume' : 'Pause'}</span>
+        </button>
+      </Tooltip>
+
       <label className="scope-sync-switch">
         <span>Sync</span>
         <input

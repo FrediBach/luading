@@ -47,7 +47,11 @@ Scope, Problems, Console, and Performance share the bottom drawer. Select the
 active tab again to collapse it. The drawer handle supports pointer drag and
 keyboard resizing. Drawer filters and other local view state are retained while
 switching tabs. Scope legend chips show compact source identifiers such as
-**IN 1** and **OUT 1**; hover a source to see its full signal name.
+**IN 1** and **OUT 1**; hover a source to see its full signal name. Use the
+scope's **Pause** control to capture the current time slice. Trigger, scale, and
+probe controls remain available while the trace and its displayed channel
+values are frozen; choose **Resume** to return to the live trace. Pausing the
+scope does not pause the Lua runtime.
 
 At widths below 900 CSS pixels, the center workspace becomes top-level Editor
 and Instrument tabs instead of one long vertical page. Arrow keys, Home, and

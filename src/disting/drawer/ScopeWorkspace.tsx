@@ -14,8 +14,10 @@ import type {
   TracePoint,
 } from '../types'
 import {
+  captureScopeFrame,
   downsampleScopeTrace,
   scopeSourceLabel,
+  type CapturedScopeFrame,
 } from './scope-controls'
 import { ScopeLegend } from './ScopeLegend'
 import { ScopeToolbar } from './ScopeToolbar'
@@ -89,8 +91,13 @@ export function ScopeWorkspace({
   const [triggerLevel, setTriggerLevel] = useState(0)
   const [timeZoomIndex, setTimeZoomIndex] = useState(3)
   const [voltageZoomIndex, setVoltageZoomIndex] = useState(3)
+  const [capturedFrame, setCapturedFrame] = useState<CapturedScopeFrame | null>(null)
 
-  const trace = traceHistory.snapshot(traceRevision)
+  const liveTrace = traceHistory.snapshot(traceRevision)
+  const trace = capturedFrame?.trace ?? liveTrace
+  const displayedInputs = capturedFrame?.inputs ?? inputs
+  const displayedOutputs = capturedFrame?.outputs ?? outputs
+  const paused = capturedFrame !== null
   const timePerDivision = TIME_PER_DIVISION_MS[timeZoomIndex] ?? 50
   const voltsPerDivision = VOLTS_PER_DIVISION[voltageZoomIndex] ?? 5
   const durationSeconds = timePerDivision * HORIZONTAL_DIVISIONS / 1000
@@ -128,11 +135,15 @@ export function ScopeWorkspace({
     [probes, scopeWindow.points],
   )
 
-  const triggerStatus = !syncEnabled
-    ? 'free run'
-    : scopeWindow.locked
-      ? `locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
-      : 'waiting for edge'
+  const triggerStatus = paused
+    ? scopeWindow.locked
+      ? `paused · locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
+      : 'paused'
+    : !syncEnabled
+      ? 'free run'
+      : scopeWindow.locked
+        ? `locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
+        : 'waiting for edge'
   const voltageRange = voltsPerDivision * VERTICAL_DIVISIONS / 2
   const triggerVisible = selectedTrigger
     && selectedTrigger.level >= -voltageRange
@@ -142,6 +153,7 @@ export function ScopeWorkspace({
     <section className="scope-workspace" aria-label="Oscilloscope workspace">
       <div className="scope-controls">
         <ScopeToolbar
+          paused={paused}
           syncEnabled={syncEnabled}
           triggerProbe={triggerProbe}
           triggerEdge={triggerEdge}
@@ -154,6 +166,11 @@ export function ScopeWorkspace({
           program={program}
           triggerStatus={triggerStatus}
           triggerLocked={scopeWindow.locked}
+          onPausedChange={(nextPaused) => setCapturedFrame(
+            nextPaused
+              ? captureScopeFrame(liveTrace, inputs, outputs)
+              : null,
+          )}
           onSyncChange={setSyncEnabled}
           onTriggerProbeChange={setTriggerProbe}
           onTriggerEdgeChange={setTriggerEdge}
@@ -165,8 +182,8 @@ export function ScopeWorkspace({
         <ScopeLegend
           probes={probes}
           program={program}
-          inputs={inputs}
-          outputs={outputs}
+          inputs={displayedInputs}
+          outputs={displayedOutputs}
           focusedProbeIndex={focusedProbeIndex}
           onProbeChange={onProbeChange}
           onProbeFocus={onProbeFocus}
@@ -183,6 +200,7 @@ export function ScopeWorkspace({
           <title>Oscilloscope traces</title>
           <desc>
             Ten horizontal time divisions and four vertical voltage divisions.
+            {paused ? ' The display is paused on a captured time slice.' : ''}
             {scopeWindow.locked ? ' The display is locked to a trigger edge.' : ''}
           </desc>
 

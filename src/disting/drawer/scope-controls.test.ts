@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { LoadedProgram, ScopeProbe } from '../types'
 import {
   assignScopeSource,
+  captureScopeFrame,
   createDefaultScopeProbes,
   decodeScopeSource,
   downsampleScopeTrace,
@@ -21,6 +22,25 @@ const fullProbes: ScopeProbe[] = [
 ]
 
 describe('scope controls', () => {
+  it('captures an immutable time slice for paused inspection', () => {
+    const trace = [{ time: 1, inputs: [2], outputs: [3] }]
+    const inputs = [4]
+    const outputs = [5]
+    const captured = captureScopeFrame(trace, inputs, outputs)
+
+    trace[0]!.time = 2
+    trace[0]!.inputs[0] = 6
+    trace.push({ time: 3, inputs: [7], outputs: [8] })
+    inputs[0] = 9
+    outputs[0] = 10
+
+    expect(captured).toEqual({
+      trace: [{ time: 1, inputs: [2], outputs: [3] }],
+      inputs: [4],
+      outputs: [5],
+    })
+  })
+
   it('assigns an unpatched channel to the first free probe', () => {
     const probes = fullProbes.map((probe, index) => (
       index === 2 ? { ...probe, source: null } : probe
