@@ -41,7 +41,8 @@ describe('Disting device face rendering', () => {
 
     expect(markup).toContain('aria-label="Draggable Disting NT display preview"')
     expect(markup).toContain('Move display preview. Use arrow keys or drag.')
-    expect(markup).not.toContain('<header')
+    expect(markup).toContain('<header class="draggable-display-header">')
+    expect(markup).toContain('role="switch" aria-label="Render display at 2x" aria-checked="false"')
     expect(markup).not.toContain('<output')
   })
 

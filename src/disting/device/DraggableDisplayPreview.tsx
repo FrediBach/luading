@@ -37,6 +37,7 @@ export function DraggableDisplayPreview({
     origin: DisplayPosition
   } | null>(null)
   const [position, setPosition] = useState<DisplayPosition | null>(null)
+  const [doubleSize, setDoubleSize] = useState(false)
   const clampedPosition = useCallback((nextPosition: DisplayPosition) => {
     const overlay = overlayRef.current
     if (!overlay) return nextPosition
@@ -65,8 +66,14 @@ export function DraggableDisplayPreview({
     const keepInsideViewport = () => {
       setPosition((current) => current ? clampedPosition(current) : current)
     }
+    const resizeObserver = new ResizeObserver(keepInsideViewport)
+    const overlay = overlayRef.current
+    if (overlay) resizeObserver.observe(overlay)
     window.addEventListener('resize', keepInsideViewport)
-    return () => window.removeEventListener('resize', keepInsideViewport)
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', keepInsideViewport)
+    }
   }, [clampedPosition])
 
   const beginDrag = (event: PointerEvent<HTMLButtonElement>) => {
@@ -120,23 +127,35 @@ export function DraggableDisplayPreview({
   return (
     <section
       ref={overlayRef}
-      className="draggable-display-preview"
+      className={`draggable-display-preview${doubleSize ? ' is-double-size' : ''}`}
       aria-label="Draggable Disting NT display preview"
       style={position ? { left: position.x, top: position.y } : undefined}
     >
-      <button
-        type="button"
-        className="draggable-display-handle"
-        aria-label="Move display preview. Use arrow keys or drag."
-        onPointerDown={beginDrag}
-        onPointerMove={drag}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onKeyDown={moveWithKeyboard}
-      >
-        <span aria-hidden="true">⠿</span>
-        Display preview
-      </button>
+      <header className="draggable-display-header">
+        <button
+          type="button"
+          className="draggable-display-handle"
+          aria-label="Move display preview. Use arrow keys or drag."
+          onPointerDown={beginDrag}
+          onPointerMove={drag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onKeyDown={moveWithKeyboard}
+        >
+          <span aria-hidden="true">⠿</span>
+          Display preview
+        </button>
+        <button
+          type="button"
+          className="display-scale-switch"
+          role="switch"
+          aria-label="Render display at 2x"
+          aria-checked={doubleSize}
+          onClick={() => setDoubleSize((current) => !current)}
+        >
+          2x
+        </button>
+      </header>
       <DistingDisplayBezel commands={commands} />
     </section>
   )
