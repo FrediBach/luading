@@ -83,12 +83,17 @@
 
 .hardware-control-bank {
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--nt-line);
+  border-radius: 6px;
+  background: var(--device-section);
+}
+
+.hardware-control-bank-body {
   padding: 8px;
   display: grid;
   gap: 9px;
   align-content: center;
-  border: 1px solid var(--nt-line);
-  border-radius: 6px;
   background:
     linear-gradient(145deg, var(--surface-highlight), transparent 48%),
     var(--device-control-panel);
@@ -150,7 +155,7 @@
   background: var(--device-section);
 }
 
-.parameter-bank-header {
+.device-panel-header {
   min-height: 38px;
   padding: 6px 9px 6px 11px;
   display: flex;
@@ -161,13 +166,13 @@
   background: var(--surface-subtle);
 }
 
-.parameter-bank-header > span small,
-.parameter-bank-header > span strong {
+.device-panel-header > span small,
+.device-panel-header > span strong {
   display: block;
   font-family: var(--mono);
 }
 
-.parameter-bank-header > span small {
+.device-panel-header > span small {
   color: var(--nt-green);
   font-size: 7px;
   line-height: 1;
@@ -175,7 +180,7 @@
   text-transform: uppercase;
 }
 
-.parameter-bank-header > span strong {
+.device-panel-header > span strong {
   margin-top: 4px;
   color: var(--nt-muted);
   font-size: 8px;

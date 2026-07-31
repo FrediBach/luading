@@ -22,6 +22,8 @@ describe('Disting device face rendering', () => {
       />,
     )
 
+    expect(markup).toContain('<small>Hardware</small>')
+    expect(markup).toContain('3 pots · 2 encoders · 4 buttons')
     expect(markup.match(/role="slider"/g)).toHaveLength(3)
     expect(markup.match(/aria-roledescription="endless encoder"/g)).toHaveLength(2)
     expect(markup).toContain('aria-label="Pot 1 push"')
