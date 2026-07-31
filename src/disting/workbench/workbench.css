@@ -1,13 +1,13 @@
 .workbench-shell {
-  --workbench-command-height: 46px;
-  --workbench-status-height: 23px;
-  --workbench-tabs-height: 33px;
+  --workbench-command-height: max(46px, calc(var(--font-control) + 34px));
+  --workbench-status-height: max(23px, calc(var(--font-micro) + 12px));
+  --workbench-tabs-height: max(33px, calc(var(--font-label) + 22px));
   --workbench-divider-size: 7px;
   --workbench-surface-canvas: var(--surface-canvas);
   --workbench-surface-panel: var(--surface-panel);
   --workbench-surface-raised: var(--surface-raised);
   --workbench-surface-recessed: var(--surface-recessed);
-  --control-target: 28px;
+  --control-target: max(28px, calc(var(--font-control) + 16px));
   width: 100%;
   height: 100svh;
   min-height: 0;
@@ -22,17 +22,17 @@
 }
 
 .workbench-shell[data-density='comfortable'] {
-  --workbench-command-height: 52px;
-  --workbench-status-height: 26px;
-  --workbench-tabs-height: 38px;
-  --control-target: 32px;
+  --workbench-command-height: max(52px, calc(var(--font-control) + 36px));
+  --workbench-status-height: max(26px, calc(var(--font-micro) + 14px));
+  --workbench-tabs-height: max(38px, calc(var(--font-label) + 26px));
+  --control-target: max(32px, calc(var(--font-control) + 18px));
 }
 
 .workbench-shell[data-density='touch'] {
-  --workbench-command-height: 54px;
-  --workbench-status-height: 26px;
-  --workbench-tabs-height: 42px;
-  --control-target: 40px;
+  --workbench-command-height: max(54px, calc(var(--font-control) + 38px));
+  --workbench-status-height: max(26px, calc(var(--font-micro) + 14px));
+  --workbench-tabs-height: max(42px, calc(var(--font-label) + 30px));
+  --control-target: max(40px, calc(var(--font-control) + 20px));
 }
 
 .workbench-commandbar {
@@ -44,6 +44,9 @@
   border-bottom: 1px solid var(--nt-line);
   background: var(--surface-command);
   box-shadow: 0 1px var(--surface-highlight);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .workbench-commandbar-brand {
@@ -53,7 +56,7 @@
   padding-right: 10px;
   border-right: 1px solid var(--nt-line);
   color: var(--nt-text);
-  font: 10px/1 var(--mono);
+  font: var(--font-body)/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -67,7 +70,7 @@
   border: 1px solid color-mix(in srgb, var(--nt-green) 65%, var(--nt-line));
   border-radius: 50%;
   color: var(--nt-green);
-  font-size: 9px;
+  font-size: var(--font-control);
 }
 
 .workbench-commandbar-brand strong {
@@ -96,8 +99,8 @@
 .script-menu-trigger {
   width: 100%;
   min-width: 150px;
-  height: 31px;
-  padding: 0 7px;
+  min-height: var(--control-target);
+  padding: 4px 7px;
   display: grid;
   grid-template-columns: 15px minmax(0, 1fr) 12px;
   align-items: center;
@@ -132,7 +135,7 @@
 
 .script-menu-trigger small {
   color: var(--nt-muted);
-  font: 6px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -141,7 +144,7 @@
   margin-top: 3px;
   overflow: hidden;
   color: var(--nt-text);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -155,7 +158,7 @@
 
 .script-menu-search {
   width: 100%;
-  height: 30px;
+  min-height: var(--control-target);
   box-sizing: border-box;
   padding: 0 8px;
   border: 1px solid var(--nt-line);
@@ -163,7 +166,7 @@
   outline: 0;
   background: var(--workbench-surface-recessed);
   color: var(--nt-text);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
 }
 
 .script-menu-search:focus {
@@ -180,7 +183,7 @@
   margin: 0 0 3px;
   padding: 4px 6px;
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -191,7 +194,7 @@
 }
 
 .script-menu-groups button {
-  min-height: 28px;
+  min-height: var(--control-target);
   padding: 0 7px;
   display: flex;
   align-items: center;
@@ -201,7 +204,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--nt-text);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   text-align: left;
   cursor: pointer;
 }
@@ -218,7 +221,7 @@
 }
 
 .script-menu-groups button small {
-  font-size: 7px;
+  font-size: var(--font-micro);
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
@@ -227,7 +230,7 @@
   margin: 0;
   padding: 14px 8px;
   color: var(--nt-muted);
-  font: 8px/1.4 var(--mono);
+  font: var(--font-label)/1.4 var(--mono);
   text-align: center;
 }
 
@@ -247,14 +250,14 @@
 
 .workbench-command,
 .workbench-health {
-  min-height: 29px;
+  min-height: var(--control-target);
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--nt-line);
   border-radius: 5px;
   background: transparent;
   color: var(--nt-text);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -279,7 +282,10 @@
 }
 
 .clock-transport {
-  min-height: 31px;
+  min-height: max(
+    var(--control-target),
+    calc(var(--font-micro) + var(--font-label) + 11px)
+  );
   padding: 0 4px;
   display: flex;
   align-items: center;
@@ -291,8 +297,8 @@
 }
 
 .clock-transport .control-icon-toggle {
-  min-width: 28px;
-  min-height: 28px;
+  min-width: var(--control-target);
+  min-height: var(--control-target);
   padding: 0;
   border-color: transparent;
 }
@@ -306,7 +312,7 @@
 
 .clock-transport-label small {
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: var(--font-micro);
   line-height: 1;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -315,48 +321,33 @@
 .clock-transport-label strong {
   margin-top: 3px;
   color: var(--nt-text);
-  font-size: 8px;
+  font-size: var(--font-label);
   line-height: 1;
   font-weight: 500;
 }
 
-.clock-tempo-control > .rotary-control {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.clock-tempo-control .rotary-control-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.clock-tempo-control .rotary-control-dial {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-}
-
-.clock-tempo-control .rotary-control-track,
-.clock-tempo-control .rotary-control-active {
-  stroke-width: 7;
+.clock-tempo-control {
+  width: 82px;
+  flex: 0 0 82px;
 }
 
 .clock-tempo-control .control-value-field {
-  min-height: 28px;
+  width: 100%;
+  min-height: var(--control-target);
   border-color: var(--nt-line);
   background: var(--workbench-surface-recessed);
-  font-size: 9px;
+  font-size: var(--font-control);
+}
+
+.clock-tempo-control .control-value-field input {
+  width: 0;
+  min-width: 0;
+  flex: 1;
 }
 
 .commandbar-icon-command {
-  min-width: 29px;
-  min-height: 29px;
+  min-width: var(--control-target);
+  min-height: var(--control-target);
   padding: 0 7px;
   display: inline-flex;
   align-items: center;
@@ -367,7 +358,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
@@ -381,6 +372,57 @@
 
 .theme-toggle {
   flex: 0 0 auto;
+}
+
+.appearance-popover {
+  flex: 0 0 auto;
+}
+
+.appearance-popover-trigger > span {
+  font: 600 var(--font-body)/1 var(--sans);
+  letter-spacing: -0.04em;
+  text-transform: none;
+}
+
+.appearance-size-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.appearance-size-options button {
+  min-height: max(48px, calc(var(--font-body) + 30px));
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  background: var(--workbench-surface-recessed);
+  color: var(--nt-muted);
+  font-family: var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.appearance-size-options button:hover,
+.appearance-size-options button.is-active {
+  border-color: color-mix(in srgb, var(--nt-green) 65%, var(--nt-line));
+  color: var(--nt-text);
+}
+
+.appearance-size-options button.is-active {
+  background: var(--nt-green-soft);
+  color: var(--nt-green);
+}
+
+.appearance-size-options strong {
+  font-size: var(--font-control);
+}
+
+.appearance-size-options small {
+  font-size: var(--font-label);
 }
 
 .workspace-preset-menu > .control-popover {
@@ -425,19 +467,19 @@
 }
 
 .workspace-preset-options strong {
-  font-size: 9px;
+  font-size: var(--font-control);
 }
 
 .workspace-preset-options small {
   margin-top: 4px;
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
 }
 
 .workspace-preset-options kbd,
 .workbench-drawer-tabs kbd {
   color: var(--nt-muted);
-  font: 6px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   white-space: nowrap;
 }
 
@@ -447,7 +489,7 @@
   border-left: 2px solid var(--nt-green);
   background: color-mix(in srgb, var(--nt-green) 5%, transparent);
   color: var(--nt-muted);
-  font: 7px/1.4 var(--mono);
+  font: var(--font-micro)/1.4 var(--mono);
 }
 
 .midi-event-tool > .control-popover {
@@ -468,7 +510,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--nt-muted);
-  font: 7px/1.2 var(--mono);
+  font: var(--font-micro)/1.2 var(--mono);
   cursor: pointer;
 }
 
@@ -490,7 +532,7 @@
   display: grid;
   gap: 4px;
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -505,7 +547,7 @@
   outline: 0;
   background: var(--workbench-surface-recessed);
   color: var(--nt-text);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
   text-transform: uppercase;
 }
 
@@ -519,7 +561,7 @@
 
 .midi-byte-fields small {
   overflow: hidden;
-  font-size: 7px;
+  font-size: var(--font-micro);
   letter-spacing: 0;
   text-overflow: ellipsis;
   text-transform: none;
@@ -529,7 +571,7 @@
 .midi-declared-messages {
   margin: 8px 0 0;
   color: var(--nt-muted);
-  font: 7px/1.4 var(--mono);
+  font: var(--font-micro)/1.4 var(--mono);
 }
 
 .midi-send-row {
@@ -544,7 +586,7 @@
 
 .midi-send-row span {
   color: var(--nt-muted);
-  font: 7px/1.3 var(--mono);
+  font: var(--font-micro)/1.3 var(--mono);
 }
 
 .midi-send-row button {
@@ -571,7 +613,7 @@
 .about-popover-content > p {
   margin: 0;
   color: var(--nt-muted);
-  font: 8px/1.5 var(--mono);
+  font: var(--font-label)/1.5 var(--mono);
 }
 
 .about-popover-content dl {
@@ -593,7 +635,7 @@
 
 .about-popover-content dt {
   color: var(--nt-green);
-  font-size: 8px;
+  font-size: var(--font-label);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -601,12 +643,12 @@
 .about-popover-content dd {
   margin: 0;
   color: var(--nt-text);
-  font-size: 8px;
+  font-size: var(--font-label);
   line-height: 1.4;
 }
 
 .workbench-commandbar > .control-tooltip .device-save-state {
-  min-height: 29px;
+  min-height: var(--control-target);
 }
 
 .workbench-command:hover:not(:disabled),
@@ -695,7 +737,7 @@
   justify-content: center;
   gap: 6px;
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -806,7 +848,7 @@
   min-height: 30px;
   box-sizing: border-box;
   padding: 7px 12px;
-  font-size: 9px;
+  font-size: var(--font-control);
 }
 
 .workbench-instrument-rack {
@@ -869,7 +911,7 @@
   border: 0;
   background: transparent;
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: grab;
@@ -898,7 +940,7 @@
   border-radius: 999px;
   background: var(--surface-recessed);
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -996,7 +1038,7 @@
   border-right: 1px solid var(--nt-line);
   background: transparent;
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
@@ -1032,7 +1074,7 @@
   border: 1px solid var(--nt-line);
   border-radius: 8px;
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
 }
 
 .workbench-drawer-tabs button > kbd {
@@ -1061,7 +1103,7 @@
   display: flex;
   align-items: center;
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -1098,7 +1140,7 @@
   border-top: 1px solid var(--nt-line);
   background: var(--surface-status);
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1179,7 +1221,7 @@
     border-radius: 4px;
     background: transparent;
     color: var(--nt-muted);
-    font: 8px/1 var(--mono);
+    font: var(--font-label)/1 var(--mono);
     letter-spacing: 0.07em;
     text-transform: uppercase;
     cursor: pointer;
@@ -1262,7 +1304,7 @@
     min-width: 0;
     flex: 1;
     padding-inline: 5px;
-    font-size: 8px;
+    font-size: var(--font-label);
   }
 
   .workbench-drawer-tabs button > span {

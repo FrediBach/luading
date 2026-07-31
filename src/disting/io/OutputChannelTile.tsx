@@ -13,6 +13,7 @@ import type {
   ScopeSource,
 } from '../types'
 import { assignedProbeIndex } from '../drawer/scope-controls'
+import { formatDisplayFloat } from '../display-format'
 import {
   audioDestinationLabel,
   outputPlotRange,
@@ -112,7 +113,7 @@ export function OutputChannelTile({
         )}
         value={(
           <span className="output-channel-value">
-            <output>{value.toFixed(3)} V</output>
+            <output>{formatDisplayFloat(value)} V</output>
             <span
               className={`output-channel-audio-state${
                 monitoring ? ' is-monitoring' : routed ? ' is-routed' : ''

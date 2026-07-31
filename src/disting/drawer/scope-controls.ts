@@ -116,6 +116,21 @@ export function scopeSourceLabel(
     }`
 }
 
+export function scopeSourceShortLabel(source: ScopeSource | null) {
+  if (!source) return 'Unpatched'
+  return `${source.kind === 'input' ? 'IN' : 'OUT'} ${source.index + 1}`
+}
+
+export function scopeSourceName(
+  source: ScopeSource | null,
+  program: LoadedProgram | null,
+) {
+  if (!source) return 'Unpatched'
+  return source.kind === 'input'
+    ? program?.inputNames[source.index] ?? `Input ${source.index + 1}`
+    : program?.outputNames[source.index] ?? `Output ${source.index + 1}`
+}
+
 export function scopeSourceValue(
   source: ScopeSource | null,
   inputs: readonly number[],

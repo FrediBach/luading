@@ -5,6 +5,7 @@ import {
   SignalShapeGlyph,
   ValueField,
 } from '../controls'
+import { formatDisplayFloat } from '../display-format'
 import {
   CLOCK_DIVISIONS,
   SIGNAL_SHAPES,
@@ -82,7 +83,7 @@ export function InputChannelInspector({ source, onChange }: Props) {
               defaultValue={1}
               unit="Hz"
               size="small"
-              formatValue={(value) => value < 1 ? value.toFixed(3) : value.toFixed(2)}
+              formatValue={formatDisplayFloat}
               onChange={(frequencyHz) => patch({
                 timing: { mode: 'free', frequencyHz },
               })}
@@ -185,4 +186,3 @@ export function InputChannelInspector({ source, onChange }: Props) {
     </div>
   )
 }
-

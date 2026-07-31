@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react'
+import { editorTypography, type TextSize } from '../appearance'
 import { monacoTheme, type ThemeMode } from '../theme'
 import type { ScriptDiagnostic, SourceRange } from '../validation/types'
 import { registerDiagnosticCodeActions } from './diagnostic-code-actions'
@@ -13,6 +14,7 @@ type DistingCodeEditorProps = {
   value: string
   diagnostics: ScriptDiagnostic[]
   theme: ThemeMode
+  textSize: TextSize
   revealRequest?: { range: SourceRange; nonce: number }
   onChange(value: string): void
   onRun(): void
@@ -27,6 +29,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   value,
   diagnostics,
   theme,
+  textSize,
   revealRequest,
   onChange,
   onRun,
@@ -42,6 +45,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   const diagnosticsRef = useRef(diagnostics)
   const revealRequestRef = useRef(revealRequest)
   const themeRef = useRef(theme)
+  const textSizeRef = useRef(textSize)
   const [lineCount, setLineCount] = useState(() => value.split('\n').length)
   const [loadingState, setLoadingState] = useState<'waiting' | 'loading' | 'ready' | 'fallback'>('waiting')
   const [fallbackValue, setFallbackValue] = useState(value)
@@ -52,6 +56,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   diagnosticsRef.current = diagnostics
   revealRequestRef.current = revealRequest
   themeRef.current = theme
+  textSizeRef.current = textSize
 
   const applyMarkers = () => {
     const monaco = monacoRef.current
@@ -124,6 +129,10 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   }, [theme])
 
   useEffect(() => {
+    editorRef.current?.updateOptions(editorTypography(textSize))
+  }, [textSize])
+
+  useEffect(() => {
     let disposed = false
     let idleHandle: number | undefined
     let editor: import('monaco-editor/esm/vs/editor/editor.api').editor.IStandaloneCodeEditor | undefined
@@ -144,14 +153,14 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
         )
         modelRef.current = model
         monacoRef.current = monaco
+        const typography = editorTypography(textSizeRef.current)
         editor = monaco.editor.create(containerRef.current, {
           model,
           theme: monacoTheme(themeRef.current),
           ariaLabel: 'Disting Lua source',
           automaticLayout: true,
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-          fontSize: 12.5,
-          lineHeight: 21,
+          ...typography,
           fontLigatures: true,
           padding: { top: 16, bottom: 16 },
           tabSize: 2,

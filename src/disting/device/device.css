@@ -13,7 +13,7 @@
 }
 
 .device-save-state {
-  min-height: 27px;
+  min-height: var(--control-target, 28px);
   padding: 0 8px;
   display: inline-flex;
   align-items: center;
@@ -22,7 +22,7 @@
   border-radius: 5px;
   background: var(--surface-shaded);
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -174,7 +174,7 @@
 
 .device-panel-header > span small {
   color: var(--nt-green);
-  font-size: 8px;
+  font-size: var(--font-label);
   line-height: 1;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -183,7 +183,7 @@
 .device-panel-header > span strong {
   margin-top: 4px;
   color: var(--nt-muted);
-  font-size: 9px;
+  font-size: var(--font-control);
   line-height: 1;
   font-weight: 500;
 }
@@ -205,7 +205,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--nt-text);
-  font: 10px/1 var(--mono);
+  font: var(--font-body)/1 var(--mono);
 }
 
 .parameter-bank-paging button {
@@ -232,7 +232,7 @@
   min-width: 42px;
   padding-inline: 6px;
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
 }
 
 .parameter-bank-grid {
@@ -305,7 +305,7 @@
   margin-top: 6px;
   overflow: hidden;
   color: var(--nt-green);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -322,7 +322,7 @@
 .parameter-control--enum-menu > span {
   overflow: hidden;
   color: var(--nt-muted);
-  font: 8px/1.2 var(--mono);
+  font: var(--font-label)/1.2 var(--mono);
   letter-spacing: 0.05em;
   text-align: center;
   text-overflow: ellipsis;
@@ -372,13 +372,13 @@
 
 .parameter-enum-value strong {
   color: var(--nt-green);
-  font-size: 10px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
 .parameter-enum-value small {
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
 }
 
 .parameter-enum-search {
@@ -391,7 +391,7 @@
   outline: 0;
   background: var(--workbench-surface-recessed, var(--surface-recessed));
   color: var(--nt-text);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
 }
 
 .parameter-enum-search:focus {
@@ -415,7 +415,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--nt-muted);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
   text-align: left;
   cursor: pointer;
 }
@@ -433,13 +433,13 @@
 
 .parameter-enum-options button small {
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
 }
 
 .parameter-enum-options p {
   padding: 10px;
   color: var(--nt-muted);
-  font: 8px/1.4 var(--mono);
+  font: var(--font-label)/1.4 var(--mono);
   text-align: center;
 }
 

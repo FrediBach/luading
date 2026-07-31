@@ -58,7 +58,7 @@ describe('input channel rendering', () => {
 
     expect(markup).toContain('IN 1')
     expect(markup).toContain('trigger · Reset')
-    expect(markup).toContain('5.000 V')
+    expect(markup).toContain('5.00 V')
     expect(markup).toContain('aria-label="Reset clock sync"')
     expect(markup).toContain('aria-pressed="true"')
     expect(markup).toContain('aria-label="Fire Reset"')
@@ -128,7 +128,7 @@ describe('input channel rendering', () => {
     expect(markup).toContain('WebAudio monitoring')
     expect(markup).toContain('IN 1')
     expect(markup).toContain('IN 2')
-    expect(markup).toContain('1.250 V')
+    expect(markup).toContain('1.25 V')
     expect(markup).toContain('input-channel-tile-shell scope-probe--1')
     expect(markup).toContain('output-channel-tile-shell scope-probe--2')
     expect(markup).toContain('OUT 1')

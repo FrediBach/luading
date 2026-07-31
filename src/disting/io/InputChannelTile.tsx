@@ -16,6 +16,7 @@ import type {
   SignalSourceConfig,
 } from '../types'
 import { assignedProbeIndex } from '../drawer/scope-controls'
+import { formatDisplayFloat } from '../display-format'
 import { InputChannelInspector } from './InputChannelInspector'
 import {
   ScopeAssignmentButton,
@@ -148,7 +149,7 @@ export function InputChannelTile({
       max={100}
       step={0.001}
       unit="Hz"
-      formatValue={(frequency) => frequency < 1 ? frequency.toFixed(3) : frequency.toFixed(2)}
+      formatValue={formatDisplayFloat}
       onChange={(frequencyHz) => patch({
         timing: { mode: 'free', frequencyHz },
       })}
@@ -217,7 +218,7 @@ export function InputChannelTile({
         )}
         value={(
           <span className="input-channel-value">
-            <output>{value.toFixed(3)} V</output>
+            <output>{formatDisplayFloat(value)} V</output>
             {primaryControl}
           </span>
         )}

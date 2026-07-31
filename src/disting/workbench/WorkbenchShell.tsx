@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ThemeMode } from '../theme'
+import type { TextSize } from '../appearance'
 import type { EffectiveWorkbenchDensity } from './useWorkbenchViewport'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
   overlay?: ReactNode
   density: EffectiveWorkbenchDensity
   theme: ThemeMode
+  textSize: TextSize
   announcement?: string
 }
 
@@ -21,6 +23,7 @@ export function WorkbenchShell({
   overlay,
   density,
   theme,
+  textSize,
   announcement,
 }: Props) {
   return (
@@ -28,6 +31,7 @@ export function WorkbenchShell({
       className="disting-app workbench-shell"
       data-density={density}
       data-theme={theme}
+      data-text-size={textSize}
     >
       <div
         className="workbench-announcer"

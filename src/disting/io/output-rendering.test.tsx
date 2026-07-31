@@ -41,7 +41,7 @@ describe('output channel rendering', () => {
 
     expect(markup).toContain('OUT 1')
     expect(markup).toContain('stepped · Envelope')
-    expect(markup).toContain('5.000 V')
+    expect(markup).toContain('5.00 V')
     expect(markup).toContain('mini-signal-path')
     expect(markup).toContain('Kick')
     expect(markup).toContain('Live')

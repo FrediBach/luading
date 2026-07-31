@@ -18,7 +18,7 @@
   background: var(--surface-tooltip);
   box-shadow: 0 8px 24px var(--shadow-color);
   color: var(--nt-text);
-  font: 8px/1.35 var(--mono);
+  font: var(--font-label)/1.35 var(--mono);
   letter-spacing: 0.02em;
   opacity: 0;
   pointer-events: none;
@@ -117,7 +117,7 @@
 }
 
 .control-icon-toggle > span {
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -137,7 +137,7 @@
 
 .control-value-field {
   min-width: 0;
-  min-height: 22px;
+  min-height: max(22px, calc(var(--font-control) + 10px));
   padding: 3px 5px;
   display: inline-flex;
   align-items: center;
@@ -148,7 +148,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--nt-text);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
 }
 
 button.control-value-field {
@@ -162,7 +162,7 @@ button.control-value-field:hover:not(:disabled) {
 
 .control-value-field > span {
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
   text-transform: uppercase;
 }
 
@@ -228,7 +228,7 @@ button.control-value-field:hover:not(:disabled) {
 
 .control-popover-heading strong {
   color: var(--nt-text);
-  font: 9px/1 var(--mono);
+  font: var(--font-control)/1 var(--mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -307,7 +307,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .control-tile > header span {
-  font-size: 10px;
+  font-size: var(--font-body);
   line-height: 1.1;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -317,7 +317,7 @@ button.control-value-field:hover:not(:disabled) {
 .control-tile > header small {
   margin-top: 3px;
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: var(--font-label);
   line-height: 1;
 }
 
@@ -347,14 +347,14 @@ button.control-value-field:hover:not(:disabled) {
 .control-tile-value {
   min-width: 0;
   color: var(--nt-green);
-  font: 11px/1 var(--mono);
+  font: var(--font-editor)/1 var(--mono);
 }
 
 .control-tile > footer {
   padding-right: 31px;
   overflow: hidden;
   color: var(--nt-muted);
-  font: 7px/1 var(--mono);
+  font: var(--font-micro)/1 var(--mono);
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -374,7 +374,7 @@ button.control-value-field:hover:not(:disabled) {
   max-width: 100%;
   overflow: hidden;
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   letter-spacing: 0.05em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -489,7 +489,7 @@ button.control-value-field:hover:not(:disabled) {
   border-radius: 6px;
   background: var(--button-face);
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -543,7 +543,7 @@ button.control-value-field:hover:not(:disabled) {
 .segmented-selector legend {
   margin-bottom: 5px;
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -562,7 +562,7 @@ button.control-value-field:hover:not(:disabled) {
   border-right: 1px solid var(--nt-line);
   background: var(--workbench-surface-recessed, var(--surface-recessed));
   color: var(--nt-muted);
-  font: 8px/1 var(--mono);
+  font: var(--font-label)/1 var(--mono);
   cursor: pointer;
 }
 
@@ -646,7 +646,7 @@ button.control-value-field:hover:not(:disabled) {
 
 .mini-signal-plot text {
   fill: var(--nt-muted);
-  font: 7px var(--mono);
+  font: var(--font-micro) var(--mono);
   text-anchor: middle;
   dominant-baseline: middle;
 }

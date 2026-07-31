@@ -1,4 +1,4 @@
-import { IconToggle, RotaryControl } from '../controls'
+import { IconToggle, ValueField } from '../controls'
 import type { GlobalClockConfig } from '../types'
 
 interface Props {
@@ -24,15 +24,13 @@ export function ClockTransport({ clock, onChange }: Props) {
         <strong>{clock.running ? 'Running' : 'Stopped'}</strong>
       </span>
       <div className="clock-tempo-control">
-        <RotaryControl
+        <ValueField
           label="Global test-signal clock tempo"
           value={clock.bpm}
           min={1}
           max={999}
           step={1}
-          defaultValue={120}
           unit="BPM"
-          size="small"
           onChange={(bpm) => onChange({ ...clock, bpm })}
         />
       </div>

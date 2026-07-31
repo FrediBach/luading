@@ -22,7 +22,8 @@ controls.
 Scope, Problems, Console, and Performance share the bottom drawer. Select the
 active tab again to collapse it. The drawer handle supports pointer drag and
 keyboard resizing. Drawer filters and other local view state are retained while
-switching tabs.
+switching tabs. Scope legend chips show compact source identifiers such as
+**IN 1** and **OUT 1**; hover a source to see its full signal name.
 
 At widths below 900 CSS pixels, the center workspace becomes top-level Editor
 and Instrument tabs instead of one long vertical page. Arrow keys, Home, and
@@ -62,6 +63,14 @@ blocking errors are announced and open the relevant drawer workspace.
 Shortcuts that intentionally apply while editing are fully modified to avoid
 capturing ordinary Monaco keystrokes. Workspace presets change presentation
 only; they do not change script, simulator, preset, or audio state.
+
+## Text size
+
+Use the **Aa** control in the command bar to choose Small, Standard, or Large
+text. The preference is stored in the browser and applies to
+workbench labels, controls, diagnostics, and the Lua editor. It is independent
+of workspace density, so the Compact preset does not reduce text size. The
+simulated Disting display keeps its hardware-defined bitmap typography.
 
 ## Editor navigation
 

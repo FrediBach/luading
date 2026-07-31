@@ -8,6 +8,8 @@ import {
   encodeScopeSource,
   scopeAssignmentIntent,
   scopeSourceLabel,
+  scopeSourceName,
+  scopeSourceShortLabel,
   scopeSourceValue,
 } from './scope-controls'
 
@@ -97,6 +99,9 @@ describe('scope controls', () => {
     expect(scopeSourceLabel({ kind: 'output', index: 0 }, program)).toBe(
       'OUT 1 · Envelope',
     )
+    expect(scopeSourceShortLabel({ kind: 'input', index: 0 })).toBe('IN 1')
+    expect(scopeSourceShortLabel({ kind: 'output', index: 0 })).toBe('OUT 1')
+    expect(scopeSourceName({ kind: 'output', index: 0 }, program)).toBe('Envelope')
     expect(scopeSourceValue({ kind: 'input', index: 0 }, [5], [2])).toBe(5)
   })
 

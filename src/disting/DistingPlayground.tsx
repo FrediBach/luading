@@ -44,6 +44,7 @@ import {
   storedTheme,
   toggledTheme,
 } from './theme'
+import { persistTextSize, storedTextSize, type TextSize } from './appearance'
 import { BottomDrawer } from './workbench/BottomDrawer'
 import { CommandBar } from './workbench/CommandBar'
 import { InstrumentRack } from './workbench/InstrumentRack'
@@ -177,6 +178,9 @@ export function DistingPlayground() {
   const [hasSavedState, setHasSavedState] = useState(false)
   const [committedFrameRevision, setCommittedFrameRevision] = useState(0)
   const [theme, setTheme] = useState(() => storedTheme(browserThemeStorage()))
+  const [textSize, setTextSize] = useState<TextSize>(() => (
+    storedTextSize(browserThemeStorage())
+  ))
   const [scriptFileName, setScriptFileName] = useState('Vector LFO.lua')
   const [fileError, setFileError] = useState<string | null>(null)
 
@@ -640,6 +644,10 @@ export function DistingPlayground() {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
+  useEffect(() => {
+    persistTextSize(textSize, browserThemeStorage())
+  }, [textSize])
+
   useWorkbenchShortcuts({
     canToggleRunning: Boolean(program)
       && (status === 'running' || status === 'paused'),
@@ -653,6 +661,7 @@ export function DistingPlayground() {
     <WorkbenchShell
       density={resolveWorkbenchDensity(layout.density, touchOriented)}
       theme={theme}
+      textSize={textSize}
       announcement={accessibilityAnnouncement}
       overlay={(
         <DraggableDisplayPreview
@@ -682,6 +691,7 @@ export function DistingPlayground() {
           canToggleRunning={Boolean(program)
             && (status === 'running' || status === 'paused')}
           theme={theme}
+          textSize={textSize}
           onSelectExample={selectExample}
           onNewScript={createNewScript}
           onImportScript={(file) => void importScript(file)}
@@ -697,6 +707,7 @@ export function DistingPlayground() {
           onSendMidi={sendMidi}
           onOpenProblems={() => dispatchLayout({ type: 'openDrawer', tab: 'problems' })}
           onToggleTheme={toggleTheme}
+          onTextSizeChange={setTextSize}
         />
       )}
       workspace={(
@@ -718,6 +729,7 @@ export function DistingPlayground() {
                 value={editorSource}
                 diagnostics={diagnostics}
                 theme={theme}
+                textSize={textSize}
                 revealRequest={revealRequest}
                 onChange={updateSource}
                 onRun={loadScript}

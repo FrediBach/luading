@@ -59,6 +59,7 @@ describe('command bar utilities', () => {
         qualityWarningCount={1}
         canToggleRunning
         theme="dark"
+        textSize="standard"
         onSelectExample={() => undefined}
         onNewScript={() => undefined}
         onImportScript={() => undefined}
@@ -72,6 +73,7 @@ describe('command bar utilities', () => {
         onSendMidi={() => undefined}
         onOpenProblems={() => undefined}
         onToggleTheme={() => undefined}
+        onTextSizeChange={() => undefined}
       />,
     )
 
@@ -84,14 +86,15 @@ describe('command bar utilities', () => {
     expect(markup).toContain('Control+Alt+P Meta+Alt+P')
     expect(markup).toContain('Stop global test-signal clock')
     expect(markup).toContain('Global test-signal clock tempo: 120 BPM')
-    expect(markup).toContain('role="slider"')
+    expect(markup).not.toContain('rotary-control-dial')
     expect(markup).toContain('State saved. Save again.')
-    expect(markup).toContain('aria-label="Lua runtime running, 1.250 s simulated"')
-    expect(markup).toContain('class="workbench-runtime-duration" aria-hidden="true">1.250 s</span>')
+    expect(markup).toContain('aria-label="Lua runtime running, 1.25 s simulated"')
+    expect(markup).toContain('class="workbench-runtime-duration" aria-hidden="true">1.25 s</span>')
     expect(markup).toContain('Workspace preset: Patch')
     expect(markup).toContain('Open MIDI input utility')
     expect(markup).toContain('About Luading simulator')
     expect(markup).toContain('Switch to light mode')
+    expect(markup).toContain('Text size: Standard')
   })
 
   it('presents load and unavailable states without ambiguous commands', () => {
@@ -112,6 +115,7 @@ describe('command bar utilities', () => {
         qualityWarningCount={0}
         canToggleRunning={false}
         theme="light"
+        textSize="large"
         onSelectExample={() => undefined}
         onNewScript={() => undefined}
         onImportScript={() => undefined}
@@ -125,6 +129,7 @@ describe('command bar utilities', () => {
         onSendMidi={() => undefined}
         onOpenProblems={() => undefined}
         onToggleTheme={() => undefined}
+        onTextSizeChange={() => undefined}
       />,
     )
 
@@ -132,9 +137,12 @@ describe('command bar utilities', () => {
     expect(markup).toContain('Run Lua script')
     expect(markup).toContain('Resume Lua runtime')
     expect(markup).toContain('Start global test-signal clock')
+    expect(markup).toContain('aria-label="Lua runtime loading"')
+    expect(markup).not.toContain('workbench-runtime-duration')
     expect(markup).toContain('Workspace preset: Custom')
     expect(markup).not.toContain('Open MIDI input utility')
     expect(markup).toContain('Switch to dark mode')
+    expect(markup).toContain('Text size: Large')
   })
 
   it('filters bundled script groups by script, id, or group name', () => {
