@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { TraceHistory } from '../emulation/trace-history'
@@ -33,8 +34,15 @@ const trace: TracePoint[] = Array.from({ length: 600 }, (_, index) => ({
 }))
 const traceHistory = new TraceHistory()
 traceHistory.append(trace)
+const drawerCss = readFileSync(new URL('./drawer.css', import.meta.url), 'utf8')
 
 describe('scope workspace rendering', () => {
+  it('reserves a stable tabular width for signed voltage readouts', () => {
+    expect(drawerCss).toMatch(
+      /\.scope-legend-focus output\s*{[^}]*min-width: 8ch;[^}]*font-variant-numeric: tabular-nums;[^}]*text-align: right;/s,
+    )
+  })
+
   it('renders compact controls, routed legend chips, and responsive traces', () => {
     const markup = renderToStaticMarkup(
       <ScopeWorkspace

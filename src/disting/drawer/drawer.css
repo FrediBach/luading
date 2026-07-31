@@ -873,8 +873,11 @@
 }
 
 .scope-legend-focus output {
+  min-width: 8ch;
   color: var(--probe-color);
   font-size: var(--font-control);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .scope-legend-chip > select {
