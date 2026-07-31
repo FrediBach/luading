@@ -7,6 +7,8 @@ import {
 import type { ScriptDiagnostic } from './types'
 
 function semanticLocationForRule(ruleId: string) {
+  const ioType = ruleId.match(/^(inputs|outputs)-type-(\d+)$/)
+  if (ioType) return `init.${ioType[1]}[${ioType[2]}]`
   const parameter = ruleId.match(/^parameter-(\d+)-(\w+)$/)
   if (parameter) {
     const [, index, field] = parameter
@@ -23,6 +25,8 @@ function semanticLocationForRule(ruleId: string) {
   if (ruleId === 'midi-channel-parameter') return 'init.midi.channelParameter'
   if (ruleId === 'midi-messages') return 'init.midi.messages'
   if (ruleId === 'midi-shape') return 'init.midi'
+  if (ruleId === 'missing-midi-callback') return 'init.midi'
+  if (ruleId === 'missing-midi-metadata') return 'callback:midiMessage'
   if (ruleId === 'init-return') return 'callback:init'
   if (ruleId === 'missing-trigger-callback' || ruleId === 'missing-gate-callback') return 'init.inputs'
   if (ruleId === 'unused-trigger-callback') return 'callback:trigger'
@@ -452,6 +456,29 @@ export function validateProgramContract(program: LuaProgram, init: unknown): Scr
   validateNames('outputNames', metadata.outputNames, outputCount, diagnostics)
   validateParameters(metadata.parameters, diagnostics)
   validateMidi(metadata.midi, luaSequence(metadata.parameters)?.length ?? 0, diagnostics)
+
+  if (metadata.midi !== undefined && typeof program.midiMessage !== 'function') {
+    diagnostics.push(finding(
+      'missing-midi-callback',
+      'info',
+      'contract',
+      'MIDI filtering has no midiMessage() callback',
+      'The script declares MIDI filtering metadata but has no lifecycle callback to receive matching messages.',
+      'Add midiMessage(self, message) to the returned script table.',
+      0,
+    ))
+  }
+  if (metadata.midi === undefined && typeof program.midiMessage === 'function') {
+    diagnostics.push(finding(
+      'missing-midi-metadata',
+      'info',
+      'contract',
+      'midiMessage() has no MIDI filtering metadata',
+      'The callback cannot receive messages until init() declares a channel parameter and message filters.',
+      'Add a MIDI channel parameter and an init().midi configuration.',
+      0,
+    ))
+  }
 
   const inputs = luaSequence(metadata.inputs)
   const hasTrigger = inputs?.some((value) => value === DISTING_CONSTANTS.kTrigger) ?? false

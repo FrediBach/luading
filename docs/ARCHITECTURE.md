@@ -315,6 +315,23 @@ through an index whose version matches the current editor source, so load-time
 and runtime diagnostics can navigate to useful source without trusting stale
 ranges.
 
+`validation/diagnostic-actions.ts` defines quick fixes as domain-level source
+edits, without importing Monaco types. The deliberately bounded action set can
+insert header comments, identity fields, edge/MIDI callbacks and metadata,
+replace invalid categorized constants, add required drawing colour, and rewrite
+simple direct parameter assignments through `setParameter()`. Transformations
+that require moving or interpreting arbitrary callback code are not offered.
+Every inserted callback expands catalog snippet defaults to ordinary Lua before
+the edit is exposed.
+
+`editor/diagnostic-code-actions.ts` adapts those edits to Monaco workspace edits
+for the current model version. `editor/diagnostic-markers.ts` clamps source
+ranges and assigns separate syntax, static, contract, and runtime marker owners.
+Marker hover text stays concise while Problems retains diagnostic detail and
+suggestions. Marker source identifies both the Disting NT Lua 1.12 profile and
+the diagnostic origin. Contract and runtime owners are cleared synchronously on
+model edits before React or either worker responds.
+
 ## Testing boundaries
 
 The tests mirror the production boundaries:

@@ -14,6 +14,18 @@ export interface SourceRange {
   endColumn: number
 }
 
+export interface SourceEdit {
+  range: SourceRange
+  text: string
+}
+
+export interface DiagnosticQuickFix {
+  id: string
+  title: string
+  edits: SourceEdit[]
+  preferred?: boolean
+}
+
 export interface ScriptDiagnostic {
   id: string
   ruleId: string

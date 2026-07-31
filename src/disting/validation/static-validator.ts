@@ -389,6 +389,21 @@ export function validateLuaSource(source: string): ScriptDiagnostic[] {
       penalty: 0,
       range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
     })
+  } else if (!firstCommentLines[1]?.line.startsWith('--')) {
+    const line = (firstCommentLines[1]?.index ?? firstCommentLines[0].index + 1) + 1
+    diagnostics.push({
+      id: `static:missing-description-comment:${line}:1`,
+      ruleId: 'missing-description-comment',
+      severity: 'info',
+      category: 'clarity',
+      target: 'hardware',
+      origin: 'static',
+      message: 'Add a script description comment',
+      detail: 'The module uses the second leading comment to describe the script before it is loaded.',
+      suggestion: 'Add a short -- Description line immediately after the script name comment.',
+      penalty: 0,
+      range: { startLine: line, startColumn: 1, endLine: line, endColumn: 1 },
+    })
   }
 
   return diagnostics

@@ -58,6 +58,8 @@ return {
     expect(index.callbacks.map((callback) => callback.name)).toEqual(['init', 'step', 'gate'])
     expect(textAt(source, index.semanticLocations['callback:step'])).toBe('step')
     expect(textAt(source, index.semanticLocations['init.outputs'])).toBe('{ kLinear }')
+    expect(textAt(source, index.semanticLocations['init.inputs[2]'])).toBe('kGate')
+    expect(textAt(source, index.semanticLocations['init.outputs[1]'])).toBe('kLinear')
     expect(textAt(source, index.semanticLocations['parameters[1].default'])).toBe('50')
     expect(textAt(source, index.semanticLocations['parameters[2].enum'])).toBe('{ "A", "B" }')
     expect(textAt(source, index.semanticLocations['init.midi.messages'])).toBe('{ "note", "cc" }')

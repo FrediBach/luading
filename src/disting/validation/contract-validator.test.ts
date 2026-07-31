@@ -54,7 +54,7 @@ describe('validateProgramContract', () => {
     expect(rules).toContain('parameter-1-default')
     expect(rules).toContain('parameter-1-unit')
     expect(rules).toContain('parameter-2-default')
-    expect(findings.find((item) => item.ruleId === 'outputs-type-1')?.semanticLocation).toBe('init.outputs')
+    expect(findings.find((item) => item.ruleId === 'outputs-type-1')?.semanticLocation).toBe('init.outputs[1]')
     expect(findings.find((item) => item.ruleId === 'parameter-1-default')?.semanticLocation).toBe('parameters[1].default')
   })
 
@@ -105,6 +105,29 @@ describe('validateProgramContract', () => {
     expect(invalid.map((item) => item.ruleId)).toEqual(expect.arrayContaining([
       'midi-channel-parameter',
       'midi-messages',
+    ]))
+  })
+
+  it('links MIDI metadata and its lifecycle callback', () => {
+    const missingCallback = validateProgramContract({}, {
+      parameters: [['Channel', 0, 16, 0]],
+      midi: { channelParameter: 1, messages: ['note'] },
+    })
+    const missingMetadata = validateProgramContract({
+      midiMessage: () => undefined,
+    }, {})
+
+    expect(missingCallback).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: 'missing-midi-callback',
+        semanticLocation: 'init.midi',
+      }),
+    ]))
+    expect(missingMetadata).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: 'missing-midi-metadata',
+        semanticLocation: 'callback:midiMessage',
+      }),
     ]))
   })
 

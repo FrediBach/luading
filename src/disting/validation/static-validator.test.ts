@@ -12,6 +12,17 @@ describe('validateLuaSource', () => {
     expect(findings.filter((item) => item.severity === 'error')).toEqual([])
   })
 
+  it('reports a missing second header comment independently', () => {
+    const findings = validateLuaSource('-- Script name\nreturn {}')
+
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: 'missing-description-comment',
+        range: expect.objectContaining({ startLine: 2, startColumn: 1 }),
+      }),
+    ]))
+  })
+
   it('reports allocation in the 1 kHz callback', () => {
     expect(rules(`
 -- Hot output

@@ -683,6 +683,15 @@ export function createLuaSourceIndex(source: string, version: number): LuaSource
           state.tokens[table.openIndex].start,
           state.tokens[table.closeIndex].end,
         )
+        if (field.name === 'inputs' || field.name === 'outputs') {
+          splitDelimited(state, table.openIndex, table.closeIndex).forEach(([start, end], entryIndex) => {
+            semanticLocations[`init.${field.name}[${entryIndex + 1}]`] = offsetRange(
+              state,
+              state.tokens[start].start,
+              state.tokens[end].end,
+            )
+          })
+        }
       }
     })
 

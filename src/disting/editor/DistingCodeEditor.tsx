@@ -1,6 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import type { ScriptDiagnostic, SourceRange } from '../validation/types'
-import { diagnosticMarkerSignature } from './diagnostic-markers'
+import { registerDiagnosticCodeActions } from './diagnostic-code-actions'
+import {
+  diagnosticMarkerSignature,
+  DIAGNOSTIC_MARKER_OWNERS,
+  prepareDiagnosticMarkers,
+} from './diagnostic-markers'
 import { DISTING_LUA_LANGUAGE_ID, DISTING_LUA_MODEL_URI } from './disting-lua'
 
 type DistingCodeEditorProps = {
@@ -47,23 +52,29 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
     const monaco = monacoRef.current
     const model = modelRef.current
     if (!monaco || !model) return
-    monaco.editor.setModelMarkers(model, 'disting-validation', diagnosticsRef.current.flatMap((item) => {
-      if (!item.range) return []
-      const severity = item.severity === 'error'
-        ? monaco.MarkerSeverity.Error
-        : item.severity === 'warning'
-          ? monaco.MarkerSeverity.Warning
-          : monaco.MarkerSeverity.Info
-      return [{
-        severity,
-        message: `${item.message}\n\n${item.detail}${item.suggestion ? `\n\nSuggestion: ${item.suggestion}` : ''}`,
-        code: item.ruleId,
-        startLineNumber: item.range.startLine,
-        startColumn: item.range.startColumn,
-        endLineNumber: item.range.endLine,
-        endColumn: item.range.endColumn,
-      }]
-    }))
+    const markers = prepareDiagnosticMarkers(diagnosticsRef.current, model.getValue())
+    for (const owner of Object.values(DIAGNOSTIC_MARKER_OWNERS)) {
+      monaco.editor.setModelMarkers(model, owner, markers
+        .filter((marker) => marker.owner === owner)
+        .map((marker) => {
+          const item = marker.diagnostic
+          const severity = item.severity === 'error'
+            ? monaco.MarkerSeverity.Error
+            : item.severity === 'warning'
+              ? monaco.MarkerSeverity.Warning
+              : monaco.MarkerSeverity.Info
+          return {
+            severity,
+            source: marker.source,
+            message: item.message,
+            code: item.ruleId,
+            startLineNumber: marker.range.startLine,
+            startColumn: marker.range.startColumn,
+            endLineNumber: marker.range.endLine,
+            endColumn: marker.range.endColumn,
+          }
+        }))
+    }
   }
 
   const revealLocation = () => {
@@ -107,6 +118,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
     let editor: import('monaco-editor/esm/vs/editor/editor.api').editor.IStandaloneCodeEditor | undefined
     let model: import('monaco-editor/esm/vs/editor/editor.api').editor.ITextModel | undefined
     let changeListener: import('monaco-editor/esm/vs/editor/editor.api').IDisposable | undefined
+    let codeActionRegistration: import('monaco-editor/esm/vs/editor/editor.api').IDisposable | undefined
 
     const mountEditor = async () => {
       setLoadingState('loading')
@@ -137,12 +149,13 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           wordWrap: 'on',
           wrappingIndent: 'same',
           lineNumbersMinChars: 3,
-          glyphMargin: false,
-          lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
+          glyphMargin: true,
+          lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.On },
           folding: true,
           foldingHighlight: false,
           showFoldingControls: 'mouseover',
           minimap: { enabled: false },
+          overviewRulerLanes: 2,
           overviewRulerBorder: false,
           hideCursorInOverviewRuler: true,
           renderLineHighlight: 'line',
@@ -174,9 +187,20 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           },
         })
         editorRef.current = editor
+        codeActionRegistration = registerDiagnosticCodeActions(
+          monaco,
+          model,
+          () => diagnosticsRef.current,
+        )
 
         changeListener = model.onDidChangeContent(() => {
-          if (!model || applyingExternalValueRef.current) return
+          if (!model) return
+          diagnosticsRef.current = diagnosticsRef.current.filter((diagnostic) => (
+            diagnostic.origin !== 'contract' && diagnostic.origin !== 'runtime'
+          ))
+          monaco.editor.setModelMarkers(model, DIAGNOSTIC_MARKER_OWNERS.contract, [])
+          monaco.editor.setModelMarkers(model, DIAGNOSTIC_MARKER_OWNERS.runtime, [])
+          if (applyingExternalValueRef.current) return
           const nextValue = model.getValue()
           valueRef.current = nextValue
           onChangeRef.current(nextValue)
@@ -212,7 +236,12 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
         else window.clearTimeout(idleHandle)
       }
       changeListener?.dispose()
-      if (model) monacoRef.current?.editor.setModelMarkers(model, 'disting-validation', [])
+      codeActionRegistration?.dispose()
+      if (model) {
+        for (const owner of Object.values(DIAGNOSTIC_MARKER_OWNERS)) {
+          monacoRef.current?.editor.setModelMarkers(model, owner, [])
+        }
+      }
       editor?.dispose()
       model?.dispose()
       modelRef.current = undefined

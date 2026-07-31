@@ -173,6 +173,12 @@ Other improvements:
 
 ### Phase 6: Make diagnostics actionable
 
+Implementation status: complete. Diagnostics now expose a bounded set of safe,
+domain-level source edits through Monaco quick fixes. Markers use clamped
+current-model ranges and separate origin owners, and the compact editor enables
+glyph, overview-ruler, and lightbulb affordances while clearing load-derived
+markers synchronously after edits.
+
 Add a domain-level quick-fix representation rather than putting Monaco types into validation code.
 
 Initial safe quick fixes:

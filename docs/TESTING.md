@@ -92,6 +92,14 @@ balanced nested signature arguments, and overload selection. Default API,
 lifecycle, complete-script, metadata, and parameter snippets are compiled with
 Wasmoon after placeholder expansion.
 
+Diagnostic-action tests apply exact domain edits for header comments, returned
+identity fields, edge and MIDI callbacks, categorized constants, drawing
+colour, MIDI metadata, and direct parameter writes. Generated callback and
+metadata results compile with Wasmoon, while unsafe diagnostic classes are
+required to expose no action. Marker tests cover range clamping, separate
+origin owners, concise messages, and contract-profile source labels; the Monaco
+adapter test pins workspace edits and model isolation.
+
 ### Script corpus regression
 
 All bundled scripts are loaded and exercised:
