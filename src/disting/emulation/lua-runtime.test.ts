@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { LuaFactory } from 'wasmoon'
 import { DISTING_CONSTANTS } from './lua-contract'
 import {
+  compileLuaSource,
   configureLuaCallbackTimeout,
   loadLuaProgramRuntime,
   registerLuaModules,
@@ -27,6 +28,23 @@ afterEach(() => {
 })
 
 describe('Lua program runtime bridge', () => {
+  it('compiles text chunks without executing them and clears bridge globals', async () => {
+    const lua = await createEngine()
+    lua.global.set('__compileOnlyExecuted', false)
+
+    expect(await compileLuaSource(lua, `
+      __compileOnlyExecuted = true
+      error("compile-only chunks must not run")
+    `)).toBeNull()
+    expect(lua.global.get('__compileOnlyExecuted')).toBe(false)
+
+    await expect(compileLuaSource(lua, 'return { value = ) }')).resolves.toMatch(
+      /script\.lua:1: unexpected symbol near '\)'/,
+    )
+    expect(lua.global.get('__distingCompileSource')).toBeNull()
+    expect(lua.global.get('__distingCompileName')).toBeNull()
+  })
+
   it('binds self and exposes every Disting algorithm callback', async () => {
     const lua = await createEngine()
     const runtime = await loadLuaProgramRuntime(lua, `

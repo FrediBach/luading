@@ -10,8 +10,10 @@ import type { LuaProgramRuntime } from './lua-contract'
 const CALLBACK_TIMEOUT_MS = 25
 const INSTRUCTION_HOOK_COUNT = 1000
 const INVOKE_GLOBAL = '__distingInvoke'
+const COMPILE_GLOBAL = '__distingCompileOnly'
 
 type LuaGlobals = {
+  get?(name: string): unknown
   set(name: string, value: unknown): void
 }
 
@@ -31,12 +33,67 @@ type CallbackInvoker = {
 
 const activeRuntimeCleanups = new WeakMap<object, () => void>()
 const callbackTimeoutOverrides = new WeakMap<object, number>()
+const compileFunctions = new WeakMap<object, Promise<(source: string, chunkName: string) => unknown>>()
 
 export function configureLuaCallbackTimeout(
   lua: LuaEngineLike,
   timeoutMs: number,
 ) {
   callbackTimeoutOverrides.set(lua, timeoutMs)
+}
+
+/**
+ * Compile a text chunk with the simulator's Lua runtime without executing the
+ * returned function. A null result means the source compiled successfully.
+ */
+export async function compileLuaSource(
+  lua: LuaEngineLike,
+  source: string,
+  chunkName = '@script.lua',
+): Promise<string | null> {
+  let compilerPromise = compileFunctions.get(lua)
+  if (!compilerPromise && lua.global.get) {
+    compilerPromise = (async () => {
+      await lua.doString(`
+        _G.${COMPILE_GLOBAL} = function(source, chunkName)
+          local compiledChunk, loadError = load(source, chunkName, "t")
+          compiledChunk = nil
+          collectgarbage("step")
+          return loadError
+        end
+      `)
+      const compiler = lua.global.get?.(COMPILE_GLOBAL)
+      if (typeof compiler !== 'function') {
+        throw new Error('The Lua compile-only helper is unavailable.')
+      }
+      return compiler as (compileSource: string, compileName: string) => unknown
+    })()
+    compileFunctions.set(lua, compilerPromise)
+  }
+
+  if (compilerPromise) {
+    const errorMessage = (await compilerPromise)(source, chunkName)
+    return typeof errorMessage === 'string' ? errorMessage : null
+  }
+
+  // Minimal deterministic harnesses may expose only `set` and `doString`.
+  // The production Wasmoon engine takes the reusable callable path above.
+  lua.global.set('__distingCompileSource', source)
+  lua.global.set('__distingCompileName', chunkName)
+  try {
+    const errorMessage = await lua.doString(`
+      local _, loadError = load(
+        __distingCompileSource,
+        __distingCompileName,
+        "t"
+      )
+      return loadError
+    `)
+    return typeof errorMessage === 'string' ? errorMessage : null
+  } finally {
+    lua.global.set('__distingCompileSource', undefined)
+    lua.global.set('__distingCompileName', undefined)
+  }
 }
 
 function supportsCallbackThread(lua: LuaEngineLike): lua is CallbackEngine {

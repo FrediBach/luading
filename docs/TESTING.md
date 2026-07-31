@@ -69,6 +69,12 @@ pin its Lua 5.4 operators and long-bracket states, exercise representative
 indentation rules, and verify that language and IntelliSense registration is
 idempotent and isolated from ordinary Lua models.
 
+Syntax-validation tests use a persistent Wasmoon engine to cover valid source,
+malformed tokens and EOF errors, Lua 5.4 syntax, long strings and comments,
+non-execution of returned chunks, serialized engine reuse, stale source
+versions, and immediate removal of outdated syntax findings. All 58 bundled
+scripts also compile through the same editor validation path on one engine.
+
 ### Script corpus regression
 
 All bundled scripts are loaded and exercised:

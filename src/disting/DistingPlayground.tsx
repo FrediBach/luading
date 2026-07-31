@@ -72,6 +72,10 @@ import type {
   SourceRange,
   ValidationWorkerResponse,
 } from './validation/types'
+import {
+  clearOutdatedSyntaxDiagnostics,
+  isCurrentValidationResponse,
+} from './validation/worker-protocol'
 import './DistingPlayground.css'
 import './controls/controls.css'
 import './device/device.css'
@@ -188,6 +192,7 @@ export function DistingPlayground() {
   const updateSource = useCallback((nextSource: string) => {
     sourceRef.current = nextSource
     setEditorSource(nextSource)
+    setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
     setSelectedExampleId('')
     sourceIsLoadedRef.current = false
     setSourceIsLoaded(false)
@@ -366,6 +371,7 @@ export function DistingPlayground() {
     sourceRef.current = example.source
     modulesRef.current = example.modules
     setEditorSource(example.source)
+    setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
     setSelectedExampleId(example.id)
     savedStateRef.current = undefined
     setHasSavedState(false)
@@ -383,7 +389,7 @@ export function DistingPlayground() {
     const validationWorker = new Worker(new URL('./validation.worker.ts', import.meta.url), { type: 'module' })
     validationWorkerRef.current = validationWorker
     validationWorker.onmessage = (event: MessageEvent<ValidationWorkerResponse>) => {
-      if (event.data.type !== 'validated' || event.data.version !== validationVersionRef.current) return
+      if (!isCurrentValidationResponse(event.data, validationVersionRef.current)) return
       setStaticDiagnostics(event.data.diagnostics)
     }
     return () => {

@@ -217,16 +217,27 @@ standard parameter-selection and value behavior.
 
 ## Validation architecture
 
-Validation deliberately has three layers:
+Validation deliberately has four layers:
 
-1. Static validation inspects source without executing it. It finds API misuse,
+1. Syntax validation compiles source in the validation worker with the
+   simulator's Lua 5.4 `load(source, "@script.lua", "t")` implementation. It
+   never invokes the returned chunk and therefore cannot run user code.
+2. Static validation inspects source without executing it. It finds API misuse,
    real-time hazards, drawing outside `draw`, read-only parameter writes, and
    clarity issues.
-2. Contract validation inspects the raw program and `init` result. It validates
+3. Contract validation inspects the raw program and `init` result. It validates
    callbacks, buses, names, parameter forms, and MIDI filters before metadata is
    normalized.
-3. Runtime validation observes actual callback results, invalid voltages,
+4. Runtime validation observes actual callback results, invalid voltages,
    undeclared outputs, drawing context, Lua errors, and browser-local timing.
+
+The validation worker eagerly initializes one Wasmoon engine and serializes
+compile requests through it. The runtime bridge installs one reusable trusted
+compile function per engine, avoiding repeated `doString` setup and allowing
+discarded chunks to be collected. Compiler errors are reported with the source
+version, Lua line, and an inferred token column when Lua names the nearby token.
+These findings mean “compatible with the simulator's Lua 5.4 runtime”; they do
+not claim exact Disting NT firmware-version parity.
 
 `validation/api-manifest.ts` is the canonical language-contract catalog for
 firmware-facing global functions, constants, and lifecycle callbacks. Function

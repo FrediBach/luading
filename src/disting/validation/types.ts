@@ -3,7 +3,7 @@ import type { DistingLifecycleName } from './api-manifest'
 export type DiagnosticSeverity = 'error' | 'warning' | 'info'
 export type DiagnosticCategory = 'contract' | 'realtime' | 'api' | 'clarity' | 'compatibility'
 export type DiagnosticTarget = 'hardware' | 'simulator' | 'local'
-export type DiagnosticOrigin = 'static' | 'contract' | 'runtime'
+export type DiagnosticOrigin = 'syntax' | 'static' | 'contract' | 'runtime'
 
 export type LuaCallbackName = DistingLifecycleName
 
