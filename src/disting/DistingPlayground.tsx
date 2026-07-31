@@ -34,6 +34,12 @@ import {
 } from './drawer/scope-controls'
 import { IoDeck } from './io'
 import { DISTING_SCRIPT_EXAMPLES, DISTING_SCRIPT_GROUPS } from './script-examples'
+import {
+  browserThemeStorage,
+  persistTheme,
+  storedTheme,
+  toggledTheme,
+} from './theme'
 import { BottomDrawer } from './workbench/BottomDrawer'
 import { CommandBar } from './workbench/CommandBar'
 import { InstrumentRack } from './workbench/InstrumentRack'
@@ -160,6 +166,7 @@ export function DistingPlayground() {
   const [midiBytes, setMidiBytes] = useState([0x90, 60, 100])
   const [hasSavedState, setHasSavedState] = useState(false)
   const [committedFrameRevision, setCommittedFrameRevision] = useState(0)
+  const [theme, setTheme] = useState(() => storedTheme(browserThemeStorage()))
 
   const workerRef = useRef<Worker | null>(null)
   const frameCommitGateRef = useRef(new FrameCommitGate<Worker>())
@@ -559,6 +566,13 @@ export function DistingPlayground() {
     if (request) setRevealRequest(request)
   }
 
+  const toggleTheme = () => setTheme(toggledTheme)
+
+  useEffect(() => {
+    persistTheme(theme, browserThemeStorage())
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
   useWorkbenchShortcuts({
     canToggleRunning: Boolean(program)
       && (status === 'running' || status === 'paused'),
@@ -571,6 +585,7 @@ export function DistingPlayground() {
   return (
     <WorkbenchShell
       density={resolveWorkbenchDensity(layout.density, touchOriented)}
+      theme={theme}
       announcement={accessibilityAnnouncement}
       commandBar={(
         <CommandBar
@@ -593,6 +608,7 @@ export function DistingPlayground() {
           qualityWarningCount={qualityReport.warningCount}
           canToggleRunning={Boolean(program)
             && (status === 'running' || status === 'paused')}
+          theme={theme}
           onSelectExample={selectExample}
           onToggleRunning={toggleRunning}
           onRun={loadScript}
@@ -604,6 +620,7 @@ export function DistingPlayground() {
           onMidiBytesChange={setMidiBytes}
           onSendMidi={sendMidi}
           onOpenProblems={() => dispatchLayout({ type: 'openDrawer', tab: 'problems' })}
+          onToggleTheme={toggleTheme}
         />
       )}
       workspace={(
@@ -621,6 +638,7 @@ export function DistingPlayground() {
               <DistingCodeEditor
                 value={editorSource}
                 diagnostics={diagnostics}
+                theme={theme}
                 revealRequest={revealRequest}
                 onChange={updateSource}
                 onRun={loadScript}

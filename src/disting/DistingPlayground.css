@@ -9,6 +9,7 @@
   --nt-green-soft: rgba(109, 240, 168, 0.12);
   --nt-amber: #ffc96b;
   --nt-red: #ff7b72;
+  --text-on-signal: #07120c;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -19,6 +20,35 @@
   --surface-panel: var(--nt-panel);
   --surface-raised: var(--nt-panel-2);
   --surface-recessed: #0d1110;
+  --surface-command: #0e1211;
+  --surface-tooltip: #070a09;
+  --surface-status: #0c100f;
+  --surface-input-overlay: rgba(8, 12, 10, 0.78);
+  --surface-subtle: rgba(0, 0, 0, 0.08);
+  --surface-shaded: rgba(0, 0, 0, 0.12);
+  --surface-highlight: rgba(255, 255, 255, 0.04);
+  --editor-bg: #0d1110;
+  --editor-text: #cce8d8;
+  --editor-guide: rgba(109, 240, 168, 0.045);
+  --shadow-color: rgba(0, 0, 0, 0.35);
+  --shadow-strong: rgba(0, 0, 0, 0.48);
+  --split-edge: #0a0d0c;
+  --scope-grid: #1d2925;
+  --scope-grid-vertical: #17211e;
+  --scope-zero: #35433e;
+  --control-track: #2a3531;
+  --control-face: #151b19;
+  --control-face-line: #394640;
+  --control-centre: #60716a;
+  --button-face: linear-gradient(#1c2421, #111614);
+  --button-shadow: #080b0a;
+  --button-led: #52615b;
+  --button-active: #101e18;
+  --meter-bg: #26312d;
+  --device-face: #141a18;
+  --device-section: #0d1210;
+  --device-control-panel: #111614;
+  --device-parameter-panel: #151b19;
   --line-subtle: var(--nt-line);
   --line-active: var(--nt-green);
   --text-primary: var(--nt-text);
@@ -40,6 +70,58 @@
   background: var(--nt-bg);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   text-align: left;
+}
+
+.disting-app[data-theme='light'] {
+  --nt-bg: #eef2f0;
+  --nt-panel: #ffffff;
+  --nt-panel-2: #f6f8f7;
+  --nt-line: #c7d0cc;
+  --nt-text: #17201c;
+  --nt-muted: #5f6d67;
+  --nt-green: #087a48;
+  --nt-green-soft: rgba(8, 122, 72, 0.1);
+  --nt-amber: #946000;
+  --nt-red: #bd3732;
+  --text-on-signal: #ffffff;
+  --surface-canvas: var(--nt-bg);
+  --surface-panel: var(--nt-panel);
+  --surface-raised: var(--nt-panel-2);
+  --surface-recessed: #e9efec;
+  --surface-command: #f8faf9;
+  --surface-tooltip: #ffffff;
+  --surface-status: #e4ebe7;
+  --surface-input-overlay: rgba(255, 255, 255, 0.82);
+  --surface-subtle: rgba(24, 45, 35, 0.04);
+  --surface-shaded: rgba(24, 45, 35, 0.07);
+  --surface-highlight: rgba(255, 255, 255, 0.65);
+  --editor-bg: #f8faf9;
+  --editor-text: #263c32;
+  --editor-guide: rgba(8, 122, 72, 0.07);
+  --shadow-color: rgba(28, 45, 36, 0.16);
+  --shadow-strong: rgba(28, 45, 36, 0.22);
+  --split-edge: #d7dfdb;
+  --scope-grid: #d9e2de;
+  --scope-grid-vertical: #e7ecea;
+  --scope-zero: #aebbb5;
+  --control-track: #b6c2bc;
+  --control-face: #f9fbfa;
+  --control-face-line: #91a098;
+  --control-centre: #65756d;
+  --button-face: linear-gradient(#ffffff, #e4ebe7);
+  --button-shadow: #aab6b0;
+  --button-led: #87968f;
+  --button-active: #d8ebe1;
+  --meter-bg: #c8d3ce;
+  --device-face: #f4f7f5;
+  --device-section: #edf2ef;
+  --device-control-panel: #f8faf9;
+  --device-parameter-panel: #f2f5f3;
+  --probe-1: #596d64;
+  --probe-2: #087a48;
+  --probe-3: #946000;
+  --probe-4: #176daa;
+  color-scheme: light;
 }
 
 .disting-app *,
@@ -65,11 +147,11 @@
     linear-gradient(
       90deg,
       transparent 39px,
-      rgba(109, 240, 168, 0.045) 40px,
+      var(--editor-guide) 40px,
       transparent 41px
     ),
-    #0d1110;
-  color: #cce8d8;
+    var(--editor-bg);
+  color: var(--editor-text);
   font: 12.5px/1.65 var(--mono);
   tab-size: 2;
 }
@@ -82,7 +164,7 @@
   position: relative;
   min-height: 0;
   flex: 1;
-  background: #0d1110;
+  background: var(--editor-bg);
 }
 
 .disting-monaco {
@@ -113,7 +195,7 @@
   padding: 6px 8px;
   border: 1px solid var(--nt-line);
   border-radius: 6px;
-  background: rgba(13, 17, 16, 0.92);
+  background: color-mix(in srgb, var(--editor-bg) 92%, transparent);
   color: var(--nt-muted);
   font: 8px/1 var(--mono);
   letter-spacing: 0.08em;

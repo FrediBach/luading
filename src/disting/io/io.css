@@ -3,7 +3,7 @@
   overflow: visible;
   border: 1px solid var(--nt-line);
   border-radius: 7px;
-  background: var(--workbench-surface-panel, #121716);
+  background: var(--workbench-surface-panel, var(--surface-panel));
 }
 
 .io-deck-header {
@@ -14,7 +14,7 @@
   justify-content: flex-end;
   gap: 10px;
   border-bottom: 1px solid var(--nt-line);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--surface-subtle);
 }
 
 .io-global-controls {
@@ -28,7 +28,7 @@
 .audio-master-control > .control-value-field {
   min-height: 28px;
   border-color: var(--nt-line);
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
 }
 
 .io-channel-groups {
@@ -44,7 +44,7 @@
   padding: 6px;
   border: 1px solid color-mix(in srgb, var(--nt-line) 82%, transparent);
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--surface-subtle);
 }
 
 .io-channel-group > h3 {
@@ -108,7 +108,7 @@
   right: 3px;
   padding: 2px;
   border-radius: 3px;
-  background: rgba(8, 12, 10, 0.78);
+  background: var(--surface-input-overlay);
   opacity: 0.75;
 }
 
@@ -132,7 +132,7 @@
   max-width: 76px;
   padding-inline: 3px;
   border-color: var(--nt-line);
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--surface-shaded);
   font-size: 8px;
 }
 
@@ -150,7 +150,7 @@
   box-sizing: border-box;
   border: 1px solid var(--nt-line);
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--surface-shaded);
   color: var(--nt-text);
   font: 8px/1 var(--mono);
 }
@@ -252,7 +252,7 @@
   box-sizing: border-box;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
 }
 
 .audio-waveform-select > span {
@@ -318,10 +318,10 @@
   padding: 7px 9px;
   border: 1px solid color-mix(in srgb, var(--nt-red) 70%, var(--nt-line));
   border-radius: 4px;
-  background: var(--workbench-surface-raised, #181e1c);
+  background: var(--workbench-surface-raised, var(--surface-raised));
   color: var(--nt-red);
   font: 8px/1.4 var(--mono);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 25px var(--shadow-color);
 }
 
 .output-routing-options {
@@ -352,7 +352,7 @@
   gap: 5px;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
   color: var(--nt-muted);
   text-align: left;
   cursor: pointer;
@@ -390,7 +390,7 @@
   margin: 8px 0 0;
   padding: 6px 7px;
   border-left: 2px solid var(--nt-amber);
-  background: rgba(240, 179, 80, 0.07);
+  background: color-mix(in srgb, var(--nt-amber) 7%, transparent);
   color: var(--nt-muted);
   font: 8px/1.4 var(--mono);
 }
@@ -432,7 +432,7 @@
   gap: 7px;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
   color: var(--nt-muted);
   text-align: left;
   cursor: pointer;
@@ -524,7 +524,7 @@
   gap: 4px;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
   color: var(--nt-muted);
   cursor: pointer;
 }
@@ -552,7 +552,7 @@
   padding: 8px;
   border: 1px solid var(--nt-line);
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--surface-subtle);
 }
 
 .input-inspector-timing {
@@ -595,7 +595,7 @@
   box-sizing: border-box;
   border: 1px solid var(--nt-line);
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--surface-subtle);
 }
 
 .input-inspector-controls .rotary-control-label {
@@ -614,7 +614,7 @@
   gap: 10px;
   border: 1px solid var(--nt-line);
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--surface-subtle);
 }
 
 .input-seed-control > span {
@@ -623,7 +623,7 @@
 
 .input-seed-control > .control-value-field {
   border-color: var(--nt-line);
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
 }
 
 @media (max-width: 620px) {

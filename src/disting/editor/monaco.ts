@@ -57,6 +57,52 @@ monaco.editor.defineTheme('disting-nt', {
   },
 })
 
+monaco.editor.defineTheme('disting-nt-light', {
+  base: 'vs',
+  inherit: true,
+  rules: [
+    { token: 'comment', foreground: '68756F', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '087A48' },
+    { token: 'number', foreground: '966000' },
+    { token: 'string', foreground: '35664E' },
+    { token: 'identifier', foreground: '26332E' },
+    { token: 'support.function.disting', foreground: '006AA3' },
+    { token: 'constant.disting', foreground: '966000' },
+    { token: 'key', foreground: '197049' },
+    { token: 'delimiter', foreground: '63716B' },
+  ],
+  colors: {
+    'editor.background': '#F8FAF9',
+    'editor.foreground': '#26332E',
+    'editorLineNumber.foreground': '#9AA6A0',
+    'editorLineNumber.activeForeground': '#56655E',
+    'editorCursor.foreground': '#087A48',
+    'editor.selectionBackground': '#B8E3CE',
+    'editor.inactiveSelectionBackground': '#D7EDE2',
+    'editor.lineHighlightBackground': '#EEF4F1',
+    'editorIndentGuide.background1': '#DDE5E1',
+    'editorIndentGuide.activeBackground1': '#AABAB2',
+    'editorBracketHighlight.foreground1': '#087A48',
+    'editorBracketHighlight.foreground2': '#966000',
+    'editorBracketHighlight.foreground3': '#006AA3',
+    'editorSuggestWidget.background': '#FFFFFF',
+    'editorSuggestWidget.border': '#BBC7C1',
+    'editorSuggestWidget.foreground': '#26332E',
+    'editorSuggestWidget.highlightForeground': '#087A48',
+    'editorSuggestWidget.selectedBackground': '#E3F1EA',
+    'editorHoverWidget.background': '#FFFFFF',
+    'editorHoverWidget.border': '#BBC7C1',
+    'editorWidget.background': '#FFFFFF',
+    'editorWidget.border': '#BBC7C1',
+    'input.background': '#F8FAF9',
+    'input.border': '#BBC7C1',
+    'focusBorder': '#087A48',
+    'scrollbarSlider.background': '#87968F55',
+    'scrollbarSlider.hoverBackground': '#65756DAA',
+    'scrollbarSlider.activeBackground': '#087A4899',
+  },
+})
+
 const languageRegistration = registerDistingLuaLanguage(monaco)
 const intelliSenseRegistration = registerDistingIntelliSense(monaco)
 const navigationRegistration = registerDistingNavigation(monaco)

@@ -50,6 +50,16 @@
   }
 }
 
+:root[data-theme='dark'] {
+  --bg: #0a0d0c;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #eef2f0;
+  color-scheme: light;
+}
+
 #root {
   width: 100%;
   min-height: 100svh;

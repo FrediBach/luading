@@ -58,6 +58,7 @@ describe('command bar utilities', () => {
         qualityErrorCount={0}
         qualityWarningCount={1}
         canToggleRunning
+        theme="dark"
         onSelectExample={() => undefined}
         onToggleRunning={() => undefined}
         onRun={() => undefined}
@@ -67,6 +68,7 @@ describe('command bar utilities', () => {
         onMidiBytesChange={() => undefined}
         onSendMidi={() => undefined}
         onOpenProblems={() => undefined}
+        onToggleTheme={() => undefined}
       />,
     )
 
@@ -82,6 +84,7 @@ describe('command bar utilities', () => {
     expect(markup).toContain('Workspace preset: Patch')
     expect(markup).toContain('Open MIDI input utility')
     expect(markup).toContain('About Luading simulator')
+    expect(markup).toContain('Switch to light mode')
   })
 
   it('presents load and unavailable states without ambiguous commands', () => {
@@ -101,6 +104,7 @@ describe('command bar utilities', () => {
         qualityErrorCount={0}
         qualityWarningCount={0}
         canToggleRunning={false}
+        theme="light"
         onSelectExample={() => undefined}
         onToggleRunning={() => undefined}
         onRun={() => undefined}
@@ -110,6 +114,7 @@ describe('command bar utilities', () => {
         onMidiBytesChange={() => undefined}
         onSendMidi={() => undefined}
         onOpenProblems={() => undefined}
+        onToggleTheme={() => undefined}
       />,
     )
 
@@ -119,6 +124,7 @@ describe('command bar utilities', () => {
     expect(markup).toContain('Start global test-signal clock')
     expect(markup).toContain('Workspace preset: Custom')
     expect(markup).not.toContain('Open MIDI input utility')
+    expect(markup).toContain('Switch to dark mode')
   })
 
   it('filters bundled script groups by script, id, or group name', () => {

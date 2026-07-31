@@ -15,8 +15,8 @@
   padding: 6px 7px;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: #070a09;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: var(--surface-tooltip);
+  box-shadow: 0 8px 24px var(--shadow-color);
   color: var(--nt-text);
   font: 8px/1.35 var(--mono);
   letter-spacing: 0.02em;
@@ -78,7 +78,7 @@
   place-items: center;
   border: 1px solid var(--nt-line);
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--surface-shaded);
   color: var(--nt-muted);
   cursor: pointer;
 }
@@ -157,7 +157,7 @@ button.control-value-field {
 
 button.control-value-field:hover:not(:disabled) {
   border-color: var(--nt-line);
-  background: rgba(0, 0, 0, 0.14);
+  background: var(--surface-shaded);
 }
 
 .control-value-field > span {
@@ -168,7 +168,7 @@ button.control-value-field:hover:not(:disabled) {
 
 .control-value-field.is-editing {
   border-color: var(--nt-green);
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
 }
 
 .control-value-field.is-invalid {
@@ -199,8 +199,8 @@ button.control-value-field:hover:not(:disabled) {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--nt-green) 30%, var(--nt-line));
   border-radius: 7px;
-  background: var(--workbench-surface-raised, #171d1b);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.48);
+  background: var(--workbench-surface-raised, var(--surface-raised));
+  box-shadow: 0 16px 48px var(--shadow-strong);
 }
 
 .control-popover-heading {
@@ -233,7 +233,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .control-popover-heading button:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-highlight);
   color: var(--nt-text);
 }
 
@@ -256,8 +256,8 @@ button.control-value-field:hover:not(:disabled) {
   border: 1px solid var(--nt-line);
   border-radius: 6px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.025), transparent 45%),
-    var(--workbench-surface-raised, #171d1b);
+    linear-gradient(145deg, var(--surface-highlight), transparent 45%),
+    var(--workbench-surface-raised, var(--surface-raised));
   color: var(--nt-text);
 }
 
@@ -401,18 +401,18 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .rotary-control-track {
-  stroke: #2a3531;
+  stroke: var(--control-track);
 }
 
 .rotary-control-active {
   stroke: var(--nt-green);
-  filter: drop-shadow(0 0 3px rgba(109, 240, 168, 0.22));
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--nt-green) 22%, transparent));
 }
 
 .rotary-control-face,
 .endless-encoder-face {
-  fill: #151b19;
-  stroke: #394640;
+  fill: var(--control-face);
+  stroke: var(--control-face-line);
   stroke-width: 2;
 }
 
@@ -423,7 +423,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .rotary-control-centre {
-  stroke: #60716a;
+  stroke: var(--control-centre);
   stroke-width: 2;
 }
 
@@ -443,7 +443,7 @@ button.control-value-field:hover:not(:disabled) {
 
 .endless-encoder-ring {
   fill: none;
-  stroke: #2a3531;
+  stroke: var(--control-track);
   stroke-width: 2;
 }
 
@@ -471,15 +471,15 @@ button.control-value-field:hover:not(:disabled) {
   grid-template-rows: auto auto;
   place-items: center;
   gap: 4px;
-  border: 1px solid #394640;
+  border: 1px solid var(--control-face-line);
   border-radius: 6px;
-  background: linear-gradient(#1c2421, #111614);
+  background: var(--button-face);
   color: var(--nt-muted);
   font: 8px/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 2px 0 #080b0a;
+  box-shadow: 0 2px 0 var(--button-shadow);
   transform: translateY(0);
 }
 
@@ -487,18 +487,18 @@ button.control-value-field:hover:not(:disabled) {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #52615b;
+  background: var(--button-led);
 }
 
 .momentary-button:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--nt-green) 55%, #394640);
+  border-color: color-mix(in srgb, var(--nt-green) 55%, var(--control-face-line));
   color: var(--nt-text);
 }
 
 .momentary-button.is-active {
-  background: #101e18;
+  background: var(--button-active);
   color: var(--nt-green);
-  box-shadow: 0 0 0 #080b0a;
+  box-shadow: 0 0 0 var(--button-shadow);
   transform: translateY(2px);
 }
 
@@ -546,7 +546,7 @@ button.control-value-field:hover:not(:disabled) {
   padding: 0 9px;
   border: 0;
   border-right: 1px solid var(--nt-line);
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
   color: var(--nt-muted);
   font: 8px/1 var(--mono);
   cursor: pointer;
@@ -572,7 +572,7 @@ button.control-value-field:hover:not(:disabled) {
   height: 7px;
   overflow: hidden;
   border-radius: 3px;
-  background: #26312d;
+  background: var(--meter-bg);
 }
 
 .level-meter > i {
@@ -616,7 +616,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .mini-signal-zero {
-  stroke: #3a4742;
+  stroke: var(--control-face-line);
   stroke-width: 0.7;
   vector-effect: non-scaling-stroke;
 }

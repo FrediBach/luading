@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react'
+import { monacoTheme, type ThemeMode } from '../theme'
 import type { ScriptDiagnostic, SourceRange } from '../validation/types'
 import { registerDiagnosticCodeActions } from './diagnostic-code-actions'
 import {
@@ -11,6 +12,7 @@ import { DISTING_LUA_LANGUAGE_ID, DISTING_LUA_MODEL_URI } from './disting-lua'
 type DistingCodeEditorProps = {
   value: string
   diagnostics: ScriptDiagnostic[]
+  theme: ThemeMode
   revealRequest?: { range: SourceRange; nonce: number }
   onChange(value: string): void
   onRun(): void
@@ -24,6 +26,7 @@ type IdleWindow = Window & typeof globalThis & {
 export const DistingCodeEditor = memo(function DistingCodeEditor({
   value,
   diagnostics,
+  theme,
   revealRequest,
   onChange,
   onRun,
@@ -38,6 +41,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   const onRunRef = useRef(onRun)
   const diagnosticsRef = useRef(diagnostics)
   const revealRequestRef = useRef(revealRequest)
+  const themeRef = useRef(theme)
   const [lineCount, setLineCount] = useState(() => value.split('\n').length)
   const [loadingState, setLoadingState] = useState<'waiting' | 'loading' | 'ready' | 'fallback'>('waiting')
   const [fallbackValue, setFallbackValue] = useState(value)
@@ -47,6 +51,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   onRunRef.current = onRun
   diagnosticsRef.current = diagnostics
   revealRequestRef.current = revealRequest
+  themeRef.current = theme
 
   const applyMarkers = () => {
     const monaco = monacoRef.current
@@ -113,6 +118,12 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   }, [revealRequest])
 
   useEffect(() => {
+    if (monacoRef.current) {
+      monacoRef.current.editor.setTheme(monacoTheme(theme))
+    }
+  }, [theme])
+
+  useEffect(() => {
     let disposed = false
     let idleHandle: number | undefined
     let editor: import('monaco-editor/esm/vs/editor/editor.api').editor.IStandaloneCodeEditor | undefined
@@ -135,7 +146,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
         monacoRef.current = monaco
         editor = monaco.editor.create(containerRef.current, {
           model,
-          theme: 'disting-nt',
+          theme: monacoTheme(themeRef.current),
           ariaLabel: 'Disting Lua source',
           automaticLayout: true,
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',

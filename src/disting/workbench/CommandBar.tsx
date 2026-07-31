@@ -1,4 +1,5 @@
 import type { DistingScriptExampleGroup } from '../script-examples'
+import type { ThemeMode } from '../theme'
 import type { GlobalClockConfig } from '../types'
 import { SaveStateControl } from '../device/SaveStateControl'
 import { AboutPopover } from './AboutPopover'
@@ -8,6 +9,7 @@ import { MidiEventTool } from './MidiEventTool'
 import { RunControls } from './RunControls'
 import { RuntimeStatus, type RuntimeStateValue } from './RuntimeStatus'
 import { ScriptMenu } from './ScriptMenu'
+import { ThemeToggle } from './ThemeToggle'
 import { WorkspacePresetMenu } from './WorkspacePresetMenu'
 import type { WorkspacePresetId } from './workbench-layout'
 
@@ -30,6 +32,7 @@ interface Props {
   qualityErrorCount: number
   qualityWarningCount: number
   canToggleRunning: boolean
+  theme: ThemeMode
   onSelectExample(id: string): void
   onToggleRunning(): void
   onRun(): void
@@ -39,6 +42,7 @@ interface Props {
   onMidiBytesChange(bytes: number[]): void
   onSendMidi(bytes: number[]): void
   onOpenProblems(): void
+  onToggleTheme(): void
 }
 
 export function CommandBar({
@@ -57,6 +61,7 @@ export function CommandBar({
   qualityErrorCount,
   qualityWarningCount,
   canToggleRunning,
+  theme,
   onSelectExample,
   onToggleRunning,
   onRun,
@@ -66,6 +71,7 @@ export function CommandBar({
   onMidiBytesChange,
   onSendMidi,
   onOpenProblems,
+  onToggleTheme,
 }: Props) {
   return (
     <header className="workbench-commandbar">
@@ -123,6 +129,7 @@ export function CommandBar({
           onSend={onSendMidi}
         />
       )}
+      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       <AboutPopover />
     </header>
   )

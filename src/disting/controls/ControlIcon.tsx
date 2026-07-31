@@ -19,6 +19,8 @@ export type ControlIconName =
   | 'monitor'
   | 'compact'
   | 'info'
+  | 'sun'
+  | 'moon'
   | 'close'
 
 interface Props {
@@ -69,6 +71,10 @@ function IconPaths({ name }: { name: ControlIconName }) {
       return <path d="M3 3h6v6H3Zm8 0h6v6h-6ZM3 11h6v6H3Zm8 0h6v6h-6ZM5 5v2h2V5Zm8 0v2h2V5Zm-8 8v2h2v-2Zm8 0v2h2v-2Z" />
     case 'info':
       return <path d="M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm-.9 3h1.8v1.8H9.1Zm0 3.2h1.8v6H9.1Z" />
+    case 'sun':
+      return <path d="M9.1 1h1.8v2.4H9.1Zm0 15.6h1.8V19H9.1ZM1 9.1h2.4v1.8H1Zm15.6 0H19v1.8h-2.4ZM3.2 4.5l1.3-1.3 1.7 1.7-1.3 1.3Zm10.6 10.6 1.3-1.3 1.7 1.7-1.3 1.3Zm0-10.2 1.7-1.7 1.3 1.3-1.7 1.7ZM3.2 15.5l1.7-1.7 1.3 1.3-1.7 1.7ZM10 5.4a4.6 4.6 0 1 0 0 9.2 4.6 4.6 0 0 0 0-9.2Zm0 1.8a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6Z" />
+    case 'moon':
+      return <path d="M15.9 12.8A6.7 6.7 0 0 1 7.2 4.1 6.7 6.7 0 1 0 15.9 12.8ZM5.8 6.6a8.5 8.5 0 0 0 7.6 7.6 6.7 6.7 0 1 1-7.6-7.6Z" />
     case 'close':
       return <path d="m5.4 4.2 4.6 4.6 4.6-4.6 1.2 1.2-4.6 4.6 4.6 4.6-1.2 1.2-4.6-4.6-4.6 4.6-1.2-1.2L8.8 10 4.2 5.4Z" />
   }

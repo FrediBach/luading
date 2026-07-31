@@ -33,7 +33,7 @@
   overflow: auto;
   box-sizing: border-box;
   border-right: 1px solid var(--nt-line);
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--surface-subtle);
 }
 
 .quality-summary-score > span,
@@ -151,7 +151,7 @@
   box-sizing: border-box;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--surface-subtle);
 }
 
 .quality-category-row span {
@@ -215,7 +215,7 @@
 }
 
 .diagnostic-row:hover:not(:disabled) {
-  background: rgba(109, 240, 168, 0.045);
+  background: color-mix(in srgb, var(--nt-green) 4.5%, transparent);
 }
 
 .diagnostic-row:focus-visible {
@@ -335,7 +335,7 @@
   overflow-x: auto;
   box-sizing: border-box;
   border-bottom: 1px solid var(--nt-line);
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--surface-subtle);
 }
 
 .console-filter-group {
@@ -354,7 +354,7 @@
   box-sizing: border-box;
   border: 1px solid var(--nt-line);
   border-radius: 4px;
-  background: #0d1110;
+  background: var(--surface-recessed);
   color: var(--nt-muted);
   font: 7px/1 var(--mono);
   letter-spacing: 0.04em;
@@ -394,7 +394,7 @@
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  background: #0c100f;
+  background: var(--surface-status);
 }
 
 .console-entry {
@@ -403,7 +403,7 @@
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
   gap: 8px;
-  border-bottom: 1px solid rgba(37, 48, 44, 0.55);
+  border-bottom: 1px solid color-mix(in srgb, var(--nt-line) 55%, transparent);
 }
 
 .console-entry > span {
@@ -415,7 +415,7 @@
 
 .console-entry > code {
   min-width: 0;
-  color: #b7c3be;
+  color: var(--nt-text);
   font: 8px/1.45 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -463,7 +463,7 @@
   min-width: 0;
   padding: 7px 9px;
   border-right: 1px solid var(--nt-line);
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--surface-subtle);
 }
 
 .performance-metrics > div:last-child {
@@ -513,7 +513,7 @@
   margin-top: 7px;
   border: 1px solid var(--nt-line);
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--surface-subtle);
 }
 
 .callback-performance summary {
@@ -620,7 +620,7 @@
   overflow-x: auto;
   box-sizing: border-box;
   border-bottom: 1px solid var(--nt-line);
-  background: rgba(0, 0, 0, 0.11);
+  background: var(--surface-shaded);
   scrollbar-width: thin;
 }
 
@@ -651,7 +651,7 @@
   min-height: 28px;
   align-self: end;
   border-color: var(--nt-line);
-  background: var(--workbench-surface-recessed, #0d1110);
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
 }
 
 .scope-toolbar-select {
@@ -678,10 +678,10 @@
   border: 1px solid var(--nt-line);
   border-radius: 4px;
   outline: 0;
-  background-color: #0d1110;
+  background-color: var(--surface-recessed);
   background-image:
-    linear-gradient(45deg, transparent 50%, #93a39d 50%),
-    linear-gradient(135deg, #93a39d 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, var(--nt-muted) 50%),
+    linear-gradient(135deg, var(--nt-muted) 50%, transparent 50%);
   background-position:
     calc(100% - 11px) 50%,
     calc(100% - 7px) 50%;
@@ -692,8 +692,8 @@
 }
 
 .scope-workspace select option {
-  background: #0d1110;
-  color: #eef5f1;
+  background: var(--surface-recessed);
+  color: var(--nt-text);
   font: 10px/1.4 var(--mono);
 }
 
@@ -763,7 +763,7 @@
   border: 1px solid var(--nt-line);
   border-radius: 4px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.09);
+  background: var(--surface-subtle);
 }
 
 .scope-legend-chip.is-focused {
@@ -829,7 +829,7 @@
   border: 0;
   border-left: 1px solid var(--nt-line);
   outline: 0;
-  background-color: #0d1110;
+  background-color: var(--surface-recessed);
   background-image:
     linear-gradient(45deg, transparent 50%, var(--probe-color) 50%),
     linear-gradient(135deg, var(--probe-color) 50%, transparent 50%);
@@ -853,7 +853,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #0d1110;
+  background: var(--surface-recessed);
 }
 
 .scope-graph svg {
@@ -871,17 +871,17 @@
   vector-effect: non-scaling-stroke;
 }
 
-.scope-grid { stroke: #1d2925; }
-.scope-grid--vertical { stroke: #17211e; }
-.scope-zero { stroke: #35433e; }
+.scope-grid { stroke: var(--scope-grid); }
+.scope-grid--vertical { stroke: var(--scope-grid-vertical); }
+.scope-zero { stroke: var(--scope-zero); }
 
 .scope-trigger-level {
-  stroke: rgba(255, 201, 107, 0.42);
+  stroke: color-mix(in srgb, var(--nt-amber) 42%, transparent);
   stroke-dasharray: 3 4;
 }
 
 .scope-trigger-time {
-  stroke: rgba(255, 201, 107, 0.3);
+  stroke: color-mix(in srgb, var(--nt-amber) 30%, transparent);
   stroke-dasharray: 2 5;
 }
 
@@ -906,7 +906,7 @@
 .scope-axis-label {
   position: absolute;
   left: 7px;
-  color: #66736e;
+  color: var(--nt-muted);
   font: 7px/1 var(--mono);
   pointer-events: none;
 }
