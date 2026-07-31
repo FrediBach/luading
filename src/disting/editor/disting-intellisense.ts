@@ -10,6 +10,7 @@ import {
   type DistingConstantEntry,
   type DistingLifecycleEntry,
 } from '../validation/api-manifest'
+import { DISTING_LUA_LANGUAGE_ID } from './disting-lua'
 
 type MonacoApi = typeof Monaco
 
@@ -261,10 +262,15 @@ function ownerBeforePosition(model: Monaco.editor.ITextModel, position: Monaco.P
   return line.match(/([A-Za-z_]\w*)\.\w*$/)?.[1]
 }
 
+let activeRegistration: { monaco: MonacoApi; disposable: Monaco.IDisposable } | undefined
+
 export function registerDistingIntelliSense(monaco: MonacoApi) {
+  if (activeRegistration?.monaco === monaco) return activeRegistration.disposable
+
+  activeRegistration?.disposable.dispose()
   const disposables: Monaco.IDisposable[] = []
 
-  disposables.push(monaco.languages.registerCompletionItemProvider('lua', {
+  disposables.push(monaco.languages.registerCompletionItemProvider(DISTING_LUA_LANGUAGE_ID, {
     triggerCharacters: ['.', 'k'],
     provideCompletionItems(model, position) {
       const range = wordRange(monaco, model, position)
@@ -315,7 +321,7 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
     },
   }))
 
-  disposables.push(monaco.languages.registerHoverProvider('lua', {
+  disposables.push(monaco.languages.registerHoverProvider(DISTING_LUA_LANGUAGE_ID, {
     provideHover(model, position) {
       const word = model.getWordAtPosition(position)
       if (!word) return null
@@ -338,7 +344,7 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
     },
   }))
 
-  disposables.push(monaco.languages.registerSignatureHelpProvider('lua', {
+  disposables.push(monaco.languages.registerSignatureHelpProvider(DISTING_LUA_LANGUAGE_ID, {
     signatureHelpTriggerCharacters: ['(', ','],
     signatureHelpRetriggerCharacters: [','],
     provideSignatureHelp(model, position) {
@@ -373,9 +379,16 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
     },
   }))
 
-  return {
+  let disposed = false
+  const disposable = {
     dispose() {
-      for (const disposable of disposables) disposable.dispose()
+      if (disposed) return
+      disposed = true
+      for (const item of disposables.toReversed()) item.dispose()
+      if (activeRegistration?.disposable === disposable) activeRegistration = undefined
     },
   }
+
+  activeRegistration = { monaco, disposable }
+  return disposable
 }

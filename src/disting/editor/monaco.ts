@@ -1,7 +1,7 @@
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
-import 'monaco-editor/esm/vs/basic-languages/lua/lua.contribution'
 import { registerDistingIntelliSense } from './disting-intellisense'
+import { registerDistingLuaLanguage } from './disting-lua'
 
 window.MonacoEnvironment = {
   getWorker() {
@@ -18,6 +18,9 @@ monaco.editor.defineTheme('disting-nt', {
     { token: 'number', foreground: 'FFC96B' },
     { token: 'string', foreground: 'B9D6C6' },
     { token: 'identifier', foreground: 'D8E5DE' },
+    { token: 'support.function.disting', foreground: '72C7FF' },
+    { token: 'constant.disting', foreground: 'FFC96B' },
+    { token: 'key', foreground: 'A9E6C5' },
     { token: 'delimiter', foreground: '87958F' },
   ],
   colors: {
@@ -52,6 +55,14 @@ monaco.editor.defineTheme('disting-nt', {
   },
 })
 
-registerDistingIntelliSense(monaco)
+const languageRegistration = registerDistingLuaLanguage(monaco)
+const intelliSenseRegistration = registerDistingIntelliSense(monaco)
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    intelliSenseRegistration.dispose()
+    languageRegistration.dispose()
+  })
+}
 
 export { monaco }

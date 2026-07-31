@@ -64,6 +64,11 @@ This keeps snippets syntactically valid at their default placeholder values and
 checks that constants exposed by the runtime stay aligned with the canonical
 language catalog.
 
+The editor language tests compile the local `disting-lua` Monarch definition,
+pin its Lua 5.4 operators and long-bracket states, exercise representative
+indentation rules, and verify that language and IntelliSense registration is
+idempotent and isolated from ordinary Lua models.
+
 ### Script corpus regression
 
 All bundled scripts are loaded and exercised:

@@ -237,6 +237,15 @@ output, unit, scale, or compatibility-alias category. Lifecycle entries provide
 callback signatures, script kind, cadence, return semantics, provenance, and
 editor snippets.
 
+Monaco creates the script model as `disting-lua` at the stable
+`inmemory://disting/main.lua` URI. The language is registered from a local Lua
+5.4 configuration and Monarch tokenizer so its indentation, long-bracket
+strings and comments, operators, numerals, and Disting token categories do not
+depend on Monaco's generic Lua contribution. Disting completion, hover, and
+signature providers register only for this model language. Their registrations
+and the language configuration/tokenizer are disposable and replaced safely
+during hot updates; the base language ID itself is registered only once.
+
 The runtime constant table, static API arity checks, contract callback checks,
 and Monaco Disting completions all derive from this catalog. Manual-backed,
 hardware-verified, official-corpus, and simulator-extension provenance remain

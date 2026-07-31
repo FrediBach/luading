@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import type { ScriptDiagnostic, SourceRange } from '../validation/types'
 import { diagnosticMarkerSignature } from './diagnostic-markers'
+import { DISTING_LUA_LANGUAGE_ID, DISTING_LUA_MODEL_URI } from './disting-lua'
 
 type DistingCodeEditorProps = {
   value: string
@@ -113,7 +114,11 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
         const { monaco } = await import('./monaco')
         if (disposed || !containerRef.current) return
 
-        model = monaco.editor.createModel(valueRef.current, 'lua')
+        model = monaco.editor.createModel(
+          valueRef.current,
+          DISTING_LUA_LANGUAGE_ID,
+          monaco.Uri.parse(DISTING_LUA_MODEL_URI),
+        )
         modelRef.current = model
         monacoRef.current = monaco
         editor = monaco.editor.create(containerRef.current, {
@@ -133,6 +138,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           wrappingIndent: 'same',
           lineNumbersMinChars: 3,
           glyphMargin: false,
+          lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.Off },
           folding: true,
           foldingHighlight: false,
           showFoldingControls: 'mouseover',
@@ -148,13 +154,15 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           occurrencesHighlight: 'off',
           selectionHighlight: false,
           codeLens: false,
+          wordBasedSuggestions: 'currentDocument',
+          wordBasedSuggestionsOnlySameLanguage: true,
           quickSuggestions: { other: true, comments: false, strings: false },
           suggestOnTriggerCharacters: true,
           parameterHints: { enabled: true, cycle: true },
           bracketPairColorization: { enabled: true, independentColorPoolPerBracketType: true },
           guides: { bracketPairs: true, indentation: true },
           suggest: {
-            showWords: false,
+            showWords: true,
             showSnippets: true,
             snippetsPreventQuickSuggestions: false,
             localityBonus: true,

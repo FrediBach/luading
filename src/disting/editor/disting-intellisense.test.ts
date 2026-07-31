@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { LuaFactory } from 'wasmoon'
 import {
   DISTING_API,
@@ -12,7 +12,9 @@ import {
   COMPLETE_SCRIPT_SNIPPET,
   constantEntryForIntelliSense,
   lifecycleEntryForIntelliSense,
+  registerDistingIntelliSense,
 } from './disting-intellisense'
+import { DISTING_LUA_LANGUAGE_ID } from './disting-lua'
 
 function expandSnippetDefaults(snippet: string) {
   return snippet.replace(/\$\{\d+:([^}]*)\}/g, '$1')
@@ -32,6 +34,34 @@ async function compileOnly(source: string) {
 }
 
 describe('Disting IntelliSense API support', () => {
+  it('registers providers only for Disting Lua and disposes them idempotently', () => {
+    const dispose = vi.fn()
+    const languageIds: string[] = []
+    const register = (languageId: string) => {
+      languageIds.push(languageId)
+      return { dispose }
+    }
+    const monaco = {
+      languages: {
+        registerCompletionItemProvider: vi.fn(register),
+        registerHoverProvider: vi.fn(register),
+        registerSignatureHelpProvider: vi.fn(register),
+      },
+    }
+
+    const registration = registerDistingIntelliSense(monaco as never)
+    expect(registerDistingIntelliSense(monaco as never)).toBe(registration)
+    expect(languageIds).toEqual([
+      DISTING_LUA_LANGUAGE_ID,
+      DISTING_LUA_LANGUAGE_ID,
+      DISTING_LUA_LANGUAGE_ID,
+    ])
+
+    registration.dispose()
+    registration.dispose()
+    expect(dispose).toHaveBeenCalledTimes(3)
+  })
+
   it('shows non-full support levels and API-specific limitations', () => {
     const cpu = DISTING_API_BY_NAME.get('getCpuCycleCount')
     const midi = DISTING_API_BY_NAME.get('sendMIDI')
