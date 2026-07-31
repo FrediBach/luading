@@ -51,6 +51,7 @@ export function MidiEventTool({
         open={open}
         label="MIDI input utility"
         anchorRef={triggerRef}
+        preferredWidth={360}
         onClose={() => setOpen(false)}
       >
         <div className="midi-preset-options" aria-label="Common MIDI messages">

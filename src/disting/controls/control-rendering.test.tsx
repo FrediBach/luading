@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { SignalShape } from '../types'
+import { ControlPopover } from './ControlPopover'
 import { ControlTile } from './ControlTile'
 import { IconToggle } from './IconToggle'
 import { MiniSignalPlot } from './MiniSignalPlot'
@@ -9,6 +10,21 @@ import { RotaryControl } from './RotaryControl'
 import { SignalShapeGlyph } from './SignalShapeGlyph'
 
 describe('custom control rendering', () => {
+  it('positions popovers in the viewport by default to escape clipped panels', () => {
+    const markup = renderToStaticMarkup(
+      <ControlPopover
+        open
+        label="Overflow-safe menu"
+        onClose={() => undefined}
+      >
+        <button type="button">Option</button>
+      </ControlPopover>,
+    )
+
+    expect(markup).toContain('control-popover control-popover--viewport')
+    expect(markup).toContain('aria-label="Overflow-safe menu"')
+  })
+
   it('exposes rotary values as an accessible slider and exact value button', () => {
     const markup = renderToStaticMarkup(
       <RotaryControl
@@ -99,4 +115,3 @@ describe('custom control rendering', () => {
     expect(plot).toContain('mini-signal-path')
   })
 })
-

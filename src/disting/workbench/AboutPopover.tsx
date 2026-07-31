@@ -57,6 +57,7 @@ export function AboutPopover() {
         open={open}
         label="About Luading"
         anchorRef={triggerRef}
+        preferredWidth={390}
         onClose={() => setOpen(false)}
       >
         <AboutContent />

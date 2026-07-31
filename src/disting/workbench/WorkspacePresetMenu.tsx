@@ -64,6 +64,7 @@ export function WorkspacePresetMenu({ activePreset, onApply }: Props) {
         open={open}
         label="Workspace presets"
         anchorRef={triggerRef}
+        preferredWidth={380}
         onClose={() => setOpen(false)}
       >
         <div className="workspace-preset-options">

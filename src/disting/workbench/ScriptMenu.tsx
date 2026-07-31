@@ -48,6 +48,7 @@ export function ScriptMenu({
         open={open}
         label="Choose Lua script"
         anchorRef={triggerRef}
+        preferredWidth={390}
         onClose={() => setOpen(false)}
       >
         <input

@@ -30,7 +30,7 @@ export function ControlPopover({
   open,
   label,
   anchorRef,
-  positioning = 'anchored',
+  positioning = 'viewport',
   preferredWidth,
   children,
   onClose,

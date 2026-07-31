@@ -89,6 +89,7 @@ export const ParameterControl = memo(function ParameterControl({
           open={menuOpen}
           label={definition.name}
           anchorRef={menuButtonRef}
+          preferredWidth={360}
           onClose={() => setMenuOpen(false)}
         >
           {enumValues.length > 8 && (

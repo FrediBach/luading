@@ -135,6 +135,7 @@ export function CommandBar({
         onOpen={onOpenProblems}
       />
 
+      <RuntimeStatus status={status} simulatedSeconds={simulatedSeconds} />
       <WorkspacePresetMenu
         activePreset={workspacePreset}
         onApply={onApplyWorkspacePreset}

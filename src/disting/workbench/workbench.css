@@ -150,12 +150,6 @@
   white-space: nowrap;
 }
 
-.script-menu > .control-popover {
-  right: auto;
-  left: 0;
-  width: min(390px, calc(100vw - 24px));
-}
-
 .script-menu-search {
   width: 100%;
   min-height: var(--control-target);
@@ -425,10 +419,6 @@
   font-size: var(--font-label);
 }
 
-.workspace-preset-menu > .control-popover {
-  width: min(380px, calc(100vw - 24px));
-}
-
 .workspace-preset-options {
   display: grid;
   gap: 4px;
@@ -490,10 +480,6 @@
   background: color-mix(in srgb, var(--nt-green) 5%, transparent);
   color: var(--nt-muted);
   font: var(--font-micro)/1.4 var(--mono);
-}
-
-.midi-event-tool > .control-popover {
-  width: min(360px, calc(100vw - 24px));
 }
 
 .midi-preset-options {
@@ -599,10 +585,6 @@
 .midi-send-row button:disabled {
   opacity: 0.35;
   cursor: default;
-}
-
-.about-popover > .control-popover {
-  width: min(390px, calc(100vw - 24px));
 }
 
 .about-popover-content {
