@@ -18,16 +18,10 @@ const KEYBOARD_DRAG_STEP = 10
 
 interface Props {
   commands: DrawCommand[]
-  programName: string
-  customUi: boolean | null
-  simulatedSeconds: number
 }
 
 export function DraggableDisplayPreview({
   commands,
-  programName,
-  customUi,
-  simulatedSeconds,
 }: Props) {
   const overlayRef = useRef<HTMLElement>(null)
   const dragRef = useRef<{
@@ -37,8 +31,6 @@ export function DraggableDisplayPreview({
     origin: DisplayPosition
   } | null>(null)
   const [position, setPosition] = useState<DisplayPosition | null>(null)
-  const loaded = customUi !== null
-
   const clampedPosition = useCallback((nextPosition: DisplayPosition) => {
     const overlay = overlayRef.current
     if (!overlay) return nextPosition
@@ -126,12 +118,7 @@ export function DraggableDisplayPreview({
         <span aria-hidden="true">⠿</span>
         Display preview
       </button>
-      <DistingDisplayBezel
-        commands={commands}
-        programName={programName}
-        uiMode={!loaded ? 'unloaded' : customUi ? 'custom' : 'standard'}
-        simulatedSeconds={simulatedSeconds}
-      />
+      <DistingDisplayBezel commands={commands} />
     </section>
   )
 }

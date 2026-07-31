@@ -594,9 +594,6 @@ export function DistingPlayground() {
       overlay={(
         <DraggableDisplayPreview
           commands={display}
-          programName={program?.name ?? 'Lua script'}
-          customUi={program?.customUi ?? null}
-          simulatedSeconds={stats.simulatedSeconds}
         />
       )}
       commandBar={(
@@ -757,7 +754,7 @@ export function DistingPlayground() {
           ]}
         />
       )}
-      statusBar={<StatusBar stats={stats} />}
+      statusBar={<StatusBar />}
     />
   )
 }

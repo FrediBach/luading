@@ -28,17 +28,13 @@ describe('Disting device face rendering', () => {
     const markup = renderToStaticMarkup(
       <DraggableDisplayPreview
         commands={[]}
-        programName="Test algorithm"
-        customUi
-        simulatedSeconds={1.25}
       />,
     )
 
     expect(markup).toContain('aria-label="Draggable Disting NT display preview"')
     expect(markup).toContain('Move display preview. Use arrow keys or drag.')
-    expect(markup).toContain('Test algorithm')
-    expect(markup).toContain('Custom UI')
-    expect(markup).toContain('1.250 s')
+    expect(markup).not.toContain('<header')
+    expect(markup).not.toContain('<output')
   })
 
   it('disables hardware controls when no script is loaded', () => {
