@@ -21,6 +21,11 @@ describe('output audio controls', () => {
       { destination: 'snare' },
     ])
     expect(emptyOutputAudioRoutes(2)).toEqual(initial)
+    expect(emptyOutputAudioRoutes(3, ['kick', 'synthNote'])).toEqual([
+      { destination: 'kick' },
+      { destination: 'synthNote' },
+      { destination: 'off' },
+    ])
   })
 
   it('normalizes routes when the output count changes', () => {

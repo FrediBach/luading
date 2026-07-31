@@ -1,12 +1,6 @@
-import type { TracePoint } from '../types'
+import type { AudioRouteDestination, TracePoint } from '../types'
 
-export type AudioRouteDestination =
-  | 'off'
-  | 'kick'
-  | 'snare'
-  | 'hat'
-  | 'synthNote'
-  | 'synthTrigger'
+export type { AudioRouteDestination } from '../types'
 
 export interface OutputAudioRoute {
   destination: AudioRouteDestination

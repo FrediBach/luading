@@ -25,6 +25,7 @@ import {
   DEFAULT_CLOCK,
   SignalBank,
 } from './emulation/signal-sources'
+import { simulatorDefaultsFromSource } from './emulation/simulator-defaults'
 import { DistingPresetApi } from './emulation/preset-api'
 import {
   applyCallbackOutput,
@@ -516,11 +517,17 @@ async function loadProgram(
       ? rawInitResult as LuaInitResult
       : {}
     metadata = describeProgram(program, initResult)
+    const simulatorDefaults = simulatorDefaultsFromSource(
+      source,
+      metadata.inputKinds,
+      metadata.outputCount,
+    )
+    metadata.outputAudioDefaults = simulatorDefaults.outputAudioRoutes
     parameterModel = new LuaScriptParameterModel(metadata)
     inputs = Array.from({ length: metadata.inputCount }, () => 0)
     outputs = Array.from({ length: metadata.outputCount }, () => 0)
     inputHigh = Array.from({ length: metadata.inputCount }, () => false)
-    signals.configure(metadata.inputKinds)
+    signals.configure(metadata.inputKinds, simulatorDefaults.inputSources)
     program.parameters = parameterModel.scriptValues()
     runtime.setParameters(program.parameters as number[])
     currentParameters.set(program.algorithmIndex, parameterModel.defaultParameterIndex)

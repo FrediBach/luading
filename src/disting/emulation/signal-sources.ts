@@ -230,8 +230,10 @@ export class ClockTransport {
 export class SignalBank {
   private sources: SignalSourceConfig[] = []
 
-  configure(kinds: InputKind[]) {
-    this.sources = kinds.map((kind, index) => defaultSignalSource(kind, index))
+  configure(kinds: InputKind[], defaults: readonly SignalSourceConfig[] = []) {
+    this.sources = kinds.map((kind, index) => normalizeSignalSource(
+      defaults[index] ?? defaultSignalSource(kind, index),
+    ))
   }
 
   set(index: number, config: SignalSourceConfig) {

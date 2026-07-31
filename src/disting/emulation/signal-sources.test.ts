@@ -123,4 +123,17 @@ describe('Disting input signal sources', () => {
     expect(bank.sample(clock, 0, 0)).toEqual([2, 5])
     expect(bank.configs[0]?.manualValue).toBe(2)
   })
+
+  it('configures a signal bank with supplied simulator defaults', () => {
+    const bank = new SignalBank()
+    bank.configure(['cv'], [source({
+      shape: 'gate',
+      timing: { mode: 'clock', division: '1/8' },
+    })])
+
+    expect(bank.configs[0]).toMatchObject({
+      shape: 'gate',
+      timing: { mode: 'clock', division: '1/8' },
+    })
+  })
 })

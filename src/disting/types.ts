@@ -25,6 +25,13 @@ export type DrawCommand =
 
 export type InputKind = 'cv' | 'gate' | 'trigger'
 export type OutputKind = 'stepped' | 'linear'
+export type AudioRouteDestination =
+  | 'off'
+  | 'kick'
+  | 'snare'
+  | 'hat'
+  | 'synthNote'
+  | 'synthTrigger'
 
 export interface ParameterDefinition {
   name: string
@@ -46,6 +53,7 @@ export interface LoadedProgram {
   outputNames: string[]
   inputKinds: InputKind[]
   outputKinds: OutputKind[]
+  outputAudioDefaults?: AudioRouteDestination[]
   parameters: ParameterDefinition[]
   customUi: boolean
   uiPotPositions: Array<number | null>

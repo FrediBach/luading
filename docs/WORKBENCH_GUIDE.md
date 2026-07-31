@@ -19,6 +19,30 @@ Input and output banks reserve a four-channel footprint, so scripts with fewer
 channels keep the same tile width and minimum bank height without showing fake
 controls.
 
+### Simulator I/O defaults
+
+A script can seed Luading's browser-only input generators and output audio
+routes with trailing comments on individual `init()` entries:
+
+```lua
+inputs = {
+  kCV,      -- Type: Gate, Synced: true, Division: 1/4
+  kTrigger, -- Type: Trigger, Synced: true, Division: 1/8
+},
+outputs = {
+  kStepped, -- Type: Kick Trigger
+  kLinear,  -- Type: Synth Note
+},
+```
+
+Input `Type` accepts the signal-generator names shown in the input inspector.
+`Synced` accepts `true` or `false`, and `Division` accepts `2 bars`, `1 bar`, or
+`1/2` through `1/32`. Output `Type` accepts `Off`, `Kick Trigger`,
+`Snare Trigger`, `Hi-hat Trigger`, `Synth Note`, or `Synth Trigger`. Unknown or
+missing values retain the normal defaults. These comments are Luading hints
+only: they remain valid ordinary Lua comments and do not change Disting NT
+behavior or the table returned by `init()`.
+
 Scope, Problems, Console, and Performance share the bottom drawer. Select the
 active tab again to collapse it. The drawer handle supports pointer drag and
 keyboard resizing. Drawer filters and other local view state are retained while

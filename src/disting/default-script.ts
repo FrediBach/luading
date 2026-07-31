@@ -11,9 +11,15 @@ return {
 
   init = function(self)
     return {
-      inputs = { kCV, kTrigger },
+      inputs = {
+        kCV,      -- Type: Gate, Synced: true, Division: 1/4
+        kTrigger, -- Type: Trigger, Synced: true, Division: 1/4
+      },
       inputNames = { "Rate CV", "Reset" },
-      outputs = { kStepped, kLinear },
+      outputs = {
+        kStepped, -- Type: Synth Trigger
+        kLinear,  -- Type: Synth Note
+      },
       outputNames = { "Square", "Triangle" },
       parameters = {
         { "Base rate", 5, 500, 100, kHz, kBy100 },

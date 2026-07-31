@@ -60,10 +60,13 @@ export const SYNTH_WAVEFORMS: ReadonlyArray<{
   { value: 'sine', label: 'Sine' },
 ]
 
-export function emptyOutputAudioRoutes(outputCount: number): OutputAudioRoute[] {
+export function emptyOutputAudioRoutes(
+  outputCount: number,
+  defaults: readonly AudioRouteDestination[] = [],
+): OutputAudioRoute[] {
   return Array.from(
     { length: Math.max(0, outputCount) },
-    () => ({ destination: 'off' }),
+    (_, index) => ({ destination: defaults[index] ?? 'off' }),
   )
 }
 

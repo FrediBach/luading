@@ -19,7 +19,7 @@ export function useOutputAudio(
   const [audio] = useState(() => new DistingWebAudioRouter())
   const [routeState, setRouteState] = useState(() => ({
     program,
-    routes: emptyOutputAudioRoutes(program.outputCount),
+    routes: emptyOutputAudioRoutes(program.outputCount, program.outputAudioDefaults),
   }))
   const [enabled, setEnabled] = useState(false)
   const [level, setLevel] = useState(0.55)
@@ -27,7 +27,9 @@ export function useOutputAudio(
   const [error, setError] = useState<string | null>(null)
   const activeRoutes = useMemo(
     () => normalizeOutputAudioRoutes(
-      routeState.program === program ? routeState.routes : [],
+      routeState.program === program
+        ? routeState.routes
+        : emptyOutputAudioRoutes(program.outputCount, program.outputAudioDefaults),
       program.outputCount,
     ),
     [program, routeState],

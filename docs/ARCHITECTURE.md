@@ -184,6 +184,9 @@ The core emulator is split by hardware-facing responsibility:
   palette.
 - `signal-sources.ts` implements deterministic CV, gate, trigger, sequencer,
   noise, and shared-clock sources.
+- `simulator-defaults.ts` reads optional trailing Lua comments beside `init()`
+  input/output entries and maps them to browser-only signal-generator and audio
+  routing defaults without extending the firmware-facing Lua contract.
 - `preset-api.ts` provides deterministic companion algorithms for preset and
   parameter APIs.
 - `hardware-api.ts` clamps and records MIDI/I2C operations. It never accesses
