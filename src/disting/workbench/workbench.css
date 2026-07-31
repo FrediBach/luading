@@ -67,7 +67,7 @@
   border: 1px solid color-mix(in srgb, var(--nt-green) 65%, var(--nt-line));
   border-radius: 50%;
   color: var(--nt-green);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .workbench-commandbar-brand strong {
@@ -218,7 +218,7 @@
 }
 
 .script-menu-groups button small {
-  font-size: 6px;
+  font-size: 7px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
@@ -306,7 +306,7 @@
 
 .clock-transport-label small {
   color: var(--nt-muted);
-  font-size: 6px;
+  font-size: 7px;
   line-height: 1;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -315,7 +315,7 @@
 .clock-transport-label strong {
   margin-top: 3px;
   color: var(--nt-text);
-  font-size: 7px;
+  font-size: 8px;
   line-height: 1;
   font-weight: 500;
 }
@@ -351,7 +351,7 @@
   min-height: 28px;
   border-color: var(--nt-line);
   background: var(--workbench-surface-recessed);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .commandbar-icon-command {
@@ -425,13 +425,13 @@
 }
 
 .workspace-preset-options strong {
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .workspace-preset-options small {
   margin-top: 4px;
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .workspace-preset-options kbd,
@@ -519,7 +519,7 @@
 
 .midi-byte-fields small {
   overflow: hidden;
-  font-size: 6px;
+  font-size: 7px;
   letter-spacing: 0;
   text-overflow: ellipsis;
   text-transform: none;
@@ -593,7 +593,7 @@
 
 .about-popover-content dt {
   color: var(--nt-green);
-  font-size: 7px;
+  font-size: 8px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -601,7 +601,7 @@
 .about-popover-content dd {
   margin: 0;
   color: var(--nt-text);
-  font-size: 7px;
+  font-size: 8px;
   line-height: 1.4;
 }
 
@@ -806,7 +806,7 @@
   min-height: 30px;
   box-sizing: border-box;
   padding: 7px 12px;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .workbench-instrument-rack {
@@ -1032,7 +1032,7 @@
   border: 1px solid var(--nt-line);
   border-radius: 8px;
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .workbench-drawer-tabs button > kbd {
@@ -1262,7 +1262,7 @@
     min-width: 0;
     flex: 1;
     padding-inline: 5px;
-    font-size: 7px;
+    font-size: 8px;
   }
 
   .workbench-drawer-tabs button > span {

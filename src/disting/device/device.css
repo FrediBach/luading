@@ -174,7 +174,7 @@
 
 .device-panel-header > span small {
   color: var(--nt-green);
-  font-size: 7px;
+  font-size: 8px;
   line-height: 1;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -183,7 +183,7 @@
 .device-panel-header > span strong {
   margin-top: 4px;
   color: var(--nt-muted);
-  font-size: 8px;
+  font-size: 9px;
   line-height: 1;
   font-weight: 500;
 }
@@ -232,7 +232,7 @@
   min-width: 42px;
   padding-inline: 6px;
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .parameter-bank-grid {
@@ -372,13 +372,13 @@
 
 .parameter-enum-value strong {
   color: var(--nt-green);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
 }
 
 .parameter-enum-value small {
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .parameter-enum-search {
@@ -433,7 +433,7 @@
 
 .parameter-enum-options button small {
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .parameter-enum-options p {

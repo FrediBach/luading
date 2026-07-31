@@ -162,7 +162,7 @@ button.control-value-field:hover:not(:disabled) {
 
 .control-value-field > span {
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
   text-transform: uppercase;
 }
 
@@ -307,7 +307,7 @@ button.control-value-field:hover:not(:disabled) {
 }
 
 .control-tile > header span {
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.1;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -317,7 +317,7 @@ button.control-value-field:hover:not(:disabled) {
 .control-tile > header small {
   margin-top: 3px;
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
   line-height: 1;
 }
 

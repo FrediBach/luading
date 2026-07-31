@@ -163,7 +163,7 @@
   padding-inline: 3px;
   border-color: var(--nt-line);
   background: var(--surface-shaded);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .input-division-stepper {
@@ -493,13 +493,13 @@
 
 .scope-probe-choice strong {
   color: var(--probe-color);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .scope-probe-choice small {
   margin-top: 4px;
   color: var(--nt-muted);
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .scope-probe-unassign {
@@ -609,7 +609,7 @@
 .input-inspector-timing .segmented-selector button {
   min-width: 0;
   padding-inline: 3px;
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .input-inspector-controls {
