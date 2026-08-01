@@ -19,6 +19,8 @@ import { DEFAULT_CLOCK } from './emulation/signal-sources'
 import { TraceHistory } from './emulation/trace-history'
 import {
   assignedWebMidiOutputIds,
+  initialWebMidiInputValue,
+  WebMidiInputRouter,
 } from './emulation/midi-routing'
 import { DistingWebMidiManager } from './emulation/web-midi'
 import { FrameCommitGate } from './frame-commit'
@@ -76,11 +78,11 @@ import type {
   DistingUiEventKind,
   DrawCommand,
   GlobalClockConfig,
+  InputChannelRoute,
   LoadedProgram,
   RuntimeStats,
   ScopeProbe,
   ScopeSource,
-  SignalSourceConfig,
   WebMidiDeviceState,
   WorkerRequest,
   WorkerResponse,
@@ -160,7 +162,7 @@ export function DistingPlayground() {
   const [status, setStatus] = useState<'booting' | 'loading' | 'paused' | 'running' | 'error'>('booting')
   const [error, setError] = useState<string | null>(null)
   const [consoleEntries, setConsoleEntries] = useState<ConsoleEntry[]>([])
-  const [inputSources, setInputSources] = useState<SignalSourceConfig[]>([])
+  const [inputRoutes, setInputRoutes] = useState<InputChannelRoute[]>([])
   const [inputs, setInputs] = useState<number[]>([])
   const [clock, setClock] = useState<GlobalClockConfig>({ ...DEFAULT_CLOCK })
   const [parameterValues, setParameterValues] = useState<number[]>([])
@@ -187,6 +189,7 @@ export function DistingPlayground() {
     webMidiManager.state
   ))
   const [midiPortAssignments, setMidiPortAssignments] = useState<DistingMidiPortAssignments>({})
+  const [directMidiInputIds, setDirectMidiInputIds] = useState<string[]>([])
   const [hasSavedState, setHasSavedState] = useState(false)
   const [committedFrameRevision, setCommittedFrameRevision] = useState(0)
   const [theme, setTheme] = useState(() => storedTheme(browserThemeStorage()))
@@ -210,6 +213,8 @@ export function DistingPlayground() {
   const savedStateRef = useRef<unknown>(undefined)
   const consoleEntryIdRef = useRef(0)
   const midiPortAssignmentsRef = useRef<DistingMidiPortAssignments>({})
+  const directMidiInputIdsRef = useRef(new Set<string>())
+  const midiInputRouterRef = useRef(new WebMidiInputRouter())
   const blockingStateRef = useRef<BlockingState>({
     runtimeError: null,
     diagnosticErrorCount: 0,
@@ -288,7 +293,12 @@ export function DistingPlayground() {
     } else if (message.type === 'loaded') {
       clearLoadTimeout()
       setProgram(message.program)
-      setInputSources(message.inputSources)
+      const routes = message.inputSources.map((source) => ({
+        kind: 'generator' as const,
+        source,
+      }))
+      midiInputRouterRef.current.configure(routes.map(() => null))
+      setInputRoutes(routes)
       setInputs(Array.from({ length: message.program.inputCount }, () => 0))
       setParameterValues(message.program.parameters.map((parameter) => parameter.value))
       setPotPositions(message.program.uiPotPositions.map((value) => value ?? 0.5))
@@ -410,7 +420,8 @@ export function DistingPlayground() {
     clearTrace()
     setStats(EMPTY_STATS)
     setDisplay([])
-    setInputSources([])
+    midiInputRouterRef.current.configure([])
+    setInputRoutes([])
     setInputs([])
     setProbes(EMPTY_PROBES)
     setFocusedScopeProbe(null)
@@ -505,8 +516,12 @@ export function DistingPlayground() {
 
   useEffect(() => {
     const unsubscribeState = webMidiManager.subscribe(setWebMidiState)
-    const unsubscribeMessages = webMidiManager.subscribeToMessages(({ bytes }) => {
-      post(createMidiEventRequest(bytes))
+    const unsubscribeMessages = webMidiManager.subscribeToMessages((message) => {
+      if (directMidiInputIdsRef.current.has(message.portId)) {
+        post(createMidiEventRequest(message.bytes))
+      }
+      const updates = midiInputRouterRef.current.route(message)
+      if (updates.length > 0) post({ type: 'externalInput', updates })
     })
     return () => {
       unsubscribeMessages()
@@ -514,6 +529,22 @@ export function DistingPlayground() {
       void webMidiManager.close()
     }
   }, [post, webMidiManager])
+
+  useEffect(() => {
+    const desired = new Set(directMidiInputIds)
+    for (const route of inputRoutes) {
+      if (route.kind === 'webMidi' && route.mapping.portId) {
+        desired.add(route.mapping.portId)
+      }
+    }
+    const enabled = new Set(webMidiManager.enabledInputIds)
+    for (const portId of enabled) {
+      if (!desired.has(portId)) void webMidiManager.setInputEnabled(portId, false)
+    }
+    for (const portId of desired) {
+      if (!enabled.has(portId)) void webMidiManager.setInputEnabled(portId, true)
+    }
+  }, [directMidiInputIds, inputRoutes, webMidiManager])
 
   useEffect(() => {
     const validationWorker = new Worker(new URL('./validation.worker.ts', import.meta.url), { type: 'module' })
@@ -569,12 +600,22 @@ export function DistingPlayground() {
     post({ type: status === 'running' ? 'pause' : 'start' })
   }
 
-  const changeInputSource = (index: number, config: SignalSourceConfig) => {
-    setInputSources((previous) => previous.map((source, sourceIndex) => (
-      sourceIndex === index ? config : source
+  const changeInputRoute = (index: number, route: InputChannelRoute) => {
+    setInputRoutes((previous) => previous.map((current, routeIndex) => (
+      routeIndex === index ? route : current
     )))
     clearTrace()
-    post({ type: 'setInputSource', index, config })
+    if (route.kind === 'generator') {
+      midiInputRouterRef.current.setMapping(index, null)
+      post({ type: 'setInputSource', index, config: route.source })
+    } else {
+      midiInputRouterRef.current.setMapping(index, route.mapping)
+      post({
+        type: 'setExternalInputSource',
+        index,
+        value: initialWebMidiInputValue(route.mapping),
+      })
+    }
   }
 
   const changeClock = (nextClock: GlobalClockConfig) => {
@@ -617,6 +658,14 @@ export function DistingPlayground() {
 
   const sendMidi = (bytes: number[]) => {
     post(createMidiEventRequest(bytes))
+  }
+
+  const toggleDirectMidiInput = (portId: string, enabled: boolean) => {
+    const next = new Set(directMidiInputIdsRef.current)
+    if (enabled) next.add(portId)
+    else next.delete(portId)
+    directMidiInputIdsRef.current = next
+    setDirectMidiInputIds([...next])
   }
 
   const changeMidiPortAssignment = (
@@ -735,7 +784,7 @@ export function DistingPlayground() {
             bytes: midiBytes,
             messages: program.midi?.messages ?? [],
             devices: webMidiState,
-            enabledInputIds: webMidiManager.enabledInputIds,
+            enabledInputIds: directMidiInputIds,
             assignments: midiPortAssignments,
           } : undefined}
           qualityLabel={qualityLabel}
@@ -760,9 +809,7 @@ export function DistingPlayground() {
           onMidiBytesChange={setMidiBytes}
           onSendMidi={sendMidi}
           onConnectMidi={() => void webMidiManager.connect()}
-          onToggleMidiInput={(portId, enabled) => {
-            void webMidiManager.setInputEnabled(portId, enabled)
-          }}
+          onToggleMidiInput={toggleDirectMidiInput}
           onMidiAssignmentChange={changeMidiPortAssignment}
           onOpenProblems={() => dispatchLayout({ type: 'openDrawer', tab: 'problems' })}
           onToggleTheme={toggleTheme}
@@ -820,14 +867,16 @@ export function DistingPlayground() {
               {program && (
                 <IoDeck
                   program={program}
-                  sources={inputSources}
+                  inputRoutes={inputRoutes}
+                  midiDevices={webMidiState}
                   values={inputs}
                   outputs={outputs}
                   probes={probes}
                   focusedScopeProbe={focusedScopeProbe}
                   traceHistory={traceHistory}
                   traceRevision={traceRevision}
-                  onSourceChange={changeInputSource}
+                  onInputRouteChange={changeInputRoute}
+                  onConnectMidi={() => void webMidiManager.connect()}
                   onTrigger={(index) => post({ type: 'trigger', index })}
                   onProbeChange={changeProbe}
                   onProbeFocus={focusProbe}

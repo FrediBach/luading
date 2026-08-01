@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { TraceHistory } from '../emulation/trace-history'
-import type { LoadedProgram, SignalSourceConfig, TracePoint } from '../types'
+import type {
+  LoadedProgram,
+  SignalSourceConfig,
+  TracePoint,
+  WebMidiDeviceState,
+} from '../types'
 import { InputChannelInspector } from './InputChannelInspector'
 import { InputChannelTile } from './InputChannelTile'
 import { IoDeck } from './IoDeck'
@@ -30,6 +35,18 @@ const trace: TracePoint[] = [
 ]
 const traceHistory = new TraceHistory()
 traceHistory.append(trace)
+const midiDevices: WebMidiDeviceState = {
+  status: 'ready',
+  inputs: [{
+    id: 'keys',
+    type: 'input',
+    name: 'Keys',
+    manufacturer: 'Test',
+    state: 'connected',
+    connection: 'open',
+  }],
+  outputs: [],
+}
 
 describe('input channel rendering', () => {
   it('renders a live trigger tile with direct sync and fire actions', () => {
@@ -38,7 +55,8 @@ describe('input channel rendering', () => {
         index={0}
         name="Reset"
         kind="trigger"
-        source={source()}
+        route={{ kind: 'generator', source: source() }}
+        devices={midiDevices}
         value={5}
         traceHistory={traceHistory}
         traceRevision={1}
@@ -50,6 +68,7 @@ describe('input channel rendering', () => {
         ]}
         focusedScopeProbe={0}
         onChange={() => undefined}
+        onConnectMidi={() => undefined}
         onTrigger={() => undefined}
         onProbeChange={() => undefined}
         onProbeFocus={() => undefined}
@@ -69,21 +88,82 @@ describe('input channel rendering', () => {
   it('renders all signal shapes and applicable advanced controls', () => {
     const markup = renderToStaticMarkup(
       <InputChannelInspector
-        source={source({
-          shape: 'gateSequencer',
-          timing: { mode: 'free', frequencyHz: 2 },
-          pulseWidth: 0.4,
-          stepCount: 12,
-        })}
+        kind="trigger"
+        route={{
+          kind: 'generator',
+          source: source({
+            shape: 'gateSequencer',
+            timing: { mode: 'free', frequencyHz: 2 },
+            pulseWidth: 0.4,
+            stepCount: 12,
+          }),
+        }}
+        devices={midiDevices}
         onChange={() => undefined}
+        onConnectMidi={() => undefined}
       />,
     )
 
     expect(markup.match(/input-shape-picker/g)).toHaveLength(1)
-    expect(markup.match(/aria-pressed=/g)).toHaveLength(14)
+    expect(markup.match(/aria-pressed=/g)).toHaveLength(16)
     expect(markup).toContain('Clock sync')
     expect(markup).toContain('Pulse width')
     expect(markup).toContain('Steps')
+  })
+
+  it('renders a MIDI-backed CV input with mapping controls and live status', () => {
+    const route = {
+      kind: 'webMidi' as const,
+      mapping: {
+        kind: 'cc' as const,
+        portId: 'keys',
+        channel: 'omni' as const,
+        controller: 74,
+        minimumVolts: -5,
+        maximumVolts: 5,
+      },
+    }
+    const inspector = renderToStaticMarkup(
+      <InputChannelInspector
+        kind="cv"
+        route={route}
+        devices={midiDevices}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+      />,
+    )
+    const tile = renderToStaticMarkup(
+      <InputChannelTile
+        index={1}
+        name="Pitch"
+        kind="cv"
+        route={route}
+        devices={midiDevices}
+        value={1.5}
+        traceHistory={traceHistory}
+        traceRevision={1}
+        probes={[
+          { id: 'probe-1', source: null },
+          { id: 'probe-2', source: null },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={null}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+        onTrigger={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
+      />,
+    )
+
+    expect(inspector).toContain('Input source')
+    expect(inspector).toContain('Web MIDI')
+    expect(inspector).toContain('Control change')
+    expect(inspector).toContain('Controller')
+    expect(inspector).toContain('Minimum voltage')
+    expect(tile).toContain('Web MIDI · Live')
+    expect(tile).toContain('1.50 V')
   })
 
   it('renders global audio controls and every program input', () => {
@@ -103,10 +183,11 @@ describe('input channel rendering', () => {
     const markup = renderToStaticMarkup(
       <IoDeck
         program={program}
-        sources={[
-          source(),
-          source({ shape: 'manual', manualValue: 1.25 }),
+        inputRoutes={[
+          { kind: 'generator', source: source() },
+          { kind: 'generator', source: source({ shape: 'manual', manualValue: 1.25 }) },
         ]}
+        midiDevices={midiDevices}
         values={[0, 1.25]}
         outputs={[5, 0.25]}
         probes={[
@@ -118,7 +199,8 @@ describe('input channel rendering', () => {
         focusedScopeProbe={0}
         traceHistory={traceHistory}
         traceRevision={1}
-        onSourceChange={() => undefined}
+        onInputRouteChange={() => undefined}
+        onConnectMidi={() => undefined}
         onTrigger={() => undefined}
         onProbeChange={() => undefined}
         onProbeFocus={() => undefined}
@@ -155,7 +237,8 @@ describe('input channel rendering', () => {
     const markup = renderToStaticMarkup(
       <IoDeck
         program={program}
-        sources={[source({ shape: 'manual' })]}
+        inputRoutes={[{ kind: 'generator', source: source({ shape: 'manual' }) }]}
+        midiDevices={midiDevices}
         values={[0]}
         outputs={[0]}
         probes={[
@@ -167,7 +250,8 @@ describe('input channel rendering', () => {
         focusedScopeProbe={null}
         traceHistory={traceHistory}
         traceRevision={1}
-        onSourceChange={() => undefined}
+        onInputRouteChange={() => undefined}
+        onConnectMidi={() => undefined}
         onTrigger={() => undefined}
         onProbeChange={() => undefined}
         onProbeFocus={() => undefined}
@@ -198,7 +282,8 @@ describe('input channel rendering', () => {
     const markup = renderToStaticMarkup(
       <IoDeck
         program={program}
-        sources={[]}
+        inputRoutes={[]}
+        midiDevices={midiDevices}
         values={[]}
         outputs={[]}
         probes={[
@@ -210,7 +295,8 @@ describe('input channel rendering', () => {
         focusedScopeProbe={null}
         traceHistory={traceHistory}
         traceRevision={1}
-        onSourceChange={() => undefined}
+        onInputRouteChange={() => undefined}
+        onConnectMidi={() => undefined}
         onTrigger={() => undefined}
         onProbeChange={() => undefined}
         onProbeFocus={() => undefined}

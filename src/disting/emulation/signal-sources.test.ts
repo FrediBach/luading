@@ -136,4 +136,35 @@ describe('Disting input signal sources', () => {
       timing: { mode: 'clock', division: '1/8' },
     })
   })
+
+  it('holds external values and queues pulses with a low control step between edges', () => {
+    const clock = new ClockTransport()
+    const bank = new SignalBank()
+    bank.configure(['cv', 'trigger'])
+    bank.setExternal(0, 1)
+    bank.setExternal(1, 0)
+    bank.updateExternal([
+      { index: 0, value: 2.5 },
+      { index: 1, pulse: 5 },
+      { index: 1, pulse: 5 },
+    ])
+
+    expect(bank.sample(clock, 0, 0)).toEqual([2.5, 5])
+    expect(bank.sample(clock, 0.001, 1)).toEqual([2.5, 0])
+    expect(bank.sample(clock, 0.002, 2)).toEqual([2.5, 5])
+    expect(bank.sample(clock, 0.003, 3)).toEqual([2.5, 0])
+  })
+
+  it('resets queued external state when switching input sources', () => {
+    const clock = new ClockTransport()
+    const bank = new SignalBank()
+    bank.configure(['gate'])
+    bank.setExternal(0, 0)
+    bank.updateExternal([{ index: 0, value: 5 }, { index: 0, pulse: 8 }])
+    bank.set(0, source({ shape: 'manual', manualValue: -1 }))
+
+    expect(bank.sample(clock, 0, 0)).toEqual([-1])
+    bank.setExternal(0, 3)
+    expect(bank.sample(clock, 0.001, 1)).toEqual([3])
+  })
 })

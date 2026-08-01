@@ -22,6 +22,15 @@ The documented `sendMIDI()` destination mask remains intact:
 | `0x4` | USB |
 | `0x8` | Internal |
 
+## Implementation status
+
+The routing types, deterministic destination-mask routing, browser Web MIDI
+manager, direct Lua MIDI input/output path, and MIDI-backed CV/gate/trigger
+inputs are implemented. MIDI input mappings retain browser port selection on
+the main thread and send only atomic voltage/pulse updates to the worker.
+
+The next increment is unified Off/WebAudio/Web MIDI output routing (section 6).
+
 ## Data flow
 
 ```text
@@ -120,7 +129,7 @@ The manual MIDI utility remains available and uses the same worker request.
 Update the API manifest and editor documentation so `sendMIDI()` no longer
 claims to be log-only.
 
-## 5. Web MIDI input sources
+## 5. Web MIDI input sources (implemented)
 
 Extend the reusable signal model and worker protocol with external held values
 and queued pulses. An incoming browser message should be able to update several

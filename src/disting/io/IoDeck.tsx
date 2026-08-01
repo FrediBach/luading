@@ -2,9 +2,10 @@ import type { TraceHistory } from '../emulation/trace-history'
 import { PanelEmptyState } from '../PanelEmptyState'
 import type {
   LoadedProgram,
+  InputChannelRoute,
   ScopeProbe,
   ScopeSource,
-  SignalSourceConfig,
+  WebMidiDeviceState,
 } from '../types'
 import { InputChannelTile } from './InputChannelTile'
 import { AudioMasterControl } from './AudioMasterControl'
@@ -28,14 +29,16 @@ function ChannelGridSpacers({ count }: { count: number }) {
 
 interface Props {
   program: LoadedProgram
-  sources: SignalSourceConfig[]
+  inputRoutes: InputChannelRoute[]
+  midiDevices: WebMidiDeviceState
   values: number[]
   outputs: number[]
   probes: ScopeProbe[]
   focusedScopeProbe: number | null
   traceHistory: TraceHistory
   traceRevision: number
-  onSourceChange(index: number, source: SignalSourceConfig): void
+  onInputRouteChange(index: number, route: InputChannelRoute): void
+  onConnectMidi(): void
   onTrigger(index: number): void
   onProbeChange(index: number, source: ScopeSource | null): void
   onProbeFocus(index: number): void
@@ -43,14 +46,16 @@ interface Props {
 
 export function IoDeck({
   program,
-  sources,
+  inputRoutes,
+  midiDevices,
   values,
   outputs,
   probes,
   focusedScopeProbe,
   traceHistory,
   traceRevision,
-  onSourceChange,
+  onInputRouteChange,
+  onConnectMidi,
   onTrigger,
   onProbeChange,
   onProbeFocus,
@@ -85,25 +90,27 @@ export function IoDeck({
               </PanelEmptyState>
             ) : (
               <>
-                {sources.map((source, index) => (
+                {inputRoutes.map((route, index) => (
                   <InputChannelTile
                     index={index}
                     name={program.inputNames[index] ?? `Input ${index + 1}`}
                     kind={program.inputKinds[index] ?? 'cv'}
-                    source={source}
+                    route={route}
+                    devices={midiDevices}
                     value={values[index] ?? 0}
                     traceHistory={traceHistory}
                     traceRevision={traceRevision}
                     probes={probes}
                     focusedScopeProbe={focusedScopeProbe}
-                    onChange={(nextSource) => onSourceChange(index, nextSource)}
+                    onChange={(nextRoute) => onInputRouteChange(index, nextRoute)}
+                    onConnectMidi={onConnectMidi}
                     onTrigger={() => onTrigger(index)}
                     onProbeChange={onProbeChange}
                     onProbeFocus={onProbeFocus}
                     key={`${program.inputNames[index] ?? 'input'}-${index}`}
                   />
                 ))}
-                <ChannelGridSpacers count={sources.length} />
+                <ChannelGridSpacers count={inputRoutes.length} />
               </>
             )}
           </div>

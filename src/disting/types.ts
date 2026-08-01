@@ -158,6 +158,12 @@ export type InputChannelRoute =
   | { kind: 'generator'; source: SignalSourceConfig }
   | { kind: 'webMidi'; mapping: WebMidiInputMapping }
 
+export interface ExternalInputUpdate {
+  index: number
+  value?: number
+  pulse?: number
+}
+
 export interface ParameterDefinition {
   name: string
   min: number
@@ -294,6 +300,8 @@ export type WorkerRequest =
   | { type: 'frameAck' }
   | { type: 'resetTelemetry' }
   | { type: 'setInputSource'; index: number; config: SignalSourceConfig }
+  | { type: 'setExternalInputSource'; index: number; value: number }
+  | { type: 'externalInput'; updates: ExternalInputUpdate[] }
   | { type: 'setClock'; config: GlobalClockConfig }
   | { type: 'setParameter'; index: number; value: number }
   | { type: 'trigger'; index: number }

@@ -2,18 +2,25 @@ import { useRef, useState } from 'react'
 import {
   ControlPopover,
   ControlTile,
+  ControlIcon,
   CornerAction,
   MiniSignalPlot,
   SignalShapeGlyph,
   ValueField,
 } from '../controls'
-import { CLOCK_DIVISIONS, SIGNAL_SHAPES } from '../emulation/signal-sources'
+import {
+  CLOCK_DIVISIONS,
+  defaultSignalSource,
+  SIGNAL_SHAPES,
+} from '../emulation/signal-sources'
 import type { TraceHistory } from '../emulation/trace-history'
 import type {
   InputKind,
+  InputChannelRoute,
   ScopeProbe,
   ScopeSource,
   SignalSourceConfig,
+  WebMidiDeviceState,
 } from '../types'
 import { assignedProbeIndex } from '../drawer/scope-controls'
 import { formatDisplayFloat } from '../display-format'
@@ -35,13 +42,15 @@ interface Props {
   index: number
   name: string
   kind: InputKind
-  source: SignalSourceConfig
+  route: InputChannelRoute
+  devices: WebMidiDeviceState
   value: number
   traceHistory: TraceHistory
   traceRevision: number
   probes: readonly ScopeProbe[]
   focusedScopeProbe: number | null
-  onChange(source: SignalSourceConfig): void
+  onChange(route: InputChannelRoute): void
+  onConnectMidi(): void
   onTrigger(): void
   onProbeChange(index: number, source: ScopeSource | null): void
   onProbeFocus(index: number): void
@@ -62,13 +71,15 @@ export function InputChannelTile({
   index,
   name,
   kind,
-  source,
+  route,
+  devices,
   value,
   traceHistory,
   traceRevision,
   probes,
   focusedScopeProbe,
   onChange,
+  onConnectMidi,
   onTrigger,
   onProbeChange,
   onProbeFocus,
@@ -80,6 +91,9 @@ export function InputChannelTile({
   const assignedScopeProbe = assignedProbeIndex(probes, scopeSource)
   const trace = traceHistory.snapshot(traceRevision)
   const traceValues = inputTraceValues(trace, index)
+  const source = route.kind === 'generator'
+    ? route.source
+    : defaultSignalSource(kind, index)
   const range = inputPlotRange(source, traceValues)
   const clockDivision = source.timing.mode === 'clock'
     ? source.timing.division
@@ -88,10 +102,29 @@ export function InputChannelTile({
     ? source.timing.frequencyHz
     : 1
   const patch = (update: Partial<SignalSourceConfig>) => {
-    onChange({ ...source, ...update })
+    onChange({ kind: 'generator', source: { ...source, ...update } })
   }
 
-  const primaryControl = source.shape === 'manual' ? (
+  const midiPort = route.kind === 'webMidi'
+    ? devices.inputs.find((port) => port.id === route.mapping.portId)
+    : undefined
+  const midiState = route.kind === 'webMidi'
+    ? devices.status === 'denied' || devices.status === 'error' || devices.status === 'unsupported'
+      ? 'Error'
+      : !route.mapping.portId
+        ? 'Ready'
+        : !midiPort || midiPort.state !== 'connected'
+          ? 'Disconnected'
+          : devices.status === 'ready'
+            ? 'Live'
+            : 'Ready'
+    : null
+
+  const primaryControl = route.kind === 'webMidi' ? (
+    <span className={`input-channel-midi-state input-channel-midi-state--${midiState?.toLowerCase()}`}>
+      {midiState}
+    </span>
+  ) : source.shape === 'manual' ? (
     <ValueField
       label={`${name} voltage`}
       value={source.manualValue}
@@ -171,15 +204,15 @@ export function InputChannelTile({
         }}
         actions={(
           <>
-            {inputUsesTiming(source) && (
+            {route.kind === 'generator' && inputUsesTiming(source) && (
               <CornerAction
                 icon="sync"
                 label={`${name} clock sync`}
                 pressed={source.timing.mode === 'clock'}
-                onClick={() => onChange(inputWithSync(
-                  source,
-                  source.timing.mode !== 'clock',
-                ))}
+                onClick={() => onChange({
+                  kind: 'generator',
+                  source: inputWithSync(source, source.timing.mode !== 'clock'),
+                })}
               />
             )}
             {kind === 'trigger' && (
@@ -213,7 +246,11 @@ export function InputChannelTile({
               max={range.max}
               stepped={inputIsStepped(source)}
             />
-            <SignalShapeGlyph shape={source.shape} size={21} />
+            {route.kind === 'generator' ? (
+              <SignalShapeGlyph shape={source.shape} size={21} />
+            ) : (
+              <span className="input-channel-midi-glyph"><ControlIcon name="midi" size={18} /></span>
+            )}
           </div>
         )}
         value={(
@@ -222,7 +259,9 @@ export function InputChannelTile({
             {primaryControl}
           </span>
         )}
-        footer={timingLabel(source)}
+        footer={route.kind === 'generator'
+          ? timingLabel(source)
+          : `Web MIDI · ${midiState}`}
       />
 
       <ControlPopover
@@ -233,7 +272,13 @@ export function InputChannelTile({
         preferredWidth={470}
         onClose={() => setInspectorOpen(false)}
       >
-        <InputChannelInspector source={source} onChange={onChange} />
+        <InputChannelInspector
+          kind={kind}
+          route={route}
+          devices={devices}
+          onChange={onChange}
+          onConnectMidi={onConnectMidi}
+        />
       </ControlPopover>
 
       <ControlPopover

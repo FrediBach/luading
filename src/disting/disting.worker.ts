@@ -833,6 +833,13 @@ function handleMessage(message: WorkerRequest) {
         signals.set(message.index, message.config)
         inputHigh[message.index] = false
         break
+      case 'setExternalInputSource':
+        signals.setExternal(message.index, message.value)
+        inputHigh[message.index] = false
+        break
+      case 'externalInput':
+        signals.updateExternal(message.updates)
+        break
       case 'setClock':
         clock.set(message.config)
         break

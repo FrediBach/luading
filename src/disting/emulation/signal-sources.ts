@@ -1,5 +1,6 @@
 import type {
   ClockDivision,
+  ExternalInputUpdate,
   GlobalClockConfig,
   InputKind,
   SignalShape,
@@ -229,16 +230,57 @@ export class ClockTransport {
 
 export class SignalBank {
   private sources: SignalSourceConfig[] = []
+  private external: Array<{
+    active: boolean
+    heldValue: number
+    pulses: number[]
+    releasePending: boolean
+  }> = []
 
   configure(kinds: InputKind[], defaults: readonly SignalSourceConfig[] = []) {
     this.sources = kinds.map((kind, index) => normalizeSignalSource(
       defaults[index] ?? defaultSignalSource(kind, index),
     ))
+    this.external = kinds.map(() => ({
+      active: false,
+      heldValue: 0,
+      pulses: [],
+      releasePending: false,
+    }))
   }
 
   set(index: number, config: SignalSourceConfig) {
     if (index < 0 || index >= this.sources.length) return
     this.sources[index] = normalizeSignalSource(config)
+    this.external[index] = {
+      active: false,
+      heldValue: 0,
+      pulses: [],
+      releasePending: false,
+    }
+  }
+
+  setExternal(index: number, value: number) {
+    if (index < 0 || index >= this.sources.length) return
+    this.external[index] = {
+      active: true,
+      heldValue: finite(value, 0),
+      pulses: [],
+      releasePending: false,
+    }
+  }
+
+  updateExternal(updates: readonly ExternalInputUpdate[]) {
+    for (const update of updates) {
+      const state = this.external[update.index]
+      if (!state?.active) continue
+      if (update.value !== undefined && Number.isFinite(update.value)) {
+        state.heldValue = update.value
+      }
+      if (update.pulse !== undefined && Number.isFinite(update.pulse)) {
+        state.pulses.push(update.pulse)
+      }
+    }
   }
 
   get configs() {
@@ -249,8 +291,21 @@ export class SignalBank {
   }
 
   sample(clock: ClockTransport, timeSeconds: number, step: number) {
-    return this.sources.map((source) => (
-      signalValueAt(source, clock.beats, timeSeconds, step)
-    ))
+    return this.sources.map((source, index) => {
+      const state = this.external[index]
+      if (!state?.active) {
+        return signalValueAt(source, clock.beats, timeSeconds, step)
+      }
+      if (state.releasePending) {
+        state.releasePending = false
+        return state.heldValue
+      }
+      const pulse = state.pulses.shift()
+      if (pulse !== undefined) {
+        state.releasePending = true
+        return pulse
+      }
+      return state.heldValue
+    })
   }
 }

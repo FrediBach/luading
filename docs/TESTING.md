@@ -47,6 +47,9 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - Disting MIDI destination masks, physical-output deduplication, Web MIDI
   permission states, port snapshots, hot-plug reconciliation, input delivery,
   output failures, and cleanup
+- MIDI input port/channel/message filtering, CC and pitch-bend voltage scaling,
+  note pitch and velocity, polyphonic held gates, threshold crossings, atomic
+  multi-input updates, and queued one-control-step trigger pulses
 - audited API support-level classification and compatibility diagnostics
 - clocked/free-running signal sources and oscilloscope triggering
 

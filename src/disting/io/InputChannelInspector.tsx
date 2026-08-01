@@ -8,9 +8,16 @@ import {
 import { formatDisplayFloat } from '../display-format'
 import {
   CLOCK_DIVISIONS,
+  defaultSignalSource,
   SIGNAL_SHAPES,
 } from '../emulation/signal-sources'
+import { defaultWebMidiInputMapping } from '../emulation/midi-routing'
 import type { SignalSourceConfig } from '../types'
+import type {
+  InputChannelRoute,
+  InputKind,
+  WebMidiDeviceState,
+} from '../types'
 import {
   inputShapeDefaults,
   inputUsesPulseWidth,
@@ -18,19 +25,87 @@ import {
   inputUsesTiming,
   inputWithSync,
 } from './input-source-controls'
+import { WebMidiInputInspector } from './WebMidiInputInspector'
 
 interface Props {
-  source: SignalSourceConfig
-  onChange(source: SignalSourceConfig): void
+  kind: InputKind
+  route: InputChannelRoute
+  devices: WebMidiDeviceState
+  onChange(route: InputChannelRoute): void
+  onConnectMidi(): void
 }
 
-export function InputChannelInspector({ source, onChange }: Props) {
+export function InputChannelInspector({
+  kind,
+  route,
+  devices,
+  onChange,
+  onConnectMidi,
+}: Props) {
+  const source = route.kind === 'generator' ? route.source : null
+  const selectGenerator = () => onChange({
+    kind: 'generator',
+    source: defaultSignalSource(kind, 0),
+  })
+  const selectWebMidi = () => onChange({
+    kind: 'webMidi',
+    mapping: defaultWebMidiInputMapping(
+      kind,
+      devices.inputs.find((port) => port.state === 'connected')?.id ?? '',
+    ),
+  })
+
+  return (
+    <div className="input-channel-inspector">
+      <fieldset className="input-source-picker">
+        <legend>Input source</legend>
+        <button
+          type="button"
+          aria-pressed={route.kind === 'generator'}
+          onClick={selectGenerator}
+        >
+          Signal generator
+        </button>
+        <button
+          type="button"
+          aria-pressed={route.kind === 'webMidi'}
+          onClick={selectWebMidi}
+        >
+          Web MIDI
+        </button>
+      </fieldset>
+
+      {route.kind === 'webMidi' ? (
+        <WebMidiInputInspector
+          inputKind={kind}
+          mapping={route.mapping}
+          devices={devices}
+          onChange={(mapping) => onChange({ kind: 'webMidi', mapping })}
+          onConnect={onConnectMidi}
+        />
+      ) : source ? (
+        <SignalGeneratorInspector
+          source={source}
+          onChange={(nextSource) => onChange({ kind: 'generator', source: nextSource })}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function SignalGeneratorInspector({
+  source,
+  onChange,
+}: {
+  source: SignalSourceConfig
+  onChange(source: SignalSourceConfig): void
+}) {
   const patch = (update: Partial<SignalSourceConfig>) => {
     onChange({ ...source, ...update })
   }
 
   return (
-    <div className="input-channel-inspector">
+    <div className="signal-generator-inspector">
       <fieldset className="input-shape-picker">
         <legend>Signal generator</legend>
         <div>

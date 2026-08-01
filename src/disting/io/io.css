@@ -148,6 +148,39 @@
   opacity: 0.75;
 }
 
+.input-channel-midi-glyph {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  background: var(--surface-input-overlay);
+  color: var(--channel-signal-color);
+}
+
+.input-channel-midi-state {
+  padding: 3px 5px;
+  border: 1px solid var(--nt-line);
+  border-radius: 3px;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.input-channel-midi-state--live {
+  border-color: color-mix(in srgb, var(--nt-green) 60%, var(--nt-line));
+  color: var(--nt-green);
+}
+
+.input-channel-midi-state--disconnected,
+.input-channel-midi-state--error {
+  border-color: color-mix(in srgb, var(--nt-red) 60%, var(--nt-line));
+  color: var(--nt-red);
+}
+
 .input-channel-value {
   min-width: 0;
   display: grid;
@@ -526,6 +559,81 @@
 .input-channel-inspector {
   display: grid;
   gap: 10px;
+}
+
+.input-source-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  border: 0;
+}
+
+.input-source-picker legend {
+  margin-bottom: 6px;
+  grid-column: 1 / -1;
+  color: var(--nt-muted);
+  font: var(--font-label)/1 var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.input-source-picker button,
+.web-midi-input-inspector > button {
+  min-height: 32px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
+  color: var(--nt-muted);
+  font: var(--font-label)/1 var(--mono);
+  cursor: pointer;
+}
+
+.input-source-picker button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--nt-green) 60%, var(--nt-line));
+  background: var(--nt-green-soft);
+  color: var(--nt-green);
+}
+
+.web-midi-input-inspector {
+  display: grid;
+  gap: 9px;
+}
+
+.web-midi-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.web-midi-input-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  color: var(--nt-muted);
+  font: var(--font-label)/1 var(--mono);
+}
+
+.web-midi-input-grid select,
+.web-midi-input-grid input {
+  width: 100%;
+  min-width: 0;
+  min-height: 31px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
+  color: var(--nt-text);
+  font: var(--font-label)/1 var(--mono);
+}
+
+.web-midi-input-inspector > p {
+  margin: 0;
+  color: var(--nt-red);
+  font: var(--font-label)/1.4 var(--mono);
 }
 
 .input-shape-picker {

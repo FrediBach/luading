@@ -155,6 +155,14 @@ Each simulated 1 ms step follows this order:
 8. Advance simulation time and the shared musical clock.
 9. Add an immutable input/output snapshot to the pending trace.
 
+Generator and Web MIDI inputs share this exact sequence. The main thread maps
+each physical MIDI message into one atomic batch of external input updates.
+The worker signal bank applies held CV/gate values before the next sample and
+queues trigger pulses for one high control step followed by a low control step.
+This means every input value from the same MIDI message is visible before any
+edge callback runs. Browser port IDs and MIDI mapping configuration never cross
+into the worker or Lua runtime.
+
 Lua bus indices are 1-based. TypeScript arrays are 0-based, and conversion must
 remain confined to boundary helpers. Missing entries in a callback output table
 retain their previous voltages.
@@ -185,7 +193,8 @@ The core emulator is split by hardware-facing responsibility:
   quantizes atlas coverage to the display's 16-shade black-to-`#02F1EF`
   palette.
 - `signal-sources.ts` implements deterministic CV, gate, trigger, sequencer,
-  noise, and shared-clock sources.
+  noise, shared-clock sources, and browser-agnostic external held values and
+  queued pulses.
 - `simulator-defaults.ts` reads optional trailing Lua comments beside `init()`
   input/output entries and maps them to browser-only signal-generator and audio
   routing defaults without extending the firmware-facing Lua contract.
@@ -198,8 +207,10 @@ The core emulator is split by hardware-facing responsibility:
   nested history opaque to React development instrumentation.
 - `audio-routing.ts` turns dense output traces into musical events.
 - `web-audio.ts` owns the opt-in browser audio graph and synthesized voices.
-- `midi-routing.ts` preserves the documented `sendMIDI()` destination bits and
-  resolves them to unique browser MIDI output IDs.
+- `midi-routing.ts` preserves the documented `sendMIDI()` destination bits,
+  resolves them to unique browser MIDI output IDs, and converts mapped CC,
+  pitch-bend, note pitch, velocity, gate, and trigger messages into atomic
+  external input updates.
 - `web-midi.ts` owns opt-in Web MIDI permission, port snapshots, input
   listeners, hot-plug reconciliation, sending, and cleanup on the main thread.
 
