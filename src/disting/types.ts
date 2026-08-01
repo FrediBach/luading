@@ -33,6 +33,131 @@ export type AudioRouteDestination =
   | 'synthNote'
   | 'synthTrigger'
 
+export const DISTING_MIDI_DESTINATION_BITS = {
+  breakout: 0x1,
+  selectBus: 0x2,
+  usb: 0x4,
+  internal: 0x8,
+} as const
+
+export type DistingMidiDestination = keyof typeof DISTING_MIDI_DESTINATION_BITS
+export type DistingMidiPortAssignments = Partial<Record<DistingMidiDestination, string>>
+
+export type MidiChannel =
+  | 1 | 2 | 3 | 4
+  | 5 | 6 | 7 | 8
+  | 9 | 10 | 11 | 12
+  | 13 | 14 | 15 | 16
+
+export type MidiChannelFilter = 'omni' | MidiChannel
+export type MidiNoteFilter = 'any' | number
+
+export type WebMidiAccessStatus =
+  | 'unsupported'
+  | 'idle'
+  | 'requesting'
+  | 'ready'
+  | 'denied'
+  | 'error'
+
+export interface WebMidiPortDescriptor {
+  id: string
+  type: 'input' | 'output'
+  name: string
+  manufacturer: string
+  state: 'connected' | 'disconnected'
+  connection: 'open' | 'closed' | 'pending'
+}
+
+export interface WebMidiDeviceState {
+  status: WebMidiAccessStatus
+  inputs: WebMidiPortDescriptor[]
+  outputs: WebMidiPortDescriptor[]
+  error?: string
+}
+
+interface WebMidiInputMappingBase {
+  portId: string
+  channel: MidiChannelFilter
+}
+
+interface WebMidiVoltageRange {
+  minimumVolts: number
+  maximumVolts: number
+}
+
+export type WebMidiInputMapping =
+  | (WebMidiInputMappingBase & WebMidiVoltageRange & {
+      kind: 'cc'
+      controller: number
+    })
+  | (WebMidiInputMappingBase & WebMidiVoltageRange & {
+      kind: 'pitchBend'
+    })
+  | (WebMidiInputMappingBase & {
+      kind: 'notePitch'
+      baseNote: number
+      baseVoltage: number
+    })
+  | (WebMidiInputMappingBase & WebMidiVoltageRange & {
+      kind: 'noteVelocity'
+      note: MidiNoteFilter
+    })
+  | (WebMidiInputMappingBase & {
+      kind: 'noteGate' | 'noteTrigger'
+      note: MidiNoteFilter
+      lowVolts: number
+      highVolts: number
+    })
+  | (WebMidiInputMappingBase & {
+      kind: 'ccGate' | 'ccTrigger'
+      controller: number
+      threshold: number
+      lowVolts: number
+      highVolts: number
+    })
+
+export type WebAudioOutputRoute = {
+  kind: 'webAudio'
+  destination: Exclude<AudioRouteDestination, 'off'>
+}
+
+export type WebMidiNoteSource =
+  | { kind: 'fixed'; note: number }
+  | {
+      kind: 'output'
+      outputIndex: number
+      baseNote: number
+      baseVoltage: number
+    }
+
+export type OutputChannelRoute =
+  | { kind: 'off' }
+  | WebAudioOutputRoute
+  | (WebMidiVoltageRange & {
+      kind: 'webMidiCc'
+      portId: string
+      channel: MidiChannel
+      controller: number
+    })
+  | (WebMidiVoltageRange & {
+      kind: 'webMidiPitchBend'
+      portId: string
+      channel: MidiChannel
+    })
+  | {
+      kind: 'webMidiNote'
+      portId: string
+      channel: MidiChannel
+      source: WebMidiNoteSource
+      gateThresholdVolts: number
+      velocity: number
+    }
+
+export type InputChannelRoute =
+  | { kind: 'generator'; source: SignalSourceConfig }
+  | { kind: 'webMidi'; mapping: WebMidiInputMapping }
+
 export interface ParameterDefinition {
   name: string
   min: number
