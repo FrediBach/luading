@@ -49,7 +49,7 @@ describe('Disting API manifest', () => {
       getCpuCycleCount: 'approximation',
       sendI2CCommand: 'mock',
       sendI2CGetter: 'mock',
-      sendMIDI: 'mock',
+      sendMIDI: 'partial',
       setDisplayMode: 'partial',
     })
     expect(support.drawText).toBe('full')

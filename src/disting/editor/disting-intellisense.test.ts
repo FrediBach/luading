@@ -157,8 +157,8 @@ describe('Disting IntelliSense API support', () => {
       documentation: expect.stringContaining('not a Disting NT CPU-cycle measurement'),
     })
     expect(midi && apiEntryForIntelliSense(midi)).toMatchObject({
-      detail: expect.stringContaining('simulator mock'),
-      documentation: expect.stringContaining('not transmitted to a MIDI destination'),
+      detail: expect.stringContaining('partial simulation'),
+      documentation: expect.stringContaining('Web MIDI outputs assigned'),
     })
   })
 

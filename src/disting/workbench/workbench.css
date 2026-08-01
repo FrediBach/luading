@@ -482,6 +482,114 @@
   font: var(--font-micro)/1.4 var(--mono);
 }
 
+.midi-device-section,
+.midi-manual-section {
+  display: grid;
+  gap: 8px;
+}
+
+.midi-manual-section {
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--nt-line);
+}
+
+.midi-device-section h3,
+.midi-manual-section h3 {
+  margin: 0;
+  color: var(--nt-text);
+  font: 700 var(--font-label)/1.2 var(--mono);
+}
+
+.midi-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.midi-section-heading > span,
+.midi-device-section p,
+.midi-input-ports p {
+  margin: 0;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1.4 var(--mono);
+}
+
+.midi-section-heading > span {
+  text-transform: capitalize;
+}
+
+.midi-device-section > button {
+  min-height: 30px;
+  border: 1px solid var(--nt-green);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nt-text);
+  font: 700 var(--font-micro)/1.2 var(--mono);
+  cursor: pointer;
+}
+
+.midi-device-section > button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.midi-input-ports,
+.midi-output-ports {
+  margin: 0;
+  padding: 7px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+}
+
+.midi-input-ports legend,
+.midi-output-ports legend {
+  padding: 0 4px;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1.2 var(--mono);
+}
+
+.midi-input-ports label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--nt-text);
+  font: var(--font-label)/1.2 var(--mono);
+}
+
+.midi-input-ports small {
+  color: var(--nt-muted);
+  font-size: var(--font-micro);
+  text-transform: capitalize;
+}
+
+.midi-output-ports label {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1.2 var(--mono);
+}
+
+.midi-output-ports select {
+  min-width: 0;
+  height: 29px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed);
+  color: var(--nt-text);
+  font: var(--font-micro)/1.2 var(--mono);
+}
+
+.midi-device-error {
+  color: var(--nt-red) !important;
+}
+
 .midi-preset-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,6 +1,11 @@
 import type { DistingScriptExampleGroup } from '../script-examples'
 import type { ThemeMode } from '../theme'
-import type { GlobalClockConfig } from '../types'
+import type {
+  DistingMidiDestination,
+  DistingMidiPortAssignments,
+  GlobalClockConfig,
+  WebMidiDeviceState,
+} from '../types'
 import type { TextSize } from '../appearance'
 import { SaveStateControl } from '../device/SaveStateControl'
 import { AboutPopover } from './AboutPopover'
@@ -29,6 +34,9 @@ interface Props {
   midi?: {
     bytes: number[]
     messages: string[]
+    devices: WebMidiDeviceState
+    enabledInputIds: string[]
+    assignments: DistingMidiPortAssignments
   }
   qualityLabel: string
   qualityStatus: 'pending' | 'invalid' | 'provisional' | 'scored'
@@ -48,6 +56,9 @@ interface Props {
   onApplyWorkspacePreset(preset: WorkspacePresetId): void
   onMidiBytesChange(bytes: number[]): void
   onSendMidi(bytes: number[]): void
+  onConnectMidi(): void
+  onToggleMidiInput(portId: string, enabled: boolean): void
+  onMidiAssignmentChange(destination: DistingMidiDestination, portId: string): void
   onOpenProblems(): void
   onToggleTheme(): void
   onTextSizeChange(textSize: TextSize): void
@@ -82,6 +93,9 @@ export function CommandBar({
   onApplyWorkspacePreset,
   onMidiBytesChange,
   onSendMidi,
+  onConnectMidi,
+  onToggleMidiInput,
+  onMidiAssignmentChange,
   onOpenProblems,
   onToggleTheme,
   onTextSizeChange,
@@ -144,8 +158,14 @@ export function CommandBar({
         <MidiEventTool
           bytes={midi.bytes}
           messages={midi.messages}
+          devices={midi.devices}
+          enabledInputIds={midi.enabledInputIds}
+          assignments={midi.assignments}
           onBytesChange={onMidiBytesChange}
           onSend={onSendMidi}
+          onConnect={onConnectMidi}
+          onToggleInput={onToggleMidiInput}
+          onAssignmentChange={onMidiAssignmentChange}
         />
       )}
       <AppearancePopover textSize={textSize} onChange={onTextSizeChange} />

@@ -52,7 +52,13 @@ describe('command bar utilities', () => {
         savedState
         programLoaded
         workspacePreset="patch"
-        midi={{ bytes: [0x90, 60, 100], messages: ['noteOn'] }}
+        midi={{
+          bytes: [0x90, 60, 100],
+          messages: ['noteOn'],
+          devices: { status: 'idle', inputs: [], outputs: [] },
+          enabledInputIds: [],
+          assignments: {},
+        }}
         qualityLabel="96 · A"
         qualityStatus="scored"
         qualityErrorCount={0}
@@ -71,6 +77,9 @@ describe('command bar utilities', () => {
         onApplyWorkspacePreset={() => undefined}
         onMidiBytesChange={() => undefined}
         onSendMidi={() => undefined}
+        onConnectMidi={() => undefined}
+        onToggleMidiInput={() => undefined}
+        onMidiAssignmentChange={() => undefined}
         onOpenProblems={() => undefined}
         onToggleTheme={() => undefined}
         onTextSizeChange={() => undefined}
@@ -127,6 +136,9 @@ describe('command bar utilities', () => {
         onApplyWorkspacePreset={() => undefined}
         onMidiBytesChange={() => undefined}
         onSendMidi={() => undefined}
+        onConnectMidi={() => undefined}
+        onToggleMidiInput={() => undefined}
+        onMidiAssignmentChange={() => undefined}
         onOpenProblems={() => undefined}
         onToggleTheme={() => undefined}
         onTextSizeChange={() => undefined}

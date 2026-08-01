@@ -467,9 +467,9 @@ export const DISTING_API: DistingApiEntry[] = [
       snippetDefault: '0x90',
       variadic: { min: 1, max: 3 },
     }),
-  ], 'Sends a MIDI message to the simulator event log.', {
-    support: 'mock',
-    supportDetail: 'The message is clamped and logged; it is not transmitted to a MIDI destination.',
+  ], 'Sends a MIDI message to its configured Disting destination routes.', {
+    support: 'partial',
+    supportDetail: 'The message is clamped and logged, then transmitted to Web MIDI outputs assigned to the documented destination bits. Browser permission and device availability still apply.',
   }),
   api('setDisplayMode', [parameter('mode', 'string', {
     choices: ['overview', 'meters', 'parameters', 'ui', 'algorithm', 'menu'],

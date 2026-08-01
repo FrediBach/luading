@@ -113,7 +113,7 @@ exit()
 
     expect(findings).toEqual(expect.arrayContaining([
       expect.objectContaining({ ruleId: 'simulator-api-approximation' }),
-      expect.objectContaining({ ruleId: 'simulator-api-mock' }),
+      expect.objectContaining({ ruleId: 'simulator-api-partial' }),
       expect.objectContaining({ ruleId: 'simulator-api-unsupported' }),
     ]))
   })

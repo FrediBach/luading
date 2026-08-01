@@ -17,6 +17,10 @@ import { createUiEventRequest } from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
 import { TraceHistory } from './emulation/trace-history'
+import {
+  assignedWebMidiOutputIds,
+} from './emulation/midi-routing'
+import { DistingWebMidiManager } from './emulation/web-midi'
 import { FrameCommitGate } from './frame-commit'
 import {
   ConsoleWorkspace,
@@ -66,6 +70,8 @@ import {
 } from './workbench/script-file'
 import type {
   DistingHardwareEvent,
+  DistingMidiDestination,
+  DistingMidiPortAssignments,
   DistingUiControl,
   DistingUiEventKind,
   DrawCommand,
@@ -75,6 +81,7 @@ import type {
   ScopeProbe,
   ScopeSource,
   SignalSourceConfig,
+  WebMidiDeviceState,
   WorkerRequest,
   WorkerResponse,
 } from './types'
@@ -175,6 +182,11 @@ export function DistingPlayground() {
   const [revealRequest, setRevealRequest] = useState<{ range: SourceRange; nonce: number }>()
   const [potPositions, setPotPositions] = useState([0.5, 0.5, 0.5])
   const [midiBytes, setMidiBytes] = useState([0x90, 60, 100])
+  const [webMidiManager] = useState(() => new DistingWebMidiManager())
+  const [webMidiState, setWebMidiState] = useState<WebMidiDeviceState>(() => (
+    webMidiManager.state
+  ))
+  const [midiPortAssignments, setMidiPortAssignments] = useState<DistingMidiPortAssignments>({})
   const [hasSavedState, setHasSavedState] = useState(false)
   const [committedFrameRevision, setCommittedFrameRevision] = useState(0)
   const [theme, setTheme] = useState(() => storedTheme(browserThemeStorage()))
@@ -197,6 +209,7 @@ export function DistingPlayground() {
   const editorPanelRef = useRef<HTMLDivElement>(null)
   const savedStateRef = useRef<unknown>(undefined)
   const consoleEntryIdRef = useRef(0)
+  const midiPortAssignmentsRef = useRef<DistingMidiPortAssignments>({})
   const blockingStateRef = useRef<BlockingState>({
     runtimeError: null,
     diagnosticErrorCount: 0,
@@ -331,6 +344,19 @@ export function DistingPlayground() {
     } else if (message.type === 'hardware') {
       const entry = hardwareEventEntry(message.event)
       appendConsoleEntry(entry.kind, entry.message)
+      if (message.event.kind === 'midiOut') {
+        const portIds = assignedWebMidiOutputIds(
+          message.event.destinations,
+          midiPortAssignmentsRef.current,
+        )
+        const failures = webMidiManager.send(portIds, message.event.bytes)
+        for (const failure of failures) {
+          appendConsoleEntry(
+            'error',
+            `Web MIDI ${failure.portId}: ${failure.message}`,
+          )
+        }
+      }
     } else if (message.type === 'serialised') {
       savedStateRef.current = message.state
       setHasSavedState(true)
@@ -350,7 +376,7 @@ export function DistingPlayground() {
       if (message.diagnostics) setContractDiagnostics(message.diagnostics)
       if (message.diagnostic) setRuntimeDiagnostics([message.diagnostic])
     }
-  }, [appendConsoleEntry, clearLoadTimeout, traceHistory])
+  }, [appendConsoleEntry, clearLoadTimeout, traceHistory, webMidiManager])
 
   const createWorker = useCallback(() => {
     terminateWorker()
@@ -478,6 +504,18 @@ export function DistingPlayground() {
   }, [createWorker, terminateWorker])
 
   useEffect(() => {
+    const unsubscribeState = webMidiManager.subscribe(setWebMidiState)
+    const unsubscribeMessages = webMidiManager.subscribeToMessages(({ bytes }) => {
+      post(createMidiEventRequest(bytes))
+    })
+    return () => {
+      unsubscribeMessages()
+      unsubscribeState()
+      void webMidiManager.close()
+    }
+  }, [post, webMidiManager])
+
+  useEffect(() => {
     const validationWorker = new Worker(new URL('./validation.worker.ts', import.meta.url), { type: 'module' })
     validationWorkerRef.current = validationWorker
     validationWorker.onmessage = (event: MessageEvent<ValidationWorkerResponse>) => {
@@ -581,6 +619,19 @@ export function DistingPlayground() {
     post(createMidiEventRequest(bytes))
   }
 
+  const changeMidiPortAssignment = (
+    destination: DistingMidiDestination,
+    portId: string,
+  ) => {
+    setMidiPortAssignments((previous) => {
+      const next = { ...previous }
+      if (portId) next[destination] = portId
+      else delete next[destination]
+      midiPortAssignmentsRef.current = next
+      return next
+    })
+  }
+
   const changeProbe = (index: number, source: ScopeSource | null) => {
     setProbes((previous) => assignScopeSource(previous, index, source))
   }
@@ -680,9 +731,12 @@ export function DistingPlayground() {
           savedState={hasSavedState}
           programLoaded={Boolean(program)}
           workspacePreset={layout.workspacePreset}
-          midi={program?.midi ? {
+          midi={program ? {
             bytes: midiBytes,
-            messages: program.midi.messages,
+            messages: program.midi?.messages ?? [],
+            devices: webMidiState,
+            enabledInputIds: webMidiManager.enabledInputIds,
+            assignments: midiPortAssignments,
           } : undefined}
           qualityLabel={qualityLabel}
           qualityStatus={qualityReport.status}
@@ -705,6 +759,11 @@ export function DistingPlayground() {
           )}
           onMidiBytesChange={setMidiBytes}
           onSendMidi={sendMidi}
+          onConnectMidi={() => void webMidiManager.connect()}
+          onToggleMidiInput={(portId, enabled) => {
+            void webMidiManager.setInputEnabled(portId, enabled)
+          }}
+          onMidiAssignmentChange={changeMidiPortAssignment}
           onOpenProblems={() => dispatchLayout({ type: 'openDrawer', tab: 'problems' })}
           onToggleTheme={toggleTheme}
           onTextSizeChange={setTextSize}

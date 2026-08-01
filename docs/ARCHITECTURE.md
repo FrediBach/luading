@@ -26,7 +26,7 @@ flowchart LR
   Simulation -->|WorkerResponse| App
 
   App --> Display[Display and scope]
-  App --> Audio[Opt-in Web Audio]
+  App --> BrowserIO[Opt-in Web Audio and Web MIDI]
 ```
 
 There are four relevant execution contexts:
@@ -79,7 +79,9 @@ it does not communicate with either worker. Its main boundaries are:
 - `device/` adapts the display, front-panel events, and parameter metadata to
   the shared controls.
 - `io/` presents input sources, output traces, scope assignment, and opt-in
-  Web Audio routing. Signal generation remains in `emulation/`.
+  browser routing. The command bar owns Web MIDI permission and Disting MIDI
+  destination selection. Signal generation and reusable routing behavior
+  remain in `emulation/`.
 - `drawer/` presents scope, diagnostics, console, and browser-local performance
   data. Its pure selection and filtering helpers remain independently tested.
 
@@ -196,9 +198,16 @@ The core emulator is split by hardware-facing responsibility:
   nested history opaque to React development instrumentation.
 - `audio-routing.ts` turns dense output traces into musical events.
 - `web-audio.ts` owns the opt-in browser audio graph and synthesized voices.
+- `midi-routing.ts` preserves the documented `sendMIDI()` destination bits and
+  resolves them to unique browser MIDI output IDs.
+- `web-midi.ts` owns opt-in Web MIDI permission, port snapshots, input
+  listeners, hot-plug reconciliation, sending, and cleanup on the main thread.
 
-Web Audio is a monitoring convenience. It is not part of the Disting hardware
-contract and never feeds values back into the simulation.
+Web Audio and Web MIDI device selection are browser conveniences. Web MIDI
+messages entering `midiMessage()` and leaving `sendMIDI()` still cross the
+production worker protocol and firmware-facing adapters; permissions, physical
+port identities, and browser scheduling are not part of the Disting contract.
+Web Audio never feeds values back into the simulation.
 
 ## Display and front panel
 

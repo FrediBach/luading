@@ -24,6 +24,7 @@ export default defineConfig({
         'src/disting/emulation/runtime-helpers.ts',
         'src/disting/emulation/scope-model.ts',
         'src/disting/emulation/signal-sources.ts',
+        'src/disting/emulation/web-midi.ts',
         'src/disting/validation/api-manifest.ts',
         'src/disting/validation/contract-validator.ts',
         'src/disting/validation/score.ts',
