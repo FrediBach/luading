@@ -108,7 +108,7 @@ export function CommandBar({
         aria-label="Script project"
       >
         <div className="workbench-commandbar-brand" aria-label="Luading Disting NT Lua Simulator">
-          <strong>Luading</strong>
+          <strong>Lua<span style={{color:"#6df0a8"}}>!</span>ding</strong>
         </div>
 
         <ScriptMenu
