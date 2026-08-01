@@ -103,7 +103,6 @@ export function CommandBar({
   return (
     <header className="workbench-commandbar">
       <div className="workbench-commandbar-brand" aria-label="Luading Disting NT Lua Simulator">
-        <span>NT</span>
         <strong>Luading</strong>
       </div>
 

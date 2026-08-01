@@ -15,6 +15,7 @@ interface Props {
 export function RuntimeStatus({ status, simulatedSeconds }: Props) {
   const duration = `${formatDisplayFloat(simulatedSeconds)} s`
   const running = status === 'running'
+  const showSeconds = false; // Switched off for now
   return (
     <div
       className={`workbench-runtime-state workbench-runtime-state--${status}`}
@@ -25,7 +26,7 @@ export function RuntimeStatus({ status, simulatedSeconds }: Props) {
     >
       <i aria-hidden="true" />
       <span>{status}</span>
-      {running && (
+      {running && showSeconds && (
         <span className="workbench-runtime-duration" aria-hidden="true">
           {duration}
         </span>
