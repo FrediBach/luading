@@ -8,7 +8,6 @@ interface Props {
   workspace: ReactNode
   drawer: ReactNode
   statusBar: ReactNode
-  overlay?: ReactNode
   density: EffectiveWorkbenchDensity
   theme: ThemeMode
   textSize: TextSize
@@ -20,7 +19,6 @@ export function WorkbenchShell({
   workspace,
   drawer,
   statusBar,
-  overlay,
   density,
   theme,
   textSize,
@@ -40,7 +38,6 @@ export function WorkbenchShell({
       >
         {announcement}
       </div>
-      {overlay}
       {commandBar}
       <div className="workbench-body">
         {workspace}

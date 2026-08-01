@@ -10,6 +10,21 @@ const workbenchCss = readFileSync(
 )
 
 describe('responsive workbench rendering', () => {
+  it('reserves a responsive dock for the display preview', () => {
+    expect(workbenchCss).toMatch(
+      /\.workbench-display-dock \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 1;/,
+    )
+    expect(workbenchCss).toMatch(
+      /@media \(max-width: 899px\)[\s\S]*?\.workbench-display-dock \{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 2;/,
+    )
+    expect(workbenchCss).toMatch(
+      /\.draggable-display-preview\.is-floating \{[\s\S]*?position: fixed;/,
+    )
+    expect(workbenchCss).not.toMatch(
+      /\.draggable-display-preview \{[^}]*position: fixed;/,
+    )
+  })
+
   it('reflows command groups instead of introducing horizontal scrolling', () => {
     expect(workbenchCss).toContain("grid-template-areas: 'project execution status utilities'")
     expect(workbenchCss).toMatch(
@@ -35,6 +50,7 @@ describe('responsive workbench rendering', () => {
       <SplitPane
         primary={<p>Editor content</p>}
         secondary={<p>Instrument content</p>}
+        preview={<p>Display preview</p>}
         splitPercent={60}
         narrow
         responsiveMode="instrument"
@@ -45,6 +61,7 @@ describe('responsive workbench rendering', () => {
     )
 
     expect(markup).toContain('role="tablist"')
+    expect(markup).toContain('<div class="workbench-display-dock"><p>Display preview</p></div>')
     expect(markup).toContain('id="workbench-responsive-tab-editor"')
     expect(markup).toContain('aria-selected="true" tabindex="0">Instrument')
     expect(markup).toContain('id="workbench-responsive-panel-editor"')
@@ -57,6 +74,7 @@ describe('responsive workbench rendering', () => {
       <SplitPane
         primary={<p>Editor content</p>}
         secondary={<p>Instrument content</p>}
+        preview={<p>Display preview</p>}
         splitPercent={60}
         narrow={false}
         responsiveMode="editor"

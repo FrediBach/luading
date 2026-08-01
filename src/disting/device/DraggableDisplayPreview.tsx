@@ -1,33 +1,27 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent,
-  type RefObject,
 } from 'react'
 import type { DrawCommand } from '../types'
 import { DistingDisplayBezel } from './DistingDisplayBezel'
 import {
   clampDisplayPosition,
-  positionDisplayAtBottomRight,
   type DisplayPosition,
 } from './display-position'
 
 const VIEWPORT_MARGIN = 8
-const ANCHOR_SPACING = 12
 const KEYBOARD_DRAG_STEP = 10
 
 interface Props {
   commands: DrawCommand[]
-  anchorRef: RefObject<HTMLElement | null>
 }
 
 export function DraggableDisplayPreview({
   commands,
-  anchorRef,
 }: Props) {
   const overlayRef = useRef<HTMLElement>(null)
   const dragRef = useRef<{
@@ -37,6 +31,7 @@ export function DraggableDisplayPreview({
     origin: DisplayPosition
   } | null>(null)
   const [position, setPosition] = useState<DisplayPosition | null>(null)
+  const [floating, setFloating] = useState(false)
   const [doubleSize, setDoubleSize] = useState(false)
   const clampedPosition = useCallback((nextPosition: DisplayPosition) => {
     const overlay = overlayRef.current
@@ -48,19 +43,6 @@ export function DraggableDisplayPreview({
       VIEWPORT_MARGIN,
     )
   }, [])
-
-  useLayoutEffect(() => {
-    const anchor = anchorRef.current
-    const overlay = overlayRef.current
-    if (!anchor || !overlay) return
-    const anchorBounds = anchor.getBoundingClientRect()
-    if (anchorBounds.width <= 0 || anchorBounds.height <= 0) return
-    setPosition(clampedPosition(positionDisplayAtBottomRight(
-      anchorBounds,
-      { width: overlay.offsetWidth, height: overlay.offsetHeight },
-      ANCHOR_SPACING,
-    )))
-  }, [anchorRef, clampedPosition])
 
   useEffect(() => {
     const keepInsideViewport = () => {
@@ -86,6 +68,8 @@ export function DraggableDisplayPreview({
       pointerY: event.clientY,
       origin: { x: bounds.left, y: bounds.top },
     }
+    setPosition(clampedPosition({ x: bounds.left, y: bounds.top }))
+    setFloating(true)
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -107,6 +91,12 @@ export function DraggableDisplayPreview({
   }
 
   const moveWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'Escape' && floating) {
+      setFloating(false)
+      setPosition(null)
+      event.preventDefault()
+      return
+    }
     const direction = {
       ArrowLeft: { x: -1, y: 0 },
       ArrowRight: { x: 1, y: 0 },
@@ -117,6 +107,7 @@ export function DraggableDisplayPreview({
     const bounds = overlayRef.current?.getBoundingClientRect()
     if (!bounds) return
     const step = event.shiftKey ? 1 : KEYBOARD_DRAG_STEP
+    setFloating(true)
     setPosition(clampedPosition({
       x: bounds.left + direction.x * step,
       y: bounds.top + direction.y * step,
@@ -127,15 +118,15 @@ export function DraggableDisplayPreview({
   return (
     <section
       ref={overlayRef}
-      className={`draggable-display-preview${doubleSize ? ' is-double-size' : ''}`}
+      className={`draggable-display-preview${floating ? ' is-floating' : ''}${doubleSize ? ' is-double-size' : ''}`}
       aria-label="Draggable Disting NT display preview"
-      style={position ? { left: position.x, top: position.y } : undefined}
+      style={floating && position ? { left: position.x, top: position.y } : undefined}
     >
       <header className="draggable-display-header">
         <button
           type="button"
           className="draggable-display-handle"
-          aria-label="Move display preview. Use arrow keys or drag."
+          aria-label={`Move display preview. Use arrow keys or drag.${floating ? ' Press Escape to dock.' : ''}`}
           onPointerDown={beginDrag}
           onPointerMove={drag}
           onPointerUp={endDrag}
@@ -145,6 +136,18 @@ export function DraggableDisplayPreview({
           <span aria-hidden="true">⠿</span>
           Display preview
         </button>
+        {floating && (
+          <button
+            type="button"
+            className="display-dock-action"
+            onClick={() => {
+              setFloating(false)
+              setPosition(null)
+            }}
+          >
+            Dock
+          </button>
+        )}
         <button
           type="button"
           className="display-scale-switch"

@@ -17,8 +17,16 @@ runtime status, workspace presets, MIDI routing, appearance, and About.
 
 The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the
-default ratio. The instrument rack contains the display and hardware controls,
-script parameters, inputs, outputs, scope assignments, and opt-in Web Audio.
+default ratio. The display preview starts in a reserved dock above the
+instrument pane. Below 900 px, its dock sits below the Editor/Instrument tabs
+so switching views never hides it. The dock participates in layout and does
+not cover code, controls, or diagnostics. Drag its header, or focus the header
+and use the arrow keys, to turn it into a viewport-clamped floating panel; use
+**Dock** or press Escape from the move handle to return it to the responsive
+dock.
+
+The instrument rack contains the hardware controls, script parameters, inputs,
+outputs, scope assignments, and opt-in Web Audio.
 Input and output banks reserve a four-channel footprint, so scripts with fewer
 channels keep the same tile width and minimum bank height without showing fake
 controls.

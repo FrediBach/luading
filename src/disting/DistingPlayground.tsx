@@ -212,7 +212,6 @@ export function DistingPlayground() {
   const runningRef = useRef(false)
   const resumeWhenVisibleRef = useRef(false)
   const sourceIsLoadedRef = useRef(false)
-  const editorPanelRef = useRef<HTMLDivElement>(null)
   const savedStateRef = useRef<unknown>(undefined)
   const consoleEntryIdRef = useRef(0)
   const midiPortAssignmentsRef = useRef<DistingMidiPortAssignments>({})
@@ -769,12 +768,6 @@ export function DistingPlayground() {
       theme={theme}
       textSize={textSize}
       announcement={accessibilityAnnouncement}
-      overlay={(
-        <DraggableDisplayPreview
-          commands={display}
-          anchorRef={editorPanelRef}
-        />
-      )}
       commandBar={(
         <CommandBar
           programName={program?.name ?? 'Lua script'}
@@ -824,6 +817,7 @@ export function DistingPlayground() {
       )}
       workspace={(
         <SplitPane
+          preview={<DraggableDisplayPreview commands={display} />}
           splitPercent={layout.splitPercent}
           narrow={narrow}
           responsiveMode={layout.responsiveMode}
@@ -834,7 +828,6 @@ export function DistingPlayground() {
           )}
           primary={(
             <div
-              ref={editorPanelRef}
               className="disting-editor-panel workbench-editor"
             >
               <DistingCodeEditor

@@ -12,6 +12,7 @@ import {
 interface Props {
   primary: ReactNode
   secondary: ReactNode
+  preview: ReactNode
   splitPercent: number
   narrow: boolean
   responsiveMode: ResponsiveWorkbenchMode
@@ -31,6 +32,7 @@ const RESPONSIVE_MODES: Array<{
 export function SplitPane({
   primary,
   secondary,
+  preview,
   splitPercent,
   narrow,
   responsiveMode,
@@ -104,6 +106,9 @@ export function SplitPane({
             {mode.label}
           </button>
         ))}
+      </div>
+      <div className="workbench-display-dock">
+        {preview}
       </div>
       <section
         id="workbench-responsive-panel-editor"
