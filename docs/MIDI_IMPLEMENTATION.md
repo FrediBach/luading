@@ -26,12 +26,14 @@ The documented `sendMIDI()` destination mask remains intact:
 
 The routing types, deterministic destination-mask routing, browser Web MIDI
 manager, direct Lua MIDI input/output path, MIDI-backed CV/gate/trigger inputs,
-and unified output routing are implemented. MIDI input mappings retain browser
-port selection on the main thread and send only atomic voltage/pulse updates to
-the worker.
+unified output routing, deployment policy, and manual-validation runbook are
+implemented. MIDI input mappings retain browser port selection on the main
+thread and send only atomic voltage/pulse updates to the worker.
 
-Remaining work is deployment-policy verification and physical/virtual-device
-manual validation from section 8.
+The repository pins same-origin MIDI access with
+`Permissions-Policy: midi=(self)`. Deployment-specific virtual and physical
+results are recorded with `docs/MIDI_MANUAL_VALIDATION.md`; they are not
+substituted by fake-port automation.
 
 ## Data flow
 
@@ -198,10 +200,12 @@ editor hover text, and user-facing help. Explain browser compatibility,
 permissions, browser-local scheduling, and the distinction from hardware
 fidelity.
 
-Verify the deployed permissions policy permits same-origin MIDI access. Port
-selections and channel routes will initially follow existing WebAudio behavior
-and reset with the loaded program. Persisting device identifiers is deferred
-until its privacy and stale-device behavior are explicitly designed.
+The Vercel deployment configuration explicitly permits same-origin MIDI access
+with `Permissions-Policy: midi=(self)`, pinned by a deployment-configuration
+test. The effective production response is rechecked after deployment. Port
+selections and channel routes follow existing WebAudio behavior and reset with
+the loaded program. Persisting device identifiers is deferred until its privacy
+and stale-device behavior are explicitly designed.
 
 ## Test workflow
 
@@ -227,10 +231,10 @@ npm run test:conformance
 npm run check
 ```
 
-Manual validation should use a virtual MIDI loopback device and, when
-available, a physical controller. It should cover connect, permission denial,
-disconnect/reconnect, inbound filtering, destination masks, both conversion
-directions, and cleanup of active notes.
+Manual validation uses `docs/MIDI_MANUAL_VALIDATION.md` with a virtual MIDI
+loopback device and, when available, a physical controller. It covers connect,
+permission denial, disconnect/reconnect, inbound filtering, destination masks,
+both conversion directions, and cleanup of active notes.
 
 ## Acceptance criteria
 

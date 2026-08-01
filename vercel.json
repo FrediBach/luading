@@ -4,6 +4,17 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "midi=(self)"
+        }
+      ]
+    }
+  ],
   "redirects": [
     {
       "source": "/disting",

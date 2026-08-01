@@ -79,8 +79,9 @@ controls, shortcuts, and narrow-screen behavior.
 
 ## Deploying to Vercel
 
-The repository includes `vercel.json` with the Vite build settings and the
-legacy `/disting` redirects. No environment variables are required.
+The repository includes `vercel.json` with the Vite build settings, an explicit
+same-origin Web MIDI permissions policy, and the legacy `/disting` redirects.
+No environment variables are required.
 
 To create or link the Vercel project and deploy a preview:
 

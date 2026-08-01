@@ -144,6 +144,27 @@ npm run check            # Lint, coverage, and production build
 
 The HTML coverage report is written to `coverage/index.html`.
 
+## Web MIDI deployment and manual validation
+
+`src/deployment-config.test.ts` pins the Vercel response policy to
+`Permissions-Policy: midi=(self)` on every route. The production deployment is
+HTTPS, satisfying Web MIDI's secure-context requirement. After deploying a
+revision, verify the effective response rather than relying only on repository
+configuration:
+
+```bash
+curl --fail --silent --show-error --head https://luading.vercel.app/ \
+  | tr -d '\r' \
+  | grep -i '^permissions-policy: midi=(self)$'
+```
+
+The command succeeds only when the response includes the expected policy. Then
+complete and record the virtual-device matrix in
+`docs/MIDI_MANUAL_VALIDATION.md`. Physical hardware checks use the same matrix
+when a controller or MIDI interface is available. Automated fake-port tests
+remain the repeatable regression layer; manual results are deployment- and
+device-specific evidence.
+
 ## Coverage policy
 
 Coverage includes the contract, validation, runtime-boundary, display, hardware,

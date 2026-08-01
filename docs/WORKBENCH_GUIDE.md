@@ -8,8 +8,7 @@ still runs at `/`; the layout does not change the Disting NT Lua contract.
 
 The command bar contains script selection, Lua file import/export, Lua
 Run/Reload and Pause/Resume, the separate test-signal clock, preset-state save,
-script health, runtime status, workspace presets, conditional MIDI input, and
-About.
+script health, runtime status, workspace presets, MIDI routing, and About.
 
 The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the
@@ -91,6 +90,30 @@ blocking errors are announced and open the relevant drawer workspace.
 Shortcuts that intentionally apply while editing are fully modified to avoid
 capturing ordinary Monaco keystrokes. Workspace presets change presentation
 only; they do not change script, simulator, preset, or audio state.
+
+## Web MIDI
+
+Web MIDI is optional and browser-local. It requires a browser that implements
+the Web MIDI API and a secure context such as the HTTPS production deployment
+or `localhost`. Browsers without Web MIDI support retain the simulator's manual
+MIDI sender and all non-MIDI features.
+
+After loading a program, open **MIDI** in the command bar and choose **Connect
+Web MIDI**. Luading requests ordinary MIDI access only (`sysex: false`) after
+this explicit action. The browser may prompt for permission. A denial is shown
+as a MIDI status and does not pause or stop Lua; use the browser's site settings
+if permission needs to be changed later.
+
+The MIDI popover enables physical inputs and maps browser outputs to the four
+documented Disting destinations: Breakout, Select Bus, USB, and Internal. An
+input tile can then use Web MIDI for CC, pitch bend, note-to-V/oct, velocity,
+note gate, or trigger conversion. An output tile can route exclusively to Off,
+Web Audio, MIDI CC, MIDI pitch bend, or MIDI note/gate.
+
+Port choices and channel routes reset when the loaded program changes. Luading
+does not persist MIDI device identifiers. Its scheduling and MIDI-to-voltage
+conversion happen in the browser and are simulator conveniences, not evidence
+of Disting NT hardware timing fidelity.
 
 ## Text size
 
