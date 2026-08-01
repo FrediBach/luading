@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { DistingScriptExampleGroup } from '../script-examples'
 import { AboutContent } from './AboutPopover'
 import { CommandBar } from './CommandBar'
 import { filterScriptGroups } from './script-menu'
+
+const workbenchCss = readFileSync(
+  new URL('./workbench.css', import.meta.url),
+  'utf8',
+)
 
 const SCRIPT_GROUPS: DistingScriptExampleGroup[] = [
   {
@@ -180,6 +186,7 @@ describe('command bar utilities', () => {
     const markup = renderToStaticMarkup(<AboutContent />)
 
     expect(markup).toContain('Quick start')
+    expect(markup).toContain('class="about-popover-file-type"')
     expect(markup).toContain('Disting API help')
     expect(markup).toContain('note patterns')
     expect(markup).toContain('contract checks')
@@ -192,5 +199,8 @@ describe('command bar utilities', () => {
     expect(markup).toContain('not calibrated hardware CPU usage')
     expect(markup).toContain('not affiliated with or endorsed by')
     expect(markup).toContain('© 2026 Fredi Bach')
+    expect(workbenchCss).toMatch(
+      /\.about-popover-file-type \{[^}]*background: var\(--nt-green-soft\);[^}]*color: var\(--nt-green\);/s,
+    )
   })
 })

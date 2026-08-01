@@ -801,8 +801,17 @@
 
 .about-popover-quick-start code,
 .about-popover-quick-start kbd {
-  color: var(--nt-text);
   font: inherit;
+}
+
+.about-popover-file-type {
+  padding: 0 4px;
+  display: inline-block;
+  border: 1px solid color-mix(in srgb, var(--nt-green) 35%, var(--nt-line));
+  border-radius: 3px;
+  background: var(--nt-green-soft);
+  color: var(--nt-green);
+  line-height: 1.35;
 }
 
 .about-popover-quick-start kbd {
@@ -810,6 +819,7 @@
   border: 1px solid var(--nt-line);
   border-radius: 3px;
   background: var(--workbench-surface-raised);
+  color: var(--nt-text);
 }
 
 .about-popover-content section {

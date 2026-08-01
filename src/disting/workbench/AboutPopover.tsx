@@ -20,9 +20,9 @@ export function AboutContent() {
 
       <p className="about-popover-quick-start">
         <strong>Quick start</strong>
-        Choose a bundled script or import a <code>.lua</code> file, edit it,
-        then use <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to run or
-        reload.
+        Choose a bundled script or import a{' '}
+        <code className="about-popover-file-type">.lua</code> file, edit it,
+        then use <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to run or reload.
       </p>
 
       <section aria-labelledby="about-capabilities-heading">
