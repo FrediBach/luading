@@ -3,6 +3,7 @@ import {
   buttonControlAt,
   createUiEventRequest,
   encoderControlAt,
+  hardwareControlsForCallbacks,
   normalizePotPosition,
   potControlAt,
 } from './hardware-controls'
@@ -32,6 +33,18 @@ describe('Disting hardware control mapping', () => {
     expect(normalizePotPosition(0.375)).toBe(0.375)
     expect(normalizePotPosition(2)).toBe(1)
     expect(normalizePotPosition(Number.NaN)).toBe(0.5)
+  })
+
+  it('selects only controls with turn, push, or release callbacks', () => {
+    expect(hardwareControlsForCallbacks([
+      'draw',
+      'pot2Turn',
+      'encoder1Release',
+      'button4Push',
+      'button4Release',
+    ])).toEqual(['pot2', 'encoder1', 'button4'])
+    expect(hardwareControlsForCallbacks(['-- pot1Turn', 'button1PushText']))
+      .toEqual([])
   })
 
   it('constructs the existing typed UI event messages exactly', () => {

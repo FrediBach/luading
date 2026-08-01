@@ -101,7 +101,7 @@
 
 .hardware-pot-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(68px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
   gap: 6px;
   align-items: start;
 }
@@ -121,6 +121,10 @@
   gap: 10px;
   align-items: center;
   border-top: 1px solid var(--nt-line);
+}
+
+.hardware-lower-row--single {
+  grid-template-columns: 1fr;
 }
 
 .hardware-encoder-row {

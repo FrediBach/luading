@@ -7,6 +7,11 @@ import type {
 const POT_CONTROLS = ['pot1', 'pot2', 'pot3'] as const
 const ENCODER_CONTROLS = ['encoder1', 'encoder2'] as const
 const BUTTON_CONTROLS = ['button1', 'button2', 'button3', 'button4'] as const
+const HARDWARE_CONTROLS = [
+  ...POT_CONTROLS,
+  ...ENCODER_CONTROLS,
+  ...BUTTON_CONTROLS,
+] as const
 
 function controlAt(
   controls: readonly DistingUiControl[],
@@ -27,6 +32,17 @@ export function encoderControlAt(index: number) {
 
 export function buttonControlAt(index: number) {
   return controlAt(BUTTON_CONTROLS, index)
+}
+
+export function hardwareControlsForCallbacks(
+  callbacks: readonly string[],
+): DistingUiControl[] {
+  const callbackNames = new Set(callbacks)
+  return HARDWARE_CONTROLS.filter((control) => (
+    callbackNames.has(`${control}Turn`)
+    || callbackNames.has(`${control}Push`)
+    || callbackNames.has(`${control}Release`)
+  ))
 }
 
 export function normalizePotPosition(value: number) {

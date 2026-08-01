@@ -3,6 +3,7 @@ import { HardwareControlBank } from './HardwareControlBank'
 
 interface Props {
   potPositions: number[]
+  activeControls: readonly DistingUiControl[]
   disabled?: boolean
   onPotTurn(index: number, value: number): void
   onEncoderTurn(index: 0 | 1, direction: -1 | 1): void
@@ -12,6 +13,7 @@ interface Props {
 
 export function DistingDeviceFace({
   potPositions,
+  activeControls,
   disabled = false,
   onPotTurn,
   onEncoderTurn,
@@ -22,6 +24,7 @@ export function DistingDeviceFace({
     <section className="disting-device-face" aria-label="Simulated Disting NT front panel">
       <HardwareControlBank
         potPositions={potPositions}
+        activeControls={activeControls}
         disabled={disabled}
         onPotTurn={onPotTurn}
         onEncoderTurn={onEncoderTurn}

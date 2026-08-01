@@ -13,7 +13,10 @@ import {
   DraggableDisplayPreview,
   ParameterBank,
 } from './device'
-import { createUiEventRequest } from './device/hardware-controls'
+import {
+  createUiEventRequest,
+  hardwareControlsForCallbacks,
+} from './device/hardware-controls'
 import { DistingCodeEditor } from './editor/DistingCodeEditor'
 import { DEFAULT_CLOCK } from './emulation/signal-sources'
 import { TraceHistory } from './emulation/trace-history'
@@ -712,6 +715,9 @@ export function DistingPlayground() {
     () => calculateQualityReport(diagnostics, stats, sourceIsLoaded),
     [diagnostics, sourceIsLoaded, stats],
   )
+  const activeHardwareControls = useMemo(() => hardwareControlsForCallbacks(
+    sourceIndex?.callbacks.map((callback) => callback.name) ?? [],
+  ), [sourceIndex])
   const qualityLabel = qualityReport.score === null
     ? qualityReport.status === 'invalid'
       ? `${qualityReport.errorCount} errors`
@@ -847,6 +853,7 @@ export function DistingPlayground() {
               <div className="workbench-instrument-panel">
                 <DistingDeviceFace
                   potPositions={potPositions}
+                  activeControls={activeHardwareControls}
                   disabled={!program}
                   onPotTurn={turnPot}
                   onEncoderTurn={turnEncoder}
