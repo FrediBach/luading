@@ -21,6 +21,11 @@ import {
   outputTraceValues,
 } from './output-audio-controls'
 import { OutputRoutingPopover } from './OutputRoutingPopover'
+import { outputDefaultEntry } from './io-default-entries'
+import {
+  IoDefaultContextMenu,
+  type ContextMenuPoint,
+} from './IoDefaultContextMenu'
 import {
   ScopeAssignmentButton,
   ScopeProbeChooser,
@@ -69,6 +74,7 @@ export function OutputChannelTile({
 }: Props) {
   const [routingOpen, setRoutingOpen] = useState(false)
   const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
+  const [contextMenuPoint, setContextMenuPoint] = useState<ContextMenuPoint | null>(null)
   const tileRef = useRef<HTMLElement>(null)
   const scopeSource = { kind: 'output' as const, index }
   const assignedScopeProbe = assignedProbeIndex(probes, scopeSource)
@@ -111,8 +117,19 @@ export function OutputChannelTile({
         ref={tileRef}
         label={`OUT ${index + 1}`}
         meta={`${kind} · ${name}`}
-        selected={routingOpen || scopeChooserOpen}
+        selected={routingOpen || scopeChooserOpen || contextMenuPoint !== null}
         status={routeError && routed ? 'error' : 'default'}
+        onActivate={() => {
+          setContextMenuPoint(null)
+          setScopeChooserOpen(false)
+          setRoutingOpen(true)
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setRoutingOpen(false)
+          setScopeChooserOpen(false)
+          setContextMenuPoint({ x: event.clientX, y: event.clientY })
+        }}
         actions={(
           <CornerAction
             icon={midiRoute ? 'midi' : 'speaker'}
@@ -158,6 +175,21 @@ export function OutputChannelTile({
         )}
         footer={routeLabel}
       />
+
+      {contextMenuPoint && (
+        <IoDefaultContextMenu
+          label={`OUT ${index + 1} · ${name}`}
+          point={contextMenuPoint}
+          entry={route.kind === 'off'
+            ? outputDefaultEntry(kind, 'off')
+            : route.kind === 'webAudio'
+              ? outputDefaultEntry(kind, route.destination)
+              : null}
+          anchorRef={tileRef}
+          unavailableReason="Web MIDI output routes cannot be set by Lua default annotations."
+          onClose={() => setContextMenuPoint(null)}
+        />
+      )}
 
       <OutputRoutingPopover
         open={routingOpen}

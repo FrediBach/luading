@@ -82,6 +82,19 @@ describe('custom control rendering', () => {
     expect(markup).toContain('Open Input 1 settings')
   })
 
+  it('advertises a custom context menu when one is available', () => {
+    const markup = renderToStaticMarkup(
+      <ControlTile
+        label="Input 1"
+        visual={<span>trace</span>}
+        value={<output>0 V</output>}
+        onContextMenu={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('aria-haspopup="menu"')
+  })
+
   it('renders every signal glyph and a labelled sampled plot', () => {
     const shapes: SignalShape[] = [
       'manual',

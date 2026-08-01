@@ -247,6 +247,60 @@
   width: min(390px, calc(100vw - 24px));
 }
 
+.io-default-context-menu {
+  position: fixed;
+  z-index: 110;
+  width: min(340px, calc(100vw - 16px));
+  padding: 5px;
+  display: grid;
+  gap: 5px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--nt-green) 35%, var(--nt-line));
+  border-radius: 6px;
+  background: var(--workbench-surface-raised, var(--surface-raised, #202523));
+  box-shadow: 0 12px 36px var(--shadow-strong, rgb(0 0 0 / 45%));
+  color: var(--nt-text, #edf2ef);
+}
+
+.io-default-context-menu code,
+.io-default-context-menu p {
+  margin: 0;
+  padding: 7px 8px;
+  overflow-wrap: anywhere;
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed, var(--surface-recessed, #151917));
+  color: var(--nt-muted, #a9b3ad);
+  font: var(--font-label)/1.4 var(--mono);
+}
+
+.io-default-context-menu button {
+  min-height: 31px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nt-text);
+  font: var(--font-control)/1 var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.io-default-context-menu button:hover:not(:disabled),
+.io-default-context-menu button:focus-visible {
+  outline: 0;
+  background: var(--surface-highlight);
+  color: var(--nt-green);
+}
+
+.io-default-context-menu button:disabled {
+  color: var(--nt-muted);
+  cursor: default;
+  opacity: 0.65;
+}
+
 .output-channel-tile-shell .control-tile > header {
   padding-right: 34px;
 }

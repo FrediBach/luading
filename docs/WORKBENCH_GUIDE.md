@@ -42,6 +42,11 @@ missing values retain the normal defaults. These comments are Luading hints
 only: they remain valid ordinary Lua comments and do not change Disting NT
 behavior or the table returned by `init()`.
 
+Right-click an input or output tile and choose **Copy Lua entry** to copy its
+current generator or WebAudio setting as a complete, paste-ready `init()` table
+entry. Web MIDI routes are browser connections and cannot be represented by
+these source annotations; their context menu explains that limitation instead.
+
 Scope, Problems, Console, and Performance share the bottom drawer. Select the
 active tab again to collapse it. The drawer handle supports pointer drag and
 keyboard resizing. Drawer filters and other local view state are retained while

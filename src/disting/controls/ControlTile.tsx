@@ -16,6 +16,7 @@ interface Props {
   selected?: boolean
   status?: 'default' | 'warning' | 'error'
   onActivate?(): void
+  onContextMenu?(event: MouseEvent<HTMLElement>): void
 }
 
 function isInteractiveTarget(target: EventTarget) {
@@ -34,6 +35,7 @@ export const ControlTile = forwardRef<HTMLElement, Props>(function ControlTile({
   selected = false,
   status = 'default',
   onActivate,
+  onContextMenu,
 }, ref) {
   const activateFromClick = (event: MouseEvent<HTMLElement>) => {
     if (!onActivate || isInteractiveTarget(event.target)) return
@@ -52,7 +54,9 @@ export const ControlTile = forwardRef<HTMLElement, Props>(function ControlTile({
       tabIndex={onActivate ? 0 : undefined}
       role={onActivate ? 'button' : undefined}
       aria-label={onActivate ? `Open ${label} settings` : undefined}
+      aria-haspopup={onContextMenu ? 'menu' : undefined}
       onClick={activateFromClick}
+      onContextMenu={onContextMenu}
       onKeyDown={activateFromKeyboard}
     >
       <header>

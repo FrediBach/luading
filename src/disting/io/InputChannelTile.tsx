@@ -25,6 +25,11 @@ import type {
 import { assignedProbeIndex } from '../drawer/scope-controls'
 import { formatDisplayFloat } from '../display-format'
 import { InputChannelInspector } from './InputChannelInspector'
+import { inputDefaultEntry } from './io-default-entries'
+import {
+  IoDefaultContextMenu,
+  type ContextMenuPoint,
+} from './IoDefaultContextMenu'
 import {
   ScopeAssignmentButton,
   ScopeProbeChooser,
@@ -86,6 +91,7 @@ export function InputChannelTile({
 }: Props) {
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [scopeChooserOpen, setScopeChooserOpen] = useState(false)
+  const [contextMenuPoint, setContextMenuPoint] = useState<ContextMenuPoint | null>(null)
   const tileRef = useRef<HTMLElement>(null)
   const scopeSource = { kind: 'input' as const, index }
   const assignedScopeProbe = assignedProbeIndex(probes, scopeSource)
@@ -197,10 +203,17 @@ export function InputChannelTile({
         ref={tileRef}
         label={`IN ${index + 1}`}
         meta={`${kind} · ${name}`}
-        selected={inspectorOpen || scopeChooserOpen}
+        selected={inspectorOpen || scopeChooserOpen || contextMenuPoint !== null}
         onActivate={() => {
+          setContextMenuPoint(null)
           setScopeChooserOpen(false)
           setInspectorOpen(true)
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setInspectorOpen(false)
+          setScopeChooserOpen(false)
+          setContextMenuPoint({ x: event.clientX, y: event.clientY })
         }}
         actions={(
           <>
@@ -263,6 +276,17 @@ export function InputChannelTile({
           ? timingLabel(source)
           : `Web MIDI · ${midiState}`}
       />
+
+      {contextMenuPoint && (
+        <IoDefaultContextMenu
+          label={`IN ${index + 1} · ${name}`}
+          point={contextMenuPoint}
+          entry={route.kind === 'generator' ? inputDefaultEntry(kind, source) : null}
+          anchorRef={tileRef}
+          unavailableReason="Web MIDI input routes cannot be set by Lua default annotations."
+          onClose={() => setContextMenuPoint(null)}
+        />
+      )}
 
       <ControlPopover
         open={inspectorOpen}
