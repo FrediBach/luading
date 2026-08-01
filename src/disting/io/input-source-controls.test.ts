@@ -27,6 +27,9 @@ function source(
     stepCount: 4,
     gateSteps: [true, false, true, false],
     noteSteps: [0, 2, 4, 5],
+    arpeggioType: 'upDown',
+    arpeggioChord: 'major',
+    arpeggioOctaves: 2,
     freeformPoints: [
       { phase: 0, volts: 0 },
       { phase: 1, volts: 0 },

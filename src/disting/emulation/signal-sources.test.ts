@@ -29,6 +29,9 @@ function source(overrides: Partial<SignalSourceConfig> = {}): SignalSourceConfig
     stepCount: 8,
     gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
     noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
+    arpeggioType: 'upDown',
+    arpeggioChord: 'major',
+    arpeggioOctaves: 2,
     freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     ...overrides,
   }
@@ -64,6 +67,9 @@ describe('Disting input signal sources', () => {
       manualValue: Number.NaN,
       seed: 3.9,
       stepCount: 100,
+      arpeggioType: 'sideways' as SignalSourceConfig['arpeggioType'],
+      arpeggioChord: 'diminished' as SignalSourceConfig['arpeggioChord'],
+      arpeggioOctaves: 99,
     }))).toMatchObject({
       timing: { mode: 'free', frequencyHz: 1 },
       amplitude: 0,
@@ -73,6 +79,9 @@ describe('Disting input signal sources', () => {
       manualValue: 0,
       seed: 3,
       stepCount: 32,
+      arpeggioType: 'upDown',
+      arpeggioChord: 'major',
+      arpeggioOctaves: 4,
     })
   })
 
@@ -151,6 +160,35 @@ describe('Disting input signal sources', () => {
     expect(signalValueAt(source({ shape: 'gateSequencer', timing: clocked }), 1, 0, 0)).toBe(0)
     expect(signalValueAt(source({ shape: 'noteSequencer', timing: clocked, amplitude: 1 }), 1, 0, 0)).toBeCloseTo(2 / 12)
     expect(signalValueAt(source({ shape: 'arpeggio', timing: clocked, amplitude: 1 }), 2, 0, 0)).toBeCloseTo(7 / 12)
+  })
+
+  it('supports configurable arpeggio direction, chord, and octave range', () => {
+    const clocked = { mode: 'clock' as const, division: '1/4' as const }
+    const arpeggio = source({
+      shape: 'arpeggio',
+      timing: clocked,
+      amplitude: 1,
+      stepCount: 8,
+    })
+
+    expect(Array.from({ length: 8 }, (_, step) => (
+      signalValueAt(arpeggio, step, 0, 0) * 12
+    ))).toEqual([0, 4, 7, 12, 16, 12, 7, 4])
+    expect(signalValueAt({
+      ...arpeggio,
+      arpeggioType: 'down',
+      arpeggioChord: 'minor',
+      arpeggioOctaves: 1,
+    }, 0, 0, 0)).toBeCloseTo(7 / 12)
+    expect(signalValueAt({
+      ...arpeggio,
+      arpeggioType: 'up',
+      arpeggioChord: 'fifth',
+      arpeggioOctaves: 1,
+    }, 2, 0, 0)).toBe(0)
+
+    const random = { ...arpeggio, arpeggioType: 'random' as const, seed: 42 }
+    expect(signalValueAt(random, 3, 0, 0)).toBe(signalValueAt(random, 3, 99, 999))
   })
 
   it('plays editable gate-sequencer steps and defaults to the previous alternating pattern', () => {

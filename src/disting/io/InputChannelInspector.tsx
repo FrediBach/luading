@@ -29,6 +29,7 @@ import { WebMidiInputInspector } from './WebMidiInputInspector'
 import { FreeformCvEditor } from './FreeformCvEditor'
 import { GateStepEditor } from './GateStepEditor'
 import { NoteStepEditor } from './NoteStepEditor'
+import { ArpeggioEditor } from './ArpeggioEditor'
 
 interface Props {
   kind: InputKind
@@ -193,6 +194,17 @@ function SignalGeneratorInspector({
         />
       )}
 
+      {source.shape === 'arpeggio' && (
+        <ArpeggioEditor
+          type={source.arpeggioType}
+          chord={source.arpeggioChord}
+          octaves={source.arpeggioOctaves}
+          onTypeChange={(arpeggioType) => patch({ arpeggioType })}
+          onChordChange={(arpeggioChord) => patch({ arpeggioChord })}
+          onOctavesChange={(arpeggioOctaves) => patch({ arpeggioOctaves })}
+        />
+      )}
+
       <div className="input-inspector-controls">
         {source.shape === 'manual' ? (
           <RotaryControl
@@ -271,7 +283,9 @@ function SignalGeneratorInspector({
         )}
       </div>
 
-      {(source.shape === 'noise' || source.shape === 'sampleHold') && (
+      {(source.shape === 'noise'
+        || source.shape === 'sampleHold'
+        || (source.shape === 'arpeggio' && source.arpeggioType === 'random')) && (
         <label className="input-seed-control">
           <span>Deterministic seed</span>
           <ValueField

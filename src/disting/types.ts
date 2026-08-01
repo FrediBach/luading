@@ -244,6 +244,9 @@ export type SignalTiming =
   | { mode: 'free'; frequencyHz: number }
   | { mode: 'clock'; division: ClockDivision }
 
+export type ArpeggioType = 'up' | 'down' | 'upDown' | 'random'
+export type ArpeggioChord = 'major' | 'minor' | 'fifth' | 'major7' | 'minor7'
+
 export interface FreeformCvPoint {
   phase: number
   volts: number
@@ -261,6 +264,9 @@ export interface SignalSourceConfig {
   stepCount: number
   gateSteps: boolean[]
   noteSteps: number[]
+  arpeggioType: ArpeggioType
+  arpeggioChord: ArpeggioChord
+  arpeggioOctaves: number
   freeformPoints: FreeformCvPoint[]
 }
 

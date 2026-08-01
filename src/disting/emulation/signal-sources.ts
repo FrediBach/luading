@@ -1,4 +1,6 @@
 import type {
+  ArpeggioChord,
+  ArpeggioType,
   ClockDivision,
   ExternalInputUpdate,
   FreeformCvPoint,
@@ -33,6 +35,21 @@ export const CLOCK_DIVISIONS: ReadonlyArray<ClockDivision> = [
   '1/8',
   '1/16',
   '1/32',
+]
+
+export const ARPEGGIO_TYPES: ReadonlyArray<{ value: ArpeggioType; label: string }> = [
+  { value: 'up', label: 'Up' },
+  { value: 'down', label: 'Down' },
+  { value: 'upDown', label: 'Up / down' },
+  { value: 'random', label: 'Random' },
+]
+
+export const ARPEGGIO_CHORDS: ReadonlyArray<{ value: ArpeggioChord; label: string }> = [
+  { value: 'major', label: 'Major' },
+  { value: 'minor', label: 'Minor' },
+  { value: 'fifth', label: 'Fifth' },
+  { value: 'major7', label: 'Major 7' },
+  { value: 'minor7', label: 'Minor 7' },
 ]
 
 const BEATS_PER_CYCLE: Record<ClockDivision, number> = {
@@ -91,6 +108,9 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       stepCount: 8,
       gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
       noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
+      arpeggioType: 'upDown',
+      arpeggioChord: 'major',
+      arpeggioOctaves: 2,
       freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
@@ -108,6 +128,9 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       stepCount: 8,
       gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
       noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
+      arpeggioType: 'upDown',
+      arpeggioChord: 'major',
+      arpeggioOctaves: 2,
       freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
@@ -124,6 +147,9 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
     stepCount: 8,
     gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
     noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
+    arpeggioType: 'upDown',
+    arpeggioChord: 'major',
+    arpeggioOctaves: 2,
     freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
   }
 }
@@ -232,6 +258,13 @@ export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceC
     stepCount: Math.min(MAX_SEQUENCE_STEPS, Math.max(1, Math.round(finite(config.stepCount, 8)))),
     gateSteps: normalizeGateSequenceSteps(config.gateSteps),
     noteSteps: normalizeNoteSequenceSteps(config.noteSteps),
+    arpeggioType: ARPEGGIO_TYPES.some(({ value }) => value === config.arpeggioType)
+      ? config.arpeggioType
+      : 'upDown',
+    arpeggioChord: ARPEGGIO_CHORDS.some(({ value }) => value === config.arpeggioChord)
+      ? config.arpeggioChord
+      : 'major',
+    arpeggioOctaves: clamp(Math.round(finite(config.arpeggioOctaves, 2)), 1, 4),
     freeformPoints: normalizeFreeformCvPoints(config.freeformPoints),
   }
 }
@@ -251,16 +284,40 @@ function positiveModulo(value: number, modulus: number) {
   return ((value % modulus) + modulus) % modulus
 }
 
-const MAJOR_TRIAD_INTERVALS = [0, 4, 7] as const
+const ARPEGGIO_CHORD_INTERVALS: Readonly<Record<ArpeggioChord, readonly number[]>> = {
+  major: [0, 4, 7],
+  minor: [0, 3, 7],
+  fifth: [0, 7],
+  major7: [0, 4, 7, 11],
+  minor7: [0, 3, 7, 10],
+}
 
-function arpeggioInterval(stepIndex: number, stepCount: number) {
-  const ascendingSteps = Math.ceil((stepCount + 1) / 2)
-  const position = stepIndex < ascendingSteps
-    ? stepIndex
-    : stepCount - stepIndex
-  const chordIndex = positiveModulo(position, MAJOR_TRIAD_INTERVALS.length)
-  const octave = Math.floor(position / MAJOR_TRIAD_INTERVALS.length)
-  return octave * 12 + MAJOR_TRIAD_INTERVALS[chordIndex]
+function arpeggioInterval(config: SignalSourceConfig, stepIndex: number) {
+  const chord = ARPEGGIO_CHORD_INTERVALS[config.arpeggioChord]
+  const noteCount = chord.length * config.arpeggioOctaves
+  let position: number
+  switch (config.arpeggioType) {
+    case 'up':
+      position = stepIndex
+      break
+    case 'down':
+      position = noteCount - 1 - positiveModulo(stepIndex, noteCount)
+      break
+    case 'random':
+      position = Math.floor(hashNoise(stepIndex + config.seed * 65537) * noteCount)
+      break
+    case 'upDown': {
+      const ascendingSteps = Math.ceil((config.stepCount + 1) / 2)
+      position = stepIndex < ascendingSteps
+        ? stepIndex
+        : config.stepCount - stepIndex
+      break
+    }
+  }
+  const boundedPosition = positiveModulo(position, noteCount)
+  const chordIndex = boundedPosition % chord.length
+  const octave = Math.floor(boundedPosition / chord.length)
+  return octave * 12 + chord[chordIndex]!
 }
 
 function normalizedSignalValueAt(
@@ -303,7 +360,7 @@ function normalizedSignalValueAt(
     case 'noteSequencer':
       return config.offset + config.amplitude * config.noteSteps[sequenceStep]! / 12
     case 'arpeggio':
-      return config.offset + config.amplitude * arpeggioInterval(sequenceStep, config.stepCount) / 12
+      return config.offset + config.amplitude * arpeggioInterval(config, sequenceStep) / 12
     case 'sampleHold': {
       const cycleIndex = Math.floor(cycle)
       return bipolar(config, hashNoise(cycleIndex + config.seed * 7919) * 2 - 1)

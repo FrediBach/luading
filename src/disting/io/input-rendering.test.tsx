@@ -27,6 +27,9 @@ function source(
     stepCount: 8,
     gateSteps: Array.from({ length: 32 }, (_, index) => index % 2 === 0),
     noteSteps: Array.from({ length: 32 }, (_, index) => index * 2),
+    arpeggioType: 'upDown',
+    arpeggioChord: 'major',
+    arpeggioOctaves: 2,
     freeformPoints: [
       { phase: 0, volts: 0 },
       { phase: 1, volts: 0 },
@@ -146,6 +149,36 @@ describe('input channel rendering', () => {
     expect(markup).toContain('aria-label="Step 2 note: D#0. Edit exact value."')
     expect(markup).toContain('aria-label="Step 4 note: C1. Edit exact value."')
     expect(markup.match(/aria-label="Step \d+ note:/g)).toHaveLength(4)
+  })
+
+  it('renders arpeggio direction, chord, octave, and random seed controls', () => {
+    const markup = renderToStaticMarkup(
+      <InputChannelInspector
+        kind="cv"
+        route={{
+          kind: 'generator',
+          source: source({
+            shape: 'arpeggio',
+            amplitude: 1,
+            arpeggioType: 'random',
+            arpeggioChord: 'minor7',
+            arpeggioOctaves: 3,
+          }),
+        }}
+        devices={midiDevices}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Arpeggio pattern')
+    expect(markup).toContain('<legend>Direction</legend>')
+    expect(markup).toContain('<legend>Chord</legend>')
+    expect(markup).toContain('<legend>Octaves</legend>')
+    expect(markup).toContain('class="is-active" aria-pressed="true">Random</button>')
+    expect(markup).toContain('class="is-active" aria-pressed="true">Minor 7</button>')
+    expect(markup).toContain('class="is-active" aria-pressed="true">3</button>')
+    expect(markup).toContain('Deterministic seed')
   })
 
   it('renders the accessible freeform CV editor without unrelated controls', () => {
