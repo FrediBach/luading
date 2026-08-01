@@ -5,17 +5,18 @@ import {
   CornerAction,
   MiniSignalPlot,
 } from '../controls'
-import type { AudioRouteDestination } from '../emulation/audio-routing'
 import type { TraceHistory } from '../emulation/trace-history'
 import type {
+  OutputChannelRoute,
   OutputKind,
   ScopeProbe,
   ScopeSource,
+  WebMidiDeviceState,
 } from '../types'
 import { assignedProbeIndex } from '../drawer/scope-controls'
 import { formatDisplayFloat } from '../display-format'
 import {
-  audioDestinationLabel,
+  outputRouteLabel,
   outputPlotRange,
   outputTraceValues,
 } from './output-audio-controls'
@@ -28,16 +29,20 @@ import {
 interface Props {
   index: number
   name: string
+  outputNames: readonly string[]
   kind: OutputKind
   value: number
   traceHistory: TraceHistory
   traceRevision: number
-  route: AudioRouteDestination
+  route: OutputChannelRoute
   audioEnabled: boolean
   audioError: string | null
+  midiDevices: WebMidiDeviceState
+  midiError?: string
   probes: readonly ScopeProbe[]
   focusedScopeProbe: number | null
-  onRouteChange(destination: AudioRouteDestination): void
+  onRouteChange(route: OutputChannelRoute): void
+  onConnectMidi(): void
   onProbeChange(index: number, source: ScopeSource | null): void
   onProbeFocus(index: number): void
 }
@@ -45,6 +50,7 @@ interface Props {
 export function OutputChannelTile({
   index,
   name,
+  outputNames,
   kind,
   value,
   traceHistory,
@@ -52,9 +58,12 @@ export function OutputChannelTile({
   route,
   audioEnabled,
   audioError,
+  midiDevices,
+  midiError,
   probes,
   focusedScopeProbe,
   onRouteChange,
+  onConnectMidi,
   onProbeChange,
   onProbeFocus,
 }: Props) {
@@ -66,9 +75,33 @@ export function OutputChannelTile({
   const trace = traceHistory.snapshot(traceRevision)
   const traceValues = outputTraceValues(trace, index)
   const range = outputPlotRange(traceValues)
-  const routed = route !== 'off'
-  const routeLabel = audioDestinationLabel(route)
-  const monitoring = routed && audioEnabled
+  const routed = route.kind !== 'off'
+  const routeLabel = outputRouteLabel(route)
+  const midiRoute = route.kind === 'webMidiCc'
+    || route.kind === 'webMidiPitchBend'
+    || route.kind === 'webMidiNote'
+  const midiPort = midiRoute
+    ? midiDevices.outputs.find((port) => port.id === route.portId)
+    : undefined
+  const routeError = route.kind === 'webAudio' ? audioError : midiRoute ? midiError : undefined
+  const routeState = route.kind === 'off'
+    ? 'Off'
+    : route.kind === 'webAudio'
+      ? audioError
+        ? 'Error'
+        : audioEnabled
+          ? 'Live'
+          : 'Ready'
+      : midiError || midiDevices.status === 'denied' || midiDevices.status === 'error' || midiDevices.status === 'unsupported'
+        ? 'Error'
+        : !route.portId
+          ? 'Ready'
+          : !midiPort || midiPort.state !== 'connected'
+            ? 'Disconnected'
+            : midiDevices.status === 'ready'
+              ? 'Live'
+              : 'Ready'
+  const monitoring = routeState === 'Live'
 
   return (
     <div className={`output-channel-tile-shell${
@@ -79,13 +112,13 @@ export function OutputChannelTile({
         label={`OUT ${index + 1}`}
         meta={`${kind} · ${name}`}
         selected={routingOpen || scopeChooserOpen}
-        status={audioError && routed ? 'error' : 'default'}
+        status={routeError && routed ? 'error' : 'default'}
         actions={(
           <CornerAction
-            icon="speaker"
-            label={`Configure ${name} WebAudio route`}
+            icon={midiRoute ? 'midi' : 'speaker'}
+            label={`Configure ${name} output route`}
             pressed={routed}
-            tone={audioError && routed ? 'error' : 'default'}
+            tone={routeError && routed ? 'error' : 'default'}
             onClick={() => setRoutingOpen(true)}
           />
         )}
@@ -119,7 +152,7 @@ export function OutputChannelTile({
                 monitoring ? ' is-monitoring' : routed ? ' is-routed' : ''
               }`}
             >
-              {monitoring ? 'Live' : routed ? 'Ready' : 'Off'}
+              {routeState}
             </span>
           </span>
         )}
@@ -129,10 +162,16 @@ export function OutputChannelTile({
       <OutputRoutingPopover
         open={routingOpen}
         label={`OUT ${index + 1} · ${name}`}
+        outputIndex={index}
+        outputKind={kind}
+        outputNames={outputNames}
         route={route}
         audioEnabled={audioEnabled}
+        midiDevices={midiDevices}
+        midiError={midiError}
         anchorRef={tileRef}
         onChange={onRouteChange}
+        onConnectMidi={onConnectMidi}
         onClose={() => setRoutingOpen(false)}
       />
 

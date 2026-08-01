@@ -8,6 +8,7 @@ import {
   distingMidiDestinationsForMask,
   initialWebMidiInputValue,
   WebMidiInputRouter,
+  WebMidiOutputTraceRouter,
 } from './midi-routing'
 
 describe('Disting MIDI routing model', () => {
@@ -171,5 +172,153 @@ describe('Web MIDI input routing', () => {
     expect(initialWebMidiInputValue({
       kind: 'notePitch', portId: '', channel: 'omni', baseNote: 60, baseVoltage: 2,
     })).toBe(2)
+  })
+})
+
+describe('Web MIDI output trace routing', () => {
+  const point = (time: number, outputs: number[]) => ({ time, inputs: [], outputs })
+
+  it('scales, clamps, deduplicates, and rate-limits CC output', () => {
+    const router = new WebMidiOutputTraceRouter()
+    router.setRoutes([{
+      kind: 'webMidiCc',
+      portId: 'synth',
+      channel: 2,
+      controller: 74,
+      minimumVolts: -5,
+      maximumVolts: 5,
+    }])
+
+    expect(router.process([
+      point(1, [-10]),
+      point(1.001, [0]),
+      point(1.005, [5]),
+      point(1.011, [5]),
+      point(1.012, [5]),
+    ])).toEqual([
+      { portId: 'synth', bytes: [0xb1, 74, 0], offsetSeconds: 0 },
+      { portId: 'synth', bytes: [0xb1, 74, 127], offsetSeconds: 0.010999999999999899 },
+    ])
+    expect(router.process([point(1.02, [5])])).toEqual([])
+  })
+
+  it('encodes 14-bit pitch bend with relative trace timing', () => {
+    const router = new WebMidiOutputTraceRouter()
+    router.setRoutes([{
+      kind: 'webMidiPitchBend',
+      portId: 'synth',
+      channel: 16,
+      minimumVolts: -1,
+      maximumVolts: 1,
+    }])
+
+    expect(router.process([
+      point(2, [-1]),
+      point(2.02, [1]),
+    ])).toEqual([
+      { portId: 'synth', bytes: [0xef, 0, 0], offsetSeconds: 0 },
+      { portId: 'synth', bytes: [0xef, 127, 127], offsetSeconds: 0.020000000000000018 },
+    ])
+  })
+
+  it('resolves V/oct pitch before gate edges and changes notes while held', () => {
+    const router = new WebMidiOutputTraceRouter()
+    router.setRoutes([
+      { kind: 'off' },
+      {
+        kind: 'webMidiNote',
+        portId: 'synth',
+        channel: 1,
+        source: { kind: 'output', outputIndex: 0, baseNote: 60, baseVoltage: 0 },
+        gateThresholdVolts: 1,
+        velocity: 100,
+      },
+    ])
+
+    expect(router.process([
+      point(3, [1, 5]),
+      point(3.001, [2, 5]),
+      point(3.002, [2, 0]),
+    ])).toEqual([
+      { portId: 'synth', bytes: [0x90, 72, 100], offsetSeconds: 0 },
+      { portId: 'synth', bytes: [0x80, 72, 0], offsetSeconds: 0.0009999999999998899 },
+      { portId: 'synth', bytes: [0x90, 84, 100], offsetSeconds: 0.0009999999999998899 },
+      { portId: 'synth', bytes: [0x80, 84, 0], offsetSeconds: 0.0019999999999997797 },
+    ])
+  })
+
+  it('supports fixed notes and releases them when routes change', () => {
+    const router = new WebMidiOutputTraceRouter()
+    const route = {
+      kind: 'webMidiNote' as const,
+      portId: 'drums',
+      channel: 10 as const,
+      source: { kind: 'fixed' as const, note: 36 },
+      gateThresholdVolts: 1,
+      velocity: 127,
+    }
+    router.setRoutes([route])
+    expect(router.process([point(4, [5])])).toEqual([
+      { portId: 'drums', bytes: [0x99, 36, 127], offsetSeconds: 0 },
+    ])
+    expect(router.setRoutes([{ kind: 'off' }])).toEqual([
+      { portId: 'drums', bytes: [0x89, 36, 0], offsetSeconds: 0 },
+    ])
+    expect(router.setRoutes([{ ...route }])).toEqual([])
+  })
+
+  it('releases unavailable ports and all active notes during cleanup', () => {
+    const router = new WebMidiOutputTraceRouter()
+    router.setRoutes([
+      {
+        kind: 'webMidiNote',
+        portId: 'left',
+        channel: 1,
+        source: { kind: 'fixed', note: 60 },
+        gateThresholdVolts: 1,
+        velocity: 64,
+      },
+      {
+        kind: 'webMidiNote',
+        portId: 'right',
+        channel: 2,
+        source: { kind: 'fixed', note: 61 },
+        gateThresholdVolts: 1,
+        velocity: 64,
+      },
+    ])
+    router.process([point(5, [5, 5])])
+
+    expect(router.releaseUnavailable(new Set(['right']))).toEqual([
+      { portId: 'left', bytes: [0x80, 60, 0], offsetSeconds: 0 },
+    ])
+    expect(router.process([point(5.001, [5, 5]), point(5.002, [5, 0])], new Set(['right']))).toEqual([
+      { portId: 'right', bytes: [0x81, 61, 0], offsetSeconds: 0.0009999999999994458 },
+    ])
+    expect(router.process([point(5.003, [5, 5])], new Set(['right']))).toEqual([
+      { portId: 'right', bytes: [0x91, 61, 64], offsetSeconds: 0 },
+    ])
+    expect(router.releaseAll()).toEqual([
+      { portId: 'right', bytes: [0x81, 61, 0], offsetSeconds: 0 },
+    ])
+  })
+
+  it('retains one cleanup note-off for every route sharing a physical note', () => {
+    const router = new WebMidiOutputTraceRouter()
+    const shared = {
+      kind: 'webMidiNote' as const,
+      portId: 'shared',
+      channel: 1 as const,
+      source: { kind: 'fixed' as const, note: 60 },
+      gateThresholdVolts: 1,
+      velocity: 100,
+    }
+    router.setRoutes([shared, shared])
+    router.process([point(6, [5, 5])])
+
+    expect(router.releaseAll()).toEqual([
+      { portId: 'shared', bytes: [0x80, 60, 0], offsetSeconds: 0 },
+      { portId: 'shared', bytes: [0x80, 60, 0], offsetSeconds: 0 },
+    ])
   })
 })

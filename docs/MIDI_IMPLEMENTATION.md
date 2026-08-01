@@ -25,11 +25,13 @@ The documented `sendMIDI()` destination mask remains intact:
 ## Implementation status
 
 The routing types, deterministic destination-mask routing, browser Web MIDI
-manager, direct Lua MIDI input/output path, and MIDI-backed CV/gate/trigger
-inputs are implemented. MIDI input mappings retain browser port selection on
-the main thread and send only atomic voltage/pulse updates to the worker.
+manager, direct Lua MIDI input/output path, MIDI-backed CV/gate/trigger inputs,
+and unified output routing are implemented. MIDI input mappings retain browser
+port selection on the main thread and send only atomic voltage/pulse updates to
+the worker.
 
-The next increment is unified Off/WebAudio/Web MIDI output routing (section 6).
+Remaining work is deployment-policy verification and physical/virtual-device
+manual validation from section 8.
 
 ## Data flow
 
@@ -147,7 +149,7 @@ and voltage range. Switching sources resets the input edge state. All mapped
 values then use the normal 1 ms sampling, trace, trigger, gate, and `step()`
 pipeline.
 
-## 6. Unified output routing
+## 6. Unified output routing (implemented)
 
 Replace the WebAudio-only hook with one output-routing coordinator. It consumes
 each fresh trace segment once and sends each channel to exactly one top-level

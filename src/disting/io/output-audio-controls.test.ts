@@ -1,50 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
-  emptyOutputAudioRoutes,
-  normalizeOutputAudioRoutes,
+  emptyOutputRoutes,
+  normalizeOutputRoutes,
   outputPlotRange,
   outputTraceValues,
-  updateOutputAudioRoute,
+  outputRouteLabel,
+  outputRouteWithMidiKind,
+  updateOutputRoute,
+  webAudioRoutes,
 } from './output-audio-controls'
 
 describe('output audio controls', () => {
-  it('selects and resets channel-local routes', () => {
-    const initial = emptyOutputAudioRoutes(2)
-    const routed = updateOutputAudioRoute(initial, 2, 1, 'snare')
-
-    expect(initial).toEqual([
-      { destination: 'off' },
-      { destination: 'off' },
-    ])
-    expect(routed).toEqual([
-      { destination: 'off' },
-      { destination: 'snare' },
-    ])
-    expect(emptyOutputAudioRoutes(2)).toEqual(initial)
-    expect(emptyOutputAudioRoutes(3, ['kick', 'synthNote'])).toEqual([
-      { destination: 'kick' },
-      { destination: 'synthNote' },
-      { destination: 'off' },
-    ])
-  })
-
-  it('normalizes routes when the output count changes', () => {
-    const routes = [
-      { destination: 'kick' as const },
-      { destination: 'synthNote' as const },
-    ]
-
-    expect(normalizeOutputAudioRoutes(routes, 1)).toEqual([
-      { destination: 'kick' },
-    ])
-    expect(normalizeOutputAudioRoutes(routes, 3)).toEqual([
-      { destination: 'kick' },
-      { destination: 'synthNote' },
-      { destination: 'off' },
-    ])
-    expect(normalizeOutputAudioRoutes(routes, 0)).toEqual([])
-  })
-
   it('extracts recent output values and provides a visible plot range', () => {
     const trace = [
       { time: 0, inputs: [], outputs: [0, 2] },
@@ -70,5 +36,47 @@ describe('output audio controls', () => {
     expect(values).toHaveLength(64)
     expect(values).toContain(8)
     expect(values).toContain(-7)
+  })
+
+  it('normalizes exclusive output routes while preserving WebAudio defaults', () => {
+    const routes = emptyOutputRoutes(3, ['kick', 'off', 'synthNote'])
+    expect(routes).toEqual([
+      { kind: 'webAudio', destination: 'kick' },
+      { kind: 'off' },
+      { kind: 'webAudio', destination: 'synthNote' },
+    ])
+    const midi = {
+      kind: 'webMidiCc' as const,
+      portId: 'synth',
+      channel: 1 as const,
+      controller: 74,
+      minimumVolts: 0,
+      maximumVolts: 5,
+    }
+    const updated = updateOutputRoute(routes, 3, 1, midi)
+    expect(normalizeOutputRoutes(updated, 4)).toEqual([
+      routes[0], midi, routes[2], { kind: 'off' },
+    ])
+    expect(webAudioRoutes(updated)).toEqual([
+      { destination: 'kick' },
+      { destination: 'off' },
+      { destination: 'synthNote' },
+    ])
+  })
+
+  it('creates and labels each MIDI output route family', () => {
+    const cc = outputRouteWithMidiKind('webMidiCc', { kind: 'off' })
+    const bend = outputRouteWithMidiKind('webMidiPitchBend', cc)
+    const note = outputRouteWithMidiKind('webMidiNote', bend)
+
+    expect(cc).toMatchObject({ kind: 'webMidiCc', controller: 1 })
+    expect(bend).toMatchObject({ kind: 'webMidiPitchBend', minimumVolts: -5 })
+    expect(note).toMatchObject({
+      kind: 'webMidiNote',
+      source: { kind: 'fixed', note: 60 },
+    })
+    expect(outputRouteLabel(cc)).toBe('MIDI · CC 1')
+    expect(outputRouteLabel(bend)).toBe('MIDI · Pitch bend')
+    expect(outputRouteLabel(note)).toBe('MIDI · note 60')
   })
 })

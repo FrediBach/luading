@@ -14,9 +14,10 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   table inside the VM.
 - `emulation/lua-contract.ts` translates Disting NT constants and `init()` metadata
   into typed host data. Lua-specific table conventions stop at this boundary.
-- `emulation/signal-sources.ts` owns the global musical clock and deterministic
-  modular signal generators. Clocked sources share one continuous beat position;
-  free-running sources use simulation time.
+- `emulation/signal-sources.ts` owns the global musical clock, deterministic
+  modular signal generators, and external held values/queued trigger pulses.
+  Clocked sources share one continuous beat position; free-running sources use
+  simulation time.
 - `emulation/display-api.ts` is the Lua drawing API adapter. It applies the Disting
   coordinate, colour, and default-parameter-line rules while producing renderer-
   independent commands.
@@ -52,11 +53,13 @@ The emulator is split at the same boundaries as the hardware-facing script API:
   messages and trace data. They do not contain signal-generation or Lua
   behavior; reusable triggering and window selection remain in
   `emulation/scope-model.ts`.
-- `io/useOutputAudio.ts` maps output channels to opt-in WebAudio voices and keeps
-  browser activation, route, level, and waveform state local to the I/O deck.
-  `emulation/audio-routing.ts` extracts control-step-accurate rising edges and
-  V/oct note changes from the dense trace, while `emulation/web-audio.ts` owns
-  the browser audio graph and synthesized drum/synth voices.
+- `io/useOutputRouting.ts` consumes each fresh trace segment once and coordinates
+  exclusive Off, WebAudio, and Web MIDI channel routes. Browser activation,
+  route, level, waveform, scheduling, and device errors stay local to the I/O
+  deck. `emulation/audio-routing.ts` extracts WebAudio voice events,
+  `emulation/midi-routing.ts` extracts deduplicated MIDI CC, pitch-bend, and
+  tracked note/gate events, and `emulation/web-audio.ts` owns the browser audio
+  graph and synthesized drum/synth voices.
 - `editor/DistingCodeEditor.tsx` keeps source text in Monaco's model rather than
   React state. Monaco is loaded during an idle window, uses its own editor-service
   worker, and remains a separate production chunk from the simulation worker.

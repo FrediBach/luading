@@ -5,6 +5,8 @@ import {
   type ExternalInputUpdate,
   type InputKind,
   type MidiChannelFilter,
+  type OutputChannelRoute,
+  type TracePoint,
   type WebMidiInputMapping,
 } from '../types'
 import type { WebMidiMessage } from './web-midi'
@@ -245,5 +247,226 @@ export class WebMidiInputRouter {
     })
 
     return updates
+  }
+}
+
+export interface WebMidiOutputEvent {
+  portId: string
+  bytes: number[]
+  offsetSeconds: number
+}
+
+interface ContinuousOutputState {
+  lastValue?: number
+  lastTime: number
+  pendingValue?: number
+}
+
+interface ActiveOutputNote {
+  portId: string
+  channel: number
+  note: number
+}
+
+const CONTINUOUS_MIDI_INTERVAL_SECONDS = 0.01
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+function finiteVoltage(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function midiChannelStatus(base: number, channel: number) {
+  return base | (clamp(Math.round(channel), 1, 16) - 1)
+}
+
+function voltageFraction(value: number, minimum: number, maximum: number) {
+  if (!Number.isFinite(minimum) || !Number.isFinite(maximum) || minimum === maximum) return 0
+  return clamp((value - minimum) / (maximum - minimum), 0, 1)
+}
+
+function quantizedContinuousValue(
+  route: Extract<OutputChannelRoute, { kind: 'webMidiCc' | 'webMidiPitchBend' }>,
+  voltage: number,
+) {
+  if (route.kind === 'webMidiCc') {
+    return Math.round(voltageFraction(
+      voltage,
+      route.minimumVolts,
+      route.maximumVolts,
+    ) * 127)
+  }
+  return Math.round(voltageFraction(
+    voltage,
+    route.minimumVolts,
+    route.maximumVolts,
+  ) * 16383)
+}
+
+function continuousMessage(
+  route: Extract<OutputChannelRoute, { kind: 'webMidiCc' | 'webMidiPitchBend' }>,
+  value: number,
+) {
+  if (route.kind === 'webMidiCc') {
+    return [
+      midiChannelStatus(0xb0, route.channel),
+      clamp(Math.round(route.controller), 0, 127),
+      value,
+    ]
+  }
+  return [
+    midiChannelStatus(0xe0, route.channel),
+    value & 0x7f,
+    (value >> 7) & 0x7f,
+  ]
+}
+
+function noteForRoute(route: Extract<OutputChannelRoute, { kind: 'webMidiNote' }>, point: TracePoint) {
+  if (route.source.kind === 'fixed') {
+    return clamp(Math.round(route.source.note), 0, 127)
+  }
+  const voltage = finiteVoltage(point.outputs[route.source.outputIndex])
+  return clamp(Math.round(
+    route.source.baseNote + (voltage - route.source.baseVoltage) * 12,
+  ), 0, 127)
+}
+
+function noteOffEvent(note: ActiveOutputNote, offsetSeconds = 0): WebMidiOutputEvent {
+  return {
+    portId: note.portId,
+    bytes: [midiChannelStatus(0x80, note.channel), note.note, 0],
+    offsetSeconds,
+  }
+}
+
+function routesEqual(left: OutputChannelRoute | undefined, right: OutputChannelRoute | undefined) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+export class WebMidiOutputTraceRouter {
+  private routes: OutputChannelRoute[] = []
+  private previousVoltages: Array<number | undefined> = []
+  private continuous = new Map<number, ContinuousOutputState>()
+  private activeNotes = new Map<number, ActiveOutputNote>()
+
+  setRoutes(routes: readonly OutputChannelRoute[]) {
+    const events: WebMidiOutputEvent[] = []
+    const nextRoutes = [...routes]
+    const count = Math.max(this.routes.length, nextRoutes.length)
+    for (let index = 0; index < count; index += 1) {
+      if (routesEqual(this.routes[index], nextRoutes[index])) continue
+      const note = this.activeNotes.get(index)
+      if (note) events.push(noteOffEvent(note))
+      this.activeNotes.delete(index)
+      this.continuous.delete(index)
+      this.previousVoltages[index] = undefined
+    }
+    this.routes = nextRoutes
+    this.previousVoltages.length = nextRoutes.length
+    return events
+  }
+
+  process(trace: readonly TracePoint[], availablePortIds?: ReadonlySet<string>) {
+    if (trace.length === 0) return []
+    const events: WebMidiOutputEvent[] = []
+    const firstTime = trace[0]?.time ?? 0
+
+    for (const point of trace) {
+      const offsetSeconds = Math.max(0, point.time - firstTime)
+      for (let index = 0; index < this.routes.length; index += 1) {
+        const route = this.routes[index]
+        if (!route || route.kind === 'off' || route.kind === 'webAudio') continue
+        if (availablePortIds && !availablePortIds.has(route.portId)) {
+          this.previousVoltages[index] = undefined
+          this.continuous.delete(index)
+          continue
+        }
+        const voltage = finiteVoltage(point.outputs[index])
+
+        if (route.kind === 'webMidiCc' || route.kind === 'webMidiPitchBend') {
+          const value = quantizedContinuousValue(route, voltage)
+          const state = this.continuous.get(index) ?? {
+            lastTime: Number.NEGATIVE_INFINITY,
+          }
+          if (value === state.lastValue) state.pendingValue = undefined
+          else state.pendingValue = value
+          if (
+            state.pendingValue !== undefined
+            && point.time - state.lastTime >= CONTINUOUS_MIDI_INTERVAL_SECONDS
+          ) {
+            const bytes = continuousMessage(route, state.pendingValue)
+            events.push({ portId: route.portId, bytes, offsetSeconds })
+            state.lastValue = state.pendingValue
+            state.pendingValue = undefined
+            state.lastTime = point.time
+          }
+          this.continuous.set(index, state)
+          continue
+        }
+
+        const previous = this.previousVoltages[index]
+        const high = voltage >= route.gateThresholdVolts
+        const wasHigh = previous !== undefined && previous >= route.gateThresholdVolts
+        const active = this.activeNotes.get(index)
+        const note = noteForRoute(route, point)
+
+        if (high && active && active.note !== note) {
+          events.push(noteOffEvent(active, offsetSeconds))
+          const next = { portId: route.portId, channel: route.channel, note }
+          events.push({
+            portId: route.portId,
+            bytes: [
+              midiChannelStatus(0x90, route.channel),
+              note,
+              clamp(Math.round(route.velocity), 1, 127),
+            ],
+            offsetSeconds,
+          })
+          this.activeNotes.set(index, next)
+        } else if (high && !wasHigh) {
+          events.push({
+            portId: route.portId,
+            bytes: [
+              midiChannelStatus(0x90, route.channel),
+              note,
+              clamp(Math.round(route.velocity), 1, 127),
+            ],
+            offsetSeconds,
+          })
+          this.activeNotes.set(index, {
+            portId: route.portId,
+            channel: route.channel,
+            note,
+          })
+        } else if (!high && wasHigh && active) {
+          events.push(noteOffEvent(active, offsetSeconds))
+          this.activeNotes.delete(index)
+        }
+        this.previousVoltages[index] = voltage
+      }
+    }
+
+    return events
+  }
+
+  releaseUnavailable(availablePortIds: ReadonlySet<string>) {
+    const events: WebMidiOutputEvent[] = []
+    for (const [index, note] of this.activeNotes) {
+      if (availablePortIds.has(note.portId)) continue
+      events.push(noteOffEvent(note))
+      this.activeNotes.delete(index)
+      this.previousVoltages[index] = undefined
+    }
+    return events
+  }
+
+  releaseAll() {
+    const events = [...this.activeNotes.values()].map((note) => noteOffEvent(note))
+    this.activeNotes.clear()
+    this.continuous.clear()
+    this.previousVoltages = Array.from({ length: this.routes.length })
+    return events
   }
 }

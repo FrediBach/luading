@@ -50,6 +50,9 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - MIDI input port/channel/message filtering, CC and pitch-bend voltage scaling,
   note pitch and velocity, polyphonic held gates, threshold crossings, atomic
   multi-input updates, and queued one-control-step trigger pulses
+- exclusive Off/WebAudio/Web MIDI output routes, CC and 14-bit pitch-bend
+  quantization, continuous-message deduplication/rate limiting, V/oct note
+  changes before simultaneous gate edges, and active-note cleanup
 - audited API support-level classification and compatibility diagnostics
 - clocked/free-running signal sources and oscilloscope triggering
 

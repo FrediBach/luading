@@ -869,6 +869,7 @@ export function DistingPlayground() {
                   program={program}
                   inputRoutes={inputRoutes}
                   midiDevices={webMidiState}
+                  midiManager={webMidiManager}
                   values={inputs}
                   outputs={outputs}
                   probes={probes}

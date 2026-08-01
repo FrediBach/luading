@@ -1,4 +1,5 @@
 import type { TraceHistory } from '../emulation/trace-history'
+import type { DistingWebMidiManager } from '../emulation/web-midi'
 import { PanelEmptyState } from '../PanelEmptyState'
 import type {
   LoadedProgram,
@@ -10,7 +11,7 @@ import type {
 import { InputChannelTile } from './InputChannelTile'
 import { AudioMasterControl } from './AudioMasterControl'
 import { OutputChannelTile } from './OutputChannelTile'
-import { useOutputAudio } from './useOutputAudio'
+import { useOutputRouting } from './useOutputRouting'
 
 const MINIMUM_CHANNEL_SLOTS = 4
 
@@ -31,6 +32,7 @@ interface Props {
   program: LoadedProgram
   inputRoutes: InputChannelRoute[]
   midiDevices: WebMidiDeviceState
+  midiManager: DistingWebMidiManager
   values: number[]
   outputs: number[]
   probes: ScopeProbe[]
@@ -48,6 +50,7 @@ export function IoDeck({
   program,
   inputRoutes,
   midiDevices,
+  midiManager,
   values,
   outputs,
   probes,
@@ -61,20 +64,20 @@ export function IoDeck({
   onProbeFocus,
 }: Props) {
   const trace = traceHistory.snapshot(traceRevision)
-  const outputAudio = useOutputAudio(program, trace)
+  const outputRouting = useOutputRouting(program, trace, midiManager, midiDevices)
 
   return (
     <section className="io-deck" aria-label="Input and output controls">
       <header className="io-deck-header">
         <div className="io-global-controls">
           <AudioMasterControl
-            enabled={outputAudio.enabled}
-            level={outputAudio.level}
-            waveform={outputAudio.waveform}
-            error={outputAudio.error}
-            onToggle={() => void outputAudio.toggleEnabled()}
-            onLevelChange={outputAudio.changeLevel}
-            onWaveformChange={outputAudio.changeWaveform}
+            enabled={outputRouting.audioEnabled}
+            level={outputRouting.audioLevel}
+            waveform={outputRouting.waveform}
+            error={outputRouting.audioError}
+            onToggle={() => void outputRouting.toggleAudio()}
+            onLevelChange={outputRouting.changeAudioLevel}
+            onWaveformChange={outputRouting.changeWaveform}
           />
         </div>
       </header>
@@ -126,28 +129,36 @@ export function IoDeck({
               </PanelEmptyState>
             ) : (
               <>
-                {outputAudio.routes.map((route, index) => (
+                {outputRouting.routes.map((route, index) => (
                   <OutputChannelTile
                     index={index}
                     name={program.outputNames[index] ?? `Output ${index + 1}`}
+                    outputNames={program.outputNames}
                     kind={program.outputKinds[index] ?? 'linear'}
                     value={outputs[index] ?? 0}
                     traceHistory={traceHistory}
                     traceRevision={traceRevision}
-                    route={route.destination}
-                    audioEnabled={outputAudio.enabled}
-                    audioError={outputAudio.error}
+                    route={route}
+                    audioEnabled={outputRouting.audioEnabled}
+                    audioError={outputRouting.audioError}
+                    midiDevices={midiDevices}
+                    midiError={route.kind === 'webMidiCc'
+                      || route.kind === 'webMidiPitchBend'
+                      || route.kind === 'webMidiNote'
+                      ? outputRouting.midiErrors[route.portId]
+                      : undefined}
                     probes={probes}
                     focusedScopeProbe={focusedScopeProbe}
-                    onRouteChange={(destination) => (
-                      outputAudio.changeRoute(index, destination)
+                    onRouteChange={(nextRoute) => (
+                      outputRouting.changeRoute(index, nextRoute)
                     )}
+                    onConnectMidi={onConnectMidi}
                     onProbeChange={onProbeChange}
                     onProbeFocus={onProbeFocus}
                     key={`${program.outputNames[index] ?? 'output'}-${index}`}
                   />
                 ))}
-                <ChannelGridSpacers count={outputAudio.routes.length} />
+                <ChannelGridSpacers count={outputRouting.routes.length} />
               </>
             )}
           </div>

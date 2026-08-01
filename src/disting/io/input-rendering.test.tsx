@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { TraceHistory } from '../emulation/trace-history'
+import { DistingWebMidiManager } from '../emulation/web-midi'
 import type {
   LoadedProgram,
   SignalSourceConfig,
@@ -47,6 +48,7 @@ const midiDevices: WebMidiDeviceState = {
   }],
   outputs: [],
 }
+const midiManager = new DistingWebMidiManager(null)
 
 describe('input channel rendering', () => {
   it('renders a live trigger tile with direct sync and fire actions', () => {
@@ -188,6 +190,7 @@ describe('input channel rendering', () => {
           { kind: 'generator', source: source({ shape: 'manual', manualValue: 1.25 }) },
         ]}
         midiDevices={midiDevices}
+        midiManager={midiManager}
         values={[0, 1.25]}
         outputs={[5, 0.25]}
         probes={[
@@ -239,6 +242,7 @@ describe('input channel rendering', () => {
         program={program}
         inputRoutes={[{ kind: 'generator', source: source({ shape: 'manual' }) }]}
         midiDevices={midiDevices}
+        midiManager={midiManager}
         values={[0]}
         outputs={[0]}
         probes={[
@@ -284,6 +288,7 @@ describe('input channel rendering', () => {
         program={program}
         inputRoutes={[]}
         midiDevices={midiDevices}
+        midiManager={midiManager}
         values={[]}
         outputs={[]}
         probes={[

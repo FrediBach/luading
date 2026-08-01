@@ -13,7 +13,9 @@ as a permanent redirect in the Vercel configuration.
   `trigger`, `gate`, `draw`, MIDI, UI, and preset state
 - Provides editable CV, gate, trigger, clock, parameter, and front-panel inputs
 - Renders the 256×64 display and output traces in real time
-- Routes simulated outputs through Web Audio
+- Routes each simulated output exclusively to Off, Web Audio, MIDI CC,
+  MIDI pitch bend, or MIDI note/gate
+- Maps physical Web MIDI messages to simulated CV, gate, and trigger inputs
 - Includes Monaco-based editing, Disting NT completions, diagnostics, and source
   navigation
 - Validates script contracts and assigns a quality score for API portability,

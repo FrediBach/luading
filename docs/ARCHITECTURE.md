@@ -210,15 +210,24 @@ The core emulator is split by hardware-facing responsibility:
 - `midi-routing.ts` preserves the documented `sendMIDI()` destination bits,
   resolves them to unique browser MIDI output IDs, and converts mapped CC,
   pitch-bend, note pitch, velocity, gate, and trigger messages into atomic
-  external input updates.
+  external input updates. It also converts output traces into rate-limited MIDI
+  CC, pitch-bend, and note/gate events while tracking notes that require cleanup.
 - `web-midi.ts` owns opt-in Web MIDI permission, port snapshots, input
   listeners, hot-plug reconciliation, sending, and cleanup on the main thread.
+
+`io/useOutputRouting.ts` is the main-thread output coordinator. It advances one
+fresh-trace cursor, then gives each channel to exactly one Off, WebAudio, or Web
+MIDI route. MIDI events preserve relative simulated timing and are scheduled
+with a small browser-local lead. Route changes, program replacement, port
+disconnects, reconnection, and component cleanup release notes owned by
+Luading; failed note-off cleanup is retried when its physical port reconnects.
 
 Web Audio and Web MIDI device selection are browser conveniences. Web MIDI
 messages entering `midiMessage()` and leaving `sendMIDI()` still cross the
 production worker protocol and firmware-facing adapters; permissions, physical
 port identities, and browser scheduling are not part of the Disting contract.
-Web Audio never feeds values back into the simulation.
+Web Audio never feeds values back into the simulation. Web MIDI scheduling is
+browser-local behavior and is not evidence of calibrated Disting NT timing.
 
 ## Display and front panel
 
