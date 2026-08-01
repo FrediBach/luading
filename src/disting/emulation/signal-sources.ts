@@ -51,6 +51,11 @@ export const FREEFORM_CV_MIN_VOLTS = -10
 export const FREEFORM_CV_MAX_VOLTS = 10
 export const FREEFORM_CV_MAX_POINTS = 64
 export const FREEFORM_CV_MIN_PHASE_GAP = 0.001
+export const MAX_SEQUENCE_STEPS = 32
+export const DEFAULT_GATE_SEQUENCE_STEPS: readonly boolean[] = Array.from(
+  { length: MAX_SEQUENCE_STEPS },
+  (_, index) => index % 2 === 0,
+)
 export const DEFAULT_FREEFORM_CV_POINTS: readonly FreeformCvPoint[] = [
   { phase: 0, volts: 0 },
   { phase: 1, volts: 0 },
@@ -73,6 +78,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       manualValue: 0,
       seed: index + 1,
       stepCount: 8,
+      gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
       freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
@@ -88,6 +94,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       manualValue: 0,
       seed: index + 1,
       stepCount: 8,
+      gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
       freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
@@ -102,6 +109,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
     manualValue: 0,
     seed: index + 1,
     stepCount: 8,
+    gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
     freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
   }
 }
@@ -175,6 +183,14 @@ export function freeformCvValueAt(
   return points.at(-1)?.volts ?? first.volts
 }
 
+export function normalizeGateSequenceSteps(
+  steps: readonly boolean[] | undefined,
+) {
+  return DEFAULT_GATE_SEQUENCE_STEPS.map((defaultValue, index) => (
+    typeof steps?.[index] === 'boolean' ? steps[index] : defaultValue
+  ))
+}
+
 export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceConfig {
   const timing = config.timing.mode === 'clock'
     ? { mode: 'clock' as const, division: config.timing.division }
@@ -189,7 +205,8 @@ export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceC
     pulseWidth: Math.min(0.99, Math.max(0.001, finite(config.pulseWidth, 0.5))),
     manualValue: finite(config.manualValue, 0),
     seed: Math.floor(finite(config.seed, 1)),
-    stepCount: Math.min(32, Math.max(1, Math.round(finite(config.stepCount, 8)))),
+    stepCount: Math.min(MAX_SEQUENCE_STEPS, Math.max(1, Math.round(finite(config.stepCount, 8)))),
+    gateSteps: normalizeGateSequenceSteps(config.gateSteps),
     freeformPoints: normalizeFreeformCvPoints(config.freeformPoints),
   }
 }
@@ -261,7 +278,7 @@ function normalizedSignalValueAt(
       return config.offset + (phase < config.pulseWidth ? config.amplitude : 0)
     case 'gateSequencer':
       return config.offset + (
-        sequenceStep % 2 === 0 && phase < config.pulseWidth
+        config.gateSteps[sequenceStep] && phase < config.pulseWidth
           ? config.amplitude
           : 0
       )
@@ -382,6 +399,7 @@ export class SignalBank {
     return this.sources.map((source) => ({
       ...source,
       timing: { ...source.timing },
+      gateSteps: [...source.gateSteps],
       freeformPoints: source.freeformPoints.map((point) => ({ ...point })),
     }))
   }

@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { SignalSourceConfig } from '../types'
 import {
   ClockTransport,
+  DEFAULT_GATE_SEQUENCE_STEPS,
   DEFAULT_FREEFORM_CV_POINTS,
   defaultSignalSource,
   freeformCvValueAt,
   FREEFORM_CV_MAX_POINTS,
   normalizeFreeformCvPoints,
+  normalizeGateSequenceSteps,
   normalizeSignalSource,
   SignalBank,
   signalValueAt,
@@ -23,6 +25,7 @@ function source(overrides: Partial<SignalSourceConfig> = {}): SignalSourceConfig
     manualValue: 0,
     seed: 1,
     stepCount: 8,
+    gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
     freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     ...overrides,
   }
@@ -145,6 +148,25 @@ describe('Disting input signal sources', () => {
     expect(signalValueAt(source({ shape: 'gateSequencer', timing: clocked }), 1, 0, 0)).toBe(0)
     expect(signalValueAt(source({ shape: 'noteSequencer', timing: clocked, amplitude: 1 }), 1, 0, 0)).toBeCloseTo(2 / 12)
     expect(signalValueAt(source({ shape: 'arpeggio', timing: clocked, amplitude: 1 }), 2, 0, 0)).toBeCloseTo(7 / 12)
+  })
+
+  it('plays editable gate-sequencer steps and defaults to the previous alternating pattern', () => {
+    const clocked = { mode: 'clock' as const, division: '1/4' as const }
+    expect(normalizeGateSequenceSteps(undefined).slice(0, 8)).toEqual([
+      true, false, true, false, true, false, true, false,
+    ])
+
+    const custom = source({
+      shape: 'gateSequencer',
+      timing: clocked,
+      gateSteps: [false, true, true, false],
+      stepCount: 4,
+    })
+    expect(signalValueAt(custom, 0, 0, 0)).toBe(0)
+    expect(signalValueAt(custom, 1, 0, 0)).toBe(5)
+    expect(signalValueAt(custom, 2, 0, 0)).toBe(5)
+    expect(signalValueAt(custom, 3, 0, 0)).toBe(0)
+    expect(signalValueAt(custom, 4, 0, 0)).toBe(0)
   })
 
   it('keeps sample-and-hold stable per cycle and noise deterministic per step', () => {

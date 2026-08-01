@@ -25,6 +25,7 @@ function source(
     manualValue: 0,
     seed: 1,
     stepCount: 4,
+    gateSteps: [true, false, true, false],
     freeformPoints: [
       { phase: 0, volts: 0 },
       { phase: 1, volts: 0 },

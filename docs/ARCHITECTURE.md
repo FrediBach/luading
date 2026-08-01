@@ -194,9 +194,10 @@ The core emulator is split by hardware-facing responsibility:
   palette.
 - `signal-sources.ts` implements deterministic CV, gate, trigger, sequencer,
   noise, shared-clock sources, normalized piecewise-linear Freeform CV points,
-  and browser-agnostic external held values and queued pulses. Freeform points
-  store absolute browser-local voltages and reuse the existing cycle timing and
-  phase model; they do not extend the Lua contract.
+  editable gate-sequencer patterns, and browser-agnostic external held values
+  and queued pulses. Gate patterns and Freeform points are browser-local input
+  configuration, reuse the existing cycle timing and phase model, and do not
+  extend the Lua contract.
 - `simulator-defaults.ts` reads optional trailing Lua comments beside `init()`
   input/output entries and maps them to browser-only signal-generator and audio
   routing defaults without extending the firmware-facing Lua contract.

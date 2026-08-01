@@ -25,6 +25,7 @@ function source(
     manualValue: 0,
     seed: 1,
     stepCount: 8,
+    gateSteps: Array.from({ length: 32 }, (_, index) => index % 2 === 0),
     freeformPoints: [
       { phase: 0, volts: 0 },
       { phase: 1, volts: 0 },
@@ -111,10 +112,13 @@ describe('input channel rendering', () => {
     )
 
     expect(markup.match(/input-shape-picker/g)).toHaveLength(1)
-    expect(markup.match(/aria-pressed=/g)).toHaveLength(17)
     expect(markup).toContain('Clock sync')
     expect(markup).toContain('Pulse width')
     expect(markup).toContain('Steps')
+    expect(markup).toContain('Gate pattern')
+    expect(markup).toContain('aria-label="Step 1 on"')
+    expect(markup).toContain('aria-label="Step 2 off"')
+    expect(markup.match(/aria-label="Step \d+ (?:on|off)"/g)).toHaveLength(12)
   })
 
   it('renders the accessible freeform CV editor without unrelated controls', () => {

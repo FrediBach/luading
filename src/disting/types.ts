@@ -259,6 +259,7 @@ export interface SignalSourceConfig {
   manualValue: number
   seed: number
   stepCount: number
+  gateSteps: boolean[]
   freeformPoints: FreeformCvPoint[]
 }
 

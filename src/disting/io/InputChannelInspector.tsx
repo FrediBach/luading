@@ -27,6 +27,7 @@ import {
 } from './input-source-controls'
 import { WebMidiInputInspector } from './WebMidiInputInspector'
 import { FreeformCvEditor } from './FreeformCvEditor'
+import { GateStepEditor } from './GateStepEditor'
 
 interface Props {
   kind: InputKind
@@ -172,6 +173,14 @@ function SignalGeneratorInspector({
         <FreeformCvEditor
           points={source.freeformPoints}
           onChange={(freeformPoints) => patch({ freeformPoints })}
+        />
+      )}
+
+      {source.shape === 'gateSequencer' && (
+        <GateStepEditor
+          stepCount={source.stepCount}
+          steps={source.gateSteps}
+          onChange={(gateSteps) => patch({ gateSteps })}
         />
       )}
 
