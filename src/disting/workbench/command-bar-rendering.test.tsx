@@ -107,7 +107,7 @@ describe('command bar utilities', () => {
     expect(markup).not.toContain('workbench-runtime-duration')
     expect(markup).toContain('Workspace preset: Patch')
     expect(markup).toContain('Open MIDI input utility')
-    expect(markup).toContain('About Luading simulator')
+    expect(markup).toContain('Open Help &amp; About')
     expect(markup).toContain('Switch to light mode')
     expect(markup).toContain('Text size: Standard')
   })
@@ -176,14 +176,21 @@ describe('command bar utilities', () => {
     expect(filterScriptGroups(SCRIPT_GROUPS, 'missing')).toEqual([])
   })
 
-  it('retains the simulator contract and hardware-authority explanation', () => {
+  it('explains the workbench, simulator contract, and project ownership', () => {
     const markup = renderToStaticMarkup(<AboutContent />)
 
+    expect(markup).toContain('Quick start')
+    expect(markup).toContain('Disting API help')
+    expect(markup).toContain('note patterns')
+    expect(markup).toContain('contract checks')
+    expect(markup).toContain('Web Audio and Web MIDI')
     expect(markup).toContain('persistent Lua 5.4 VM')
     expect(markup).toContain('1 ms simulation steps')
     expect(markup).toContain('drawn at 30 fps')
     expect(markup).toContain('dedicated worker')
     expect(markup).toContain('hardware remains the final authority')
     expect(markup).toContain('not calibrated hardware CPU usage')
+    expect(markup).toContain('not affiliated with or endorsed by')
+    expect(markup).toContain('© 2026 Fredi Bach')
   })
 })
