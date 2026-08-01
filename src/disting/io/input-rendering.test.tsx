@@ -26,6 +26,7 @@ function source(
     seed: 1,
     stepCount: 8,
     gateSteps: Array.from({ length: 32 }, (_, index) => index % 2 === 0),
+    noteSteps: Array.from({ length: 32 }, (_, index) => index * 2),
     freeformPoints: [
       { phase: 0, volts: 0 },
       { phase: 1, volts: 0 },
@@ -119,6 +120,32 @@ describe('input channel rendering', () => {
     expect(markup).toContain('aria-label="Step 1 on"')
     expect(markup).toContain('aria-label="Step 2 off"')
     expect(markup.match(/aria-label="Step \d+ (?:on|off)"/g)).toHaveLength(12)
+  })
+
+  it('renders editable chromatic notes for each visible note-sequencer step', () => {
+    const markup = renderToStaticMarkup(
+      <InputChannelInspector
+        kind="cv"
+        route={{
+          kind: 'generator',
+          source: source({
+            shape: 'noteSequencer',
+            amplitude: 1,
+            stepCount: 4,
+            noteSteps: [0, 3, 7, 12],
+          }),
+        }}
+        devices={midiDevices}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Note pattern')
+    expect(markup).toContain('aria-label="Step 1 note: C0. Edit exact value."')
+    expect(markup).toContain('aria-label="Step 2 note: D#0. Edit exact value."')
+    expect(markup).toContain('aria-label="Step 4 note: C1. Edit exact value."')
+    expect(markup.match(/aria-label="Step \d+ note:/g)).toHaveLength(4)
   })
 
   it('renders the accessible freeform CV editor without unrelated controls', () => {

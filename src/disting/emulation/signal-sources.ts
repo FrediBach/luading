@@ -52,9 +52,20 @@ export const FREEFORM_CV_MAX_VOLTS = 10
 export const FREEFORM_CV_MAX_POINTS = 64
 export const FREEFORM_CV_MIN_PHASE_GAP = 0.001
 export const MAX_SEQUENCE_STEPS = 32
+export const MIN_NOTE_SEQUENCE_SEMITONES = -120
+export const MAX_NOTE_SEQUENCE_SEMITONES = 120
+const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11] as const
 export const DEFAULT_GATE_SEQUENCE_STEPS: readonly boolean[] = Array.from(
   { length: MAX_SEQUENCE_STEPS },
   (_, index) => index % 2 === 0,
+)
+export const DEFAULT_NOTE_SEQUENCE_STEPS: readonly number[] = Array.from(
+  { length: MAX_SEQUENCE_STEPS },
+  (_, index) => {
+    const scaleIndex = index % MAJOR_SCALE_INTERVALS.length
+    const octave = Math.floor(index / MAJOR_SCALE_INTERVALS.length)
+    return octave * 12 + MAJOR_SCALE_INTERVALS[scaleIndex]!
+  },
 )
 export const DEFAULT_FREEFORM_CV_POINTS: readonly FreeformCvPoint[] = [
   { phase: 0, volts: 0 },
@@ -79,6 +90,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       seed: index + 1,
       stepCount: 8,
       gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
+      noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
       freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
@@ -95,6 +107,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       seed: index + 1,
       stepCount: 8,
       gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
+      noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
       freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
@@ -110,6 +123,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
     seed: index + 1,
     stepCount: 8,
     gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
+    noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
     freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
   }
 }
@@ -191,6 +205,16 @@ export function normalizeGateSequenceSteps(
   ))
 }
 
+export function normalizeNoteSequenceSteps(
+  steps: readonly number[] | undefined,
+) {
+  return DEFAULT_NOTE_SEQUENCE_STEPS.map((defaultValue, index) => clamp(
+    Math.round(finite(steps?.[index] ?? defaultValue, defaultValue)),
+    MIN_NOTE_SEQUENCE_SEMITONES,
+    MAX_NOTE_SEQUENCE_SEMITONES,
+  ))
+}
+
 export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceConfig {
   const timing = config.timing.mode === 'clock'
     ? { mode: 'clock' as const, division: config.timing.division }
@@ -207,6 +231,7 @@ export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceC
     seed: Math.floor(finite(config.seed, 1)),
     stepCount: Math.min(MAX_SEQUENCE_STEPS, Math.max(1, Math.round(finite(config.stepCount, 8)))),
     gateSteps: normalizeGateSequenceSteps(config.gateSteps),
+    noteSteps: normalizeNoteSequenceSteps(config.noteSteps),
     freeformPoints: normalizeFreeformCvPoints(config.freeformPoints),
   }
 }
@@ -226,14 +251,7 @@ function positiveModulo(value: number, modulus: number) {
   return ((value % modulus) + modulus) % modulus
 }
 
-const MAJOR_SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11] as const
 const MAJOR_TRIAD_INTERVALS = [0, 4, 7] as const
-
-function noteSequenceInterval(stepIndex: number) {
-  const scaleIndex = positiveModulo(stepIndex, MAJOR_SCALE_INTERVALS.length)
-  const octave = Math.floor(stepIndex / MAJOR_SCALE_INTERVALS.length)
-  return octave * 12 + MAJOR_SCALE_INTERVALS[scaleIndex]
-}
 
 function arpeggioInterval(stepIndex: number, stepCount: number) {
   const ascendingSteps = Math.ceil((stepCount + 1) / 2)
@@ -283,7 +301,7 @@ function normalizedSignalValueAt(
           : 0
       )
     case 'noteSequencer':
-      return config.offset + config.amplitude * noteSequenceInterval(sequenceStep) / 12
+      return config.offset + config.amplitude * config.noteSteps[sequenceStep]! / 12
     case 'arpeggio':
       return config.offset + config.amplitude * arpeggioInterval(sequenceStep, config.stepCount) / 12
     case 'sampleHold': {
@@ -400,6 +418,7 @@ export class SignalBank {
       ...source,
       timing: { ...source.timing },
       gateSteps: [...source.gateSteps],
+      noteSteps: [...source.noteSteps],
       freeformPoints: source.freeformPoints.map((point) => ({ ...point })),
     }))
   }

@@ -4,11 +4,13 @@ import {
   ClockTransport,
   DEFAULT_GATE_SEQUENCE_STEPS,
   DEFAULT_FREEFORM_CV_POINTS,
+  DEFAULT_NOTE_SEQUENCE_STEPS,
   defaultSignalSource,
   freeformCvValueAt,
   FREEFORM_CV_MAX_POINTS,
   normalizeFreeformCvPoints,
   normalizeGateSequenceSteps,
+  normalizeNoteSequenceSteps,
   normalizeSignalSource,
   SignalBank,
   signalValueAt,
@@ -26,6 +28,7 @@ function source(overrides: Partial<SignalSourceConfig> = {}): SignalSourceConfig
     seed: 1,
     stepCount: 8,
     gateSteps: [...DEFAULT_GATE_SEQUENCE_STEPS],
+    noteSteps: [...DEFAULT_NOTE_SEQUENCE_STEPS],
     freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     ...overrides,
   }
@@ -167,6 +170,29 @@ describe('Disting input signal sources', () => {
     expect(signalValueAt(custom, 2, 0, 0)).toBe(5)
     expect(signalValueAt(custom, 3, 0, 0)).toBe(0)
     expect(signalValueAt(custom, 4, 0, 0)).toBe(0)
+  })
+
+  it('plays editable note-sequencer pitches and defaults to the previous major scale', () => {
+    const clocked = { mode: 'clock' as const, division: '1/4' as const }
+    expect(normalizeNoteSequenceSteps(undefined).slice(0, 8)).toEqual([
+      0, 2, 4, 5, 7, 9, 11, 12,
+    ])
+    expect(normalizeNoteSequenceSteps([Number.NaN, -999, 999]).slice(0, 4)).toEqual([
+      0, -120, 120, 5,
+    ])
+
+    const custom = source({
+      shape: 'noteSequencer',
+      timing: clocked,
+      amplitude: 1,
+      offset: -1,
+      noteSteps: [12, 15, -12],
+      stepCount: 3,
+    })
+    expect(signalValueAt(custom, 0, 0, 0)).toBe(0)
+    expect(signalValueAt(custom, 1, 0, 0)).toBeCloseTo(0.25)
+    expect(signalValueAt(custom, 2, 0, 0)).toBe(-2)
+    expect(signalValueAt(custom, 3, 0, 0)).toBe(0)
   })
 
   it('keeps sample-and-hold stable per cycle and noise deterministic per step', () => {

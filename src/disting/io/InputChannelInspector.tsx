@@ -28,6 +28,7 @@ import {
 import { WebMidiInputInspector } from './WebMidiInputInspector'
 import { FreeformCvEditor } from './FreeformCvEditor'
 import { GateStepEditor } from './GateStepEditor'
+import { NoteStepEditor } from './NoteStepEditor'
 
 interface Props {
   kind: InputKind
@@ -181,6 +182,14 @@ function SignalGeneratorInspector({
           stepCount={source.stepCount}
           steps={source.gateSteps}
           onChange={(gateSteps) => patch({ gateSteps })}
+        />
+      )}
+
+      {source.shape === 'noteSequencer' && (
+        <NoteStepEditor
+          stepCount={source.stepCount}
+          steps={source.noteSteps}
+          onChange={(noteSteps) => patch({ noteSteps })}
         />
       )}
 

@@ -26,6 +26,7 @@ function source(
     seed: 1,
     stepCount: 4,
     gateSteps: [true, false, true, false],
+    noteSteps: [0, 2, 4, 5],
     freeformPoints: [
       { phase: 0, volts: 0 },
       { phase: 1, volts: 0 },
