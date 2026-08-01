@@ -25,6 +25,10 @@ function source(
     manualValue: 0,
     seed: 1,
     stepCount: 8,
+    freeformPoints: [
+      { phase: 0, volts: 0 },
+      { phase: 1, volts: 0 },
+    ],
     ...update,
   }
 }
@@ -107,10 +111,99 @@ describe('input channel rendering', () => {
     )
 
     expect(markup.match(/input-shape-picker/g)).toHaveLength(1)
-    expect(markup.match(/aria-pressed=/g)).toHaveLength(16)
+    expect(markup.match(/aria-pressed=/g)).toHaveLength(17)
     expect(markup).toContain('Clock sync')
     expect(markup).toContain('Pulse width')
     expect(markup).toContain('Steps')
+  })
+
+  it('renders the accessible freeform CV editor without unrelated controls', () => {
+    const freeformSource = source({
+      shape: 'freeform',
+      timing: { mode: 'free', frequencyHz: 0.5 },
+      freeformPoints: [
+        { phase: 0, volts: -2 },
+        { phase: 0.5, volts: 4 },
+        { phase: 1, volts: 0 },
+      ],
+    })
+    const markup = renderToStaticMarkup(
+      <InputChannelInspector
+        kind="cv"
+        route={{
+          kind: 'generator',
+          source: freeformSource,
+        }}
+        devices={midiDevices}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+      />,
+    )
+    const tile = renderToStaticMarkup(
+      <InputChannelTile
+        index={0}
+        name="Modulation"
+        kind="cv"
+        route={{ kind: 'generator', source: freeformSource }}
+        devices={midiDevices}
+        value={4}
+        traceHistory={traceHistory}
+        traceRevision={1}
+        probes={[
+          { id: 'probe-1', source: null },
+          { id: 'probe-2', source: null },
+          { id: 'probe-3', source: null },
+          { id: 'probe-4', source: null },
+        ]}
+        focusedScopeProbe={null}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+        onTrigger={() => undefined}
+        onProbeChange={() => undefined}
+        onProbeFocus={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Freeform waveform')
+    expect(markup).toContain('Freeform CV waveform editor')
+    expect(markup).toContain('Point 2, 50.0 percent, 4.00 volts')
+    expect(markup).toContain('Add point')
+    expect(markup).toContain('Remove point')
+    expect(markup).toContain('Reset waveform')
+    expect(markup).toContain('Phase')
+    expect(markup).not.toContain('Amplitude')
+    expect(markup).not.toContain('Offset')
+    expect(markup).not.toContain('Pulse width')
+    expect(markup).not.toContain('Steps')
+    expect(markup).not.toContain('Deterministic seed')
+    expect(tile).toContain('Freeform CV · 0.50 Hz')
+    expect(tile).toContain('freeform signal shape')
+    expect(tile).toContain('4.00 V')
+  })
+
+  it('disables point insertion and explains the freeform point limit', () => {
+    const markup = renderToStaticMarkup(
+      <InputChannelInspector
+        kind="cv"
+        route={{
+          kind: 'generator',
+          source: source({
+            shape: 'freeform',
+            freeformPoints: Array.from({ length: 64 }, (_, index) => ({
+              phase: index / 63,
+              volts: 0,
+            })),
+          }),
+        }}
+        devices={midiDevices}
+        onChange={() => undefined}
+        onConnectMidi={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('64/64 points')
+    expect(markup).toContain('64 point limit reached')
+    expect(markup).toContain('aria-describedby="freeform-cv-limit"')
   })
 
   it('renders a MIDI-backed CV input with mapping controls and live status', () => {

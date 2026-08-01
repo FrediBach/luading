@@ -127,6 +127,42 @@ return {
       .toBe('manual')
   })
 
+  it('parses, normalizes, and safely repairs freeform CV point annotations', () => {
+    const parsed = simulatorDefaultsFromSource(`return {
+  init = function()
+    return {
+      inputs = {
+        kCV, -- Type: Freeform CV, Points: 0.75@20|bad|0.25@-4|0.25@3
+      },
+    }
+  end,
+}`, ['cv'], 0).inputSources[0]
+
+    expect(parsed).toMatchObject({
+      shape: 'freeform',
+      freeformPoints: [
+        { phase: 0, volts: 3 },
+        { phase: 0.25, volts: 3 },
+        { phase: 0.75, volts: 10 },
+        { phase: 1, volts: 10 },
+      ],
+    })
+
+    const repaired = simulatorDefaultsFromSource(`return {
+  init = function()
+    return {
+      inputs = {
+        kCV, -- Type: Freeform CV, Points: nope
+      },
+    }
+  end,
+}`, ['cv'], 0).inputSources[0]
+    expect(repaired?.freeformPoints).toEqual([
+      { phase: 0, volts: 0 },
+      { phase: 1, volts: 0 },
+    ])
+  })
+
   it('keeps every bundled script channel explicitly and recognizably annotated', () => {
     const scripts = bundledScripts()
     expect(scripts).toHaveLength(58)

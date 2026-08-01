@@ -26,7 +26,7 @@ describe('paste-ready simulator default entries', () => {
     const shapes: SignalSourceConfig['shape'][] = [
       'manual', 'sine', 'triangle', 'sawUp', 'sawDown', 'square', 'gate',
       'trigger', 'gateSequencer', 'noteSequencer', 'arpeggio', 'sampleHold',
-      'noise',
+      'noise', 'freeform',
     ]
 
     for (const shape of shapes) {
@@ -49,6 +49,36 @@ describe('paste-ready simulator default entries', () => {
         entry,
       ).toBe(shape)
     }
+  })
+
+  it('round-trips freeform CV points in a locale-independent compact form', () => {
+    const configured = source({
+      shape: 'freeform',
+      timing: { mode: 'clock', division: '1/8' },
+      freeformPoints: [
+        { phase: 0, volts: -2.5 },
+        { phase: 0.333, volts: 4.25 },
+        { phase: 1, volts: 0 },
+      ],
+    })
+    const entry = inputDefaultEntry('cv', configured)
+    expect(entry).toBe(
+      'kCV, -- Type: Freeform CV, Synced: true, Division: 1/8, Points: 0@-2.5|0.333@4.25|1@0',
+    )
+    const lua = `return {
+  init = function()
+    return {
+      inputs = {
+        ${entry}
+      },
+    }
+  end,
+}`
+    expect(simulatorDefaultsFromSource(lua, ['cv'], 0).inputSources[0]).toMatchObject({
+      shape: 'freeform',
+      timing: { mode: 'clock', division: '1/8' },
+      freeformPoints: configured.freeformPoints,
+    })
   })
 
   it('copies all output audio defaults in parser-compatible form', () => {

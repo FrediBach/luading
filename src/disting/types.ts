@@ -217,6 +217,7 @@ export type DistingHardwareEvent =
 
 export type SignalShape =
   | 'manual'
+  | 'freeform'
   | 'sine'
   | 'triangle'
   | 'sawUp'
@@ -243,6 +244,11 @@ export type SignalTiming =
   | { mode: 'free'; frequencyHz: number }
   | { mode: 'clock'; division: ClockDivision }
 
+export interface FreeformCvPoint {
+  phase: number
+  volts: number
+}
+
 export interface SignalSourceConfig {
   shape: SignalShape
   timing: SignalTiming
@@ -253,6 +259,7 @@ export interface SignalSourceConfig {
   manualValue: number
   seed: number
   stepCount: number
+  freeformPoints: FreeformCvPoint[]
 }
 
 export interface GlobalClockConfig {

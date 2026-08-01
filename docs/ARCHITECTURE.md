@@ -193,8 +193,10 @@ The core emulator is split by hardware-facing responsibility:
   quantizes atlas coverage to the display's 16-shade black-to-`#02F1EF`
   palette.
 - `signal-sources.ts` implements deterministic CV, gate, trigger, sequencer,
-  noise, shared-clock sources, and browser-agnostic external held values and
-  queued pulses.
+  noise, shared-clock sources, normalized piecewise-linear Freeform CV points,
+  and browser-agnostic external held values and queued pulses. Freeform points
+  store absolute browser-local voltages and reuse the existing cycle timing and
+  phase model; they do not extend the Lua contract.
 - `simulator-defaults.ts` reads optional trailing Lua comments beside `init()`
   input/output entries and maps them to browser-only signal-generator and audio
   routing defaults without extending the firmware-facing Lua contract.

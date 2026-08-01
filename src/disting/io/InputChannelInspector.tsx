@@ -26,6 +26,7 @@ import {
   inputWithSync,
 } from './input-source-controls'
 import { WebMidiInputInspector } from './WebMidiInputInspector'
+import { FreeformCvEditor } from './FreeformCvEditor'
 
 interface Props {
   kind: InputKind
@@ -167,6 +168,13 @@ function SignalGeneratorInspector({
         </div>
       )}
 
+      {source.shape === 'freeform' && (
+        <FreeformCvEditor
+          points={source.freeformPoints}
+          onChange={(freeformPoints) => patch({ freeformPoints })}
+        />
+      )}
+
       <div className="input-inspector-controls">
         {source.shape === 'manual' ? (
           <RotaryControl
@@ -180,7 +188,7 @@ function SignalGeneratorInspector({
             bipolar
             onChange={(manualValue) => patch({ manualValue })}
           />
-        ) : (
+        ) : source.shape !== 'freeform' ? (
           <>
             <RotaryControl
               label="Amplitude"
@@ -204,7 +212,7 @@ function SignalGeneratorInspector({
               onChange={(offset) => patch({ offset })}
             />
           </>
-        )}
+        ) : null}
 
         {inputUsesTiming(source) && (
           <RotaryControl

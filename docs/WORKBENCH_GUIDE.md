@@ -52,6 +52,39 @@ current generator or WebAudio setting as a complete, paste-ready `init()` table
 entry. Web MIDI routes are browser connections and cannot be represented by
 these source annotations; their context menu explains that limitation instead.
 
+### Freeform CV
+
+Choose **Freeform CV** in an input's Signal generator inspector to create a
+repeating voltage progression directly. Click or tap empty space in the graph
+to add a point, drag a point to move it, or select it and enter exact phase and
+voltage values. The two cycle-boundary points move vertically but stay at 0%
+and 100%; interior points move on both axes and cannot cross their neighbors.
+Point voltages range from -10 V to +10 V and adjacent points use linear
+interpolation.
+
+The normal Rate/Clock sync and Phase controls determine playback. A free-running
+waveform uses simulation time; a synced waveform uses the shared test-signal
+clock and holds its position while that clock is stopped. Freeform CV can also
+drive inputs declared as `kGate` or `kTrigger`; the normal typed edge detection
+still determines Lua callbacks.
+
+For keyboard editing, focus a point and use Left/Right for phase or Up/Down for
+voltage. Hold Shift for fine steps, and use Delete or Backspace to remove an
+interior point. **Add point** inserts on the current curve in its largest gap,
+and **Reset waveform** returns to a flat 0 V cycle. A waveform can contain up to
+64 points.
+
+Copied Lua defaults store the browser-only points as `phase@volts` pairs:
+
+```lua
+kCV, -- Type: Freeform CV, Synced: true, Division: 1/4, Points: 0@0|0.25@5|0.75@-2|1@0
+```
+
+Like the other input defaults, this is an ordinary Lua comment and is invisible
+to the script and to Disting NT hardware. Direct input edits remain session
+state and reset when a different Lua program loads unless copied into such a
+default annotation.
+
 Scope, Problems, Console, and Performance share the bottom drawer. Select the
 active tab again to collapse it. The drawer handle supports pointer drag and
 keyboard resizing. Drawer filters and other local view state are retained while

@@ -9,6 +9,8 @@ function shapePath(shape: SignalShape) {
   switch (shape) {
     case 'manual':
       return 'M2 12H22'
+    case 'freeform':
+      return 'M2 17 7 9l5 4 5-8 5 6'
     case 'sine':
       return 'M2 12C5 3 9 3 12 12s7 9 10 0'
     case 'triangle':
@@ -50,4 +52,3 @@ export function SignalShapeGlyph({ shape, size = 28 }: Props) {
     </svg>
   )
 }
-

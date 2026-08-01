@@ -1,5 +1,6 @@
 import {
   CLOCK_DIVISIONS,
+  normalizeFreeformCvPoints,
 } from '../emulation/signal-sources'
 import type {
   ClockDivision,
@@ -42,6 +43,7 @@ export function inputShapeDefaults(
       : shape === 'gateSequencer'
         ? 5
         : source.amplitude,
+    freeformPoints: normalizeFreeformCvPoints(source.freeformPoints),
   }
 }
 
@@ -89,8 +91,13 @@ export function inputPlotRange(
   source: SignalSourceConfig,
   values: readonly number[],
 ) {
+  const freeformValues = source.shape === 'freeform'
+    ? normalizeFreeformCvPoints(source.freeformPoints).map((point) => point.volts)
+    : []
   const sourceMinimum = source.shape === 'manual'
     ? source.manualValue
+    : source.shape === 'freeform'
+      ? Math.min(...freeformValues)
     : source.shape === 'gate'
       || source.shape === 'trigger'
       || source.shape === 'gateSequencer'
@@ -98,6 +105,8 @@ export function inputPlotRange(
       : source.offset - source.amplitude
   const sourceMaximum = source.shape === 'manual'
     ? source.manualValue
+    : source.shape === 'freeform'
+      ? Math.max(...freeformValues)
     : source.shape === 'gate'
       || source.shape === 'trigger'
       || source.shape === 'gateSequencer'

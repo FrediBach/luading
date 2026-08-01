@@ -1,6 +1,7 @@
 import type {
   ClockDivision,
   ExternalInputUpdate,
+  FreeformCvPoint,
   GlobalClockConfig,
   InputKind,
   SignalShape,
@@ -9,6 +10,7 @@ import type {
 
 export const SIGNAL_SHAPES: ReadonlyArray<{ value: SignalShape; label: string }> = [
   { value: 'manual', label: 'Manual / DC' },
+  { value: 'freeform', label: 'Freeform CV' },
   { value: 'sine', label: 'Sine LFO' },
   { value: 'triangle', label: 'Triangle LFO' },
   { value: 'sawUp', label: 'Rising saw' },
@@ -45,6 +47,15 @@ const BEATS_PER_CYCLE: Record<ClockDivision, number> = {
 
 const DEFAULT_TIMING = { mode: 'free', frequencyHz: 1 } as const
 
+export const FREEFORM_CV_MIN_VOLTS = -10
+export const FREEFORM_CV_MAX_VOLTS = 10
+export const FREEFORM_CV_MAX_POINTS = 64
+export const FREEFORM_CV_MIN_PHASE_GAP = 0.001
+export const DEFAULT_FREEFORM_CV_POINTS: readonly FreeformCvPoint[] = [
+  { phase: 0, volts: 0 },
+  { phase: 1, volts: 0 },
+]
+
 export const DEFAULT_CLOCK: GlobalClockConfig = {
   bpm: 120,
   running: true,
@@ -62,6 +73,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       manualValue: 0,
       seed: index + 1,
       stepCount: 8,
+      freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
 
@@ -76,6 +88,7 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
       manualValue: 0,
       seed: index + 1,
       stepCount: 8,
+      freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
     }
   }
 
@@ -89,11 +102,77 @@ export function defaultSignalSource(kind: InputKind, index: number): SignalSourc
     manualValue: 0,
     seed: index + 1,
     stepCount: 8,
+    freeformPoints: DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point })),
   }
 }
 
 function finite(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value))
+}
+
+function limitedFreeformPoints(points: FreeformCvPoint[]) {
+  if (points.length <= FREEFORM_CV_MAX_POINTS) return points
+  const first = points[0]!
+  const last = points.at(-1)!
+  const interior = points.slice(1, -1)
+  const slots = FREEFORM_CV_MAX_POINTS - 2
+  const selected = Array.from({ length: slots }, (_, index) => {
+    const sourceIndex = slots === 1
+      ? Math.floor(interior.length / 2)
+      : Math.round(index * (interior.length - 1) / (slots - 1))
+    return interior[sourceIndex]!
+  })
+  return [first, ...selected, last]
+}
+
+export function normalizeFreeformCvPoints(
+  points: readonly FreeformCvPoint[] | undefined,
+) {
+  const byPhase = new Map<number, FreeformCvPoint>()
+  for (const point of points ?? []) {
+    if (!Number.isFinite(point?.phase) || !Number.isFinite(point?.volts)) continue
+    const phase = clamp(point.phase, 0, 1)
+    byPhase.set(phase, {
+      phase,
+      volts: clamp(point.volts, FREEFORM_CV_MIN_VOLTS, FREEFORM_CV_MAX_VOLTS),
+    })
+  }
+
+  const normalized = [...byPhase.values()].sort((left, right) => left.phase - right.phase)
+  if (normalized.length === 0) {
+    return DEFAULT_FREEFORM_CV_POINTS.map((point) => ({ ...point }))
+  }
+  if (normalized[0]?.phase !== 0) {
+    normalized.unshift({ phase: 0, volts: normalized[0]!.volts })
+  }
+  if (normalized.at(-1)?.phase !== 1) {
+    normalized.push({ phase: 1, volts: normalized.at(-1)!.volts })
+  }
+  return limitedFreeformPoints(normalized).map((point) => ({ ...point }))
+}
+
+export function freeformCvValueAt(
+  points: readonly FreeformCvPoint[],
+  phase: number,
+) {
+  const safePhase = clamp(finite(phase, 0), 0, 1)
+  const first = points[0]
+  if (!first) return 0
+  if (safePhase <= first.phase) return first.volts
+
+  for (let index = 1; index < points.length; index += 1) {
+    const right = points[index]!
+    if (safePhase > right.phase) continue
+    const left = points[index - 1]!
+    if (safePhase === right.phase || right.phase === left.phase) return right.volts
+    const progress = (safePhase - left.phase) / (right.phase - left.phase)
+    return left.volts + (right.volts - left.volts) * progress
+  }
+  return points.at(-1)?.volts ?? first.volts
 }
 
 export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceConfig {
@@ -111,6 +190,7 @@ export function normalizeSignalSource(config: SignalSourceConfig): SignalSourceC
     manualValue: finite(config.manualValue, 0),
     seed: Math.floor(finite(config.seed, 1)),
     stepCount: Math.min(32, Math.max(1, Math.round(finite(config.stepCount, 8)))),
+    freeformPoints: normalizeFreeformCvPoints(config.freeformPoints),
   }
 }
 
@@ -148,13 +228,12 @@ function arpeggioInterval(stepIndex: number, stepCount: number) {
   return octave * 12 + MAJOR_TRIAD_INTERVALS[chordIndex]
 }
 
-export function signalValueAt(
-  source: SignalSourceConfig,
+function normalizedSignalValueAt(
+  config: SignalSourceConfig,
   clockBeats: number,
   timeSeconds: number,
   step: number,
 ) {
-  const config = normalizeSignalSource(source)
   if (config.shape === 'manual') return config.manualValue
 
   const cycle = config.timing.mode === 'clock'
@@ -164,6 +243,8 @@ export function signalValueAt(
   const sequenceStep = positiveModulo(Math.floor(cycle), config.stepCount)
 
   switch (config.shape) {
+    case 'freeform':
+      return freeformCvValueAt(config.freeformPoints, phase)
     case 'sine':
       return bipolar(config, Math.sin(phase * Math.PI * 2))
     case 'triangle':
@@ -195,6 +276,20 @@ export function signalValueAt(
     case 'noise':
       return bipolar(config, hashNoise(step + config.seed * 104729) * 2 - 1)
   }
+}
+
+export function signalValueAt(
+  source: SignalSourceConfig,
+  clockBeats: number,
+  timeSeconds: number,
+  step: number,
+) {
+  return normalizedSignalValueAt(
+    normalizeSignalSource(source),
+    clockBeats,
+    timeSeconds,
+    step,
+  )
 }
 
 export class ClockTransport {
@@ -287,6 +382,7 @@ export class SignalBank {
     return this.sources.map((source) => ({
       ...source,
       timing: { ...source.timing },
+      freeformPoints: source.freeformPoints.map((point) => ({ ...point })),
     }))
   }
 
@@ -294,7 +390,7 @@ export class SignalBank {
     return this.sources.map((source, index) => {
       const state = this.external[index]
       if (!state?.active) {
-        return signalValueAt(source, clock.beats, timeSeconds, step)
+        return normalizedSignalValueAt(source, clock.beats, timeSeconds, step)
       }
       if (state.releasePending) {
         state.releasePending = false

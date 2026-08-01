@@ -25,6 +25,10 @@ function source(
     manualValue: 0,
     seed: 1,
     stepCount: 4,
+    freeformPoints: [
+      { phase: 0, volts: 0 },
+      { phase: 1, volts: 0 },
+    ],
     ...update,
   }
 }
@@ -33,12 +37,14 @@ describe('input channel control helpers', () => {
   it('reports shape-dependent controls', () => {
     expect(inputUsesTiming(source({ shape: 'manual' }))).toBe(false)
     expect(inputUsesTiming(source({ shape: 'noise' }))).toBe(false)
+    expect(inputUsesTiming(source({ shape: 'freeform' }))).toBe(true)
     expect(inputUsesTiming(source({ shape: 'trigger' }))).toBe(true)
     expect(inputUsesPulseWidth(source({ shape: 'square' }))).toBe(true)
     expect(inputUsesPulseWidth(source({ shape: 'sine' }))).toBe(false)
     expect(inputUsesStepCount(source({ shape: 'arpeggio' }))).toBe(true)
     expect(inputIsStepped(source({ shape: 'sampleHold' }))).toBe(true)
     expect(inputIsStepped(source({ shape: 'triangle' }))).toBe(false)
+    expect(inputIsStepped(source({ shape: 'freeform' }))).toBe(false)
   })
 
   it('preserves existing shape defaults and unrelated settings', () => {
@@ -104,6 +110,14 @@ describe('input channel control helpers', () => {
     )
     expect(gateRange.min).toBeLessThan(0)
     expect(gateRange.max).toBeGreaterThan(5)
+    const freeformRange = inputPlotRange(source({
+      shape: 'freeform',
+      freeformPoints: [
+        { phase: 0, volts: -9 },
+        { phase: 1, volts: 7 },
+      ],
+    }), [])
+    expect(freeformRange.min).toBeLessThan(-9)
+    expect(freeformRange.max).toBeGreaterThan(7)
   })
 })
-

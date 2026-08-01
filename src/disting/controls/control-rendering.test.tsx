@@ -98,6 +98,7 @@ describe('custom control rendering', () => {
   it('renders every signal glyph and a labelled sampled plot', () => {
     const shapes: SignalShape[] = [
       'manual',
+      'freeform',
       'sine',
       'triangle',
       'sawUp',

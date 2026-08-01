@@ -55,6 +55,9 @@ Tests beside `src/disting/emulation/*.ts` cover:
   changes before simultaneous gate edges, and active-note cleanup
 - audited API support-level classification and compatibility diagnostics
 - clocked/free-running signal sources and oscilloscope triggering
+- Freeform CV point repair, bounds, copy isolation, phase-aware linear
+  interpolation, cycle seams, editor-model operations, accessible rendering,
+  and simulator-default annotation round trips
 
 ### Lua boundary integration
 

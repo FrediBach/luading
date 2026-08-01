@@ -11,7 +11,8 @@ as a permanent redirect in the Vercel configuration.
 - Runs a persistent Lua 5.4 VM in an isolated Web Worker
 - Simulates the Disting NT lifecycle callbacks, including `init`, `step`,
   `trigger`, `gate`, `draw`, MIDI, UI, and preset state
-- Provides editable CV, gate, trigger, clock, parameter, and front-panel inputs
+- Provides editable CV, freeform point-drawn waveforms, gate, trigger, clock,
+  parameter, and front-panel inputs
 - Renders the 256×64 display and output traces in real time
 - Routes each simulated output exclusively to Off, Web Audio, MIDI CC,
   MIDI pitch bend, or MIDI note/gate

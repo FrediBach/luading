@@ -5,6 +5,7 @@ import type {
   SignalShape,
   SignalSourceConfig,
 } from '../types'
+import { normalizeFreeformCvPoints } from '../emulation/signal-sources'
 import { inputUsesTiming } from './input-source-controls'
 
 const INPUT_CONSTANTS: Record<InputKind, string> = {
@@ -20,6 +21,7 @@ const OUTPUT_CONSTANTS: Record<OutputKind, string> = {
 
 const INPUT_TYPE_LABELS: Record<SignalShape, string> = {
   manual: 'Manual / DC',
+  freeform: 'Freeform CV',
   sine: 'Sine LFO',
   triangle: 'Triangle LFO',
   sawUp: 'Rising Saw',
@@ -50,6 +52,13 @@ export function inputDefaultEntry(kind: InputKind, source: SignalSourceConfig) {
     if (source.timing.mode === 'clock') {
       properties.push(`Division: ${source.timing.division}`)
     }
+  }
+  if (source.shape === 'freeform') {
+    const numberText = (value: number) => Number(value.toFixed(6)).toString()
+    const points = normalizeFreeformCvPoints(source.freeformPoints)
+    properties.push(`Points: ${points.map((point) => (
+      `${numberText(point.phase)}@${numberText(point.volts)}`
+    )).join('|')}`)
   }
   return `${INPUT_CONSTANTS[kind]}, -- ${properties.join(', ')}`
 }

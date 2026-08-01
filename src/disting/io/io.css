@@ -924,6 +924,167 @@
   background: var(--workbench-surface-recessed, var(--surface-recessed));
 }
 
+.freeform-cv-editor {
+  position: relative;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  background: var(--surface-subtle);
+}
+
+.freeform-cv-editor-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.freeform-cv-editor-heading h3,
+.freeform-cv-editor-heading p,
+.freeform-cv-editor > p {
+  margin: 0;
+}
+
+.freeform-cv-editor-heading h3 {
+  color: var(--nt-text);
+  font: var(--font-label)/1 var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.freeform-cv-editor-heading p,
+.freeform-cv-editor-heading > span,
+.freeform-cv-editor > p {
+  margin-top: 4px;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1.3 var(--mono);
+}
+
+.freeform-cv-editor-heading > span {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.freeform-cv-plot {
+  width: 100%;
+  min-height: 150px;
+  overflow: visible;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
+  touch-action: none;
+}
+
+.freeform-cv-grid {
+  stroke: color-mix(in srgb, var(--nt-line) 65%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.freeform-cv-grid--zero {
+  stroke: color-mix(in srgb, var(--nt-muted) 65%, var(--nt-line));
+}
+
+.freeform-cv-path {
+  fill: none;
+  stroke: var(--nt-green);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.freeform-cv-point {
+  color: var(--nt-green);
+  cursor: grab;
+  outline: none;
+}
+
+.freeform-cv-point:active {
+  cursor: grabbing;
+}
+
+.freeform-cv-point-hit {
+  fill: transparent;
+}
+
+.freeform-cv-point-marker {
+  fill: var(--workbench-surface-recessed, var(--surface-recessed));
+  stroke: currentColor;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.freeform-cv-point.is-selected .freeform-cv-point-marker {
+  fill: var(--nt-green);
+  stroke: var(--nt-text);
+}
+
+.freeform-cv-point:focus-visible .freeform-cv-point-hit {
+  fill: color-mix(in srgb, var(--nt-green) 24%, transparent);
+  stroke: var(--nt-text);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.freeform-cv-axis-label {
+  fill: var(--nt-muted);
+  font: var(--font-micro)/1 var(--mono);
+  pointer-events: none;
+}
+
+.freeform-cv-point-fields {
+  display: grid;
+  grid-template-columns: auto minmax(88px, 1fr) minmax(88px, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.freeform-cv-point-fields > span {
+  color: var(--nt-muted);
+  font: var(--font-label)/1 var(--mono);
+}
+
+.freeform-cv-point-fields .control-value-field,
+.freeform-cv-actions button {
+  min-height: 30px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed, var(--surface-recessed));
+  color: var(--nt-text);
+  font: var(--font-label)/1 var(--mono);
+}
+
+.freeform-cv-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.freeform-cv-actions button:not(:disabled) {
+  cursor: pointer;
+}
+
+.freeform-cv-actions button:hover:not(:disabled),
+.freeform-cv-actions button:focus-visible {
+  border-color: var(--nt-green);
+}
+
+.freeform-cv-actions button:disabled {
+  color: var(--nt-dim);
+  cursor: not-allowed;
+}
+
+.freeform-cv-drag-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 @media (max-width: 620px) {
   .io-deck-header,
   .io-global-controls {
@@ -956,5 +1117,23 @@
   .web-midi-input-grid,
   .web-midi-output-grid {
     grid-template-columns: 1fr;
+  }
+
+  .freeform-cv-point-fields {
+    grid-template-columns: auto 1fr;
+  }
+
+  .freeform-cv-point-fields > .control-value-field:last-child {
+    grid-column: 2;
+  }
+
+  .freeform-cv-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (pointer: coarse) {
+  .freeform-cv-point-hit {
+    r: 15px;
   }
 }

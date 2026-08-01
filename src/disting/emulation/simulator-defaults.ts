@@ -21,6 +21,8 @@ const INPUT_SHAPES = new Map<string, SignalShape>([
   ['manual', 'manual'],
   ['manualdc', 'manual'],
   ['dc', 'manual'],
+  ['freeform', 'freeform'],
+  ['freeformcv', 'freeform'],
   ['sine', 'sine'],
   ['sinelfo', 'sine'],
   ['triangle', 'triangle'],
@@ -93,6 +95,24 @@ function booleanValue(value: string | undefined) {
   return undefined
 }
 
+function freeformPointsValue(value: string | undefined) {
+  if (!value) return undefined
+  const points = value.split('|').flatMap((entry) => {
+    const [phaseText, voltsText, ...extra] = entry.split('@')
+    if (extra.length > 0 || phaseText === undefined || voltsText === undefined) return []
+    const phase = Number(phaseText.trim())
+    const volts = Number(voltsText.trim())
+    return Number.isFinite(phase) && Number.isFinite(volts)
+      ? [{ phase, volts }]
+      : []
+  })
+  return normalizeSignalSource({
+    ...defaultSignalSource('cv', 0),
+    shape: 'freeform',
+    freeformPoints: points,
+  }).freeformPoints
+}
+
 function sourceForShape(shape: SignalShape, index: number) {
   const source = defaultSignalSource(
     shape === 'trigger' ? 'trigger' : shape === 'gate' ? 'gate' : 'cv',
@@ -115,6 +135,11 @@ function inputDefault(
   const division = CLOCK_DIVISIONS.includes(divisionValue as ClockDivision)
     ? divisionValue
     : undefined
+
+  if (shape === 'freeform') {
+    source.freeformPoints = freeformPointsValue(properties.get('points'))
+      ?? source.freeformPoints
+  }
 
   if (synced === false) {
     source.timing = { mode: 'free', frequencyHz: 1 }

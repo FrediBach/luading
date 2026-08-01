@@ -17,7 +17,9 @@ The emulator is split at the same boundaries as the hardware-facing script API:
 - `emulation/signal-sources.ts` owns the global musical clock, deterministic
   modular signal generators, and external held values/queued trigger pulses.
   Clocked sources share one continuous beat position; free-running sources use
-  simulation time.
+  simulation time. It also normalizes, bounds, and samples piecewise-linear
+  Freeform CV point arrays. Point-editor gestures and selection remain in
+  `io/`; only reusable voltage behavior belongs in emulation.
 - `emulation/display-api.ts` is the Lua drawing API adapter. It applies the Disting
   coordinate, colour, and default-parameter-line rules while producing renderer-
   independent commands.
