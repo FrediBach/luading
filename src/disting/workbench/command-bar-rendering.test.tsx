@@ -88,6 +88,8 @@ describe('command bar utilities', () => {
 
     expect(markup).toContain('Clock tool')
     expect(markup).toContain('aria-label="Script project"')
+    expect(markup).toContain('src="/luading-logo.svg"')
+    expect(markup).toContain('width="40" height="20" aria-hidden="true"')
     expect(markup).toContain('aria-label="Script execution"')
     expect(markup).toContain('aria-label="Script status"')
     expect(markup).toContain('aria-label="Workbench utilities"')

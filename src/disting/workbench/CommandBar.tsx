@@ -108,6 +108,14 @@ export function CommandBar({
         aria-label="Script project"
       >
         <div className="workbench-commandbar-brand" aria-label="Luading Disting NT Lua Simulator">
+          <img
+            className="workbench-commandbar-brand-icon"
+            src="/luading-logo.svg"
+            alt=""
+            width="40"
+            height="20"
+            aria-hidden="true"
+          />
           <strong>Lua<span style={{color:"#6df0a8"}}>!</span>ding</strong>
         </div>
 

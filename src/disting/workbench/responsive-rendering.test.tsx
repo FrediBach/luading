@@ -21,6 +21,15 @@ describe('responsive workbench rendering', () => {
     expect(workbenchCss).not.toContain('overflow-x: auto')
   })
 
+  it('uses the compact Luading mark at mobile widths', () => {
+    expect(workbenchCss).toMatch(
+      /@media \(max-width: 1180px\)[\s\S]*?\.workbench-commandbar-brand-icon \{[\s\S]*?display: block/,
+    )
+    expect(workbenchCss).toMatch(
+      /@media \(max-width: 620px\)[\s\S]*?\.workbench-commandbar-brand \{[\s\S]*?padding-right: 5px/,
+    )
+  })
+
   it('exposes Editor and Instrument as linked tabs below 900 px', () => {
     const markup = renderToStaticMarkup(
       <SplitPane
