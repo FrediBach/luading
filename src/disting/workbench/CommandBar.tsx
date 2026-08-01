@@ -102,74 +102,97 @@ export function CommandBar({
 }: Props) {
   return (
     <header className="workbench-commandbar">
-      <div className="workbench-commandbar-brand" aria-label="Luading Disting NT Lua Simulator">
-        <strong>Luading</strong>
+      <div
+        className="commandbar-section commandbar-section--project"
+        role="group"
+        aria-label="Script project"
+      >
+        <div className="workbench-commandbar-brand" aria-label="Luading Disting NT Lua Simulator">
+          <strong>Luading</strong>
+        </div>
+
+        <ScriptMenu
+          programName={programName}
+          selectedExampleId={selectedExampleId}
+          scriptGroups={scriptGroups}
+          loading={status === 'booting' || status === 'loading'}
+          onSelectExample={onSelectExample}
+        />
+
+        <ScriptFileActions
+          onNew={onNewScript}
+          onImport={onImportScript}
+          onExport={onExportScript}
+        />
       </div>
 
-      <ScriptMenu
-        programName={programName}
-        selectedExampleId={selectedExampleId}
-        scriptGroups={scriptGroups}
-        loading={status === 'booting' || status === 'loading'}
-        onSelectExample={onSelectExample}
-      />
-
-      <ScriptFileActions
-        onNew={onNewScript}
-        onImport={onImportScript}
-        onExport={onExportScript}
-      />
-
-      <RunControls
-        status={status}
-        programLoaded={programLoaded}
-        canToggleRunning={canToggleRunning}
-        onToggleRunning={onToggleRunning}
-        onRun={onRun}
-      />
-
-      <span className="commandbar-divider" aria-hidden="true" />
-
-      <ClockTransport clock={clock} onChange={onClockChange} />
-
-      <div className="workbench-commandbar-spacer" />
-
-      <SaveStateControl
-        saved={savedState}
-        disabled={!programLoaded}
-        onSave={onSaveState}
-      />
-
-      <HealthBadge
-        label={qualityLabel}
-        status={qualityStatus}
-        errorCount={qualityErrorCount}
-        warningCount={qualityWarningCount}
-        onOpen={onOpenProblems}
-      />
-
-      <RuntimeStatus status={status} simulatedSeconds={simulatedSeconds} />
-      <WorkspacePresetMenu
-        activePreset={workspacePreset}
-        onApply={onApplyWorkspacePreset}
-      />
-      {midi && (
-        <MidiEventTool
-          bytes={midi.bytes}
-          messages={midi.messages}
-          devices={midi.devices}
-          enabledInputIds={midi.enabledInputIds}
-          assignments={midi.assignments}
-          onBytesChange={onMidiBytesChange}
-          onSend={onSendMidi}
-          onConnect={onConnectMidi}
-          onToggleInput={onToggleMidiInput}
-          onAssignmentChange={onMidiAssignmentChange}
+      <div
+        className="commandbar-section commandbar-section--execution"
+        role="group"
+        aria-label="Script execution"
+      >
+        <RunControls
+          status={status}
+          programLoaded={programLoaded}
+          canToggleRunning={canToggleRunning}
+          onToggleRunning={onToggleRunning}
+          onRun={onRun}
         />
-      )}
-      <AppearancePopover textSize={textSize} onChange={onTextSizeChange} />
-      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-      <AboutPopover />
+
+        <span className="commandbar-divider" aria-hidden="true" />
+
+        <ClockTransport clock={clock} onChange={onClockChange} />
+      </div>
+
+      <div
+        className="commandbar-section commandbar-section--status"
+        role="group"
+        aria-label="Script status"
+      >
+        <SaveStateControl
+          saved={savedState}
+          disabled={!programLoaded}
+          onSave={onSaveState}
+        />
+
+        <HealthBadge
+          label={qualityLabel}
+          status={qualityStatus}
+          errorCount={qualityErrorCount}
+          warningCount={qualityWarningCount}
+          onOpen={onOpenProblems}
+        />
+
+        <RuntimeStatus status={status} simulatedSeconds={simulatedSeconds} />
+      </div>
+
+      <div
+        className="commandbar-section commandbar-section--utilities"
+        role="group"
+        aria-label="Workbench utilities"
+      >
+        <WorkspacePresetMenu
+          activePreset={workspacePreset}
+          onApply={onApplyWorkspacePreset}
+        />
+        {midi && (
+          <MidiEventTool
+            bytes={midi.bytes}
+            messages={midi.messages}
+            devices={midi.devices}
+            enabledInputIds={midi.enabledInputIds}
+            assignments={midi.assignments}
+            onBytesChange={onMidiBytesChange}
+            onSend={onSendMidi}
+            onConnect={onConnectMidi}
+            onToggleInput={onToggleMidiInput}
+            onAssignmentChange={onMidiAssignmentChange}
+          />
+        )}
+        <AppearancePopover textSize={textSize} onChange={onTextSizeChange} />
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        <AboutPopover />
+      </div>
     </header>
   )
 }

@@ -6,9 +6,14 @@ still runs at `/`; the layout does not change the Disting NT Lua contract.
 
 ## Main regions
 
-The command bar contains script selection, Lua file import/export, Lua
-Run/Reload and Pause/Resume, the separate test-signal clock, preset-state save,
-script health, runtime status, workspace presets, MIDI routing, and About.
+The command bar groups related controls into four predictable zones: script
+project actions, execution and test-signal clock controls, script status, and
+workbench utilities. On narrower viewports these zones move onto two or three
+rows instead of turning the bar into a horizontally scrolling strip. This
+keeps script selection and execution prominent while leaving a stable utility
+zone for additions such as sharing. The controls include Lua file
+import/export, Run/Reload and Pause/Resume, preset-state save, script health,
+runtime status, workspace presets, MIDI routing, appearance, and About.
 
 The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the

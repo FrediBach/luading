@@ -1,9 +1,26 @@
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { BottomDrawer } from './BottomDrawer'
 import { SplitPane } from './SplitPane'
 
+const workbenchCss = readFileSync(
+  new URL('./workbench.css', import.meta.url),
+  'utf8',
+)
+
 describe('responsive workbench rendering', () => {
+  it('reflows command groups instead of introducing horizontal scrolling', () => {
+    expect(workbenchCss).toContain("grid-template-areas: 'project execution status utilities'")
+    expect(workbenchCss).toMatch(
+      /@media \(max-width: 1500px\)[\s\S]*?'project execution'[\s\S]*?'status utilities'/,
+    )
+    expect(workbenchCss).toMatch(
+      /@media \(max-width: 520px\)[\s\S]*?'project project'[\s\S]*?'execution status'[\s\S]*?'utilities utilities'/,
+    )
+    expect(workbenchCss).not.toContain('overflow-x: auto')
+  })
+
   it('exposes Editor and Instrument as linked tabs below 900 px', () => {
     const markup = renderToStaticMarkup(
       <SplitPane

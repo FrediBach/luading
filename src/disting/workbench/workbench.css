@@ -36,17 +36,53 @@
 }
 
 .workbench-commandbar {
+  height: var(--workbench-command-height);
   min-width: 0;
+  box-sizing: border-box;
   padding: 0 10px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(390px, 1fr) auto auto auto;
+  grid-template-areas: 'project execution status utilities';
   align-items: center;
   gap: 7px;
   border-bottom: 1px solid var(--nt-line);
   background: var(--surface-command);
   box-shadow: 0 1px var(--surface-highlight);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  overflow: hidden;
+}
+
+.commandbar-section {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.commandbar-section + .commandbar-section {
+  padding-left: 7px;
+  border-left: 1px solid var(--nt-line);
+}
+
+.commandbar-section--project {
+  grid-area: project;
+}
+
+.commandbar-section--project .script-menu {
+  min-width: 0;
+  flex: 1 1 270px;
+}
+
+.commandbar-section--execution {
+  grid-area: execution;
+}
+
+.commandbar-section--status {
+  grid-area: status;
+}
+
+.commandbar-section--utilities {
+  grid-area: utilities;
+  justify-content: flex-end;
 }
 
 .workbench-commandbar-brand {
@@ -77,7 +113,6 @@
   font-weight: 600;
 }
 
-.workbench-commandbar-spacer,
 .workbench-statusbar-spacer {
   flex: 1;
 }
@@ -737,7 +772,7 @@
   line-height: 1.4;
 }
 
-.workbench-commandbar > .control-tooltip .device-save-state {
+.workbench-commandbar .device-save-state {
   min-height: var(--control-target);
 }
 
@@ -1236,6 +1271,34 @@
   white-space: nowrap;
 }
 
+@media (max-width: 1500px) {
+  .workbench-shell {
+    --workbench-command-height: max(84px, calc(var(--font-control) + var(--font-control) + 64px));
+  }
+
+  .workbench-shell[data-density='comfortable'] {
+    --workbench-command-height: max(94px, calc(var(--font-control) + var(--font-control) + 70px));
+  }
+
+  .workbench-shell[data-density='touch'] {
+    --workbench-command-height: max(102px, calc(var(--font-control) + var(--font-control) + 76px));
+  }
+
+  .workbench-commandbar {
+    padding-block: 6px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'project execution'
+      'status utilities';
+    row-gap: 6px;
+  }
+
+  .commandbar-section--status {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 @media (max-width: 1180px) {
   .workbench-commandbar-brand strong,
   .clock-transport-label,
@@ -1348,9 +1411,7 @@
   }
 
   .workbench-commandbar {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: thin;
+    overflow: hidden;
   }
 }
 
@@ -1367,7 +1428,7 @@
 
   .script-menu {
     min-width: 124px;
-    flex-basis: 154px;
+    flex: 1 1 154px;
   }
 
   .script-menu-trigger {
@@ -1403,6 +1464,42 @@
 
   .workbench-statusbar {
     gap: 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .workbench-shell {
+    --workbench-command-height: max(124px, calc(var(--font-control) + var(--font-control) + var(--font-control) + 90px));
+  }
+
+  .workbench-shell[data-density='comfortable'] {
+    --workbench-command-height: max(138px, calc(var(--font-control) + var(--font-control) + var(--font-control) + 99px));
+  }
+
+  .workbench-shell[data-density='touch'] {
+    --workbench-command-height: max(150px, calc(var(--font-control) + var(--font-control) + var(--font-control) + 108px));
+  }
+
+  .workbench-commandbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'project project'
+      'execution status'
+      'utilities utilities';
+  }
+
+  .commandbar-section--execution,
+  .commandbar-section--utilities {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .commandbar-section--utilities {
+    justify-content: flex-start;
+  }
+
+  .commandbar-section--project .script-menu {
+    flex-basis: auto;
   }
 }
 
