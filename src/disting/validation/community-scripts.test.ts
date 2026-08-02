@@ -76,7 +76,7 @@ describe('bundled community scripts', () => {
       }
     }
 
-    expect(filenames).toHaveLength(35)
+    expect(filenames).toHaveLength(36)
     expect(failures).toEqual([])
   }, 20_000)
 })

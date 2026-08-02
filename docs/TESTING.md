@@ -78,6 +78,14 @@ and global API names used by the simulator. Many functions use controlled or
 no-op test adapters; this environment proves Lua-boundary compatibility, not
 every production worker adapter's behavior.
 
+`strudel-mini-player.test.ts` loads the bundled hardcoded mini-notation player
+through that same Wasmoon bridge. It pins structural syntax, time modifiers,
+weights and ties, replication, seeded choice and degradation, Euclidean
+rhythms, polymeters, feet, ranges, colon velocity, polyphonic output, cycle
+pulses, and bounded parser failures. These tests establish the Lua parser and
+scheduler behavior; they do not compare audio, browser timing, or pseudorandom
+sequences with a particular Strudel build.
+
 Editor contract tests also expand the default API, lifecycle, and complete-script
 snippets and compile them with Wasmoon without executing the returned chunks.
 This keeps snippets syntactically valid at their default placeholder values and

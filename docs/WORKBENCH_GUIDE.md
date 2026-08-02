@@ -62,6 +62,31 @@ current generator or WebAudio setting as a complete, paste-ready `init()` table
 entry. Web MIDI routes are browser connections and cannot be represented by
 these source annotations; their context menu explains that limitation instead.
 
+### Strudel mini-notation stress player
+
+The bundled **Strudel Mini Notation Player** is a self-contained Disting NT Lua
+script with one hardcoded pattern. It parses and schedules the mini-notation
+forms documented by Strudel: fast and slow sequences (`[]` and `<>`), nesting,
+rests, stacks, weights and ties, replication, speed multiplication and division,
+cycle choice, degradation, and Euclidean rhythms. It also accepts the current
+symbol-cheat-sheet forms for polymeters and fixed steps (`{}` and `%`), feet
+(`.`), numeric ranges (`..`), and colon payloads.
+
+One pattern cycle is mapped to a four-beat bar. **Tempo** changes its BPM,
+**Gate** sets note-gate duration as a percentage of each event, and **Seed**
+makes choice and degradation repeatable. The reset input returns playback to
+cycle zero. Outputs 1–8 are four V/oct pitch and gate pairs; output 9 pulses at
+each cycle boundary. When more than four notes overlap, the player steals the
+voice whose gate would end first and increments the on-screen drop count.
+
+This example implements the [Strudel mini-notation language](https://strudel.cc/learn/mini-notation/),
+not Strudel's JavaScript pattern functions, sample engine, synths, effects, or
+browser scheduler. Random choices have deterministic seeded semantics but do
+not promise the same pseudorandom sequence as a particular Strudel release.
+The colon adapter treats a numeric second value as gate velocity, so `60:0.8`
+emits MIDI note 60 as 0 V with a 4 V gate. To change the pattern in this first
+version, edit the `MINI_NOTATION` constant in the script and reload it.
+
 ### Freeform CV
 
 Choose **Freeform CV** in an input's Signal generator inspector to create a
