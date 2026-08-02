@@ -622,11 +622,12 @@
   display: contents;
 }
 
-.scope-toolbar > .control-tooltip {
+.scope-pause-control {
   align-self: center;
+  margin-left: auto;
 }
 
-.scope-toolbar > .control-tooltip .control-icon-toggle {
+.scope-pause-control .control-icon-toggle {
   width: auto;
   white-space: nowrap;
 }

@@ -22,7 +22,7 @@ import {
   type CapturedScopeFrame,
 } from './scope-controls'
 import { ScopeLegend } from './ScopeLegend'
-import { ScopeToolbar } from './ScopeToolbar'
+import { ScopePauseButton, ScopeToolbar } from './ScopeToolbar'
 import './drawer.css'
 
 const WIDTH = 1000
@@ -164,7 +164,6 @@ export function ScopeWorkspace({
     <section className="scope-workspace" aria-label="Oscilloscope workspace">
       <div className="scope-controls">
         <ScopeToolbar
-          paused={paused}
           syncEnabled={syncEnabled}
           triggerProbe={triggerProbe}
           triggerEdge={triggerEdge}
@@ -177,11 +176,6 @@ export function ScopeWorkspace({
           program={program}
           triggerStatus={triggerStatus}
           triggerLocked={scopeWindow.locked}
-          onPausedChange={(nextPaused) => setCapturedFrame(
-            nextPaused
-              ? captureScopeFrame(liveTrace, inputs, outputs)
-              : null,
-          )}
           onSyncChange={setSyncEnabled}
           onTriggerProbeChange={setTriggerProbe}
           onTriggerEdgeChange={setTriggerEdge}
@@ -198,6 +192,15 @@ export function ScopeWorkspace({
           focusedProbeIndex={focusedProbeIndex}
           onProbeChange={onProbeChange}
           onProbeFocus={onProbeFocus}
+        />
+
+        <ScopePauseButton
+          paused={paused}
+          onPausedChange={(nextPaused) => setCapturedFrame(
+            nextPaused
+              ? captureScopeFrame(liveTrace, inputs, outputs)
+              : null,
+          )}
         />
       </div>
 

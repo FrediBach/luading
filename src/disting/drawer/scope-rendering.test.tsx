@@ -77,6 +77,12 @@ describe('scope workspace rendering', () => {
     expect(markup).toContain('0.50 V')
     expect(markup).toContain('scope-path scope-path--2 is-focused')
     expect(markup).toContain('preserveAspectRatio="none"')
+    expect(markup.indexOf('scope-pause-control')).toBeGreaterThan(
+      markup.lastIndexOf('scope-legend-chip'),
+    )
+    expect(drawerCss).toMatch(
+      /\.scope-pause-control\s*{[^}]*margin-left: auto;/s,
+    )
   })
 
   it('renders an explicit replacement chooser for a full probe bank', () => {
