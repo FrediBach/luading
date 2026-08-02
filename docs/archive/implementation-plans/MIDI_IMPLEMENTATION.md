@@ -1,5 +1,11 @@
 # Web MIDI implementation plan
 
+> **Historical snapshot.** Archived on 2026-08-02 after implementation. This
+> plan preserves the decisions and verification state from that work; it is not
+> a current specification. See the current
+> [MIDI manual-validation runbook](../../MIDI_MANUAL_VALIDATION.md) and
+> [architecture](../../ARCHITECTURE.md).
+
 ## Goal
 
 Luading will support Web MIDI through two complementary paths:

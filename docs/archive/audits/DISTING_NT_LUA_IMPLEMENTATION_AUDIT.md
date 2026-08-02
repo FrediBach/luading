@@ -1,5 +1,11 @@
 # Disting NT Lua 1.12 simulator implementation audit
 
+> **Historical snapshot.** Audited on 2026-07-31 and archived on 2026-08-02
+> after every F-01 through F-28 finding was re-audited. This document preserves
+> the implementation state and recommendations from that date; it is not a
+> current specification. Use the current
+> [conformance status](../../CONFORMANCE_STATUS.md) instead.
+
 Date: 2026-07-31
 
 ## Executive summary
@@ -11,7 +17,7 @@ output updates, typed input edges, parameter metadata, MIDI filtering, drawing
 primitives, firmware-derived fonts, and JSON state restoration before `init`.
 
 It is not yet a faithful simulator of the full contract in
-[`Disting NT Lua Scripting.md`](Disting%20NT%20Lua%20Scripting.md). The largest
+[`Disting NT Lua Scripting.md`](../../Disting%20NT%20Lua%20Scripting.md). The largest
 gaps are:
 
 1. There is no 28-bus, multi-algorithm preset pipeline. `getBusVoltage()` reads
@@ -111,10 +117,10 @@ The worker previously hard-coded both:
 It then exposed only `metadata.parameters` through `getParameterCount`,
 `getParameter`, `getParameterName`, `findParameter`, `focusParameter`, and the
 standard parameter line
-([`disting.worker.ts:216`](../src/disting/disting.worker.ts#L216),
-[`disting.worker.ts:461`](../src/disting/disting.worker.ts#L461),
-[`disting.worker.ts:353`](../src/disting/disting.worker.ts#L353),
-[`disting.worker.ts:375`](../src/disting/disting.worker.ts#L375)).
+([`disting.worker.ts:216`](../../../src/disting/disting.worker.ts#L216),
+[`disting.worker.ts:461`](../../../src/disting/disting.worker.ts#L461),
+[`disting.worker.ts:353`](../../../src/disting/disting.worker.ts#L353),
+[`disting.worker.ts:375`](../../../src/disting/disting.worker.ts#L375)).
 
 Consequences were:
 
@@ -146,12 +152,12 @@ output.
 
 The simulator instead returns `inputs[busIndex]` for algorithm zero or the
 current Lua script, and zero for every companion position
-([`disting.worker.ts:403`](../src/disting/disting.worker.ts#L403)). `inputs` is
+([`disting.worker.ts:403`](../../../src/disting/disting.worker.ts#L403)). `inputs` is
 only the script's declared logical input list, not the 28 system buses.
 
 The preset contains the current Lua script plus one hard-coded `Looper` fixture
 with two parameters
-([`preset-api.ts:19`](../src/disting/emulation/preset-api.ts#L19)). It has no bus
+([`preset-api.ts:19`](../../../src/disting/emulation/preset-api.ts#L19)). It has no bus
 inputs, outputs, routing, customized display name, variable parameter groups, or
 custom UI. As a result:
 
@@ -174,15 +180,15 @@ not hard-code API behavior to it.
 The manual distinguishes stepped outputs from outputs linearly interpolated
 between 1 ms `step()` calls. The simulator stores `outputKinds`, but both kinds
 are updated in the same `outputs` array only when a callback returns a value
-([`disting.worker.ts:147`](../src/disting/disting.worker.ts#L147),
-[`disting.worker.ts:615`](../src/disting/disting.worker.ts#L615)). Trace samples
+([`disting.worker.ts:147`](../../../src/disting/disting.worker.ts#L147),
+[`disting.worker.ts:615`](../../../src/disting/disting.worker.ts#L615)). Trace samples
 are captured at the same 1 ms control boundary. There is no interpolation state
 or higher-rate bus evaluation.
 
 `outputKinds` is otherwise used only to label an output and select a stepped or
 straight mini-plot path
-([`OutputChannelTile.tsx:74`](../src/disting/io/OutputChannelTile.tsx#L74),
-[`OutputChannelTile.tsx:101`](../src/disting/io/OutputChannelTile.tsx#L101)).
+([`OutputChannelTile.tsx:74`](../../../src/disting/io/OutputChannelTile.tsx#L74),
+[`OutputChannelTile.tsx:101`](../../../src/disting/io/OutputChannelTile.tsx#L101)).
 
 This means the simulator cannot validate the main behavioral difference between
 `kStepped` and `kLinear`.
@@ -200,13 +206,13 @@ The manual says a script's parameter values are handled automatically and
 `serialise()` adds arbitrary JSON-compatible state.
 
 The worker's `serialise` response contains only `serialise()` output (or
-`program.state`) ([`disting.worker.ts:744`](../src/disting/disting.worker.ts#L744)).
+`program.state`) ([`disting.worker.ts:744`](../../../src/disting/disting.worker.ts#L744)).
 The React coordinator stores only that value and sends it back as `state`
-([`DistingPlayground.tsx:164`](../src/disting/DistingPlayground.tsx#L164),
-[`DistingPlayground.tsx:218`](../src/disting/DistingPlayground.tsx#L218),
-[`DistingPlayground.tsx:295`](../src/disting/DistingPlayground.tsx#L295)).
+([`DistingPlayground.tsx:164`](../../../src/disting/DistingPlayground.tsx#L164),
+[`DistingPlayground.tsx:218`](../../../src/disting/DistingPlayground.tsx#L218),
+[`DistingPlayground.tsx:295`](../../../src/disting/DistingPlayground.tsx#L295)).
 On every load, parameter values are reset from metadata defaults
-([`disting.worker.ts:479`](../src/disting/disting.worker.ts#L479)).
+([`disting.worker.ts:479`](../../../src/disting/disting.worker.ts#L479)).
 
 The control therefore reports “State saved” while changed parameter values will
 not be restored.
@@ -224,13 +230,13 @@ The contract validator already reported errors such as more than 28 buses,
 invalid I/O shapes, bad parameter definitions, and non-table `init()` results.
 Before this fix, the worker nevertheless called `describeProgram()`, configured
 signal sources, posted `loaded`, and auto-started the script
-([`disting.worker.ts:467`](../src/disting/disting.worker.ts#L467),
-[`disting.worker.ts:474`](../src/disting/disting.worker.ts#L474),
-[`DistingPlayground.tsx:236`](../src/disting/DistingPlayground.tsx#L236)).
+([`disting.worker.ts:467`](../../../src/disting/disting.worker.ts#L467),
+[`disting.worker.ts:474`](../../../src/disting/disting.worker.ts#L474),
+[`DistingPlayground.tsx:236`](../../../src/disting/DistingPlayground.tsx#L236)).
 
 For example, an input table longer than 28 produced an error but
 `describeProgram()` still used its full length
-([`lua-contract.ts:166`](../src/disting/emulation/lua-contract.ts#L166)).
+([`lua-contract.ts:166`](../../../src/disting/emulation/lua-contract.ts#L166)).
 An `init()` function returning a string was converted to empty metadata and
 still loaded.
 
@@ -254,11 +260,11 @@ parameter values are passed to Lua as integers. A scale constant divides those
 integer fields and exposes the scaled value as a float.
 
 The validator previously checked only for finite numbers, not integers
-([`contract-validator.ts:267`](../src/disting/validation/contract-validator.ts#L267)).
+([`contract-validator.ts:267`](../../../src/disting/validation/contract-validator.ts#L267)).
 The normalizer and `setParameter()` path retained arbitrary fractional values for
 all non-enum parameters
-([`lua-contract.ts:145`](../src/disting/emulation/lua-contract.ts#L145),
-[`disting.worker.ts:267`](../src/disting/disting.worker.ts#L267)).
+([`lua-contract.ts:145`](../../../src/disting/emulation/lua-contract.ts#L145),
+[`disting.worker.ts:267`](../../../src/disting/disting.worker.ts#L267)).
 
 A definition such as `{ "Mode", 0, 10, 0.5, kNone }`, or a later
 `setParameter(..., 1.25)`, therefore worked in the simulator without a scale
@@ -279,8 +285,8 @@ functions explicitly make colour optional.
 
 The API manifest marks primitive colours optional and the display adapter
 defaults them to 15
-([`api-manifest.ts:72`](../src/disting/validation/api-manifest.ts#L72),
-[`display-api.ts:70`](../src/disting/emulation/display-api.ts#L70)). The editor
+([`api-manifest.ts:72`](../../../src/disting/validation/api-manifest.ts#L72),
+[`display-api.ts:70`](../../../src/disting/emulation/display-api.ts#L70)). The editor
 therefore suggests and accepts calls that the 1.12 manual does not guarantee on
 hardware.
 
@@ -296,9 +302,9 @@ extension if hardware testing proves it exists.
 The manual says `drawAlgorithmUI(index)` draws the specified algorithm's custom
 GUI. The implementation writes the algorithm name and the literal text
 “Simulated algorithm UI”
-([`display-api.ts:217`](../src/disting/emulation/display-api.ts#L217)). The unit
+([`display-api.ts:217`](../../../src/disting/emulation/display-api.ts#L217)). The unit
 test explicitly locks in the placeholder
-([`display-api.test.ts:96`](../src/disting/emulation/display-api.test.ts#L96)).
+([`display-api.test.ts:96`](../../../src/disting/emulation/display-api.test.ts#L96)).
 
 **Recommendation:** allow preset algorithms to provide a display callback or
 command source and delegate `drawAlgorithmUI()` to it. Mark this API as partial
@@ -311,13 +317,13 @@ until then.
 
 `setDisplayMode()` accepts the documented strings, but non-algorithm modes render
 only a mode label plus the algorithm name
-([`display-api.ts:47`](../src/disting/emulation/display-api.ts#L47),
-[`disting.worker.ts:574`](../src/disting/disting.worker.ts#L574)).
+([`display-api.ts:47`](../../../src/disting/emulation/display-api.ts#L47),
+[`disting.worker.ts:574`](../../../src/disting/disting.worker.ts#L574)).
 
 The manual says `"algorithm"` returns to whichever of the current algorithm's
 parameters or custom UI was most recently used. The worker does not track that
 history; it selects custom UI whenever the program has one
-([`disting.worker.ts:420`](../src/disting/disting.worker.ts#L420)).
+([`disting.worker.ts:420`](../../../src/disting/disting.worker.ts#L420)).
 
 **Recommendation:** model display navigation state independently from whether an
 algorithm supports custom UI, and implement or clearly label placeholder system
@@ -332,7 +338,7 @@ The manual says `setupUi()` is called whenever the algorithm UI appears for the
 first time, for example after moving from overview to algorithm view.
 
 The worker calls it once during load
-([`disting.worker.ts:482`](../src/disting/disting.worker.ts#L482)). Later
+([`disting.worker.ts:482`](../../../src/disting/disting.worker.ts#L482)). Later
 `setDisplayMode("ui")`, `setDisplayMode("algorithm")`, and UI re-entry after
 `exit()` do not call it. The only transport for returned pot positions is the
 initial `loaded` message, so the main-thread pot positions also cannot be
@@ -351,7 +357,7 @@ selection within the page, and pot 3 as value.
 
 The simulator has no page state. Pot 1 rounds the global parameter index down to
 a group of three; pot 2 independently selects from the entire parameter list
-([`disting.worker.ts:308`](../src/disting/disting.worker.ts#L308)). Turning pot 2
+([`disting.worker.ts:308`](../../../src/disting/disting.worker.ts#L308)). Turning pot 2
 therefore discards the page implied by pot 1.
 
 The missing system/routing parameters from F-01 make the standard UI diverge
@@ -367,7 +373,7 @@ as separate state, backed by the complete firmware parameter list.
 
 The manual contract says a trigger callback follows a monitored input edge. The
 playground's trigger button directly invokes `runtime.trigger(index + 1)`
-([`disting.worker.ts:785`](../src/disting/disting.worker.ts#L785)) instead of
+([`disting.worker.ts:785`](../../../src/disting/disting.worker.ts#L785)) instead of
 producing a high input sample and passing through `detectInputEdges()`.
 
 Consequences:
@@ -387,15 +393,15 @@ source and let the normal 1 ms edge path dispatch the callback.
 **Status:** Confirmed playground bug
 
 Changing a parameter renders the worker display but does not post a frame
-([`disting.worker.ts:775`](../src/disting/disting.worker.ts#L775)). The direct
+([`disting.worker.ts:775`](../../../src/disting/disting.worker.ts#L775)). The direct
 trigger action updates outputs but neither renders nor posts a frame. When the
 simulator is paused, no scheduler tick will publish those changes.
 
 UI and MIDI events attempt to post a frame, but `postFrame()` drops the request
 when another frame is awaiting acknowledgement and there is no deferred
 “dirty frame” for the paused case
-([`disting.worker.ts:643`](../src/disting/disting.worker.ts#L643),
-[`disting.worker.ts:718`](../src/disting/disting.worker.ts#L718)).
+([`disting.worker.ts:643`](../../../src/disting/disting.worker.ts#L643),
+[`disting.worker.ts:718`](../../../src/disting/disting.worker.ts#L718)).
 
 **Recommendation:** mark state dirty and guarantee one frame after the current
 acknowledgement, even while paused. Parameter and direct-trigger actions should
@@ -409,7 +415,7 @@ use the same publication path.
 The compact output tile honors `outputKinds` and adds horizontal hold segments
 for stepped outputs. The main scope's `pathFor()` always joins samples with
 straight `L` segments and does not receive the program or output kind
-([`ScopeWorkspace.tsx:50`](../src/disting/drawer/ScopeWorkspace.tsx#L50)).
+([`ScopeWorkspace.tsx:50`](../../../src/disting/drawer/ScopeWorkspace.tsx#L50)).
 
 This visually contradicts the stepped/linear distinction even before the core
 interpolation gap in F-03 is addressed.
@@ -427,8 +433,8 @@ The manual's receive filters include program change and aftertouch/channel
 pressure, which are two-byte channel messages. The worker accepts variable
 length input, but the UI always displays three fields and
 `parseMidiMessage()` requires exactly three bytes
-([`midi-event.ts:48`](../src/disting/workbench/midi-event.ts#L48),
-[`MidiEventTool.tsx:18`](../src/disting/workbench/MidiEventTool.tsx#L18)).
+([`midi-event.ts:48`](../../../src/disting/workbench/midi-event.ts#L48),
+[`MidiEventTool.tsx:18`](../../../src/disting/workbench/MidiEventTool.tsx#L18)).
 
 A script that checks `#message` therefore cannot be tested accurately for those
 message types through the playground.
@@ -449,10 +455,10 @@ no `self`.
 
 Luading creates one worker and one Lua engine for one loaded algorithm script.
 Every run terminates that worker and creates a new one
-([`DistingPlayground.tsx:210`](../src/disting/DistingPlayground.tsx#L210),
-[`DistingPlayground.tsx:315`](../src/disting/DistingPlayground.tsx#L315)). The
+([`DistingPlayground.tsx:210`](../../../src/disting/DistingPlayground.tsx#L210),
+[`DistingPlayground.tsx:315`](../../../src/disting/DistingPlayground.tsx#L315)). The
 runtime wrapper is specifically the algorithm-script `program:self` lifecycle
-([`lua-runtime.ts:153`](../src/disting/emulation/lua-runtime.ts#L153)).
+([`lua-runtime.ts:153`](../../../src/disting/emulation/lua-runtime.ts#L153)).
 
 There is no UI-script load mode, no concurrent algorithms, and no global state
 shared across program installs or a console.
@@ -473,7 +479,7 @@ algorithm.
 
 Luading's console is a filterable read-only log for `print`, errors, MIDI, I2C,
 and display events
-([`ConsoleWorkspace.tsx:27`](../src/disting/drawer/ConsoleWorkspace.tsx#L27)).
+([`ConsoleWorkspace.tsx:27`](../../../src/disting/drawer/ConsoleWorkspace.tsx#L27)).
 It has no command input or evaluation request.
 
 This is not a defect if the manual's separate console tool is intentionally out
@@ -493,8 +499,8 @@ The manual documents:
 
 The simulator registers bundled `lua-scripts/<group>/lib/*.lua` files through
 `package.preload`
-([`script-examples.ts:20`](../src/disting/script-examples.ts#L20),
-[`lua-runtime.ts:118`](../src/disting/emulation/lua-runtime.ts#L118)). The editor
+([`script-examples.ts:20`](../../../src/disting/script-examples.ts#L20),
+[`lua-runtime.ts:118`](../../../src/disting/emulation/lua-runtime.ts#L118)). The editor
 has no way to attach a new library or emulate the MicroSD paths, and modules from
 other groups are unavailable.
 
@@ -512,9 +518,9 @@ description, including the multiline-comment form.
 
 The static validator checks only whether the first non-empty line starts with
 `--`; it never checks that a second description comment exists
-([`static-validator.ts:377`](../src/disting/validation/static-validator.ts#L377)).
+([`static-validator.ts:377`](../../../src/disting/validation/static-validator.ts#L377)).
 The loader does not parse either comment, and `LoadedProgram` has no description
-field ([`types.ts:37`](../src/disting/types.ts#L37)).
+field ([`types.ts:37`](../../../src/disting/types.ts#L37)).
 
 The displayed program name instead comes from the returned table after the chunk
 has executed.
@@ -545,12 +551,12 @@ major/minor compatibility is the actual project guarantee.
 
 `getCpuCycleCount()` scales browser `performance.now()` as if it were a 600 MHz
 counter
-([`disting.worker.ts:336`](../src/disting/disting.worker.ts#L336)). It preserves
+([`disting.worker.ts:336`](../../../src/disting/disting.worker.ts#L336)). It preserves
 the 32-bit wrap shape, but it measures wall time, not Disting CPU cycles.
 
 I2C getters return zero-filled arrays, I2C commands only log events, and MIDI
 output only logs up to three bytes
-([`hardware-api.ts:33`](../src/disting/emulation/hardware-api.ts#L33)).
+([`hardware-api.ts:33`](../../../src/disting/emulation/hardware-api.ts#L33)).
 
 The architecture and About panel already warned that browser timing is not
 calibrated hardware performance. The API manifest previously marked these
@@ -572,9 +578,9 @@ emulation limitations.
 
 Text is rasterized and quantized explicitly, but smooth lines, boxes, and circles
 are handed to browser Canvas 2D antialiasing
-([`display-renderer.ts:97`](../src/disting/emulation/display-renderer.ts#L97),
-[`display-renderer.ts:109`](../src/disting/emulation/display-renderer.ts#L109),
-[`display-renderer.ts:136`](../src/disting/emulation/display-renderer.ts#L136)).
+([`display-renderer.ts:97`](../../../src/disting/emulation/display-renderer.ts#L97),
+[`display-renderer.ts:109`](../../../src/disting/emulation/display-renderer.ts#L109),
+[`display-renderer.ts:136`](../../../src/disting/emulation/display-renderer.ts#L136)).
 Browser-generated coverage is not converted back to the Disting's 16-shade
 framebuffer and can vary by rendering engine.
 
@@ -589,16 +595,16 @@ additional smoothing. Compare reference images with hardware.
 
 The scheduled draw path targets 30 fps, but the worker also invokes `draw()` on
 load, every front-panel event, every MIDI event, and every parameter change
-([`disting.worker.ts:494`](../src/disting/disting.worker.ts#L494),
-[`disting.worker.ts:718`](../src/disting/disting.worker.ts#L718),
-[`disting.worker.ts:735`](../src/disting/disting.worker.ts#L735),
-[`disting.worker.ts:775`](../src/disting/disting.worker.ts#L775)). A script with
+([`disting.worker.ts:494`](../../../src/disting/disting.worker.ts#L494),
+[`disting.worker.ts:718`](../../../src/disting/disting.worker.ts#L718),
+[`disting.worker.ts:735`](../../../src/disting/disting.worker.ts#L735),
+[`disting.worker.ts:775`](../../../src/disting/disting.worker.ts#L775)). A script with
 side effects in `draw()` can therefore behave according to UI/MIDI event rate
 rather than a 30 fps cadence.
 
 The worker suppresses the standard line only when the result is exactly
 JavaScript `true`
-([`disting.worker.ts:586`](../src/disting/disting.worker.ts#L586)). The manual
+([`disting.worker.ts:586`](../../../src/disting/disting.worker.ts#L586)). The manual
 contrasts Lua-false values with boolean true, but does not make it completely
 clear whether other Lua-truthy values suppress the line.
 
@@ -612,7 +618,7 @@ scheduler test.
 **Status:** Hardware confirmation required
 
 `detectInputEdges()` uses a fixed `>= 1 V` high threshold
-([`runtime-helpers.ts:76`](../src/disting/emulation/runtime-helpers.ts#L76)).
+([`runtime-helpers.ts:76`](../../../src/disting/emulation/runtime-helpers.ts#L76)).
 The Lua manual describes trigger and gate callbacks but does not specify the
 electrical threshold or hysteresis.
 
@@ -630,7 +636,7 @@ and make it a named, tested policy rather than a default function argument.
 
 The manual requires JSON-friendly state. `serialiseJsonState()` uses a
 `JSON.stringify`/`JSON.parse` round trip and only reports an error when that
-throws ([`runtime-helpers.ts:143`](../src/disting/emulation/runtime-helpers.ts#L143)).
+throws ([`runtime-helpers.ts:143`](../../../src/disting/emulation/runtime-helpers.ts#L143)).
 
 JSON serialization does not throw for every invalid semantic value:
 
@@ -652,15 +658,15 @@ JSON-compatible.
 The contract validator checks `ui`, `setupUi`, `midiMessage`, and `serialise`,
 but not the documented control callbacks such as `pot1Turn`, `encoder2Turn`,
 `pot3Push`, or `encoder2Release`
-([`contract-validator.ts:5`](../src/disting/validation/contract-validator.ts#L5)).
+([`contract-validator.ts:5`](../../../src/disting/validation/contract-validator.ts#L5)).
 
 At runtime, `callUi()` silently ignores a present non-function callback
-([`lua-runtime.ts:168`](../src/disting/emulation/lua-runtime.ts#L168)). A typo
+([`lua-runtime.ts:168`](../../../src/disting/emulation/lua-runtime.ts#L168)). A typo
 such as `pot3Turn = 1` therefore produces no contract diagnostic and no action.
 
 The static validator recognizes callback regions only for `init`, `step`,
 `trigger`, `gate`, and `draw`
-([`static-validator.ts:22`](../src/disting/validation/static-validator.ts#L22)).
+([`static-validator.ts:22`](../../../src/disting/validation/static-validator.ts#L22)).
 It cannot attribute API misuse inside custom UI, MIDI, setup, or serialization
 callbacks; drawing calls there may be missed until that branch executes.
 
@@ -676,9 +682,9 @@ IntelliSense, and tests.
 The manual allows one, two, or three MIDI bytes after the destination mask.
 The manifest models `sendMIDI(destinations, ...bytes)`, so static validation
 accepts zero bytes and any number of bytes
-([`api-manifest.ts:124`](../src/disting/validation/api-manifest.ts#L124)). The
+([`api-manifest.ts:124`](../../../src/disting/validation/api-manifest.ts#L124)). The
 hardware adapter silently truncates after three
-([`hardware-api.ts:57`](../src/disting/emulation/hardware-api.ts#L57)).
+([`hardware-api.ts:57`](../../../src/disting/emulation/hardware-api.ts#L57)).
 
 **Recommendation:** support explicit min/max variadic arity in API metadata and
 report calls outside the documented range.
@@ -691,7 +697,7 @@ report calls outside the documented range.
 The manual defines `exit()` for returning from a separate UI script. Separate UI
 scripts are not implemented, but `exit()` is registered for algorithm scripts
 and forces a custom algorithm UI into its parameter view
-([`disting.worker.ts:427`](../src/disting/disting.worker.ts#L427)).
+([`disting.worker.ts:427`](../../../src/disting/disting.worker.ts#L427)).
 
 This gives an algorithm script behavior that the manual documents only for UI
 scripts, while the intended context cannot use it.
@@ -714,14 +720,14 @@ The test named “manual conformance” checks:
 
 It does not instantiate the production worker or invoke the registered global
 adapters
-([`manual-1.12.conformance.test.ts:48`](../src/disting/conformance/manual-1.12.conformance.test.ts#L48)).
+([`manual-1.12.conformance.test.ts:48`](../../../src/disting/conformance/manual-1.12.conformance.test.ts#L48)).
 It therefore passes for the placeholder and mock APIs in F-02, F-08, and F-21.
 
 ### T-02 — Corpus tests stub Disting APIs instead of exercising their production adapters
 
 `createDistingLuaTestEngine()` installs every manifest function as a no-op, then
 overrides selected getters with constant mock values
-([`lua-test-environment.ts:13`](../src/disting/testing/lua-test-environment.ts#L13)).
+([`lua-test-environment.ts:13`](../../../src/disting/testing/lua-test-environment.ts#L13)).
 Corpus tests do cross the real Wasmoon lifecycle wrapper, but calls to parameter,
 preset, bus, display-mode, MIDI-output, I2C, and other Disting APIs do not cross
 the production worker adapters.

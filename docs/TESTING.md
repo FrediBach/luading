@@ -2,7 +2,8 @@
 
 Luading treats the bundled Disting NT Lua Scripting 1.12 manual as the
 conformance source for simulator behavior. Tests are split into layers so a
-failure points to the boundary that changed.
+failure points to the boundary that changed. Current capability and evidence
+limits are tracked in [CONFORMANCE_STATUS.md](CONFORMANCE_STATUS.md).
 
 ## Test layers
 
@@ -22,6 +23,11 @@ Run only this layer with:
 ```bash
 npm run test:conformance
 ```
+
+This layer primarily pins catalog metadata and selected invariants. It does not
+invoke every registered API through the production simulation worker, so a
+passing conformance test does not turn a partial, approximate, mock, or
+unsupported adapter into full behavioral support.
 
 ### Emulator units
 
@@ -68,7 +74,9 @@ custom UI callbacks, `setupUi`, MIDI, serialization, syntax errors, and
 
 The reusable test engine in
 `src/disting/testing/lua-test-environment.ts` installs the same Disting constants
-and global API surface used by the simulator.
+and global API names used by the simulator. Many functions use controlled or
+no-op test adapters; this environment proves Lua-boundary compatibility, not
+every production worker adapter's behavior.
 
 Editor contract tests also expand the default API, lifecycle, and complete-script
 snippets and compile them with Wasmoon without executing the returned chunks.
@@ -84,14 +92,14 @@ idempotent and isolated from ordinary Lua models.
 Syntax-validation tests use a persistent Wasmoon engine to cover valid source,
 malformed tokens and EOF errors, Lua 5.4 syntax, long strings and comments,
 non-execution of returned chunks, serialized engine reuse, stale source
-versions, and immediate removal of outdated syntax findings. All 58 bundled
-scripts also compile through the same editor validation path on one engine.
+versions, and immediate removal of outdated syntax findings. The entire bundled
+corpus also compiles through the same editor validation path on one engine.
 
 Source-index tests cover inline and referenced lifecycle functions, returned
 program and `init()` tables, metadata and nested MIDI fields, numeric and enum
 parameter positions, balanced API arguments, local/function declarations,
 partial results for malformed source, and representative Lua 5.4 syntax. They
-also require all 58 bundled scripts to produce a complete structural index and
+also require the entire bundled corpus to produce a complete structural index and
 verify that semantic diagnostic locations are resolved only for the matching
 model version.
 
@@ -122,18 +130,68 @@ required to expose no action. Marker tests cover range clamping, separate
 origin owners, concise messages, and contract-profile source labels; the Monaco
 adapter test pins workspace edits and model isolation.
 
+### Production API-adapter behavior
+
+Focused tests exercise the reusable adapters used by the production worker,
+including parameter/preset queries, display commands, hardware event recording,
+MIDI filtering/routing, external input batches, signal sources, and callback
+output application. The worker also compares its registered Disting API names
+with the manifest when a runtime loads.
+
+There is no single end-to-end harness that invokes every documented global
+through `disting.worker.ts`. A focused adapter test proves the shared behavior
+it calls, but not registration, orchestration, scheduling, or every interaction
+with the loaded runtime. Changes to a production global should therefore test
+the reusable adapter and, where practical, the worker/runtime path that exposes
+it.
+
 ### Script corpus regression
 
-All bundled scripts are loaded and exercised:
+All bundled scripts in these collections are loaded and exercised:
 
-- 23 scripts from `lua-scripts/expert-sleepers/`
-- 35 scripts from `lua-scripts/fredi-bach/`
+- `lua-scripts/expert-sleepers/`
+- `lua-scripts/fredi-bach/`
 
 The corpus tests call applicable `init`, `step`, `trigger`, `gate`, `draw`,
 custom UI, MIDI, and serialization callbacks and verify callback values survive
 the JavaScript/Lua boundary. Every bundled script must also pass contract
 validation; known-invalid metadata is corrected in the bundled copy rather than
 added to an expected-error allowlist.
+
+Corpus coverage does not prove the production behavior of every Disting global,
+complete preset/bus semantics, visual parity, or real hardware I/O.
+
+### React rendering and UI models
+
+Server-rendering tests use `renderToStaticMarkup()` to pin component structure,
+accessible names and states, responsive branch selection, routing/status text,
+and control semantics. Pure tests cover layout reducers, viewport decisions,
+shortcuts, scope selection, editors, formatters, and interaction math.
+
+These tests do not run browser effects, CSS layout, pointer capture, focus
+movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
+screen reader. User-interface changes need the applicable live browser checks
+in addition to model and rendering coverage.
+
+### Browser and manual acceptance
+
+There is no general browser end-to-end suite. Live acceptance is evidence for
+the browser, viewport, input method, assistive technology, deployment, or
+device recorded during that run; it is not automatically Disting hardware
+evidence. Use the workbench guide as the user-behavior checklist and record any
+unavailable browser matrix explicitly.
+
+Web MIDI has an additional deployment/device runbook in
+[`MIDI_MANUAL_VALIDATION.md`](MIDI_MANUAL_VALIDATION.md).
+
+### Documentation guardrails
+
+`src/documentation.test.ts` scans the repository documentation and fails when a
+local Markdown link is broken, an active document points to a removed canonical
+file or contains a developer-machine path, an archived document lacks its
+historical label, the documentation map omits a required current reference, or
+the documented test commands drift from `package.json`. These checks are
+structural and intentionally do not pin test-file, test-case, or corpus counts.
 
 ## Commands
 

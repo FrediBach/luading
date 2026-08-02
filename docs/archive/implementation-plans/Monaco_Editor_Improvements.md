@@ -1,6 +1,15 @@
+# Monaco editor improvements plan
+
+> **Historical snapshot.** Archived on 2026-08-02 after implementation. This
+> plan preserves the decisions and verification state from that work; it is not
+> a current specification. See the current [testing](../../TESTING.md),
+> [workbench](../../WORKBENCH_GUIDE.md), and
+> [architecture](../../ARCHITECTURE.md) documentation.
+
 The Monaco editor should evolve into a small Disting-specific language service, rather than simply adding more editor flags. The highest-value work is live Lua syntax checking, a canonical contract catalog, context-aware completions, and actionable diagnostics.
 
-Contract basis: :codex-file-citation{path="/Users/fredibach/Projects/luading/docs/Disting NT Lua Scripting.md" purpose="source"}
+Contract basis: the searchable
+[Disting NT Lua Scripting 1.12 extraction](../../Disting%20NT%20Lua%20Scripting.md).
 
 ## Current implementation
 
@@ -8,11 +17,11 @@ The implementation has a sound architectural base:
 
 | Area | Current behavior | Limitation |
 |---|---|---|
-| Editor lifecycle | Monaco is lazy-loaded, owns its model, and is disposed correctly in [DistingCodeEditor.tsx](/Users/fredibach/Projects/luading/src/disting/editor/DistingCodeEditor.tsx:103). | Language registration is global and its returned disposable is ignored. |
-| Lua mode | Monaco’s generic basic Lua contribution provides tokenization, comments, brackets, and quote pairing in [monaco.ts](/Users/fredibach/Projects/luading/src/disting/editor/monaco.ts:1). | It is not a Lua language service: no syntax validation, scoped symbols, navigation, or Lua-aware indentation rules. |
-| Disting IntelliSense | Custom completions, hovers, signatures, and snippets are registered in [disting-intellisense.ts](/Users/fredibach/Projects/luading/src/disting/editor/disting-intellisense.ts:351). | They use hand-maintained lists and regular expressions with little source context. |
+| Editor lifecycle | Monaco is lazy-loaded, owns its model, and is disposed correctly in [DistingCodeEditor.tsx](../../../src/disting/editor/DistingCodeEditor.tsx). | Language registration is global and its returned disposable is ignored. |
+| Lua mode | Monaco’s generic basic Lua contribution provides tokenization, comments, brackets, and quote pairing in [monaco.ts](../../../src/disting/editor/monaco.ts). | It is not a Lua language service: no syntax validation, scoped symbols, navigation, or Lua-aware indentation rules. |
+| Disting IntelliSense | Custom completions, hovers, signatures, and snippets are registered in [disting-intellisense.ts](../../../src/disting/editor/disting-intellisense.ts). | They use hand-maintained lists and regular expressions with little source context. |
 | Static validation | A debounced worker checks API arity, draw context, hot-path allocations, read-only parameters, and headers. | It is token-based, recognises only five callbacks, and does not parse Lua syntax. |
-| Contract/runtime validation | Running a script validates evaluated metadata and callback results. | Most findings have no source range, so [the marker adapter drops them](/Users/fredibach/Projects/luading/src/disting/editor/DistingCodeEditor.tsx:49). |
+| Contract/runtime validation | Running a script validates evaluated metadata and callback results. | Most findings have no source range, so [the marker adapter drops them](../../../src/disting/editor/DistingCodeEditor.tsx). |
 | Diagnostics UI | Ranged findings become Monaco markers; all findings appear in Problems. | There are no quick fixes, diagnostic gutter icons, or separate marker owners by origin. |
 
 ## Important correctness gaps
@@ -25,7 +34,7 @@ These should be addressed before adding broader convenience features:
 - The editor’s constant list is separate from the runtime and manifest. It omits `kMilliseconds` and the compatibility aliases used by bundled official scripts, such as `kInt`, `kInteger`, `kEnum`, and `kBool`.
 - Those aliases are not all documented by the 1.12 manual. They need provenance such as “manual”, “hardware verified”, or “observed in official scripts”, rather than being presented as equally documented.
 - The complete-script snippet starts with `local out = {}` instead of the two header comments the static validator recommends, so a newly inserted scaffold diagnoses itself.
-- Lifecycle metadata is duplicated. IntelliSense knows a subset of callbacks, static validation recognises only `init`, `step`, `trigger`, `gate`, and `draw`, while contract validation has a different nine-callback list. The existing audit already identifies this in [F-26](/Users/fredibach/Projects/luading/docs/DISTING_NT_LUA_IMPLEMENTATION_AUDIT.md:647).
+- Lifecycle metadata is duplicated. IntelliSense knows a subset of callbacks, static validation recognises only `init`, `step`, `trigger`, `gate`, and `draw`, while contract validation has a different nine-callback list. The existing audit already identifies this in [F-26](../audits/DISTING_NT_LUA_IMPLEMENTATION_AUDIT.md).
 - Completion suggestions are global rather than contextual. For example, input, output, unit, scale, MIDI message, and display-mode constants are not filtered to the field being edited.
 - Signature help scans eight lines using a regular expression. Nested calls, strings containing commas, table constructors, and multiline calls can select the wrong function or argument.
 - `showWords: false` means local variables and functions receive no useful completion because Monaco’s basic Lua mode has no symbol service.
@@ -35,7 +44,7 @@ These should be addressed before adding broader convenience features:
 
 ### Phase 1: Establish a canonical language contract
 
-Extend [api-manifest.ts](/Users/fredibach/Projects/luading/src/disting/validation/api-manifest.ts:36) from a display-oriented API list into structured contract metadata.
+Extend [api-manifest.ts](../../../src/disting/validation/api-manifest.ts) from a display-oriented API list into structured contract metadata.
 
 Changes:
 

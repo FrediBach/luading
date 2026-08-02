@@ -1,3 +1,10 @@
+# Disting NT Lua Scripting 1.12 — searchable extraction
+
+> **Extraction notice.** This file is a searchable Markdown extraction of the
+> official [Disting NT Lua Scripting 1.12 PDF](Disting%20NT%20Lua%20Scripting%201.12.pdf).
+> It is not an independent source of truth and may contain conversion errors.
+> Resolve discrepancies in favor of the PDF, or verified hardware behavior.
+
 Lua scripting
 
 Version 1.12

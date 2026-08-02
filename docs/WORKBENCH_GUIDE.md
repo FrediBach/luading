@@ -2,7 +2,9 @@
 
 Luading uses a fixed-height development workbench so the editor, simulated
 Disting controls, parameters, and active I/O stay close together. The simulator
-still runs at `/`; the layout does not change the Disting NT Lua contract.
+still runs at `/`; the layout does not change the Disting NT Lua contract. See
+[CONFORMANCE_STATUS.md](CONFORMANCE_STATUS.md) for current fidelity boundaries
+and hardware-confirmation needs.
 
 ## Main regions
 
@@ -93,15 +95,17 @@ to the script and to Disting NT hardware. Direct input edits remain session
 state and reset when a different Lua program loads unless copied into such a
 default annotation.
 
-Scope, Problems, Console, and Performance share the bottom drawer. Select the
-active tab again to collapse it. The drawer handle supports pointer drag and
-keyboard resizing. Drawer filters and other local view state are retained while
-switching tabs. Scope legend chips show compact source identifiers such as
-**IN 1** and **OUT 1**; hover a source to see its full signal name. Use the
-scope's **Pause** control to capture the current time slice. Trigger, scale, and
-probe controls remain available while the trace and its displayed channel
-values are frozen; choose **Resume** to return to the live trace. Pausing the
-scope does not pause the Lua runtime.
+Scope, Problems, Console, and Performance share the bottom drawer. The Console
+tab is a read-only event log for script prints, errors, MIDI, I2C, and display
+events; it is not the Disting NT's interactive Lua shell and cannot evaluate
+commands. Select the active tab again to collapse the drawer. The drawer handle
+supports pointer drag and keyboard resizing. Drawer filters and other local
+view state are retained while switching tabs. Scope legend chips show compact
+source identifiers such as **IN 1** and **OUT 1**; hover a source to see its
+full signal name. Use the scope's **Pause** control to capture the current time
+slice. Trigger, scale, and probe controls remain available while the trace and
+its displayed channel values are frozen; choose **Resume** to return to the
+live trace. Pausing the scope does not pause the Lua runtime.
 
 With **Sync** enabled, the Trigger menu can lock the scope to an automatic
 voltage crossing, a selected probe and level, or the shared **Global clock**.

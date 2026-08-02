@@ -1,5 +1,11 @@
 # Freeform CV input implementation plan
 
+> **Historical snapshot.** Archived on 2026-08-02 after implementation. This
+> plan preserves the decisions and verification state from that work; it is not
+> a current specification. See the current
+> [workbench guide](../../WORKBENCH_GUIDE.md) and
+> [architecture](../../ARCHITECTURE.md).
+
 ## Status
 
 Implemented on 2026-08-01. Automated verification is complete; live browser
@@ -370,7 +376,7 @@ it finite. Document that these comments are Luading hints, not Disting metadata.
 - `docs/ARCHITECTURE.md`
   - record freeform point normalization/interpolation as browser-local signal
     generation and preserve the worker boundary description.
-- `src/disting/ARCHITECTURE.md`
+- `docs/ARCHITECTURE.md`
   - add the point-based source to the lower-level `signal-sources.ts` ownership
     notes without moving editor interaction policy into emulation.
 - `docs/TESTING.md`

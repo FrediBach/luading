@@ -9,8 +9,8 @@ as a permanent redirect in the Vercel configuration.
 ## What it does
 
 - Runs a persistent Lua 5.4 VM in an isolated Web Worker
-- Simulates the Disting NT lifecycle callbacks, including `init`, `step`,
-  `trigger`, `gate`, `draw`, MIDI, UI, and preset state
+- Simulates the Disting NT algorithm lifecycle callbacks, including `init`,
+  `step`, `trigger`, `gate`, `draw`, MIDI, custom UI, and script state
 - Provides editable CV, freeform point-drawn waveforms, gate, trigger, clock,
   parameter, and front-panel inputs
 - Renders the 256×64 display and output traces in real time
@@ -59,8 +59,8 @@ npm run test:coverage
 ```
 
 The test suite includes manual conformance checks, real Lua/Wasmoon lifecycle
-tests, simulator-core units, and regression execution of all 58 bundled Lua
-scripts. See [`docs/TESTING.md`](docs/TESTING.md) for the test matrix and
+tests, simulator-core units, and regression execution of the complete bundled
+Lua corpus. See [`docs/TESTING.md`](docs/TESTING.md) for the test matrix and
 coverage policy. The production build is written to `dist/`.
 
 ## Project structure
@@ -72,11 +72,14 @@ lua-scripts/fredi-bach/      Additional bundled example scripts
 docs/                        Disting NT Lua scripting reference
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the complete system
-architecture and [`src/disting/ARCHITECTURE.md`](src/disting/ARCHITECTURE.md)
-for lower-level emulator implementation notes. See
-[`docs/WORKBENCH_GUIDE.md`](docs/WORKBENCH_GUIDE.md) for the workspace layout,
-controls, shortcuts, and narrow-screen behavior.
+Start with the [`docs/README.md`](docs/README.md) documentation map. It explains
+which sources are current and how hardware evidence, the official manual,
+simulator metadata, active plans, and historical snapshots relate. See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the current system
+architecture and [`docs/WORKBENCH_GUIDE.md`](docs/WORKBENCH_GUIDE.md) for the
+workspace layout, controls, shortcuts, and narrow-screen behavior. Current Lua
+support boundaries are tracked in
+[`docs/CONFORMANCE_STATUS.md`](docs/CONFORMANCE_STATUS.md).
 
 ## Deploying to Vercel
 

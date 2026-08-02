@@ -1,5 +1,11 @@
 # Compact VST-Style UI Implementation Plan
 
+> **Historical snapshot.** Archived on 2026-08-02 after implementation. This
+> plan preserves the decisions and verification state from that work; it is not
+> a current specification. See the current
+> [workbench guide](../../WORKBENCH_GUIDE.md) and
+> [architecture](../../ARCHITECTURE.md).
+
 ## Status
 
 Implementation complete; live browser acceptance remains pending. This
