@@ -176,7 +176,12 @@ describe('Web MIDI input routing', () => {
 })
 
 describe('Web MIDI output trace routing', () => {
-  const point = (time: number, outputs: number[]) => ({ time, inputs: [], outputs })
+  const point = (time: number, outputs: number[]) => ({
+    time,
+    clockBeats: time * 2,
+    inputs: [],
+    outputs,
+  })
 
   it('scales, clamps, deduplicates, and rate-limits CC output', () => {
     const router = new WebMidiOutputTraceRouter()

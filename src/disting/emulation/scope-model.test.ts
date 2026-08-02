@@ -3,11 +3,17 @@ import type { ScopeSource, TracePoint } from '../types'
 import {
   readTracePoint,
   selectAutomaticTrigger,
+  selectClockScopeWindow,
   selectScopeWindow,
 } from './scope-model'
 
-function point(time: number, input: number, output: number): TracePoint {
-  return { time, inputs: [input], outputs: [output] }
+function point(
+  time: number,
+  input: number,
+  output: number,
+  clockBeats = time * 2,
+): TracePoint {
+  return { time, clockBeats, inputs: [input], outputs: [output] }
 }
 
 const input: ScopeSource = { kind: 'input', index: 0 }
@@ -60,5 +66,37 @@ describe('oscilloscope model', () => {
       locked: false,
     })
     expect(window.points).toEqual(trace.slice(1))
+  })
+
+  it('locks to the recorded global-clock phase without a voltage edge', () => {
+    const trace = [
+      point(0, 0, 0, 0),
+      point(0.5, 0, 0, 0.4),
+      point(1, 0, 0, 0.8),
+      point(1.5, 0, 0, 1.2),
+      point(2.2, 0, 0, 1.2),
+    ]
+    const window = selectClockScopeWindow(trace, 0.8, 0.25)
+
+    expect(window.locked).toBe(true)
+    expect(window.triggerTime).toBeCloseTo(1.25)
+    expect(window.startTime).toBeCloseTo(1.05)
+    expect(window.endTime).toBeCloseTo(1.85)
+  })
+
+  it('waits on the latest time window until a global-clock beat is available', () => {
+    const trace = [
+      point(1, 0, 0, 0.5),
+      point(1.5, 0, 0, 0.5),
+      point(2, 0, 0, 0.5),
+    ]
+    const window = selectClockScopeWindow(trace, 0.8)
+
+    expect(window).toMatchObject({
+      startTime: 1.2,
+      endTime: 2,
+      triggerTime: null,
+      locked: false,
+    })
   })
 })

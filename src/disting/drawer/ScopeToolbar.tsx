@@ -4,14 +4,14 @@ import {
   Tooltip,
   ValueField,
 } from '../controls'
-import type { TriggerEdge } from '../emulation/scope-model'
+import type { ScopeTriggerSource, TriggerEdge } from '../emulation/scope-model'
 import type { LoadedProgram, ScopeProbe } from '../types'
 import { scopeSourceLabel } from './scope-controls'
 
 interface Props {
   paused: boolean
   syncEnabled: boolean
-  triggerProbe: 'auto' | number
+  triggerProbe: ScopeTriggerSource
   triggerEdge: TriggerEdge
   triggerLevel: number
   timeZoomIndex: number
@@ -24,7 +24,7 @@ interface Props {
   triggerLocked: boolean
   onPausedChange(paused: boolean): void
   onSyncChange(enabled: boolean): void
-  onTriggerProbeChange(probe: 'auto' | number): void
+  onTriggerProbeChange(probe: ScopeTriggerSource): void
   onTriggerEdgeChange(edge: TriggerEdge): void
   onTriggerLevelChange(level: number): void
   onTimeZoomChange(index: number): void
@@ -88,12 +88,13 @@ export function ScopeToolbar({
               aria-label="Scope trigger source"
               value={triggerProbe}
               onChange={(event) => onTriggerProbeChange(
-                event.target.value === 'auto'
-                  ? 'auto'
+                event.target.value === 'auto' || event.target.value === 'clock'
+                  ? event.target.value
                   : Number(event.target.value),
               )}
             >
               <option value="auto">Auto source + level</option>
+              <option value="clock">Global clock</option>
               {probes.map((probe, index) => (
                 <option value={index} key={probe.id}>
                   CH {index + 1} · {scopeSourceLabel(probe.source, program)}
@@ -101,16 +102,18 @@ export function ScopeToolbar({
               ))}
             </select>
           </label>
-          <SegmentedSelector
-            label="Trigger edge"
-            value={triggerEdge}
-            options={[
-              { value: 'rising', label: 'Rising' },
-              { value: 'falling', label: 'Falling' },
-            ]}
-            onChange={(edge) => onTriggerEdgeChange(edge as TriggerEdge)}
-          />
-          {triggerProbe !== 'auto' && (
+          {triggerProbe !== 'clock' && (
+            <SegmentedSelector
+              label="Trigger edge"
+              value={triggerEdge}
+              options={[
+                { value: 'rising', label: 'Rising' },
+                { value: 'falling', label: 'Falling' },
+              ]}
+              onChange={(edge) => onTriggerEdgeChange(edge as TriggerEdge)}
+            />
+          )}
+          {typeof triggerProbe === 'number' && (
             <ValueField
               label="Scope trigger level"
               value={triggerLevel}

@@ -39,9 +39,9 @@ function source(
 }
 
 const trace: TracePoint[] = [
-  { time: 0, inputs: [0, 1], outputs: [] },
-  { time: 0.001, inputs: [5, -1], outputs: [] },
-  { time: 0.002, inputs: [0, 0], outputs: [] },
+  { time: 0, clockBeats: 0, inputs: [0, 1], outputs: [] },
+  { time: 0.001, clockBeats: 0.002, inputs: [5, -1], outputs: [] },
+  { time: 0.002, clockBeats: 0.004, inputs: [0, 0], outputs: [] },
 ]
 const traceHistory = new TraceHistory()
 traceHistory.append(trace)

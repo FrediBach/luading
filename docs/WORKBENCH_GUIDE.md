@@ -103,6 +103,13 @@ probe controls remain available while the trace and its displayed channel
 values are frozen; choose **Resume** to return to the live trace. Pausing the
 scope does not pause the Lua runtime.
 
+With **Sync** enabled, the Trigger menu can lock the scope to an automatic
+voltage crossing, a selected probe and level, or the shared **Global clock**.
+Global-clock sync uses the clock's recorded beat phase, so it remains stable
+across tempo changes and while clock-synced inputs reset or reshape the plotted
+signal. This is the most predictable view for scripts such as the bundled
+Vector LFO. Disable **Sync** for a continuously moving latest-time window.
+
 At widths below 900 CSS pixels, the center workspace becomes top-level Editor
 and Instrument tabs instead of one long vertical page. Arrow keys, Home, and
 End move between those tabs. Inspectors become bottom sheets at phone widths,

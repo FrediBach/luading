@@ -95,6 +95,7 @@ describe('input channel control helpers', () => {
   it('downsamples recent real trace data while retaining extrema', () => {
     const trace: TracePoint[] = Array.from({ length: 200 }, (_, index) => ({
       time: index / 1000,
+      clockBeats: index / 500,
       inputs: [index === 60 ? 9 : index === 130 ? -8 : Math.sin(index)],
       outputs: [],
     }))

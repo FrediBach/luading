@@ -277,6 +277,7 @@ export interface GlobalClockConfig {
 
 export interface TracePoint {
   time: number
+  clockBeats: number
   inputs: number[]
   outputs: number[]
 }

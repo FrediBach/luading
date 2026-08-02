@@ -29,6 +29,7 @@ const probes: ScopeProbe[] = [
 
 const trace: TracePoint[] = Array.from({ length: 600 }, (_, index) => ({
   time: index * 0.001,
+  clockBeats: index * 0.002,
   inputs: [index % 20 < 10 ? 0 : 5],
   outputs: [index % 40 < 20 ? 0 : 5, (index % 12) / 12],
 }))
@@ -65,6 +66,7 @@ describe('scope workspace rendering', () => {
     expect(markup).toContain('role="switch" aria-label="Sync" checked=""')
     expect(markup).not.toContain('Scope synchronization')
     expect(markup).toContain('Trigger edge')
+    expect(markup).toContain('<option value="clock">Global clock</option>')
     expect(markup).toContain('50 ms/div')
     expect(markup).toContain('5 V/div')
     expect(markup.match(/scope-legend-chip/g)).toHaveLength(4)

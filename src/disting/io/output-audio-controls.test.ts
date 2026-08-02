@@ -13,9 +13,9 @@ import {
 describe('output audio controls', () => {
   it('extracts recent output values and provides a visible plot range', () => {
     const trace = [
-      { time: 0, inputs: [], outputs: [0, 2] },
-      { time: 0.001, inputs: [], outputs: [5, 3] },
-      { time: 0.002, inputs: [], outputs: [0, 4] },
+      { time: 0, clockBeats: 0, inputs: [], outputs: [0, 2] },
+      { time: 0.001, clockBeats: 0.002, inputs: [], outputs: [5, 3] },
+      { time: 0.002, clockBeats: 0.004, inputs: [], outputs: [0, 4] },
     ]
 
     expect(outputTraceValues(trace, 1, 2)).toEqual([3, 4])
@@ -28,6 +28,7 @@ describe('output audio controls', () => {
   it('downsamples output plots directly while retaining extrema', () => {
     const trace = Array.from({ length: 1000 }, (_, index) => ({
       time: index / 1000,
+      clockBeats: index / 500,
       inputs: [],
       outputs: [index === 120 ? 8 : index === 760 ? -7 : 0],
     }))

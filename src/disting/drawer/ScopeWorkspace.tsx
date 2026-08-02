@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import {
   readTracePoint,
   selectAutomaticTrigger,
+  selectClockScopeWindow,
   selectScopeWindow,
+  type ScopeTriggerSource,
   type TriggerEdge,
   type TriggerSelection,
 } from '../emulation/scope-model'
@@ -86,7 +88,7 @@ export function ScopeWorkspace({
   onProbeFocus,
 }: Props) {
   const [syncEnabled, setSyncEnabled] = useState(true)
-  const [triggerProbe, setTriggerProbe] = useState<'auto' | number>('auto')
+  const [triggerProbe, setTriggerProbe] = useState<ScopeTriggerSource>('auto')
   const [triggerEdge, setTriggerEdge] = useState<TriggerEdge>('rising')
   const [triggerLevel, setTriggerLevel] = useState(0)
   const [timeZoomIndex, setTimeZoomIndex] = useState(3)
@@ -110,6 +112,7 @@ export function ScopeWorkspace({
   const selectedTrigger = useMemo<TriggerSelection | null>(() => {
     if (!syncEnabled) return null
     if (triggerProbe === 'auto') return automaticTrigger
+    if (triggerProbe === 'clock') return null
     const source = probes[triggerProbe]?.source
     return source
       ? { source, level: triggerLevel, probeIndex: triggerProbe }
@@ -117,14 +120,16 @@ export function ScopeWorkspace({
   }, [automaticTrigger, probes, syncEnabled, triggerLevel, triggerProbe])
 
   const scopeWindow = useMemo(
-    () => selectScopeWindow(
-      trace,
-      durationSeconds,
-      selectedTrigger,
-      triggerEdge,
-      PRE_TRIGGER_RATIO,
-    ),
-    [durationSeconds, selectedTrigger, trace, triggerEdge],
+    () => triggerProbe === 'clock' && syncEnabled
+      ? selectClockScopeWindow(trace, durationSeconds, PRE_TRIGGER_RATIO)
+      : selectScopeWindow(
+          trace,
+          durationSeconds,
+          selectedTrigger,
+          triggerEdge,
+          PRE_TRIGGER_RATIO,
+        ),
+    [durationSeconds, selectedTrigger, syncEnabled, trace, triggerEdge, triggerProbe],
   )
   const renderPoints = useMemo(
     () => downsampleScopeTrace(
@@ -137,13 +142,19 @@ export function ScopeWorkspace({
 
   const triggerStatus = paused
     ? scopeWindow.locked
-      ? `paused · locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
+      ? triggerProbe === 'clock'
+        ? 'paused · locked · global clock'
+        : `paused · locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
       : 'paused'
     : !syncEnabled
       ? 'free run'
       : scopeWindow.locked
-        ? `locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
-        : 'waiting for edge'
+        ? triggerProbe === 'clock'
+          ? 'locked · global clock'
+          : `locked · CH ${selectedTrigger ? selectedTrigger.probeIndex + 1 : '-'}`
+        : triggerProbe === 'clock'
+          ? 'waiting for clock'
+          : 'waiting for edge'
   const voltageRange = voltsPerDivision * VERTICAL_DIVISIONS / 2
   const triggerVisible = selectedTrigger
     && selectedTrigger.level >= -voltageRange

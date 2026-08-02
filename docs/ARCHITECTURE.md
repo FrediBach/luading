@@ -153,7 +153,7 @@ Each simulated 1 ms step follows this order:
 6. Call `step(dt, inputs)`.
 7. Apply sparse `step` output updates.
 8. Advance simulation time and the shared musical clock.
-9. Add an immutable input/output snapshot to the pending trace.
+9. Add an immutable clock-beat/input/output snapshot to the pending trace.
 
 Generator and Web MIDI inputs share this exact sequence. The main thread maps
 each physical MIDI message into one atomic batch of external input updates.
@@ -206,7 +206,8 @@ The core emulator is split by hardware-facing responsibility:
   parameter APIs.
 - `hardware-api.ts` clamps and records MIDI/I2C operations. It never accesses
   physical hardware.
-- `scope-model.ts` selects triggers and trace windows independently of React.
+- `scope-model.ts` selects voltage or recorded-global-clock triggers and trace
+  windows independently of React.
 - `trace-history.ts` bounds high-frequency input/output samples and keeps the
   nested history opaque to React development instrumentation.
 - `audio-routing.ts` turns dense output traces into musical events.

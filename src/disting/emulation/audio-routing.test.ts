@@ -7,7 +7,7 @@ import {
 import type { TracePoint } from '../types'
 
 function point(time: number, outputs: number[]): TracePoint {
-  return { time, inputs: [], outputs }
+  return { time, clockBeats: time * 2, inputs: [], outputs }
 }
 
 describe('collectAudioVoiceEvents', () => {

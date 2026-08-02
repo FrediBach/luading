@@ -7,9 +7,9 @@ import { OutputChannelTile } from './OutputChannelTile'
 import { OutputRoutingPopover } from './OutputRoutingPopover'
 
 const trace = [
-  { time: 0, inputs: [], outputs: [0, -1] },
-  { time: 0.001, inputs: [], outputs: [5, 0] },
-  { time: 0.002, inputs: [], outputs: [0, 1] },
+  { time: 0, clockBeats: 0, inputs: [], outputs: [0, -1] },
+  { time: 0.001, clockBeats: 0.002, inputs: [], outputs: [5, 0] },
+  { time: 0.002, clockBeats: 0.004, inputs: [], outputs: [0, 1] },
 ]
 const traceHistory = new TraceHistory()
 traceHistory.append(trace)

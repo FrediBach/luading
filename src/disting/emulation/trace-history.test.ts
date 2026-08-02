@@ -3,7 +3,7 @@ import type { TracePoint } from '../types'
 import { TraceHistory } from './trace-history'
 
 function point(time: number): TracePoint {
-  return { time, inputs: [time], outputs: [-time] }
+  return { time, clockBeats: time * 2, inputs: [time], outputs: [-time] }
 }
 
 describe('TraceHistory', () => {

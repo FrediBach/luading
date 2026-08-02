@@ -698,6 +698,7 @@ function runStep() {
   if (!frameInFlight && stepCount % TRACE_EVERY_STEPS === 0) {
     pendingTrace.push({
       time: simulatedSeconds,
+      clockBeats: clock.beats,
       inputs: [...inputs],
       outputs: [...outputs],
     })
