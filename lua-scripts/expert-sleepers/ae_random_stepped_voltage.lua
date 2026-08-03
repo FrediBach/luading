@@ -123,6 +123,15 @@ return {
     name = "AE Random Stepped Voltage",
     author = "Andras Eichstaedt / Thorinside / 4o",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {8, -10, 5, 1, 16, 1, 1}},
+            {name = "Bipolar 8-bit", values = {8, -5, 5, 2, 8, 1, 1}},
+            {name = "Negative Lo-fi", values = {16, -8, -1, 3, 4, 1, 1}}
+        }
+    },
+
     init = function(self)
         return {
             inputs = {

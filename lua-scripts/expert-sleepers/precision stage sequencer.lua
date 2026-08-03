@@ -29,6 +29,15 @@ return {
   name   = 'Precision Stage Sequencer',
   author = 'Nick Yablon + GPT-5',
 
+  -- Luading simulator extension; ignored by Disting NT.
+  luading = {
+    parameterPresets = {
+      {name = 'Default', values = {8, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+      {name = 'Major Triads', values = {8, 1, 0, 0, 0.42, 0.42, 0.58, 0.58, 1, 1, 0.33, 0.33, 0.75, 0.75, 0.92, 0.92, 1.33, 1.33, 0.58, 0.58, 1, 1, 1.17, 1.17, 1.58, 1.58}},
+      {name = 'Rising Lines', values = {8, 1, 0, 0.17, 0.33, 0.5, 0.58, 0.75, 0.92, 1, 1, 1.17, 1.33, 1.5, 1.58, 1.75, 1.92, 2, 2, 2.17, 2.33, 2.5, 2.58, 2.75, 2.92, 3}}
+    }
+  },
+
   init = function(self)
     self.stage = 1
 

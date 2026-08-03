@@ -213,6 +213,15 @@ return {
     name   = "JF Sender",
     author = "Mark IJzerman",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "CV Poly", values = {1, 0, 1, 1, 1, 120, 0, 2, 1, 3, 2, 1, 0}},
+            {name = "Clocked Round-robin", values = {2, 0, 2, 2, 2, 120, 10, 2, 1, 4, 2, 2, 2}},
+            {name = "MIDI Poly", values = {3, 1, 1, 1, 1, 120, 0, 2, 1, 3, 2, 1, 0}}
+        }
+    },
+
     init = function(self)
         initDone = false
         clockTimer = 0

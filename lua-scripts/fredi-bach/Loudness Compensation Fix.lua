@@ -53,6 +53,15 @@ return
     name = 'Loudness Fix'
     , author = 'Claude'
 
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { -20, 5, 5, 0, 10, 1 } }
+            , { name = 'Subtle', values = { -10, 5, 5, 0, 8, 1 } }
+            , { name = 'Deep S-Curve', values = { -50, 4, 6, -2, 10, 3 } }
+        }
+    }
+
     --------------------------------------------------------------------------------
     -- Initialization
     --------------------------------------------------------------------------------

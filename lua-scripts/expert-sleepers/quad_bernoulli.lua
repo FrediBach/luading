@@ -34,6 +34,15 @@ return {
     name = "QuadBernoulli",
     author = "Thorinside",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Balanced", values = {50, 50, 50, 50, 1}},
+            {name = "Alternating", values = {80, 20, 80, 20, 1}},
+            {name = "Sticky Sparse", values = {25, 25, 25, 25, 2}}
+        }
+    },
+
     init = function(self)
         return {
             inputs = {

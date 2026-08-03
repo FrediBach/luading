@@ -21,6 +21,15 @@ Use cases:
 return {
     name = 'GridQuantizer'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Trigger', values = { 1, 10 } }
+            , { name = 'Sharp Trigger', values = { 1, 2 } }
+            , { name = 'Gate', values = { 2, 10 } }
+        }
+    }
     
     , init = function(self)
         -- Pending flags: true when input fired but awaiting next clock

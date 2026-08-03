@@ -164,6 +164,11 @@ All bundled scripts in these collections are loaded and exercised:
 - `lua-scripts/expert-sleepers/`
 - `lua-scripts/fredi-bach/`
 
+Every parameterized bundled example must also expose multiple valid
+`luading.parameterPresets`. A dedicated real-Wasmoon corpus test parses those
+snapshots against the normalized parameter definitions, including scaled and
+enum values; parameterless scripts must not declare snapshots.
+
 The corpus tests call applicable `init`, `step`, `trigger`, `gate`, `draw`,
 custom UI, MIDI, and serialization callbacks and verify callback values survive
 the JavaScript/Lua boundary. Every bundled script must also pass contract

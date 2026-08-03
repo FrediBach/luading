@@ -52,6 +52,15 @@ return {
     name = "AE Random Gates",
     author = "Andras Eichstaedt with code by Thorinside and 4o",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {16, 50, 100, 1, 1}},
+            {name = "Sparse", values = {16, 80, 60, 1, 1}},
+            {name = "Busy", values = {8, 25, 40, 1, 1}}
+        }
+    },
+
     init = function(self)
         return {
             inputs = {

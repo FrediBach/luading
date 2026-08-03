@@ -129,6 +129,15 @@ return {
     name = "ADSR Envelope",
     author = "Your Name",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {250, 100, 70, 500, 1}},
+            {name = "Pluck", values = {5, 120, 0, 80, 2}},
+            {name = "Slow Pad", values = {1200, 900, 80, 2200, 2}}
+        }
+    },
+
     init = function(self)
         return {
             inputs = {

@@ -23,6 +23,15 @@ return
 {
     name = 'Prob Note Repeat'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Never', values = { 0 } }
+            , { name = 'Half', values = { 50 } }
+            , { name = 'Always', values = { 100 } }
+        }
+    }
     
     , init = function(self)
         -- State variables

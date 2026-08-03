@@ -168,6 +168,15 @@ end
 return {
     name = 'Deja-Vu'
     , author = 'Claude'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 8, 25, 0, 0 } }
+            , { name = 'Tight Loop', values = { 4, 60, 0, 25 } }
+            , { name = 'Long Memory', values = { 24, 15, 50, -25 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

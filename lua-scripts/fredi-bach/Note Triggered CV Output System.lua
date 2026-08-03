@@ -40,6 +40,15 @@ return
 {
     name = 'Note Selective Trigger'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'C4 Octave', values = { 60, 12, 5, 0 } }
+            , { name = 'Bass C', values = { 36, 24, 10, 1 } }
+            , { name = 'Wide Fast', values = { 48, 48, 2, 0 } }
+        }
+    }
     
     --------------------------------------------------------------------------
     -- Initialization

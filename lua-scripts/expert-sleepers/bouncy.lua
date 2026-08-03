@@ -62,6 +62,15 @@ return
 {
 	name = 'bouncy'
 ,	author = 'Expert Sleepers Ltd'
+
+-- Luading simulator extension; ignored by Disting NT.
+,	luading = {
+		parameterPresets = {
+			{ name = "Default", values = { -10, 10, -10, 10, 1, 0 } }
+		,   { name = "Tight Bounce", values = { -5, 5, -5, 5, 1, 0 } }
+		,   { name = "Wide Warp", values = { -10, 10, -10, 10, 2, 0 } }
+		}
+	}
 	
 ,	init = function( self )
 		return

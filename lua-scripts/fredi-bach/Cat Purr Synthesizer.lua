@@ -86,6 +86,15 @@ return
 {
     name = 'Cat Purr'
     , author = 'Claude / Anthropic'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 30, 18, 75, 30, 0, 20, 60, 10, 1 } }
+            , { name = 'Sleepy Kitten', values = { 24, 10, 45, 15, -10, 10, 35, 20, 1 } }
+            , { name = 'Deep Rumble', values = { 42, 28, 95, 60, -25, 50, 90, 5, 2 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- INITIALIZATION

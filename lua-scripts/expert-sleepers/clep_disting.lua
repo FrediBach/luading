@@ -95,6 +95,15 @@ return {
     name = "Clep Disting",
     author = "Thorinside | 4o",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {1, 8, 1, 1, 1}},
+            {name = "Random Bipolar", values = {2, 16, 1, 1, 1}},
+            {name = "LFO Unipolar", values = {3, 32, 3, 1, 2}}
+        }
+    },
+
     init = function(self)
         randomizeCV()
         return {

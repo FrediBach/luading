@@ -76,6 +76,15 @@ return
     name = 'Note Slew Limiter'
     , author = 'Expert Sleepers Ltd'
 
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 12, 1, 1, 50 } }
+            , { name = 'Glide Up', values = { 24, 2, 1, 75 } }
+            , { name = 'Loose Both', values = { 6, 1, 2, 25 } }
+        }
+    }
+
     ----------------------------------------------------------------------------
     -- Initialization
     ----------------------------------------------------------------------------

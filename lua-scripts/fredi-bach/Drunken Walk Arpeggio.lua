@@ -121,6 +121,15 @@ return
 {
     name = 'Drunken Walk Arp'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 4, 48, 0, 4, 7, 12, 11, 9, 5, 2, 0, 1 } }
+            , { name = 'Minor Pentatonic', values = { 5, 48, 0, 3, 5, 7, 10, 12, 15, 17, -10, 2 } }
+            , { name = 'Octave Drift', values = { 8, 36, 0, 7, 12, 19, 24, 17, 12, 5, 20, 3 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- Initialization

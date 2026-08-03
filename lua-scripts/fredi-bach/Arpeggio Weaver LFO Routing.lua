@@ -330,6 +330,15 @@ end
 return {
     name = 'Arp Weaver'
     , author = 'Claude / Expert Sleepers'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 48, 1, 0.5, 1, 0, 2, 50, 1, 1, 2, 0, 2, 2, 1, 0, 3, 3, 2, 12, 5, 4, 3, -12 } }
+            , { name = 'Gentle Major', values = { 48, 1, 0.25, 1, 25, 1, 70, 1, 1, 2, 0, 1, 2, 1, 0, 2, 4, 2, 12, 2, 8, 2, -12 } }
+            , { name = 'Chaotic Blues', values = { 48, 6, 2, 6, 50, 3, 30, 5, 1, 3, 0, 5, 2, 2, 7, 5, 3, 3, 12, 5, 4, 4, -12 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- INITIALIZATION

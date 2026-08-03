@@ -164,6 +164,15 @@ return
 {
     name = 'Pattern Evolver'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 8, 32, 15, 1, 1 } }
+            , { name = 'Subtle Shift', values = { 8, 32, 5, 4, 4 } }
+            , { name = 'Wild All', values = { 4, 64, 50, 5, 1 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

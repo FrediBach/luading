@@ -317,6 +317,14 @@ end
 return {
     name = 'SeqMarkov',
     author = 'Thorinside | Claude | ChatGPT o3-mini-high',
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = 'Default', values = {60, 1, 50, 2, 30, 20, 0, 0, 0}},
+            {name = 'Calm Pentatonic', values = {60, 4, 30, 1, 10, 5, 0, 0, 0}},
+            {name = 'Wild Whole Tone', values = {48, 10, 80, 3, 80, 60, -1, 0, 0}}
+        }
+    },
     init = function(self)
         local params = init_params(self)
         return params

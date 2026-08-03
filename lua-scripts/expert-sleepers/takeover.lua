@@ -94,6 +94,15 @@ return {
     name = "Looper Takeover",
     author = "Thorinside",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "One Bar", values = {1}},
+            {name = "Four Bars", values = {4}},
+            {name = "Eight Bars", values = {8}}
+        }
+    },
+
     init = function(self)
         return {
             -- Inputs: 1=Clock (Gate), 2=Reset, 3=Arm, 4=Stop

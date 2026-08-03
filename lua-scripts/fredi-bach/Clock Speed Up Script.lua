@@ -120,6 +120,15 @@ return
     name = 'Clock Speed Up'
 ,   author = 'Modular Synthesis'
 
+    -- Luading simulator extension; ignored by Disting NT.
+,   luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 4, 4, 4 } }
+        ,   { name = 'Quick Launch', values = { 1, 8, 3 } }
+        ,   { name = 'Long Build', values = { 12, 16, 4 } }
+        }
+    }
+
     ------------------------------------------------------------------------
     -- Initialization
     ------------------------------------------------------------------------

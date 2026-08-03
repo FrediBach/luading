@@ -67,6 +67,15 @@ return
 {
     name = 'XOR Drums'
     , author = 'Claude'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 4, 1, 0, 0 } }
+            , { name = 'Minimal', values = { 2, 1, 0, 0 } }
+            , { name = 'Dense CV', values = { 12, 4, 50, -50 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

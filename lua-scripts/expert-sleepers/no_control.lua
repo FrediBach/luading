@@ -35,6 +35,15 @@ return
 {
 	name = 'No Control'
 ,	author = 'Expert Sleepers Ltd'
+
+-- Luading simulator extension; ignored by Disting NT.
+,	luading = {
+		parameterPresets = {
+			{ name = "Default", values = { 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500 } }
+		,   { name = "Accelerando", values = { 1000, 900, 800, 700, 600, 500, 400, 300, 250, 200, 175, 150, 125, 100, 75, 50 } }
+		,   { name = "Staggered", values = { 250, 500, 750, 1000, 250, 500, 750, 1000, 250, 500, 750, 1000, 250, 500, 750, 1000 } }
+		}
+	}
 	
 ,	init = function( self )
 		return

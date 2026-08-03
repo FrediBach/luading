@@ -59,6 +59,15 @@ return
 {
     name = 'Note Range Limiter'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 36, 84, 1, 0, 1 } }
+            , { name = 'Clamp Two Octaves', values = { 48, 72, 2, 0, 1 } }
+            , { name = 'Fold to USB', values = { 36, 96, 3, 1, 3 } }
+        }
+    }
     
     --------------------------------------------------------------------------
     -- Initialization

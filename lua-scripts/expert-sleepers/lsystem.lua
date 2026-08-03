@@ -168,6 +168,15 @@ return {
     name = "L-system", -- Short name, often matches the first comment line
     author = "Thorinside", -- Your name or alias
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {3, 1, 15, 50, 50, 64, 1}},
+            {name = "Sparse Pentatonic", values = {2, 1, 16, 35, 65, 32, 1}},
+            {name = "Dense Dorian", values = {4, 3, 7, 75, 35, 96, 1}}
+        }
+    },
+
     -- == Initialization Function (Called once on script load) ==
     init = function(self)
         -- Default values for parameters if not loaded from state

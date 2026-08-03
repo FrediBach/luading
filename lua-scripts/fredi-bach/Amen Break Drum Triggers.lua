@@ -298,6 +298,15 @@ end
 return {
     name = 'Amen Break'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 136, 1, 0, 2, 5 } }
+            , { name = 'Swung Break', values = { 136, 1, 18, 2, 5 } }
+            , { name = 'Slow 32-step', values = { 90, 2, 8, 1, 8 } }
+        }
+    }
     
     , init = function(self)
         -- Initialize state

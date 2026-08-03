@@ -43,6 +43,15 @@ return
 {
     name = 'Melody Bernoulli'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Balanced Gate', values = { 50, 1 } }
+            , { name = 'Sparse Gate', values = { 25, 1 } }
+            , { name = 'Toggle', values = { 50, 2 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- Initialization

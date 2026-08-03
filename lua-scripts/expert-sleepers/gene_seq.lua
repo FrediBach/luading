@@ -183,6 +183,15 @@ return {
     name = "Gene Sequencer",
     author = "Thorinside | o1",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {-2, 2, 20, 1, 1}},
+            {name = "Gentle", values = {-1, 1, 5, 1, 1}},
+            {name = "Wild", values = {-5, 5, 60, 1, 1}}
+        }
+    },
+
     init = function(self)
         initPopulation()
         currentSequenceIndex = 1

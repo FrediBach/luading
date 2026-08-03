@@ -135,6 +135,15 @@ return {
     name = "AE Sequencer",
     author = "Andras Eichstaedt / Thorinside / 4o",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {1, 1, 8, -1, 1, 2, 16, 16, 50, 100}},
+            {name = "Short Bipolar", values = {2, 2, 8, -2, 2, 2, 8, 8, 50, 80}},
+            {name = "Long Positive", values = {3, 3, 16, 0, 5, 1, 12, 16, 65, 150}}
+        }
+    },
+
     init = function(self)
         initSequences()
         return {

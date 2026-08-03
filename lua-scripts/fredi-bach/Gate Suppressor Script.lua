@@ -22,6 +22,15 @@ local passedCount = 0          -- Count of passed gates (for display)
 return {
     name = 'Gate Suppressor'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 100, 100 } }
+            , { name = 'Tight', values = { 40, 50 } }
+            , { name = 'Sparse', values = { 500, 150 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- Initialization

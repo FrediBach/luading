@@ -91,6 +91,15 @@ return
 {
     name = 'Song Mode LFO'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 4, 16, 4, 0, 1, 1, 5, 0 } }
+            , { name = 'Verse Ramp', values = { 4, 8, 8, 0, 1, 4, 5, 0 } }
+            , { name = 'Chorus Pulse', values = { 4, 16, 4, 12, 2, 3, 8, -2 } }
+        }
+    }
     
     --------------------------------------------------------------------------
     -- Initialization

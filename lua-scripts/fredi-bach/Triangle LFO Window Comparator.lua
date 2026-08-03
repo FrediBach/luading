@@ -42,6 +42,15 @@ return
     name = 'Tri-Phase Window'
     , author = 'Claude'
 
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 1, 0, 33, 66, 10, 12, 1, 100 } }
+            , { name = 'Slow Wide', values = { 0.1, 0, 25, 75, 5, 12, 2, 80 } }
+            , { name = 'Fast Modulated', values = { 5, 0, 33, 66, 35, 48, 1, 100 } }
+        }
+    }
+
     --------------------------------------------------------------------------------
     -- Initialization
     --------------------------------------------------------------------------------

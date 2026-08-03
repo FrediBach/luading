@@ -125,6 +125,15 @@ end
 return {
     name = 'ReactiveArpeggio'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 1, 1, 1, 4, 50, 2, 1 } }
+            , { name = 'Minor Down', values = { 2, 1, 2, 6, 80, 2, 2 } }
+            , { name = 'G Blues Random', values = { 9, 8, 4, 8, 30, 3, 1 } }
+        }
+    }
     
     , init = function(self)
         -- State variables

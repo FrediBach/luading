@@ -89,6 +89,15 @@ return {
     name = 'Feedback Tamer'
     , author = 'Expert Sleepers Ltd'
 
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { -6, 1, 200, 4, 5, 0, 20 } }
+            , { name = 'Gentle', values = { -12, 5, 500, 2, 5, 0, 40 } }
+            , { name = 'Hard Clamp', values = { -3, 0.5, 80, 12, 8, 0, 100 } }
+        }
+    }
+
     ------------------------------------------------------------------------
     -- Initialization
     ------------------------------------------------------------------------

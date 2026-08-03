@@ -232,6 +232,15 @@ return
 {
     name = 'SkewedEuclid'
     , author = 'Claude'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 8, 3, 50, 0, 10 } }
+            , { name = 'Straight Four', values = { 16, 4, 50, 0, 5 } }
+            , { name = 'Skewed Five', values = { 12, 5, 80, 2, 15 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization: Define inputs, outputs, and parameters

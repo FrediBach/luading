@@ -79,6 +79,15 @@ return
 {
     name = 'Spread LFOs'
     , author = 'Claude'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 1, 3, 4, 100 } }
+            , { name = 'Slow Golden', values = { 0.1, 3, 8, 60 } }
+            , { name = 'Fast Harmonic', values = { 5, 5, 3, 80 } }
+        }
+    }
     
     , init = function(self)
         -- Initialize phase accumulators for all possible LFOs

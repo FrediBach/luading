@@ -260,6 +260,15 @@ return {
     name   = "JF Geode",
     author = "Mark IJzerman",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "CV Geode", values = {2, 1, 0, 120, 1, 500, 2, 4, 3, 4, 4, 2, 6, 3, 8, 2, 12, 1, 2, 1, 0, 1}},
+            {name = "Internal Polyrhythm", values = {2, 3, 0, 120, 4, 500, 2, 4, 3, 4, 4, 2, 6, 3, 8, 2, 12, 1, 4, 2, 2, 1}},
+            {name = "MIDI Standard", values = {1, 2, 1, 120, 1, 500, 2, 4, 3, 4, 4, 2, 6, 3, 8, 2, 12, 1, 1, 1, 0, 1}}
+        }
+    },
+
     init = function(self)
         initDone = false
         clockTimer = 0

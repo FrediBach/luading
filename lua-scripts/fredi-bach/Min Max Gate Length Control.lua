@@ -46,6 +46,15 @@ return
 {
     name = 'Gate Length'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Unrestricted', values = { 0, 10000 } }
+            , { name = 'Percussive', values = { 5, 150 } }
+            , { name = 'Held', values = { 250, 2000 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- Initialization

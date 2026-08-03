@@ -97,6 +97,15 @@ return
 {
     name = 'Drunken Walk Switch'
     , author = 'Claude'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 8, 75, 1, 2 } }
+            , { name = 'Focused Gates', values = { 4, 90, 2, 1 } }
+            , { name = 'Wandering S&H', values = { 8, 40, 2, 2 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

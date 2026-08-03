@@ -164,6 +164,15 @@ end
 return {
     name = 'Analog Drift'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 50, 0, 30 } }
+            , { name = 'Subtle', values = { 20, -40, 15 } }
+            , { name = 'Worn Tape', values = { 80, 45, 75 } }
+        }
+    }
     
     , init = function(self)
         -- Randomize starting phases for unique character per instance

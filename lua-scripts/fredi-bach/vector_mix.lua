@@ -91,6 +91,15 @@ return
 {
     name = 'Vector Mix'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Static Center', values = { 0, 50, 0, 0, 1, 2, 30 } }
+            , { name = 'Orbit', values = { 35, 80, 0, 0, 2, 3, 15 } }
+            , { name = 'Corner Scan', values = { 15, 100, 50, -50, 3, 1, 60 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

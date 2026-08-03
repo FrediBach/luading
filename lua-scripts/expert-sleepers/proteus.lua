@@ -356,6 +356,15 @@ return {
     name = "Proteus Generative Sequencer",
     author = "Originally by Blue Nautilus, ported and mangled by Thorinside",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {16, 80, 50, 200, 0, 1, 1, 12, 20, 20, 3, 1, 0}},
+            {name = "Sparse Pentatonic", values = {8, 45, 30, 120, -1, 4, 1, 20, 10, 10, 2, 1, 0}},
+            {name = "Locked Raga", values = {16, 90, 80, 300, 0, 10, 4, 8, 5, 5, 2, 3, 0}}
+        }
+    },
+
     init = function(self)
         return {
             inputs = {

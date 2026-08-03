@@ -50,6 +50,15 @@ return {
   name   = 'Ecodynamics (Generator)',
   author = 'Electrum Modular',
 
+  -- Luading simulator extension; ignored by Disting NT.
+  luading = {
+    parameterPresets = {
+      {name = 'Default', values = {1, 1, 1, 16, 25, 8, 10, 95, 0, 1, 0, 10, 1, 0, 0, 0, 1, 1, 2, 0, 0, 10, 1}},
+      {name = 'Forest Major', values = {1, 1, 2, 16, 20, 8, 15, 95, 0, 1, 10, 20, 2, 15, 20, 0, 1, 1, 2, 0, 0, 12, 2}},
+      {name = 'Glacier Minor', values = {1, 1, 3, 24, 35, 20, 5, 80, -10, 2, -20, 30, 3, 10, 35, 0, 3, 2, 3, -12, 0, 8, 2}}
+    }
+  },
+
   init = function(self)
     self.pos      = 1
     self.pitch_v  = 0.0

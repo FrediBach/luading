@@ -32,6 +32,15 @@ return {
     name = 'Gate Cutter'
     , author = 'Expert Sleepers Ltd'
 
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 500, 100, 4 } }
+            , { name = 'Tight Chops', values = { 150, 40, 8 } }
+            , { name = 'Slow Cuts', values = { 1200, 300, 2 } }
+        }
+    }
+
     ----------------------------------------------------------------------------
     -- Initialization
     ----------------------------------------------------------------------------

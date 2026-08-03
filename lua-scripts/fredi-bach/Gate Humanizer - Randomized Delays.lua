@@ -29,6 +29,15 @@ Outputs: 4 delayed gate/trigger outputs
 return {
     name = 'Gate Humanizer'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 50, 25 } }
+            , { name = 'Tight', values = { 20, 8 } }
+            , { name = 'Loose', values = { 80, 60 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

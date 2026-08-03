@@ -25,6 +25,15 @@ return {
     author = "Claude, directed by Thorinside",
     description = "6-channel Sample and Hold",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Full Scale", values = {100}},
+            {name = "Half Scale", values = {50}},
+            {name = "Gentle", values = {25}}
+        }
+    },
+
     init = function(self)
         return {
             inputs = {

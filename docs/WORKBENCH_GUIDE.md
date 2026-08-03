@@ -78,6 +78,8 @@ They do not stop an otherwise hardware-valid script from running. Disting NT
 firmware does not interpret `luading.parameterPresets`; the snapshots do not
 include `self.state`, system/routing parameters, signals, clock, audio/MIDI
 routes, outputs, or workspace layout, and they are separate from **Save state**.
+Every bundled parameterized example includes several ready-to-use snapshots;
+parameterless examples do not show the selector.
 
 ### Simulator I/O defaults
 

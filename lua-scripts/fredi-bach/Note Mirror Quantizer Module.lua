@@ -97,6 +97,15 @@ end
 return {
     name = 'Note Mirror'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'C Chromatic', values = { 60, 1, 1 } }
+            , { name = 'C Major', values = { 60, 2, 2 } }
+            , { name = 'D Dorian', values = { 62, 2, 4 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- INITIALIZATION

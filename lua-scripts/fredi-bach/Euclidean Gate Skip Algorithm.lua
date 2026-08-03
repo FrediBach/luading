@@ -127,6 +127,15 @@ end
 return {
     name = 'Euclidean Gate Skip'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Four on Floor', values = { 16, 4, 0, 100 } }
+            , { name = 'Tresillo', values = { 8, 3, 0, 100 } }
+            , { name = 'Broken Seven', values = { 16, 7, 3, 70 } }
+        }
+    }
     
     ------------------------------------------------------------------------
     -- Initialization

@@ -98,6 +98,15 @@ end
 return {
     name = 'Complexity CV'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 20, 500, 200, 0, 8, 1, 1, 50, 5, 1 } }
+            , { name = 'Drums', values = { 5, 150, 80, 0, 8, 2, 1, 65, 8, 2 } }
+            , { name = 'Ambient', values = { 200, 3000, 1200, -2, 5, 3, 2, 30, 3, 3 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- Initialization

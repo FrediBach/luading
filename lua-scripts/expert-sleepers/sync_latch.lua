@@ -147,6 +147,15 @@ return {
     author = "Sleepwalk Cinema",
     description = "Start / Stop Slave Clock on Measure Boundaries",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "4/4 Four Bars", values = {4, 4, 3, 1, 2, 2, 2, 1, 4, 2, 1, 1}},
+            {name = "3/4 Two Bars", values = {2, 3, 3, 1, 2, 1, 2, 1, 4, 2, 1, 1}},
+            {name = "7/8 One Bar", values = {1, 7, 4, 1, 1, 2, 2, 1, 2, 2, 1, 1}}
+        }
+    },
+
     init = function(self)
         return {
             -- Inputs: 1=Clock (Gate), 2=Reset, 3=Arm, 4=Fill

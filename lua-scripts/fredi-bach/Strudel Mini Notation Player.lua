@@ -644,6 +644,15 @@ local program = {
     name = "Strudel Mini Player",
     author = "Luading",
 
+    -- Luading simulator extension; ignored by Disting NT.
+    luading = {
+        parameterPresets = {
+            {name = "Default", values = {120, 50, 1}},
+            {name = "Slow Legato", values = {80, 85, 1}},
+            {name = "Fast Tight", values = {180, 25, 7}}
+        }
+    },
+
     init = function(self)
         local ok, result = pcall(parse_mini, MINI_NOTATION)
         if not ok then

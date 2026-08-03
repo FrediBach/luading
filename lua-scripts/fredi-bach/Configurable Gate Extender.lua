@@ -80,6 +80,15 @@ return
 {
     name = 'Gate Extender'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 100, 0, 10 } }
+            , { name = 'Short', values = { 25, 0, 2 } }
+            , { name = 'CV Tail', values = { 500, 75, 25 } }
+        }
+    }
     
     --------------------------------------------------------------------------
     -- Initialization

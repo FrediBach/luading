@@ -49,6 +49,15 @@ return
 {
     name = 'Note Compressor'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 36, 84, 100, 100, 1, 5 } }
+            , { name = 'Fold Keyboard', values = { 36, 84, 100, 100, 2, 5 } }
+            , { name = 'Scale Two Octaves', values = { 48, 72, 50, 50, 3, 2 } }
+        }
+    }
     
     ----------------------------------------------------------------------------
     -- Initialization

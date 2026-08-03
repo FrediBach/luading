@@ -24,6 +24,15 @@ Use cases:
 return {
     name = 'Stutter Gate'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 50, 4, 200, 50, 50, 2 } }
+            , { name = 'Subtle', values = { 25, 3, 120, 60, 25, 1 } }
+            , { name = 'Glitch', values = { 85, 12, 40, 25, 100, 6 } }
+        }
+    }
     
     , init = function(self)
         -- State variables

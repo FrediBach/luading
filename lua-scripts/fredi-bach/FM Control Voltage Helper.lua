@@ -142,6 +142,15 @@ end
 return {
     name = 'FM Helper'
     , author = 'Expert Sleepers Ltd'
+
+    -- Luading simulator extension; ignored by Disting NT.
+    , luading = {
+        parameterPresets = {
+            { name = 'Default', values = { 1, 2, 5, 12 } }
+            , { name = 'Odd Harmonics', values = { 1, 3, 5, 7 } }
+            , { name = 'Subharmonic Cluster', values = { 9, 12, 13, 18 } }
+        }
+    }
     
     , init = function(self)
         -- Initialize state
