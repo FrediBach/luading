@@ -47,6 +47,9 @@ results separately from claims about the Disting hardware contract.
 
 - [Fredi Bach display animation](plans/FREDI_BACH_DISPLAY_ANIMATION_PLAN.md)
   tracks the remaining example-script display work.
+- [Script-authored automated tests](plans/SCRIPT_AUTOMATED_TESTS_IMPLEMENTATION_PLAN.md)
+  plans deterministic, preset-based behavioral suites in the workbench and
+  project regression tests.
 
 An active plan describes intended work and is not evidence that the behavior
 exists. Update its status as work lands. Once it is complete, move it to the
