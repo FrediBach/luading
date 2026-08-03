@@ -67,7 +67,9 @@ must be inside their declared ranges.
 When valid presets exist, the Parameters header shows a compact preset
 dropdown with the accessible name **Parameter preset**. Choosing a preset
 applies the complete parameter vector atomically and works while the runtime is
-paused.
+paused. When a script also needs parameter-page navigation, the header wraps
+the selector and paging controls together instead of clipping either control in
+a narrow rack column.
 The selector shows **Custom** whenever the current values no longer exactly
 match a named preset, including after a control edit or Lua `setParameter()`
 call. Initial load never auto-applies a preset; normal parameter defaults still

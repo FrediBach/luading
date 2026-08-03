@@ -43,7 +43,7 @@ export function ParameterBank({
 
   return (
     <section className="parameter-bank" aria-label="Script parameters">
-      <header className="device-panel-header">
+      <header className="device-panel-header parameter-bank-header">
         <span>
           <small>Parameters</small>
           <strong>

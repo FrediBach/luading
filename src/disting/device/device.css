@@ -199,12 +199,18 @@
   gap: 4px;
 }
 
+.parameter-bank-header {
+  flex-wrap: wrap;
+}
+
 .parameter-bank-actions {
   min-width: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-left: auto;
 }
 
 .parameter-preset-selector {
@@ -507,10 +513,6 @@
 
   .device-panel-header {
     align-items: flex-start;
-  }
-
-  .parameter-bank-actions {
-    flex-wrap: wrap;
   }
 
   .parameter-preset-selector select {

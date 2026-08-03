@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { ParameterDefinition } from '../types'
 import { ParameterBank } from './ParameterBank'
 import { ParameterControl } from './ParameterControl'
+
+const deviceCss = readFileSync(new URL('./device.css', import.meta.url), 'utf8')
 
 function parameter(
   name: string,
@@ -166,6 +169,33 @@ describe('parameter control rendering', () => {
     expect(active).not.toContain('ignored by Disting NT hardware')
     expect(custom).toContain('<option value="" disabled="" selected="">Custom</option>')
     expect(custom).toContain('<select disabled=""')
+  })
+
+  it('lets a paged parameter header wrap its preset and paging controls', () => {
+    const definitions = Array.from(
+      { length: 23 },
+      (_, index) => parameter(`Parameter ${index + 1}`),
+    )
+    const values = definitions.map((definition) => definition.value)
+    const markup = renderToStaticMarkup(
+      <ParameterBank
+        definitions={definitions}
+        values={values}
+        presets={[
+          { name: 'Default', values },
+          { name: 'Gentle Major', values },
+          { name: 'Chaotic Blues', values },
+        ]}
+        onChange={() => undefined}
+        onApplyPreset={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('device-panel-header parameter-bank-header')
+    expect(markup).toContain('aria-label="Parameter preset"')
+    expect(markup).toContain('1 / 3')
+    expect(deviceCss).toMatch(/\.parameter-bank-header\s*{[^}]*flex-wrap: wrap;/)
+    expect(deviceCss).toMatch(/\.parameter-bank-actions\s*{[^}]*flex-wrap: wrap;/)
   })
 
   it('does not show a preset selector unless valid presets and a handler exist', () => {
