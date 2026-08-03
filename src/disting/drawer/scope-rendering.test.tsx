@@ -16,6 +16,7 @@ const program: LoadedProgram = {
   inputKinds: ['trigger'],
   outputKinds: ['stepped', 'linear'],
   parameters: [],
+  parameterPresets: [],
   customUi: false,
   uiPotPositions: [null, null, null],
 }

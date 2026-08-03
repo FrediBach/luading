@@ -32,6 +32,7 @@ function program(): LoadedProgram {
     inputKinds: ['cv', 'gate'],
     outputKinds: ['linear'],
     parameters: [parameter('Amount', 4), parameter('Fine', 0.25, 100)],
+    parameterPresets: [],
     customUi: false,
     uiPotPositions: [null, null, null],
   }
@@ -104,5 +105,18 @@ describe('LuaScriptParameterModel', () => {
     expect(model.count).toBe(85)
     expect(model.defaultParameterIndex).toBe(1)
     expect(model.scriptValues()).toEqual([])
+  })
+
+  it('applies a complete script-relative vector atomically', () => {
+    const model = new LuaScriptParameterModel(program())
+
+    expect(model.setScriptValues([4.6, 1.267])).toEqual([5, 1.27])
+    expect(model.scriptValues()).toEqual([5, 1.27])
+    expect(model.info(1)?.value).toBe(0)
+
+    expect(model.setScriptValues([8])).toBeUndefined()
+    expect(model.setScriptValues([8, Number.NaN])).toBeUndefined()
+    expect(model.setScriptValues([12, 1])).toBeUndefined()
+    expect(model.scriptValues()).toEqual([5, 1.27])
   })
 })

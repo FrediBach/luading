@@ -33,6 +33,51 @@ Input and output banks reserve a four-channel footprint, so scripts with fewer
 channels keep the same tile width and minimum bank height without showing fake
 controls.
 
+### Script parameter presets
+
+A script can declare ordered, named snapshots of all its script parameters in
+a Luading-only member of the top-level returned table:
+
+```lua
+return {
+  luading = {
+    parameterPresets = {
+      { name = "Slow", values = { 0.25, 20, 1 } },
+      { name = "Fast", values = { 4.00, 100, 2 } },
+    },
+  },
+
+  init = function(self)
+    return {
+      parameters = {
+        { "Rate", 1, 1000, 100, kHz, kBy100 },
+        { "Depth", 0, 100, 50, kPercent },
+        { "Shape", { "Triangle", "Square" }, 1 },
+      },
+    }
+  end,
+}
+```
+
+Each preset needs a unique non-empty name and exactly one finite value for every
+`init().parameters` entry, in the same order. Numeric values use the scaled
+units visible in `self.parameters`; enums use 1-based option indices. Values
+must be inside their declared ranges.
+
+When valid presets exist, the Parameters header shows a **Parameter preset**
+selector with a visible **Simulator** label. Choosing a preset applies the
+complete parameter vector atomically and works while the runtime is paused.
+The selector shows **Custom** whenever the current values no longer exactly
+match a named preset, including after a control edit or Lua `setParameter()`
+call. Initial load never auto-applies a preset; normal parameter defaults still
+win, and reload does not remember the previous selection.
+
+Malformed preset declarations appear as non-blocking simulator diagnostics.
+They do not stop an otherwise hardware-valid script from running. Disting NT
+firmware does not interpret `luading.parameterPresets`; the snapshots do not
+include `self.state`, system/routing parameters, signals, clock, audio/MIDI
+routes, outputs, or workspace layout, and they are separate from **Save state**.
+
 ### Simulator I/O defaults
 
 A script can seed Luading's browser-only input generators and output audio

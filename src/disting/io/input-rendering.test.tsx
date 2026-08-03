@@ -336,6 +336,7 @@ describe('input channel rendering', () => {
       inputKinds: ['trigger', 'cv'],
       outputKinds: ['stepped', 'linear'],
       parameters: [],
+      parameterPresets: [],
       customUi: false,
       uiPotPositions: [null, null, null],
     }
@@ -391,6 +392,7 @@ describe('input channel rendering', () => {
       inputKinds: ['cv'],
       outputKinds: ['linear'],
       parameters: [],
+      parameterPresets: [],
       customUi: false,
       uiPotPositions: [null, null, null],
     }
@@ -437,6 +439,7 @@ describe('input channel rendering', () => {
       inputKinds: [],
       outputKinds: [],
       parameters: [],
+      parameterPresets: [],
       customUi: false,
       uiPotPositions: [null, null, null],
     }

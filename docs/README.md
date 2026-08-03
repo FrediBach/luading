@@ -71,6 +71,11 @@ The completed
 records the restructuring that established this documentation lifecycle and
 the final verification performed when it was archived.
 
+The completed
+[script parameter presets plan](archive/implementation-plans/SCRIPT_PARAMETER_PRESETS_IMPLEMENTATION_PLAN.md)
+records the Luading-only source schema, worker flow, parameter-panel behavior,
+and verification performed when named parameter snapshots were implemented.
+
 ## Documentation lifecycle
 
 - Update `ARCHITECTURE.md` when ownership, boundaries, protocols, or invariants

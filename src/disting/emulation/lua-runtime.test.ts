@@ -125,6 +125,40 @@ describe('Lua program runtime bridge', () => {
     expect(runtime.step?.(0.001, [0.5])).toEqual([2.5])
   })
 
+  it('preserves Luading parameter preset metadata across the real Lua boundary', async () => {
+    const lua = await createEngine()
+    const runtime = await loadLuaProgramRuntime(lua, `
+      return {
+        luading = {
+          parameterPresets = {
+            { name = "Slow", values = { 0.25, 1 } },
+            { name = "Fast", values = { 4, 2 } },
+          },
+        },
+        init = function(self)
+          return {
+            parameters = {
+              { "Rate", 1, 1000, 100, kHz, kBy100 },
+              { "Shape", { "Triangle", "Square" }, 1 },
+            },
+          }
+        end,
+        serialise = function(self)
+          return { parameters = self.parameters }
+        end,
+      }
+    `)
+
+    expect(runtime.program.luading).toEqual({
+      parameterPresets: [
+        { name: 'Slow', values: [0.25, 1] },
+        { name: 'Fast', values: [4, 2] },
+      ],
+    })
+    runtime.setParameters([4, 2])
+    expect(runtime.serialise?.()).toEqual({ parameters: [4, 2] })
+  })
+
   it('reuses one timeout hook across repeated real-time callbacks', async () => {
     const lua = await createEngine()
     const module = lua.global.lua.module

@@ -108,6 +108,7 @@ describe('scope controls', () => {
       inputKinds: ['trigger'],
       outputKinds: ['linear'],
       parameters: [],
+      parameterPresets: [],
       customUi: false,
       uiPotPositions: [null, null, null],
     }

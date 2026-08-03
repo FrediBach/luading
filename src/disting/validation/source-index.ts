@@ -660,6 +660,50 @@ export function createLuaSourceIndex(source: string, version: number): LuaSource
       semanticLocations[`topLevel:${field.name}`] = field.valueRange
     })
 
+    const luadingField = rootFields.find((field) => field.name === 'luading')
+    const luadingTable = luadingField ? fieldTable(state, luadingField) : undefined
+    if (luadingTable) {
+      const luadingFields = namedTableFields(
+        state,
+        luadingTable.openIndex,
+        luadingTable.closeIndex,
+      )
+      const presetsField = luadingFields.find((field) => field.name === 'parameterPresets')
+      if (presetsField) {
+        semanticLocations['topLevel:luading.parameterPresets'] = presetsField.valueRange
+        const presetsTable = fieldTable(state, presetsField)
+        if (presetsTable) {
+          splitDelimited(state, presetsTable.openIndex, presetsTable.closeIndex)
+            .forEach(([start, end], presetIndex) => {
+              if (state.tokens[start]?.value !== '{') return
+              const close = state.symbolPairs.get(start)
+              if (close === undefined || close > end) return
+              const prefix = `topLevel:luading.parameterPresets[${presetIndex + 1}]`
+              semanticLocations[prefix] = offsetRange(
+                state,
+                state.tokens[start].start,
+                state.tokens[close].end,
+              )
+              const fields = namedTableFields(state, start, close)
+              fields.forEach((field) => {
+                semanticLocations[`${prefix}.${field.name}`] = field.valueRange
+              })
+              const valuesField = fields.find((field) => field.name === 'values')
+              const valuesTable = valuesField ? fieldTable(state, valuesField) : undefined
+              if (!valuesTable) return
+              splitDelimited(state, valuesTable.openIndex, valuesTable.closeIndex)
+                .forEach(([valueStart, valueEnd], valueIndex) => {
+                  semanticLocations[`${prefix}.values[${valueIndex + 1}]`] = offsetRange(
+                    state,
+                    state.tokens[valueStart].start,
+                    state.tokens[valueEnd].end,
+                  )
+                })
+            })
+        }
+      }
+    }
+
     const { callbacks, functionBounds } = callbackIndex(state, rootFields, definitions)
     callbacks.forEach((callback) => {
       semanticLocations[`callback:${callback.name}`] = callback.selectionRange

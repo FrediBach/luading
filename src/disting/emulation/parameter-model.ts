@@ -150,4 +150,28 @@ export class LuaScriptParameterModel {
       .slice(this.parameterOffset)
       .map((parameter) => parameter.value)
   }
+
+  setScriptValues(values: readonly number[]) {
+    const scriptParameters = this.parameters.slice(this.parameterOffset)
+    if (values.length !== scriptParameters.length) return undefined
+
+    const valid = values.every((value, index) => {
+      const definition = scriptParameters[index]?.definition
+      return definition
+        && typeof value === 'number'
+        && Number.isFinite(value)
+        && value >= definition.min
+        && value <= definition.max
+        && (!definition.enumValues || Number.isInteger(value))
+    })
+    if (!valid) return undefined
+
+    const canonical = values.map((value, index) => (
+      quantizeParameterValue(scriptParameters[index].definition, value)
+    ))
+    canonical.forEach((value, index) => {
+      scriptParameters[index].value = value
+    })
+    return [...canonical]
+  }
 }

@@ -175,6 +175,11 @@ export interface ParameterDefinition {
   enumOffset?: number
 }
 
+export interface ScriptParameterPreset {
+  name: string
+  values: number[]
+}
+
 export interface LoadedProgram {
   name: string
   author: string
@@ -186,6 +191,7 @@ export interface LoadedProgram {
   outputKinds: OutputKind[]
   outputAudioDefaults?: AudioRouteDestination[]
   parameters: ParameterDefinition[]
+  parameterPresets: ScriptParameterPreset[]
   customUi: boolean
   uiPotPositions: Array<number | null>
   midi?: {
@@ -320,6 +326,7 @@ export type WorkerRequest =
   | { type: 'externalInput'; updates: ExternalInputUpdate[] }
   | { type: 'setClock'; config: GlobalClockConfig }
   | { type: 'setParameter'; index: number; value: number }
+  | { type: 'applyParameterPreset'; index: number }
   | { type: 'trigger'; index: number }
   | { type: 'uiEvent'; control: DistingUiControl; event: DistingUiEventKind; value?: number }
   | { type: 'midi'; bytes: number[] }
@@ -346,6 +353,12 @@ export type WorkerResponse =
   | { type: 'log'; line: string }
   | { type: 'hardware'; event: DistingHardwareEvent }
   | { type: 'serialised'; state: unknown }
+  | {
+      type: 'parameterPresetApplied'
+      index: number
+      parameterValues: number[]
+      display: DrawCommand[]
+    }
   | { type: 'diagnostics'; diagnostics: import('./validation/types').ScriptDiagnostic[] }
   | {
       type: 'error'

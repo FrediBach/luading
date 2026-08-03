@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { PanelEmptyState } from '../PanelEmptyState'
 import type { ParameterDefinition } from '../types'
+import type { ScriptParameterPreset } from '../types'
+import { matchingParameterPresetIndex } from '../emulation/parameter-presets'
 import { ParameterControl } from './ParameterControl'
+import { ParameterPresetSelector } from './ParameterPresetSelector'
 import {
   DEFAULT_PARAMETER_PAGE_SIZE,
   parameterPageCount,
@@ -12,14 +15,20 @@ interface Props {
   definitions: ParameterDefinition[]
   values: number[]
   pageSize?: number
+  presets?: readonly ScriptParameterPreset[]
+  presetsDisabled?: boolean
   onChange(index: number, value: number): void
+  onApplyPreset?(index: number): void
 }
 
 export function ParameterBank({
   definitions,
   values,
   pageSize = DEFAULT_PARAMETER_PAGE_SIZE,
+  presets = [],
+  presetsDisabled = false,
   onChange,
+  onApplyPreset,
 }: Props) {
   const [requestedPage, setRequestedPage] = useState(0)
 
@@ -30,6 +39,7 @@ export function ParameterBank({
   )
   const pageCount = parameterPageCount(definitions.length, pageSize)
   const visibleDefinitions = definitions.slice(range.start, range.end)
+  const activePresetIndex = matchingParameterPresetIndex(presets, values)
 
   return (
     <section className="parameter-bank" aria-label="Script parameters">
@@ -42,8 +52,17 @@ export function ParameterBank({
               : `${range.start + 1}–${range.end} of ${definitions.length}`}
           </strong>
         </span>
-        {pageCount > 1 && (
-          <div className="parameter-bank-paging">
+        <div className="parameter-bank-actions">
+          {presets.length > 0 && onApplyPreset && (
+            <ParameterPresetSelector
+              presets={presets}
+              activeIndex={activePresetIndex}
+              disabled={presetsDisabled}
+              onApply={onApplyPreset}
+            />
+          )}
+          {pageCount > 1 && (
+            <div className="parameter-bank-paging">
             <button
               type="button"
               aria-label="Previous parameter page"
@@ -61,8 +80,9 @@ export function ParameterBank({
             >
               ›
             </button>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="parameter-bank-grid">

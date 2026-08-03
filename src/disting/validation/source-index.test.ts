@@ -25,6 +25,12 @@ end
 return {
   name = "Index fixture",
   author = "Test",
+  luading = {
+    parameterPresets = {
+      { name = "Low", values = { 25, 1 } },
+      { name = "High", values = { 100, 2 } },
+    },
+  },
   init = function()
     return {
       inputs = { kCV, kGate },
@@ -53,7 +59,7 @@ return {
     expect(index.version).toBe(17)
     expect(index.complete).toBe(true)
     expect(index.topLevelFields.map((field) => field.name)).toEqual([
-      'name', 'author', 'init', 'step', 'gate',
+      'name', 'author', 'luading', 'init', 'step', 'gate',
     ])
     expect(index.callbacks.map((callback) => callback.name)).toEqual(['init', 'step', 'gate'])
     expect(textAt(source, index.semanticLocations['callback:step'])).toBe('step')
@@ -63,6 +69,11 @@ return {
     expect(textAt(source, index.semanticLocations['parameters[1].default'])).toBe('50')
     expect(textAt(source, index.semanticLocations['parameters[2].enum'])).toBe('{ "A", "B" }')
     expect(textAt(source, index.semanticLocations['init.midi.messages'])).toBe('{ "note", "cc" }')
+    expect(index.semanticLocations['topLevel:luading.parameterPresets']).toBeDefined()
+    expect(textAt(source, index.semanticLocations['topLevel:luading.parameterPresets[1].name']))
+      .toBe('"Low"')
+    expect(textAt(source, index.semanticLocations['topLevel:luading.parameterPresets[2].values[2]']))
+      .toBe('2')
     expect(index.symbols).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'out', kind: 'local', isLocal: true }),
       expect.objectContaining({ name: 'edge', kind: 'function', isLocal: true }),

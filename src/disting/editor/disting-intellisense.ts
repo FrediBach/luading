@@ -305,6 +305,20 @@ const TOP_LEVEL_FIELDS: IntelliSenseEntry[] = [
     completionKind: 'field',
     sortText: '000',
   },
+  {
+    label: 'luading',
+    detail: 'Luading simulator extension · parameter presets',
+    documentation: 'Declare ordered named parameter-value snapshots for the Luading parameter panel. Disting NT hardware ignores this extension.',
+    insertText: [
+      'luading = {',
+      '  parameterPresets = {',
+      '    { name = "${1:Preset name}", values = { ${2:0} } },',
+      '  },',
+      '},',
+    ].join('\n'),
+    completionKind: 'field',
+    sortText: '300',
+  },
   ...DISTING_LIFECYCLE.map((entry) => ({
     ...lifecycleEntryForIntelliSense(entry),
     label: entry.name,

@@ -27,6 +27,7 @@ import {
 } from './emulation/signal-sources'
 import { simulatorDefaultsFromSource } from './emulation/simulator-defaults'
 import { DistingPresetApi } from './emulation/preset-api'
+import { parseParameterPresets } from './emulation/parameter-presets'
 import {
   applyCallbackOutput,
   detectInputEdges,
@@ -517,6 +518,11 @@ async function loadProgram(
       ? rawInitResult as LuaInitResult
       : {}
     metadata = describeProgram(program, initResult)
+    const parameterPresetResult = parseParameterPresets(
+      program.luading,
+      metadata.parameters,
+    )
+    metadata.parameterPresets = parameterPresetResult.presets
     const simulatorDefaults = simulatorDefaultsFromSource(
       source,
       metadata.inputKinds,
@@ -548,7 +554,11 @@ async function loadProgram(
       type: 'loaded',
       program: metadata,
       inputSources: signals.configs,
-      diagnostics: [...diagnostics, ...runtimeDiagnosticList],
+      diagnostics: [
+        ...diagnostics,
+        ...parameterPresetResult.diagnostics,
+        ...runtimeDiagnosticList,
+      ],
     })
     loadNotificationSent = true
     postFrame([])
@@ -812,6 +822,24 @@ function serialiseState() {
   return result.state
 }
 
+function applyParameterPreset(index: number) {
+  if (!Number.isInteger(index)) return
+  const presetDefinition = metadata?.parameterPresets[index]
+  if (!presetDefinition || !parameterModel || !program || !runtime) return
+  const values = parameterModel.setScriptValues(presetDefinition.values)
+  if (!values) return
+
+  program.parameters = values
+  runtime.setParameters(values)
+  renderDisplay()
+  post({
+    type: 'parameterPresetApplied',
+    index,
+    parameterValues: [...values],
+    display: [...display.commands],
+  })
+}
+
 function handleMessage(message: WorkerRequest) {
   try {
     switch (message.type) {
@@ -853,6 +881,9 @@ function handleMessage(message: WorkerRequest) {
           )
           renderDisplay()
         }
+        break
+      case 'applyParameterPreset':
+        applyParameterPreset(message.index)
         break
       case 'trigger':
         if (runtime?.trigger) {

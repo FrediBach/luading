@@ -372,6 +372,9 @@ export function DistingPlayground() {
     } else if (message.type === 'serialised') {
       savedStateRef.current = message.state
       setHasSavedState(true)
+    } else if (message.type === 'parameterPresetApplied') {
+      setParameterValues(message.parameterValues)
+      setDisplay(message.display)
     } else if (message.type === 'diagnostics') {
       if (sourceIsLoadedRef.current) {
         setRuntimeDiagnostics((previous) => dedupeDiagnostics([...previous, ...message.diagnostics]))
@@ -632,6 +635,11 @@ export function DistingPlayground() {
     post({ type: 'setParameter', index, value })
   }
 
+  const applyParameterPreset = (index: number) => {
+    clearTrace()
+    post({ type: 'applyParameterPreset', index })
+  }
+
   const turnPot = (index: number, value: number) => {
     setPotPositions((previous) => previous.map((position, positionIndex) => (
       positionIndex === index ? value : position
@@ -858,7 +866,10 @@ export function DistingPlayground() {
                   <ParameterBank
                     definitions={program.parameters}
                     values={parameterValues}
+                    presets={program.parameterPresets}
+                    presetsDisabled={status === 'loading' || status === 'error'}
                     onChange={changeParameter}
+                    onApplyPreset={applyParameterPreset}
                   />
                 )}
 

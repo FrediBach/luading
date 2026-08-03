@@ -43,6 +43,8 @@ Tests beside `src/disting/emulation/*.ts` cover:
 - trigger rising edges and gate rising/falling edges
 - MIDI message classification, type filters, channel filters, and byte clamping
 - JSON-friendly preset state
+- Luading-only parameter-preset parsing, scaled/enum validation, canonical
+  vectors, active/Custom matching, and atomic script-relative batch updates
 - contract errors blocking script execution while warnings remain non-blocking
 - integer and antialiased drawing commands, shades, alignment, and the standard
   parameter line
@@ -70,7 +72,9 @@ Tests beside `src/disting/emulation/*.ts` cover:
 The Lua runtime tests execute scripts in Wasmoon rather than mocking Lua tables.
 They verify `self` binding, restored state before `init`, lifecycle callbacks,
 custom UI callbacks, `setupUi`, MIDI, serialization, syntax errors, and
-`package.preload` modules.
+`package.preload` modules. They also verify that nested top-level
+`luading.parameterPresets` metadata crosses the real table boundary in source
+order and that batch parameter synchronization updates Lua `self.parameters`.
 
 The reusable test engine in
 `src/disting/testing/lua-test-environment.ts` installs the same Disting constants
@@ -173,7 +177,8 @@ complete preset/bus semantics, visual parity, or real hardware I/O.
 
 Server-rendering tests use `renderToStaticMarkup()` to pin component structure,
 accessible names and states, responsive branch selection, routing/status text,
-and control semantics. Pure tests cover layout reducers, viewport decisions,
+parameter-preset simulator disclosure, active/Custom selection, and control
+semantics. Pure tests cover layout reducers, viewport decisions,
 shortcuts, scope selection, editors, formatters, and interaction math.
 
 These tests do not run browser effects, CSS layout, pointer capture, focus

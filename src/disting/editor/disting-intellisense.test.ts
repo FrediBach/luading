@@ -279,6 +279,33 @@ describe('Disting IntelliSense API support', () => {
     registration.dispose()
   })
 
+  it('offers and documents Luading parameter presets as a simulator extension', () => {
+    const completionSource = 'return {\n  \n}'
+    const entries = completionEntriesForSource(
+      completionSource,
+      completionSource.indexOf('\n}') - 1,
+    )
+    const luading = entries.find((entry) => entry.label === 'luading')
+
+    expect(luading).toMatchObject({
+      detail: 'Luading simulator extension · parameter presets',
+      completionKind: 'field',
+    })
+    expect(luading?.documentation).toContain('Disting NT hardware ignores')
+    expect(luading?.insertText).toContain('parameterPresets')
+
+    const { providers, registration } = providerHarness()
+    const source = `return {
+  luading = { parameterPresets = {} },
+}`
+    const hover = (providers.hover as {
+      provideHover(model: unknown, position: unknown): { contents: Array<{ value: string }> } | null
+    }).provideHover(modelFor(source), cursorPosition(source, source.indexOf('luading') + 1))
+    expect(hover?.contents[1].value).toContain('Luading simulator extension')
+    expect(hover?.contents[1].value).toContain('hardware ignores')
+    registration.dispose()
+  })
+
   it('provides hover documentation for APIs, Lua keywords, lifecycle fields, metadata, and locals', () => {
     const { providers, registration } = providerHarness()
     const hoverProvider = providers.hover as {

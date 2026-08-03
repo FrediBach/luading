@@ -131,4 +131,62 @@ describe('parameter control rendering', () => {
     )
     expect(markup).not.toContain('role="slider"')
   })
+
+  it('renders ordered simulator-only presets and derives active or custom state', () => {
+    const definitions = [parameter('Rate'), parameter('Depth')]
+    const presets = [
+      { name: 'Subtle', values: [25, 20] },
+      { name: 'Wide', values: [80, 100] },
+    ]
+    const active = renderToStaticMarkup(
+      <ParameterBank
+        definitions={definitions}
+        values={[80, 100]}
+        presets={presets}
+        onChange={() => undefined}
+        onApplyPreset={() => undefined}
+      />,
+    )
+    const custom = renderToStaticMarkup(
+      <ParameterBank
+        definitions={definitions}
+        values={[50, 50]}
+        presets={presets}
+        presetsDisabled
+        onChange={() => undefined}
+        onApplyPreset={() => undefined}
+      />,
+    )
+
+    expect(active).toContain('Parameter preset')
+    expect(active).toContain('Simulator')
+    expect(active.indexOf('Subtle')).toBeLessThan(active.indexOf('Wide'))
+    expect(active).toContain('<option value="1" selected="">Wide</option>')
+    expect(active).toContain('ignored by Disting NT hardware')
+    expect(custom).toContain('<option value="" disabled="" selected="">Custom</option>')
+    expect(custom).toContain('<select disabled=""')
+  })
+
+  it('does not show a preset selector unless valid presets and a handler exist', () => {
+    const definitions = [parameter('Rate')]
+    const withoutPresets = renderToStaticMarkup(
+      <ParameterBank
+        definitions={definitions}
+        values={[50]}
+        onChange={() => undefined}
+        onApplyPreset={() => undefined}
+      />,
+    )
+    const withoutHandler = renderToStaticMarkup(
+      <ParameterBank
+        definitions={definitions}
+        values={[50]}
+        presets={[{ name: 'Default', values: [50] }]}
+        onChange={() => undefined}
+      />,
+    )
+
+    expect(withoutPresets).not.toContain('Parameter preset')
+    expect(withoutHandler).not.toContain('Parameter preset')
+  })
 })

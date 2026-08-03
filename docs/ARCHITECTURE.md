@@ -83,6 +83,7 @@ pure and do not communicate with the simulation worker.
 | Generator configuration and external input values | Simulation worker signal bank | Main thread owns the selected generator/Web MIDI route; physical port mappings remain main-thread-only |
 | Output voltages and pending traces | Simulation worker | Frames mirror current values; `TraceHistory` owns bounded main-thread history outside normal React state |
 | Script parameters | Worker `LuaScriptParameterModel` and the Lua program table | Current values are mirrored to React for presentation and control input |
+| Script-declared parameter presets | Simulation worker after raw Luading-extension validation | Normalized names/values are sent in `LoadedProgram`; the main thread derives the active/Custom label from mirrored parameter values |
 | Draw commands | Worker `DistingDisplayApi` | Main thread rasterizes the command list to the 256x64 display |
 | Web Audio and Web MIDI routing | Main thread | Never serialized into the Lua contract; browser port identities never enter the worker |
 | Saved `self.state` | Produced by the worker, held by the coordinator | Kept in memory for a subsequent load; not browser-persisted |
@@ -136,9 +137,11 @@ corrupted Lua VM from surviving reload.
    value before normalization.
 7. Any blocking contract error closes the runtime and prevents execution.
 8. `emulation/lua-contract.ts` normalizes accepted metadata.
-9. The worker initializes the parameter model, input signal bank, output state,
+9. The worker separately validates and normalizes optional
+   `luading.parameterPresets` as non-blocking simulator-extension metadata.
+10. The worker initializes the parameter model, input signal bank, output state,
    custom UI state, display, clock, and telemetry.
-10. The main thread receives `loaded`, initializes its views and routes, and
+11. The main thread receives `loaded`, initializes its views and routes, and
     starts the worker unless the document is hidden.
 
 The production runtime bridge is also used by Lua-boundary and corpus tests.
@@ -200,6 +203,14 @@ running in an unknown state.
 Front-panel messages cross the typed worker protocol. When `ui()` opts into
 custom UI, pot, encoder, and button messages invoke script callbacks. Otherwise
 pot turns use the standard parameter model.
+
+The Luading-only parameter-preset selector sends a 0-based preset index to the
+worker. The worker applies the complete script-relative vector through the
+parameter model, synchronizes `self.parameters` with one runtime-bridge call,
+renders once, and acknowledges canonical values and display commands. The
+dedicated acknowledgement keeps paused application visible even when a normal
+frame is already in flight. It does not reset the VM, simulation state, I/O,
+clock, routing, system parameters, or serialized `self.state`.
 
 Web MIDI access, permissions, hot-plug listeners, physical port selection, and
 output scheduling belong to the main thread. Direct MIDI input sends only the
@@ -278,6 +289,8 @@ These rules must survive refactors:
   on the main thread and never become Lua globals.
 - Simulator-only annotations and generators are labelled as extensions and do
   not change the firmware-facing contract.
+- `luading.parameterPresets` is optional simulator metadata: malformed entries
+  produce simulator-targeted warnings, never blocking hardware-contract errors.
 - Source-derived diagnostics, indexes, navigation, and edits are versioned.
 - Browser callback timing is local telemetry, never calibrated Disting NT CPU
   usage.

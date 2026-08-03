@@ -13,6 +13,7 @@ export type LuaProgram = {
   algorithmIndex?: number
   parameterOffset?: number
   parameters?: unknown[]
+  luading?: unknown
   init?: (self: LuaProgram) => LuaInitResult | undefined
   step?: (self: LuaProgram, dt: number, inputs: number[]) => number[] | undefined
   trigger?: (self: LuaProgram, input: number) => number[] | undefined
@@ -167,6 +168,7 @@ export function describeProgram(program: LuaProgram, init: LuaInitResult): Loade
     inputKinds: inputEntries.map(inputKind),
     outputKinds: outputEntries.map(outputKind),
     parameters: parseParameters(init.parameters),
+    parameterPresets: [],
     customUi: false,
     uiPotPositions: [null, null, null],
     midi: midi
