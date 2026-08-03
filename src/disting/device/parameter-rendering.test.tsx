@@ -158,11 +158,12 @@ describe('parameter control rendering', () => {
       />,
     )
 
-    expect(active).toContain('Parameter preset')
-    expect(active).toContain('Simulator')
+    expect(active).toContain('aria-label="Parameter preset"')
+    expect(active).not.toContain('>Parameter preset<')
+    expect(active).not.toContain('>Simulator<')
     expect(active.indexOf('Subtle')).toBeLessThan(active.indexOf('Wide'))
     expect(active).toContain('<option value="1" selected="">Wide</option>')
-    expect(active).toContain('ignored by Disting NT hardware')
+    expect(active).not.toContain('ignored by Disting NT hardware')
     expect(custom).toContain('<option value="" disabled="" selected="">Custom</option>')
     expect(custom).toContain('<select disabled=""')
   })

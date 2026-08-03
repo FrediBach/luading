@@ -64,9 +64,10 @@ Each preset needs a unique non-empty name and exactly one finite value for every
 units visible in `self.parameters`; enums use 1-based option indices. Values
 must be inside their declared ranges.
 
-When valid presets exist, the Parameters header shows a **Parameter preset**
-selector with a visible **Simulator** label. Choosing a preset applies the
-complete parameter vector atomically and works while the runtime is paused.
+When valid presets exist, the Parameters header shows a compact preset
+dropdown with the accessible name **Parameter preset**. Choosing a preset
+applies the complete parameter vector atomically and works while the runtime is
+paused.
 The selector shows **Custom** whenever the current values no longer exactly
 match a named preset, including after a control edit or Lua `setParameter()`
 call. Initial load never auto-applies a preset; normal parameter defaults still

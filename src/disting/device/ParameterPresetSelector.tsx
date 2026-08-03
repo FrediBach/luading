@@ -1,4 +1,3 @@
-import { useId } from 'react'
 import type { ScriptParameterPreset } from '../types'
 
 interface Props {
@@ -14,18 +13,12 @@ export function ParameterPresetSelector({
   disabled = false,
   onApply,
 }: Props) {
-  const descriptionId = useId()
-
   return (
     <label className="parameter-preset-selector">
-      <span>
-        Parameter preset
-        <small>Simulator</small>
-      </span>
       <select
         value={activeIndex === null ? '' : String(activeIndex)}
         disabled={disabled}
-        aria-describedby={descriptionId}
+        aria-label="Parameter preset"
         onChange={(event) => {
           if (event.target.value !== '') onApply(Number(event.target.value))
         }}
@@ -37,9 +30,6 @@ export function ParameterPresetSelector({
           </option>
         ))}
       </select>
-      <span className="sr-only" id={descriptionId}>
-        Luading-only parameter presets are ignored by Disting NT hardware.
-      </span>
     </label>
   )
 }

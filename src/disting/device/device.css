@@ -211,21 +211,6 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--nt-muted);
-  font: var(--font-label)/1.1 var(--mono);
-}
-
-.parameter-preset-selector > span:first-child {
-  display: grid;
-  gap: 2px;
-}
-
-.parameter-preset-selector small {
-  color: var(--nt-green);
-  font: inherit;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .parameter-preset-selector select {
@@ -526,11 +511,6 @@
 
   .parameter-bank-actions {
     flex-wrap: wrap;
-  }
-
-  .parameter-preset-selector {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .parameter-preset-selector select {
