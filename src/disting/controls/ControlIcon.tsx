@@ -7,6 +7,7 @@ export type ControlIconName =
   | 'speaker'
   | 'scope'
   | 'reset'
+  | 'random'
   | 'save'
   | 'new'
   | 'import'
@@ -50,6 +51,8 @@ function IconPaths({ name }: { name: ControlIconName }) {
       return <path d="M2.5 10h2.8l1.6-4 2.6 8 2.2-6 1.4 2h4.4v1.8h-5.3l-.1-.2-2.9 7.7-2.5-7.7-.2.2h-4Z" />
     case 'reset':
       return <path d="M5.1 6.2V3.5H3.3v6h6V7.7H6.4A4.7 4.7 0 1 1 5.8 13l-1.5 1a6.5 6.5 0 1 0 .8-7.8Z" />
+    case 'random':
+      return <path d="M4 3h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm1 2v10h10V5Zm2 1.5A1.25 1.25 0 1 1 7 9a1.25 1.25 0 0 1 0-2.5Zm6 4.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Z" />
     case 'save':
       return <path d="M3 3h12l2 2v12H3Zm3 1.8v4.1h8V4.8Zm0 7V16h8v-4.2Z" />
     case 'new':

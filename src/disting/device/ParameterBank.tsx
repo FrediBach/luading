@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { ControlIcon } from '../controls'
+import { Tooltip } from '../controls/Tooltip'
 import { PanelEmptyState } from '../PanelEmptyState'
 import type { ParameterDefinition } from '../types'
 import type { ScriptParameterPreset } from '../types'
@@ -9,6 +11,7 @@ import {
   DEFAULT_PARAMETER_PAGE_SIZE,
   parameterPageCount,
   parameterPageRange,
+  randomParameterValue,
 } from './parameter-controls'
 
 interface Props {
@@ -61,6 +64,19 @@ export function ParameterBank({
               onApply={onApplyPreset}
             />
           )}
+          <Tooltip content="Randomize all parameters" placement="bottom">
+            <button
+              type="button"
+              className="control-icon-toggle parameter-randomize-button"
+              aria-label="Randomize all parameters"
+              disabled={definitions.length === 0 || presetsDisabled}
+              onClick={() => definitions.forEach((definition, index) => {
+                onChange(index, randomParameterValue(definition))
+              })}
+            >
+              <ControlIcon name="random" size={15} />
+            </button>
+          </Tooltip>
           {pageCount > 1 && (
             <div className="parameter-bank-paging">
             <button

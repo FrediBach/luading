@@ -115,6 +115,8 @@ describe('parameter control rendering', () => {
     expect(markup).toContain('1–8 of 10')
     expect(markup).toContain('1 / 2')
     expect(markup).toContain('aria-label="Next parameter page"')
+    expect(markup).toContain('aria-label="Randomize all parameters"')
+    expect(markup).toContain('Randomize all parameters')
   })
 
   it('keeps an informative parameter panel when none are defined', () => {
@@ -133,6 +135,7 @@ describe('parameter control rendering', () => {
       'Add parameters to the script&#x27;s init configuration',
     )
     expect(markup).not.toContain('role="slider"')
+    expect(markup).toContain('aria-label="Randomize all parameters" disabled=""')
   })
 
   it('renders ordered simulator-only presets and derives active or custom state', () => {
@@ -169,6 +172,7 @@ describe('parameter control rendering', () => {
     expect(active).not.toContain('ignored by Disting NT hardware')
     expect(custom).toContain('<option value="" disabled="" selected="">Custom</option>')
     expect(custom).toContain('<select disabled=""')
+    expect(custom).toContain('aria-label="Randomize all parameters" disabled=""')
   })
 
   it('lets a paged parameter header wrap its preset and paging controls', () => {

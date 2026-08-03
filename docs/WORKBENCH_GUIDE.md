@@ -75,6 +75,12 @@ match a named preset, including after a control edit or Lua `setParameter()`
 call. Initial load never auto-applies a preset; normal parameter defaults still
 win, and reload does not remember the previous selection.
 
+Use the Luading-only **Randomize all parameters** dice button in the Parameters
+header to choose a new valid value for every script parameter, including
+parameters on other pages. Numeric values stay on their declared scaled steps
+and inside their minimum and maximum; enum parameters always select a declared
+option.
+
 Malformed preset declarations appear as non-blocking simulator diagnostics.
 They do not stop an otherwise hardware-valid script from running. Disting NT
 firmware does not interpret `luading.parameterPresets`; the snapshots do not

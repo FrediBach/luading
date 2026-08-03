@@ -8,6 +8,7 @@ import {
   parameterPageRange,
   parameterPrecision,
   parameterStep,
+  randomParameterValue,
 } from './parameter-controls'
 
 function parameter(
@@ -74,5 +75,24 @@ describe('parameter control metadata', () => {
       end: 16,
     })
   })
-})
 
+  it('randomizes numeric parameters across representable values within their limits', () => {
+    const definition = parameter({ min: -1.25, max: 2.5, scale: 100 })
+
+    expect(randomParameterValue(definition, () => 0)).toBe(-1.25)
+    expect(randomParameterValue(definition, () => 0.5)).toBe(0.63)
+    expect(randomParameterValue(definition, () => 1)).toBe(2.5)
+  })
+
+  it('randomizes enums as valid integer option indices', () => {
+    const definition = parameter({
+      min: 1,
+      max: 3,
+      enumValues: ['Off', 'Gate', 'Latch'],
+    })
+
+    expect(randomParameterValue(definition, () => 0)).toBe(1)
+    expect(randomParameterValue(definition, () => 0.5)).toBe(2)
+    expect(randomParameterValue(definition, () => 1)).toBe(3)
+  })
+})
