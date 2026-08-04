@@ -79,6 +79,12 @@ The completed
 records the Luading-only source schema, worker flow, parameter-panel behavior,
 and verification performed when named parameter snapshots were implemented.
 
+The completed
+[local script persistence plan](archive/implementation-plans/LOCAL_SCRIPT_PERSISTENCE_IMPLEMENTATION_PLAN.md)
+records the account-free IndexedDB project library, autosave and recovery,
+project-management workflow, portable backup/restore format, and final
+verification.
+
 ## Documentation lifecycle
 
 - Update `ARCHITECTURE.md` when ownership, boundaries, protocols, or invariants

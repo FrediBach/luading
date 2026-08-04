@@ -9,14 +9,19 @@ import {
   prepareDiagnosticMarkers,
 } from './diagnostic-markers'
 import { DISTING_LUA_LANGUAGE_ID, DISTING_LUA_MODEL_URI } from './disting-lua'
+import { clampEditorViewToSource, editorOffset } from './editor-view'
+import type { EditorViewSnapshot } from '../workbench/projects'
 
 type DistingCodeEditorProps = {
   value: string
   diagnostics: ScriptDiagnostic[]
   theme: ThemeMode
   textSize: TextSize
+  documentKey: string
+  initialView?: EditorViewSnapshot
   revealRequest?: { range: SourceRange; nonce: number }
   onChange(value: string): void
+  onViewChange?(view: EditorViewSnapshot): void
   onRun(): void
 }
 
@@ -30,11 +35,15 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   diagnostics,
   theme,
   textSize,
+  documentKey,
+  initialView,
   revealRequest,
   onChange,
+  onViewChange,
   onRun,
 }: DistingCodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const fallbackRef = useRef<HTMLTextAreaElement>(null)
   const valueRef = useRef(value)
   const modelRef = useRef<import('monaco-editor/esm/vs/editor/editor.api').editor.ITextModel | undefined>(undefined)
   const editorRef = useRef<import('monaco-editor/esm/vs/editor/editor.api').editor.IStandaloneCodeEditor | undefined>(undefined)
@@ -42,6 +51,8 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   const applyingExternalValueRef = useRef(false)
   const onChangeRef = useRef(onChange)
   const onRunRef = useRef(onRun)
+  const onViewChangeRef = useRef(onViewChange)
+  const initialViewRef = useRef(initialView)
   const diagnosticsRef = useRef(diagnostics)
   const revealRequestRef = useRef(revealRequest)
   const themeRef = useRef(theme)
@@ -53,6 +64,8 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
 
   onChangeRef.current = onChange
   onRunRef.current = onRun
+  onViewChangeRef.current = onViewChange
+  initialViewRef.current = initialView
   diagnosticsRef.current = diagnostics
   revealRequestRef.current = revealRequest
   themeRef.current = theme
@@ -133,11 +146,39 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
   }, [textSize])
 
   useEffect(() => {
+    const textarea = fallbackRef.current
+    if (!textarea) return
+    const restoredView = initialViewRef.current
+    const offset = editorOffset(valueRef.current, restoredView)
+    textarea.setSelectionRange(offset, offset)
+    if (restoredView) {
+      textarea.scrollTop = restoredView.scrollTop
+      textarea.scrollLeft = restoredView.scrollLeft
+    }
+  }, [documentKey])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    const model = modelRef.current
+    if (!editor || !model) return
+    const restoredView = clampEditorViewToSource(initialViewRef.current, model.getValue())
+    if (!restoredView) {
+      editor.setPosition({ lineNumber: 1, column: 1 })
+      editor.setScrollPosition({ scrollTop: 0, scrollLeft: 0 })
+      return
+    }
+    editor.setPosition({ lineNumber: restoredView.line, column: restoredView.column })
+    editor.setScrollPosition({ scrollTop: restoredView.scrollTop, scrollLeft: restoredView.scrollLeft })
+  }, [documentKey])
+
+  useEffect(() => {
     let disposed = false
     let idleHandle: number | undefined
     let editor: import('monaco-editor/esm/vs/editor/editor.api').editor.IStandaloneCodeEditor | undefined
     let model: import('monaco-editor/esm/vs/editor/editor.api').editor.ITextModel | undefined
     let changeListener: import('monaco-editor/esm/vs/editor/editor.api').IDisposable | undefined
+    let cursorListener: import('monaco-editor/esm/vs/editor/editor.api').IDisposable | undefined
+    let scrollListener: import('monaco-editor/esm/vs/editor/editor.api').IDisposable | undefined
     let codeActionRegistration: import('monaco-editor/esm/vs/editor/editor.api').IDisposable | undefined
 
     const mountEditor = async () => {
@@ -208,6 +249,11 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
           },
         })
         editorRef.current = editor
+        const restoredView = clampEditorViewToSource(initialViewRef.current, model.getValue())
+        if (restoredView) {
+          editor.setPosition({ lineNumber: restoredView.line, column: restoredView.column })
+          editor.setScrollPosition({ scrollTop: restoredView.scrollTop, scrollLeft: restoredView.scrollLeft })
+        }
         codeActionRegistration = registerDiagnosticCodeActions(
           monaco,
           model,
@@ -230,6 +276,19 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
             return current === nextCount ? current : nextCount
           })
         })
+
+        const reportView = () => {
+          const position = editor?.getPosition()
+          if (!editor || !position) return
+          onViewChangeRef.current?.({
+            line: position.lineNumber,
+            column: position.column,
+            scrollTop: editor.getScrollTop(),
+            scrollLeft: editor.getScrollLeft(),
+          })
+        }
+        cursorListener = editor.onDidChangeCursorPosition(reportView)
+        scrollListener = editor.onDidScrollChange(reportView)
 
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => onRunRef.current())
         applyMarkers()
@@ -257,6 +316,8 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
         else window.clearTimeout(idleHandle)
       }
       changeListener?.dispose()
+      cursorListener?.dispose()
+      scrollListener?.dispose()
       codeActionRegistration?.dispose()
       if (model) {
         for (const owner of Object.values(DIAGNOSTIC_MARKER_OWNERS)) {
@@ -283,6 +344,7 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
         />
         {useFallback && (
           <textarea
+            ref={fallbackRef}
             className="disting-editor disting-editor--fallback"
             value={fallbackValue}
             onChange={(event) => {
@@ -291,6 +353,28 @@ export const DistingCodeEditor = memo(function DistingCodeEditor({
               setFallbackValue(nextValue)
               setLineCount(nextValue.split('\n').length)
               onChangeRef.current(nextValue)
+            }}
+            onSelect={(event) => {
+              const textarea = event.currentTarget
+              const before = textarea.value.slice(0, textarea.selectionStart)
+              const lines = before.split('\n')
+              onViewChangeRef.current?.({
+                line: lines.length,
+                column: (lines.at(-1)?.length ?? 0) + 1,
+                scrollTop: textarea.scrollTop,
+                scrollLeft: textarea.scrollLeft,
+              })
+            }}
+            onScroll={(event) => {
+              const textarea = event.currentTarget
+              const before = textarea.value.slice(0, textarea.selectionStart)
+              const lines = before.split('\n')
+              onViewChangeRef.current?.({
+                line: lines.length,
+                column: (lines.at(-1)?.length ?? 0) + 1,
+                scrollTop: textarea.scrollTop,
+                scrollLeft: textarea.scrollLeft,
+              })
             }}
             spellCheck={false}
             aria-label="Disting Lua source"

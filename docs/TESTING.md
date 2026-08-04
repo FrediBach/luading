@@ -262,6 +262,39 @@ movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
 screen reader. User-interface changes need the applicable live browser checks
 in addition to model and rendering coverage.
 
+### Local project persistence
+
+Pure project tests pin filename allocation, defensive record validation,
+template forking, active fallback, editor-view normalization, backup ordering
+and strict parsing, and recovery-journal cleanup. The deterministic in-memory
+adapter pins the same atomic intent used by React, including revision
+advancement, conflict copies, soft deletion/restore, and additive backup
+imports.
+
+The real `IndexedDbProjectStore` runs against a standards-compatible fake
+IndexedDB implementation. These tests create schema version 1 and its indexes,
+quarantine malformed records, exercise two store instances saving a stale
+revision, verify atomic conflict-copy creation, import complete backups, and
+close superseded connections on `versionchange`. Invalid backup parsing occurs
+before opening its write transaction, while the adapter performs accepted
+multi-project restore in one transaction.
+
+The project-library hook runs in a DOM test environment with injected clocks,
+IDs, storage, and short timers. It verifies hydration before source exposure,
+first-edit template forks through the module boundary, debounced autosave,
+flush-before-switch behavior, and editor-view saves that do not claim a source
+revision. Interactive DOM tests cover the My Scripts current row, project
+actions, save labels, empty state, backup/restore filters, and durability
+guidance.
+
+These automated browser substitutes do not prove real eviction policy,
+`pagehide` completion, download dialogs, private-mode retention, or cross-origin
+transfer. Release acceptance therefore records edit/reload, immediate switch,
+close/reopen recovery, project actions, two-tab conflict, unavailable-storage,
+backup transfer, persistent-storage, keyboard, and narrow-viewport results for
+Chromium, Firefox, and Safari. Unavailable browser cells must be reported
+explicitly.
+
 ### Browser and manual acceptance
 
 There is no general browser end-to-end suite. Live acceptance is evidence for

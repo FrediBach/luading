@@ -1,4 +1,5 @@
 import type { DistingScriptExampleGroup } from '../script-examples'
+import type { ScriptProject } from './projects'
 
 export function filterScriptGroups(
   groups: DistingScriptExampleGroup[],
@@ -17,4 +18,10 @@ export function filterScriptGroups(
         ))
     return examples.length > 0 ? [{ ...group, examples }] : []
   })
+}
+
+export function filterScriptProjects(projects: ScriptProject[], query: string): ScriptProject[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  if (!normalizedQuery || 'my scripts'.includes(normalizedQuery)) return projects
+  return projects.filter((project) => project.filename.toLocaleLowerCase().includes(normalizedQuery))
 }

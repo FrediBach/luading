@@ -20,10 +20,18 @@ import { ScriptMenu } from './ScriptMenu'
 import { ThemeToggle } from './ThemeToggle'
 import { WorkspacePresetMenu } from './WorkspacePresetMenu'
 import type { WorkspacePresetId } from './workbench-layout'
+import type { ScriptProject, SourceSaveStatus } from './projects'
+import type { StorageDurability } from './storage-durability'
 
 interface Props {
   programName: string
   selectedExampleId: string
+  activeProjectId?: string
+  projects?: ScriptProject[]
+  sourceSaveStatus?: SourceSaveStatus
+  projectNotice?: string
+  deletedProjectId?: string
+  storageDurability?: StorageDurability
   scriptGroups: DistingScriptExampleGroup[]
   status: RuntimeStateValue
   simulatedSeconds: number
@@ -46,6 +54,14 @@ interface Props {
   theme: ThemeMode
   textSize: TextSize
   onSelectExample(id: string): void
+  onSelectProject?(id: string): void
+  onRenameProject?(filename: string): void
+  onDuplicateProject?(): void
+  onDeleteProject?(): void
+  onUndoDeleteProject?(): void
+  onBackupProjects?(): void
+  onRestoreProjects?(file: File): void
+  onProtectDrafts?(): void
   onNewScript(): void
   onImportScript(file: File): void
   onExportScript(): void
@@ -67,6 +83,12 @@ interface Props {
 export function CommandBar({
   programName,
   selectedExampleId,
+  activeProjectId,
+  projects = [],
+  sourceSaveStatus = { kind: 'template' },
+  projectNotice,
+  deletedProjectId,
+  storageDurability = { supported: false, persisted: null },
   scriptGroups,
   status,
   simulatedSeconds,
@@ -83,6 +105,14 @@ export function CommandBar({
   theme,
   textSize,
   onSelectExample,
+  onSelectProject,
+  onRenameProject,
+  onDuplicateProject,
+  onDeleteProject,
+  onUndoDeleteProject,
+  onBackupProjects,
+  onRestoreProjects,
+  onProtectDrafts,
   onNewScript,
   onImportScript,
   onExportScript,
@@ -122,9 +152,23 @@ export function CommandBar({
         <ScriptMenu
           programName={programName}
           selectedExampleId={selectedExampleId}
+          activeProjectId={activeProjectId}
+          projects={projects}
           scriptGroups={scriptGroups}
+          saveStatus={sourceSaveStatus}
+          notice={projectNotice}
+          deletedProjectId={deletedProjectId}
+          durability={storageDurability}
           loading={status === 'booting' || status === 'loading'}
           onSelectExample={onSelectExample}
+          onSelectProject={onSelectProject ?? (() => undefined)}
+          onRename={onRenameProject ?? (() => undefined)}
+          onDuplicate={onDuplicateProject ?? (() => undefined)}
+          onDelete={onDeleteProject ?? (() => undefined)}
+          onUndoDelete={onUndoDeleteProject ?? (() => undefined)}
+          onBackup={onBackupProjects ?? (() => undefined)}
+          onRestore={onRestoreProjects ?? (() => undefined)}
+          onProtectDrafts={onProtectDrafts ?? (() => undefined)}
         />
 
         <ScriptFileActions

@@ -52,6 +52,8 @@ hardware authority than the PDF or verified hardware behavior.
 ```mermaid
 flowchart LR
   Monaco[Monaco model and editor] --> Main[React main thread]
+  Main --> ProjectStore[IndexedDB project store]
+  Main --> Recovery[localStorage recovery journal]
   Main -->|versioned source| Validation[Validation worker]
   Validation -->|diagnostics and source index| Main
   Main -->|WorkerRequest| Simulation[Simulation worker]
@@ -77,7 +79,8 @@ pure and do not communicate with the simulation worker.
 
 | State | Authoritative owner | Mirroring and persistence |
 | --- | --- | --- |
-| Editor text | Monaco model while mounted; textarea fallback otherwise | `DistingPlayground` mirrors the source and monotonically increasing version for validation, loading, import, and export |
+| Editor text | Monaco model while mounted; textarea fallback otherwise | `DistingPlayground` mirrors the source and monotonically increasing version for validation/loading; `useProjectLibrary` mirrors user-owned source into IndexedDB after debounce and protects a pending active edit with a compact `localStorage` journal |
+| Local script projects and active document | Main-thread project-library coordinator | IndexedDB is authoritative across sessions; validated in-memory copies drive React, while bundled templates remain immutable and are referenced by stable IDs |
 | Lua VM, `self`, callbacks, and loaded modules | Simulation worker | Replaced as a unit whenever a script is loaded |
 | Simulated clock and control-step position | Simulation worker | Clock configuration is mirrored in the main-thread controls |
 | Generator configuration and external input values | Simulation worker signal bank | Main thread owns the selected generator/Web MIDI route; physical port mappings remain main-thread-only |
@@ -112,6 +115,11 @@ Browser device identities and permissions stop at the main-thread boundary.
 Only voltage/pulse batches, firmware-facing MIDI bytes, configuration, and
 typed control events cross into the simulation worker.
 
+Project IDs, source, modules, editor view, active-document metadata, recovery
+journals, backup files, and browser storage capability results also remain on
+the main thread. None are members of the Lua contract or fields in the
+simulation-worker protocol.
+
 Most `emulation/` modules are reusable hardware-facing or browser-independent
 models. `web-audio.ts` and `web-midi.ts` are current exceptions: they are browser
 adapters located in that directory but instantiated only on the main thread.
@@ -119,6 +127,40 @@ Separating browser adapters from pure emulation is a recorded pressure point,
 not an excuse to import browser APIs into the worker.
 
 ## Runtime flows
+
+### Local project hydration and autosave
+
+Startup opens schema version 1 of the `luading-workbench` IndexedDB database and
+validates every project before creating either the validation or simulation
+worker. Malformed records are quarantined from the visible library. The
+coordinator then compares the compact active-source recovery journal with the
+stored revision, creates a separate recovery project when the journal is newer,
+and resolves the active document from stored metadata, recent projects, or the
+default template. Only that resolved source is sent to the workers.
+
+Monaco remains authoritative while mounted. A source edit updates the
+in-memory project immediately, writes the synchronous recovery journal, and
+queues a 400 ms IndexedDB transaction. A successful transaction compares the
+loaded revision, advances it exactly once, and only then presents **Saved
+locally** and removes the matching journal. Cursor and scroll metadata use a
+longer queue and do not advance the source revision. Run and document
+replacement flush pending source work first; visibility loss, `pagehide`, and
+unmount also request a flush, while retaining the journal because asynchronous
+completion during page teardown is not guaranteed.
+
+Bundled scripts are template documents. Their first edit creates a user-owned
+project with a defensive module snapshot; selecting the same bundle again
+loads its pristine source. New and ordinary `.lua` Import create independent
+projects. Soft deletion retains the record for Undo, while ordinary library
+queries and version-one backups omit deleted projects.
+
+IndexedDB writes use transactional optimistic concurrency. If another tab has
+already advanced a project revision, the stale source is committed as a new
+conflict-copy project in the same transaction rather than overwriting the
+newer source. `BroadcastChannel`, when available, provides early notification
+but is not the correctness boundary. If IndexedDB fails, an explicit in-memory
+store keeps the workbench usable and the journal protects only the active
+source when possible; the UI does not label that state as saved locally.
 
 ### Script load and replacement
 
@@ -300,6 +342,10 @@ These rules must survive refactors:
 | Location | Responsibility |
 | --- | --- |
 | `src/disting/DistingPlayground.tsx` | Main-thread coordination, worker lifetime, source/version mirroring, browser adapter ownership, and composition |
+| `src/disting/workbench/projects.ts` and `project-store.ts` | Local project domain rules, validation, active-document model, atomic persistence intent, and deterministic in-memory fallback |
+| `src/disting/workbench/indexeddb-project-store.ts` | IndexedDB schema, migrations, validation, revision transactions, deletion, and additive backup restore |
+| `src/disting/workbench/useProjectLibrary.ts` | Hydration gate, active-document ownership, autosave/flush queues, recovery, conflicts, and project actions |
+| `src/disting/workbench/project-recovery.ts` and `project-backup.ts` | Compact synchronous recovery journal and strict portable library-backup boundary |
 | `src/disting/disting.worker.ts` | Simulation scheduling, Lua lifetime, adapter registration, callback dispatch, trace/frame batching, and runtime observations |
 | `src/disting/types.ts` | Shared domain types plus the current simulation worker protocol |
 | `src/disting/emulation/` | Lua/runtime boundaries, contract normalization, parameters, signals, display commands/rendering, scope/trace models, hardware mocks, and reusable audio/MIDI routing |
@@ -335,6 +381,9 @@ The generated display atlas files under `emulation/` are produced by
 | Web MIDI permission, device, or send fails | Simulation remains alive; failure is exposed in browser state or the console, with note cleanup retried where supported |
 | Web Audio activation fails | Routing reports a browser-local error without changing Lua state |
 | `localStorage` is unavailable or malformed | Layout, theme, and text-size code falls back to defaults |
+| IndexedDB is unavailable, blocked, over quota, or rejects a transaction | Project coordinator enters named degraded mode; in-memory editing continues and a successful recovery journal is reported as recovery rather than a durable save |
+| IndexedDB and the recovery journal both fail | Active project is marked unsaved and destructive document replacement requires explicit confirmation; `.lua` Export remains available |
+| A project revision is stale in another tab | One transaction creates and activates a uniquely named conflict copy; the newer stored revision is not overwritten |
 | Structural source indexing is incomplete | Syntax/static findings may continue, but unsafe navigation and edits are withheld |
 
 ## Testing boundaries

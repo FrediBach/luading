@@ -70,9 +70,10 @@ import { createMidiEventRequest } from './workbench/midi-event'
 import {
   createLuaScriptDownload,
   luaDownloadFilename,
-  NEW_DISTING_SCRIPT,
   readLuaScriptFile,
 } from './workbench/script-file'
+import { useProjectLibrary } from './workbench/useProjectLibrary'
+import type { ProjectTemplate } from './workbench/projects'
 import type {
   DistingHardwareEvent,
   DistingMidiDestination,
@@ -129,6 +130,26 @@ const EMPTY_STATS: RuntimeStats = {
   callbacks: {},
 }
 
+const DEFAULT_PROJECT_TEMPLATE: ProjectTemplate = {
+  id: 'luading/default-vector-lfo',
+  filename: 'Vector LFO.lua',
+  source: DEFAULT_DISTING_SCRIPT,
+  modules: {},
+}
+
+const PROJECT_TEMPLATES = new Map<string, ProjectTemplate>([
+  [DEFAULT_PROJECT_TEMPLATE.id, DEFAULT_PROJECT_TEMPLATE],
+  ...[...DISTING_SCRIPT_EXAMPLES.values()].map((example): [string, ProjectTemplate] => [
+    example.id,
+    {
+      id: example.id,
+      filename: luaDownloadFilename(example.id.split('/').at(-1) ?? example.name),
+      source: example.source,
+      modules: example.modules,
+    },
+  ]),
+])
+
 function hardwareEventEntry(event: DistingHardwareEvent): {
   kind: ConsoleEntryKind
   message: string
@@ -177,7 +198,6 @@ export function DistingPlayground() {
   const [probes, setProbes] = useState<ScopeProbe[]>(EMPTY_PROBES)
   const [focusedScopeProbe, setFocusedScopeProbe] = useState<number | null>(null)
   const [editorSource, setEditorSource] = useState(DEFAULT_DISTING_SCRIPT)
-  const [selectedExampleId, setSelectedExampleId] = useState('')
   const [staticDiagnostics, setStaticDiagnostics] = useState<ScriptDiagnostic[]>([])
   const [contractDiagnostics, setContractDiagnostics] = useState<ScriptDiagnostic[]>([])
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<ScriptDiagnostic[]>([])
@@ -199,8 +219,21 @@ export function DistingPlayground() {
   const [textSize, setTextSize] = useState<TextSize>(() => (
     storedTextSize(browserThemeStorage())
   ))
-  const [scriptFileName, setScriptFileName] = useState('Vector LFO.lua')
   const [fileError, setFileError] = useState<string | null>(null)
+  const projectLibrary = useProjectLibrary({
+    templates: PROJECT_TEMPLATES,
+    defaultTemplate: DEFAULT_PROJECT_TEMPLATE,
+    confirmDiscard: (message) => window.confirm(message),
+  })
+  const activeProjectDocumentRef = useRef(projectLibrary.active)
+  activeProjectDocumentRef.current = projectLibrary.active
+  const selectedExampleId = projectLibrary.active.ref.kind === 'bundled'
+    && DISTING_SCRIPT_EXAMPLES.has(projectLibrary.active.ref.exampleId)
+    ? projectLibrary.active.ref.exampleId
+    : ''
+  const activeProjectId = projectLibrary.active.ref.kind === 'project'
+    ? projectLibrary.active.ref.projectId
+    : undefined
 
   const workerRef = useRef<Worker | null>(null)
   const frameCommitGateRef = useRef(new FrameCommitGate<Worker>())
@@ -245,16 +278,16 @@ export function DistingPlayground() {
     setSourceVersion(nextVersion)
     sourceRef.current = nextSource
     setEditorSource(nextSource)
+    projectLibrary.editSource(nextSource)
     setSourceIndex(null)
     setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
-    setSelectedExampleId('')
     sourceIsLoadedRef.current = false
     setSourceIsLoaded(false)
     setContractDiagnostics([])
     setRuntimeDiagnostics([])
     savedStateRef.current = undefined
     setHasSavedState(false)
-  }, [])
+  }, [projectLibrary])
 
   const clearLoadTimeout = useCallback(() => {
     if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
@@ -440,36 +473,43 @@ export function DistingPlayground() {
     createWorker()
   }, [clearTrace, createWorker])
 
-  const selectExample = (exampleId: string) => {
-    const example = DISTING_SCRIPT_EXAMPLES.get(exampleId)
-    if (!example) return
-
-    sourceRef.current = example.source
+  useEffect(() => {
+    if (!projectLibrary.hydrated) return
+    const document = activeProjectDocumentRef.current
+    sourceRef.current = document.source
+    modulesRef.current = { ...document.modules }
+    setEditorSource(document.source)
     const nextVersion = validationVersionRef.current + 1
     validationVersionRef.current = nextVersion
     setSourceVersion(nextVersion)
-    modulesRef.current = example.modules
-    setScriptFileName(luaDownloadFilename(example.id.split('/').at(-1) ?? example.name))
-    setFileError(null)
-    setEditorSource(example.source)
     setSourceIndex(null)
     setStaticDiagnostics(clearOutdatedSyntaxDiagnostics)
-    setSelectedExampleId(example.id)
+    setContractDiagnostics([])
+    setRuntimeDiagnostics([])
     savedStateRef.current = undefined
     setHasSavedState(false)
     sourceIsLoadedRef.current = false
     setSourceIsLoaded(false)
     loadScript()
+  }, [loadScript, projectLibrary.active.key, projectLibrary.hydrated])
+
+  useEffect(() => terminateWorker, [terminateWorker])
+
+  const runScript = useCallback(async () => {
+    await projectLibrary.flush()
+    loadScript()
+  }, [loadScript, projectLibrary])
+
+  const selectExample = (exampleId: string) => {
+    setFileError(null)
+    void projectLibrary.selectTemplate(exampleId)
   }
 
   const importScript = async (file: File) => {
     try {
       const source = await readLuaScriptFile(file)
-      modulesRef.current = {}
-      setScriptFileName(luaDownloadFilename(file.name))
       setFileError(null)
-      updateSource(source)
-      loadScript()
+      await projectLibrary.importScript(file.name, source)
     } catch (cause) {
       const detail = cause instanceof Error ? cause.message : String(cause)
       const message = `Could not import ${file.name}: ${detail}`
@@ -480,16 +520,13 @@ export function DistingPlayground() {
   }
 
   const createNewScript = () => {
-    modulesRef.current = {}
-    setScriptFileName('New Script.lua')
     setFileError(null)
-    updateSource(NEW_DISTING_SCRIPT)
-    loadScript()
+    void projectLibrary.createNew()
   }
 
   const exportScript = () => {
     try {
-      const download = createLuaScriptDownload(sourceRef.current, scriptFileName)
+      const download = createLuaScriptDownload(sourceRef.current, projectLibrary.active.filename)
       const url = URL.createObjectURL(download.blob)
       try {
         const link = document.createElement('a')
@@ -507,17 +544,44 @@ export function DistingPlayground() {
       setFileError(null)
     } catch (cause) {
       const detail = cause instanceof Error ? cause.message : String(cause)
-      const message = `Could not export ${scriptFileName}: ${detail}`
+      const message = `Could not export ${projectLibrary.active.filename}: ${detail}`
       setFileError(message)
       appendConsoleEntry('error', message)
       dispatchLayout({ type: 'openDrawer', tab: 'console' })
     }
   }
 
-  useEffect(() => {
-    createWorker()
-    return terminateWorker
-  }, [createWorker, terminateWorker])
+  const downloadBackup = async () => {
+    try {
+      const source = await projectLibrary.backup()
+      const url = URL.createObjectURL(new Blob([source], { type: 'application/json;charset=utf-8' }))
+      try {
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'luading-scripts.luading-backup.json'
+        document.body.append(link)
+        link.click()
+        link.remove()
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    } catch (cause) {
+      const message = `Could not back up local scripts: ${cause instanceof Error ? cause.message : String(cause)}`
+      setFileError(message)
+      appendConsoleEntry('error', message)
+    }
+  }
+
+  const restoreBackup = async (file: File) => {
+    try {
+      await projectLibrary.restoreBackup(await file.text())
+      setFileError(null)
+    } catch (cause) {
+      const message = `Could not restore ${file.name}: ${cause instanceof Error ? cause.message : String(cause)}`
+      setFileError(message)
+      appendConsoleEntry('error', message)
+    }
+  }
 
   useEffect(() => {
     const unsubscribeState = webMidiManager.subscribe(setWebMidiState)
@@ -552,6 +616,7 @@ export function DistingPlayground() {
   }, [directMidiInputIds, inputRoutes, webMidiManager])
 
   useEffect(() => {
+    if (!projectLibrary.hydrated) return
     const validationWorker = new Worker(new URL('./validation.worker.ts', import.meta.url), { type: 'module' })
     validationWorkerRef.current = validationWorker
     validationWorker.onmessage = (event: MessageEvent<ValidationWorkerResponse>) => {
@@ -563,9 +628,10 @@ export function DistingPlayground() {
       validationWorker.terminate()
       validationWorkerRef.current = null
     }
-  }, [])
+  }, [projectLibrary.hydrated])
 
   useEffect(() => {
+    if (!projectLibrary.hydrated) return
     const version = sourceVersion
     const timeout = window.setTimeout(() => {
       validationWorkerRef.current?.postMessage({
@@ -575,7 +641,7 @@ export function DistingPlayground() {
       })
     }, 250)
     return () => window.clearTimeout(timeout)
-  }, [editorSource, sourceVersion])
+  }, [editorSource, projectLibrary.hydrated, sourceVersion])
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -730,7 +796,11 @@ export function DistingPlayground() {
       ? `${qualityReport.errorCount} errors`
       : 'Run to score'
     : `${qualityReport.score} · ${qualityReport.grade}`
-  const accessibilityAnnouncement = fileError ?? error
+  const sourcePersistenceError = projectLibrary.saveStatus.kind === 'degraded'
+    || projectLibrary.saveStatus.kind === 'unsaved'
+    ? projectLibrary.saveStatus.message
+    : projectLibrary.notice
+  const accessibilityAnnouncement = fileError ?? error ?? sourcePersistenceError
     ?? (qualityReport.errorCount > 0
       ? `${qualityReport.errorCount} validation ${qualityReport.errorCount === 1 ? 'error' : 'errors'}. Open Problems for details.`
       : '')
@@ -764,11 +834,19 @@ export function DistingPlayground() {
   useWorkbenchShortcuts({
     canToggleRunning: Boolean(program)
       && (status === 'running' || status === 'paused'),
-    onRun: loadScript,
+    onRun: () => void runScript(),
     onToggleRunning: toggleRunning,
     onToggleDrawer: (tab) => dispatchLayout({ type: 'toggleDrawer', tab }),
     onApplyPreset: (preset) => dispatchLayout({ type: 'applyPreset', preset }),
   })
+
+  if (!projectLibrary.hydrated) {
+    return (
+      <main className="disting-app workbench-shell project-library-boot" aria-busy="true">
+        <p role="status">Loading local scripts…</p>
+      </main>
+    )
+  }
 
   return (
     <WorkbenchShell
@@ -778,8 +856,14 @@ export function DistingPlayground() {
       announcement={accessibilityAnnouncement}
       commandBar={(
         <CommandBar
-          programName={program?.name ?? 'Lua script'}
+          programName={projectLibrary.active.filename}
           selectedExampleId={selectedExampleId}
+          activeProjectId={activeProjectId}
+          projects={projectLibrary.projects}
+          sourceSaveStatus={projectLibrary.saveStatus}
+          projectNotice={projectLibrary.notice}
+          deletedProjectId={projectLibrary.deletedProjectId}
+          storageDurability={projectLibrary.durability}
           scriptGroups={DISTING_SCRIPT_GROUPS}
           status={status}
           simulatedSeconds={stats.simulatedSeconds}
@@ -803,11 +887,19 @@ export function DistingPlayground() {
           theme={theme}
           textSize={textSize}
           onSelectExample={selectExample}
+          onSelectProject={(id) => void projectLibrary.selectProject(id)}
+          onRenameProject={(filename) => void projectLibrary.rename(filename)}
+          onDuplicateProject={() => void projectLibrary.duplicate()}
+          onDeleteProject={() => void projectLibrary.deleteActive()}
+          onUndoDeleteProject={() => void projectLibrary.undoDelete()}
+          onBackupProjects={() => void downloadBackup()}
+          onRestoreProjects={(file) => void restoreBackup(file)}
+          onProtectDrafts={() => void projectLibrary.protectDrafts()}
           onNewScript={createNewScript}
           onImportScript={(file) => void importScript(file)}
           onExportScript={exportScript}
           onToggleRunning={toggleRunning}
-          onRun={loadScript}
+          onRun={() => void runScript()}
           onClockChange={changeClock}
           onSaveState={() => post({ type: 'serialise' })}
           onApplyWorkspacePreset={(preset) => (
@@ -843,9 +935,12 @@ export function DistingPlayground() {
                 diagnostics={diagnostics}
                 theme={theme}
                 textSize={textSize}
+                documentKey={projectLibrary.active.key}
+                initialView={projectLibrary.active.editorView}
                 revealRequest={revealRequest}
                 onChange={updateSource}
-                onRun={loadScript}
+                onViewChange={projectLibrary.updateEditorView}
+                onRun={() => void runScript()}
               />
             </div>
           )}

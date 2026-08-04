@@ -35,6 +35,13 @@
   --control-target: max(40px, calc(var(--font-control) + 20px));
 }
 
+.project-library-boot {
+  display: grid;
+  place-items: center;
+  color: var(--nt-muted);
+  font: var(--font-label)/1.4 var(--mono);
+}
+
 .workbench-commandbar {
   height: var(--workbench-command-height);
   min-width: 0;
@@ -174,6 +181,20 @@
   display: block;
 }
 
+.script-menu-trigger .script-save-status {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--nt-muted);
+  font-size: var(--font-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-menu-trigger .script-save-status--saved,
+.script-menu-trigger .script-save-status--conflict {
+  color: var(--nt-green);
+}
+
 .script-menu-trigger small {
   color: var(--nt-muted);
   font: var(--font-micro)/1 var(--mono);
@@ -267,6 +288,86 @@
   color: var(--nt-muted);
   font: var(--font-label)/1.4 var(--mono);
   text-align: center;
+}
+
+.script-menu-groups section > p,
+.script-project-actions p,
+.script-storage-actions p {
+  margin: 0;
+  padding: 7px 8px;
+  color: var(--nt-muted);
+  font: var(--font-label)/1.45 var(--mono);
+}
+
+.script-project-actions,
+.script-storage-actions {
+  margin-top: 10px;
+  padding-top: 9px;
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--nt-line);
+}
+
+.script-project-actions h3,
+.script-storage-actions h3 {
+  margin: 0;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.script-rename-row,
+.script-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.script-rename-row input {
+  min-width: 0;
+  min-height: var(--control-target);
+  padding: 0 7px;
+  flex: 1 1 180px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: var(--workbench-surface-recessed);
+  color: var(--nt-text);
+  font: var(--font-label)/1 var(--mono);
+}
+
+.script-project-actions button,
+.script-storage-actions button,
+.script-undo-delete {
+  min-height: var(--control-target);
+  padding: 0 8px;
+  border: 1px solid var(--nt-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nt-text);
+  font: var(--font-label)/1 var(--mono);
+  cursor: pointer;
+}
+
+.script-project-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.script-project-actions button.is-danger {
+  color: var(--nt-danger, #ff7a7a);
+}
+
+.script-undo-delete {
+  width: 100%;
+  margin-top: 9px;
+  color: var(--nt-green);
+}
+
+.script-storage-message,
+.script-storage-notice {
+  border-left: 2px solid var(--nt-green);
+  background: var(--surface-subtle);
 }
 
 .script-file-actions {

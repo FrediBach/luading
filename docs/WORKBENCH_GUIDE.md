@@ -681,15 +681,64 @@ authority.
 
 ## Importing and exporting scripts
 
-Use **New** to replace the editor with a minimal, working one-input/one-output
-script. Its short comments mark where to add shared state, I/O and parameters,
-signal processing, and optional lifecycle callbacks.
+Use **New** to create an independent local project containing a minimal,
+working one-input/one-output script. Its short comments mark where to add
+shared state, I/O and parameters, signal processing, and optional lifecycle
+callbacks. Existing local projects remain in **My Scripts**.
 
-Use **Import** in the command bar to open a local `.lua` file. Luading replaces
-the editor contents and runs the imported script through the same isolated Lua
-worker used for bundled scripts. Imported files do not inherit helper modules
-from a previously selected bundled script.
+Use **Import** in the command bar to create a local project from a `.lua` file.
+The imported script runs through the same isolated Lua worker used for bundled
+scripts and does not inherit helper modules from a previously selected bundled
+script. A colliding filename receives a numeric suffix; Import never overwrites
+another project by filename.
 
 Use **Export** to download the editor's current contents as a `.lua` file. This
 exports the source exactly as shown in the editor; simulator state and workspace
 layout are not included.
+
+## My Scripts and local autosave
+
+The script menu lists user-owned projects under **My Scripts**, followed by the
+unchanged Luading and Expert Sleepers bundled groups. Search covers local
+filenames and bundled names, IDs, and group names. New, Import, and the first
+edit to a bundled example create local projects. Opening a bundled example
+never modifies its packaged source; return to it later to start again from the
+pristine template.
+
+Source edits are queued for local IndexedDB storage after a short pause. The
+script control distinguishes **Saving source…**, **Saved locally**, recovery,
+unsaved, template, and conflict-copy states. **Saved locally** appears only
+after the database transaction succeeds. It is unrelated to the device-facing
+**Save state** action, which serializes Lua runtime state in memory for reload.
+Run, document selection, New, Import, duplicate, and delete flush pending source
+work before replacing the active document. Cursor position and scroll offsets
+are restored per local project when possible.
+
+Local projects can be renamed, duplicated, or soft-deleted from the script
+menu. Delete immediately selects a remaining project or the default template
+and offers **Undo deleted script**. Bundled templates cannot be renamed or
+deleted. If two tabs save the same revision, Luading preserves the stale tab's
+source in a newly named conflict copy instead of overwriting the newer project.
+
+If durable project storage fails, the status explains whether the latest
+active source is still protected by a small browser recovery journal. A project
+that has neither database nor journal protection is explicitly unsaved, and
+Luading asks for confirmation before replacing it. Use ordinary `.lua` Export
+to keep the active source in that situation.
+
+## Backups and browser-storage durability
+
+**Back up all scripts** downloads every non-deleted local project in one
+versioned `.luading-backup.json` file. **Restore backup** strictly validates a
+complete file before adding anything. Restore is additive: equivalent ID
+collisions can be skipped, other collisions receive a new ID and unique
+filename, and existing local content is never overwritten implicitly. This is
+separate from `.lua` Import and Export and does not contain Lua VM state,
+parameter values, diagnostics, device routes, or workspace layout.
+
+When the browser exposes the capability, **Protect local drafts** requests
+persistent storage. A grant reduces automatic eviction risk but is not a
+backup, and clearing site data can still remove projects. Local scripts belong
+to the current browser profile and exact origin. Preview deployments, another
+domain, another device, and private-browsing sessions do not automatically
+share them. Keep a downloaded backup for work that matters.
