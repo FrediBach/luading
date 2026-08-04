@@ -202,7 +202,7 @@ describe('Lua syntax validation', () => {
       }
     }
 
-    expect(files).toHaveLength(60)
+    expect(files).toHaveLength(61)
     expect(syntaxFailures).toEqual([])
   })
 })

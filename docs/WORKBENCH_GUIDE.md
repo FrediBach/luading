@@ -167,6 +167,41 @@ sequences, rhythms, and control-rate modulation but does not reproduce the
 original discrete CMOS module's audio-rate timing or analogue voltage
 imperfections.
 
+### Vermona randomRHYTHM recreation
+
+The bundled **Vermona Random Rhythm** example is an independent recreation of
+the sequencing behavior documented for Vermona's
+[randomRHYTHM](https://www.vermona.com/en/products/modules/product/randomrhythm/).
+It has two rhythm sections, each with probability controls for quarter,
+eighth, sixteenth, and eighth-note-triplet events. **Dice** mode stores and
+repeats one field of random values, while **Realtime** draws a new value for
+each event. The 3/4 setting loops the first three beats of the four-beat field,
+so combining 3/4 and 4/4 sections produces the shifting relationship described
+in the original manual.
+
+Each section exposes five +10 V, 10 ms trigger outputs: a logical-sum **Seq**
+output and separate **1/4**, **1/8**, **1/16**, and **1/3** outputs. With
+**Offbeat** on, the separate outputs use the non-overlapping positions that
+form Seq: quarters on the beat, eighths between quarters, sixteenths between
+the quarter/eighth grid, and triplets excluding their quarter-note overlap.
+With Offbeat off, each separate output uses its complete labelled resolution.
+**Div out: Clock** bypasses probability only on the four separate outputs, so
+they become clock multipliers while Seq remains probabilistic. Bipolar Swing
+moves the sixteenth events before or after their straight positions.
+
+The two Clock inputs expect quarter-note triggers. Set a section's **Clock**
+parameter to **Input** to follow one; otherwise its BPM parameter drives an
+independent internal clock. The shared Reset gate can restart a Dice pattern,
+mute all five outputs while held, or be ignored independently by each section.
+The Dice 1 and Dice 2 trigger inputs stand in for the original panel buttons
+and generate a new four-beat random field without restarting playback.
+
+This script recreates the rhythm logic, not the physical panel or electrical
+implementation. Disting's 1 ms control cadence quantizes event timing, its own
+typed-input edge behavior replaces Vermona's specified +2 V input threshold,
+and the separate clock inputs are not automatically normalled to one another.
+The internal BPM parameters replace the original tap-tempo gesture.
+
 ### Freeform CV
 
 Choose **Freeform CV** in an input's Signal generator inspector to create a

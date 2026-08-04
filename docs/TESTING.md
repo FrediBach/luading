@@ -90,6 +90,15 @@ pulses, and bounded parser failures. These tests establish the Lua parser and
 scheduler behavior; they do not compare audio, browser timing, or pseudorandom
 sequences with a particular Strudel build.
 
+`vermona-random-rhythm.test.ts` loads the bundled hardware-inspired recreation
+through the Wasmoon bridge. It pins its dual-section metadata, exclusive Seq
+subdivision grid, full-resolution and straight-clock division modes, swing,
+independent external clocks, reset muting, +10 V/10 ms pulses, Dice-pattern
+state round trips, and bounded custom display. These tests establish the
+script's control-rate scheduling and Lua-table behavior; they do not claim
+panel, electrical-threshold, random-generator, or sub-millisecond timing parity
+with Vermona hardware.
+
 Editor contract tests also expand the default API, lifecycle, and complete-script
 snippets and compile them with Wasmoon without executing the returned chunks.
 This keeps snippets syntactically valid at their default placeholder values and
