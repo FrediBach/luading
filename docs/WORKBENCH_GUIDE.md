@@ -202,6 +202,46 @@ typed-input edge behavior replaces Vermona's specified +2 V input threshold,
 and the separate clock inputs are not automatically normalled to one another.
 The internal BPM parameters replace the original tap-tempo gesture.
 
+### Automatonnetz recreation
+
+The bundled **Automatonnetz** example adapts Ornament & Crime's
+[Automatonnetz vector sequencer](https://ornament-and-cri.me/user-manual-v1_3/#anchor-automatonnetz)
+to Disting NT. A clock moves through a wrapping 5x5 grid by the selected `dx`
+and `dy` vector. The available eighth-, seventh-, sixth-, fifth-, quarter-,
+third-, and half-cell fractions act as clock divisions because a cell is
+evaluated only when the integer grid position changes. Values above half the
+five-cell grid travel the shorter way backwards.
+
+Every cell stores a neo-Riemannian `P`, `L`, `R`, `N`, `S`, or `H` transform,
+a reset or null transform, a -12 to +12 semitone offset, an inversion, and one
+of eight mutation masks. A mutation randomizes the selected parts of the cell
+after its current values have been applied, allowing the grid to rewrite
+itself without changing the chord produced on that visit. **Clear** can zero
+the grid, fill it with one-time random transforms, or give every cell a random
+transform event. The complete grid and current musical state are stored by
+**Save state**.
+
+The example uses a custom UI rather than script parameters. Encoder 1 selects
+a cell; pushing it toggles between the grid and cell pages. Encoder 2 selects a
+setting; push it to enter or leave value editing. Pot 3 push resets the current
+position to the origin, and pot 2 push advances one grid clock manually. The
+display distinguishes the selected cell from the currently playing cell and
+shows the four output pitches.
+
+Inputs are Grid clock, Arp clock, Reset, Arp inhibit, Clear grid, Root CV, and
+Inversion CV. Reset follows the original gate behavior: hold it while a Grid
+clock arrives. Root CV is quantized to semitones; Inversion CV adds one
+inversion step per volt in this Disting adaptation. Outputs 2-4 carry the
+transformed triad. Output 1 can carry the current root, a 5 V one-control-step
+transform trigger, a repeating arpeggio, or a one-pass strum. Arp inhibit
+blocks only the Arp clock.
+
+The transform and grid behavior follows the MIT-licensed Ornament & Crime 1.3
+firmware, but the Disting mapping is not an emulation of the original panel,
+ADC calibration, DAC range, or sub-millisecond ISR. In particular, the extra
+Clear grid input replaces the original long-press gesture and the simulator's
+1 ms control loop samples pitch CV for the pending clock action.
+
 ### Freeform CV
 
 Choose **Freeform CV** in an input's Signal generator inspector to create a

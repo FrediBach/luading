@@ -1,5 +1,14 @@
 # Third-party notices
 
+## Ornament & Crime Automatonnetz and Tonnetz behavior
+
+`lua-scripts/fredi-bach/Automatonnetz.lua` adapts the grid sequencing and
+neo-Riemannian transformation behavior from the Ornament & Crime firmware by
+Patrick Dowling and Tim Churches. The adapted Lua file carries the upstream
+copyright and full MIT license notice.
+
+Source: [mxmxmx/O_C](https://github.com/mxmxmx/O_C)
+
 ## Disting NT display font atlases
 
 The generated files

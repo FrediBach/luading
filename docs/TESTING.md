@@ -99,6 +99,15 @@ script's control-rate scheduling and Lua-table behavior; they do not claim
 panel, electrical-threshold, random-generator, or sub-millisecond timing parity
 with Vermona hardware.
 
+`automatonnetz.test.ts` loads the bundled Ornament & Crime adaptation through
+the Wasmoon bridge. It pins the 5x5 wrapping and fractional vector movement,
+all six involutive triad transforms, cell offset/inversion processing, root-CV
+quantization, reset and clear behavior, 5 V one-step trigger output,
+arpeggio/strum state, custom encoder editing, serialization, and bounded grid
+display. The tests compare the script with the published manual and
+MIT-licensed firmware logic; they do not claim parity with the original ADC,
+DAC, panel, random generator, or sub-millisecond ISR timing.
+
 Editor contract tests also expand the default API, lifecycle, and complete-script
 snippets and compile them with Wasmoon without executing the returned chunks.
 This keeps snippets syntactically valid at their default placeholder values and

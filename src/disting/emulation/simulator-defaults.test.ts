@@ -165,7 +165,7 @@ return {
 
   it('keeps every bundled script channel explicitly and recognizably annotated', () => {
     const scripts = bundledScripts()
-    expect(scripts).toHaveLength(61)
+    expect(scripts).toHaveLength(62)
 
     for (const path of scripts) {
       const source = readFileSync(path, 'utf8')
