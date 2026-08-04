@@ -124,6 +124,15 @@ the Lua adaptation described in the workbench guide; they do not compare its
 jitter, ratio clocks, distributions, quantizer, random source, or 1 ms timing
 with Mutable Instruments hardware or the sample-rate firmware.
 
+`buchla-266-source-of-uncertainty.test.ts` loads the bundled control-rate 266
+adaptation through Wasmoon. It pins the six-input/six-output contract,
+rate-dependent fluctuating movement, same-step quantization and distribution
+CV, whole-volt N+1 states, semitone 2^N states, low/high stored-voltage
+tendencies, serialised pseudorandom continuation, and bounded custom display.
+These tests establish the independently authored model described in the
+workbench guide; they do not compare analogue noise, random distributions,
+voltage tolerances, control curves, or 1 ms timing with Buchla hardware.
+
 `automatonnetz.test.ts` loads the bundled Ornament & Crime adaptation through
 the Wasmoon bridge. It pins the 5x5 wrapping and fractional vector movement,
 all six involutive triad transforms, cell offset/inversion processing, root-CV

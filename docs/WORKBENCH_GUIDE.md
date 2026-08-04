@@ -118,6 +118,39 @@ current generator or WebAudio setting as a complete, paste-ready `init()` table
 entry. Web MIDI routes are browser connections and cannot be represented by
 these source annotations; their context menu explains that limitation instead.
 
+### Buchla 266 Source of Uncertainty recreation
+
+The bundled **Source of Uncertainty** example is an independently authored,
+control-rate adaptation of the random-voltage sections documented for the
+[Buchla Model 266](https://sourceofuncertainty.com/products/model-266) and
+[266t](https://tiptopaudio.com/manuals/Buchla_%26_Tiptop_Audio_266t.pdf). It
+provides two continuously fluctuating outputs, the classic paired quantized
+outputs, and two stored random outputs.
+
+**Rate A** and **Rate B** set the fluctuating sections from 0.05-50 Hz. Their CV
+inputs use a one-volt-per-octave rate multiplier. The script generates these
+voltages by low-pass filtering a serialisable pseudorandom stream; this captures
+the idea of a voltage-controlled probable rate of change without claiming the
+statistics or analogue response of a physical 266.
+
+The Quantized Pulse input selects both stepped pitch outputs. **N+1** has N+1
+centre-weighted states at whole-volt intervals, while **2^N** has 2^N evenly
+distributed states at semitone intervals. **Quantization N** and its CV input
+choose N from 1-6, with the CV adding one step per volt. The Stored Pulse input
+updates an equal-probability 0-10 V output and a weighted 0-10 V output.
+**Distribution** moves the weighted result from a low tendency through a
+centre tendency to a high tendency; Distribution CV adds 20 percentage points
+per volt. Both pulse events are completed in `step()` after current CV inputs
+are sampled, so modulation arriving with a pulse affects that pulse.
+
+Preset state stores the pseudorandom sequence position and all six current
+voltages, allowing the next uncertain decision to continue after restoration.
+The original module's audio-rate coloured-noise sources, integrator, and
+sample-and-hold section are intentionally omitted. The fluctuating outputs run
+at Disting NT's documented 1 ms Lua cadence, and none of the random
+distributions, voltage tolerances, or control curves have been validated
+against physical Buchla hardware.
+
 ### Configurable swing sequence
 
 The bundled **Configurable Swing Sequence** delays successive external clock
