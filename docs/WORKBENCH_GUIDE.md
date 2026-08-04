@@ -258,6 +258,36 @@ electrical implementation are not published in the manual. The script's wave
 field and scaling choices are original, run at Disting NT's documented 1 ms Lua
 cadence, and have not been validated against physical ADDAC508 hardware.
 
+### Wind Meadow Physics
+
+The bundled **Wind Meadow Physics** example applies the spatial-field approach
+of the Swell Physics recreation to wind moving over grass. Four meadow patches
+are modelled as damped angular springs. Their aerodynamic torque is
+proportional to signed squared relative wind speed, while spring stiffness and
+damping return the grass toward vertical and control its overshoot. The wind
+field combines steady flow, broad gust envelopes, and three shorter turbulent
+eddies. Spatial phase offsets advect those features across the meadow rather
+than giving every patch unrelated motion.
+
+**Wind**, **Gusts**, and **Turbulence** set the three airflow components.
+**Flexibility** reduces the grass's restoring stiffness, **Damping** controls
+how long it sways after a change, and **Travel** sets how quickly weather
+features cross the four patches. **Direction** reverses the airflow sign and
+which edge is windward. Inputs 1-5 modulate Wind, Gusts, Turbulence,
+Flexibility, and Travel through individual bipolar depth parameters.
+
+Outputs 1-4 carry the signed bend of the four patches in the -5 to +5 V range,
+and output 5 is their arithmetic mean. Output 6 exposes the instantaneous wind
+at the windward edge, also limited to -5 to +5 V. Output 7 is +5 V while any
+patch sees a strong gust. The custom display animates individual two-segment
+grass blades from the four simulated patch angles, adds turbulence-dependent
+flutter and travelling wind streaks, and shows mean bend and gust state.
+
+This deterministic creative model is not computational fluid dynamics,
+calibrated plant mechanics, or a hardware recreation. It runs at Disting NT's
+documented 1 ms Lua cadence; its coefficients and visualization are original,
+and its output should be treated as musically useful control-rate physics.
+
 ### Strudel mini-notation stress player
 
 The bundled **Strudel Mini Notation Player** is a self-contained Disting NT Lua

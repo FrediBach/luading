@@ -98,6 +98,15 @@ establish the independently authored control-rate model described in the
 workbench guide; they do not compare its unpublished wave coefficients,
 control curves, electrical behavior, or timing with physical ADDAC508 hardware.
 
+`wind-meadow-physics.test.ts` loads the bundled wind-and-grass model through
+Wasmoon. It pins the five-input/seven-output contract, exact no-wind rest,
+directional symmetry under steady flow, stronger deflection from more flexible
+grass, CV depth mapping, serialized oscillator continuity, and a bounded custom
+display. These tests establish the deterministic control-rate model described
+in the workbench guide; they do not validate computational-fluid-dynamics or
+plant-mechanics accuracy, Disting hardware timing beyond the documented 1 ms
+callback cadence, or live visual smoothness in a particular browser.
+
 `strudel-mini-player.test.ts` loads the bundled hardcoded mini-notation player
 through that same Wasmoon bridge. It pins structural syntax, time modifiers,
 weights and ties, replication, seeded choice and degradation, Euclidean
