@@ -82,6 +82,13 @@ and global API names used by the simulator. Many functions use controlled or
 no-op test adapters; this environment proves Lua-boundary compatibility, not
 every production worker adapter's behavior.
 
+`configurable-swing-sequence.test.ts` loads the bundled microtiming clock
+processor through the Wasmoon bridge. It pins its sixteen-position parameter
+surface, repeating two- and four-step delay patterns, reset/cancellation
+behavior, pulse timing, and bounded custom display. Timing assertions use the
+documented 1 ms callback cadence; they do not claim sub-millisecond scheduling
+or prediction of future external clock edges.
+
 `strudel-mini-player.test.ts` loads the bundled hardcoded mini-notation player
 through that same Wasmoon bridge. It pins structural syntax, time modifiers,
 weights and ties, replication, seeded choice and degradation, Euclidean

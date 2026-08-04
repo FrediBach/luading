@@ -118,6 +118,24 @@ current generator or WebAudio setting as a complete, paste-ready `init()` table
 entry. Web MIDI routes are browser connections and cannot be represented by
 these source annotations; their context menu explains that limitation instead.
 
+### Configurable swing sequence
+
+The bundled **Configurable Swing Sequence** delays successive external clock
+triggers by a repeating pattern of up to sixteen microtiming values. **Length**
+chooses the active loop size, and **Step 01** through **Step 16** express delay
+as a percentage of one measured input-clock interval. Thus `0%, 20%` represents
+the pattern `{ 0, 0.2 }`, while `0%, 0%, 20%, 0%` delays only the third position
+of each four-step loop. The included presets provide those two patterns and a
+straight eight-step clock.
+
+Input 1 supplies the clock, input 2 resets the loop so the next clock uses step
+one, and the single output emits a +5 V trigger with the selected **Pulse**
+length. The first clock after loading passes immediately because an interval
+has not yet been measured. Microtiming is delay-only: an external clock cannot
+be moved earlier without knowing its future arrival. The script uses Disting
+NT's documented 1 ms `step()` cadence, so scheduled triggers are quantized to
+the next control step rather than claiming sub-millisecond timing.
+
 ### Strudel mini-notation stress player
 
 The bundled **Strudel Mini Notation Player** is a self-contained Disting NT Lua
