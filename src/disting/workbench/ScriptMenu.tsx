@@ -73,7 +73,7 @@ export function ScriptMenu({
       >
         <ControlIcon name="code" size={14} />
         <span>
-          <small>{loading ? 'Loading script' : 'Script'}</small>
+          {loading && <small>Loading script</small>}
           <strong>{programName}</strong>
           <small className={`script-save-status script-save-status--${saveStatus.kind}`}>{saveLabel}</small>
         </span>
