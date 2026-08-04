@@ -8,7 +8,7 @@ import {
   describeProgram,
   type LuaInitResult,
 } from '../emulation/lua-contract'
-import { loadLuaProgramRuntime } from '../emulation/lua-runtime'
+import { loadLuaProgramRuntime, registerLuaModules } from '../emulation/lua-runtime'
 import { LUA_SCRIPT_PARAMETER_OFFSET } from '../emulation/parameter-model'
 import { serialiseJsonState } from '../emulation/runtime-helpers'
 import { createDistingLuaTestEngine } from '../testing/lua-test-environment'
@@ -16,12 +16,22 @@ import { createDistingLuaTestEngine } from '../testing/lua-test-environment'
 describe('bundled community scripts', () => {
   it('loads and exercises every lifecycle callback without boundary failures', async () => {
     const root = join(process.cwd(), 'lua-scripts/fredi-bach')
+    const moduleRoot = join(root, 'lib')
+    const modules = Object.fromEntries(
+      readdirSync(moduleRoot)
+        .filter((name) => name.endsWith('.lua'))
+        .map((name) => [
+          name.slice(0, -4),
+          readFileSync(join(moduleRoot, name), 'utf8'),
+        ]),
+    )
     const failures: string[] = []
     const filenames = readdirSync(root).filter((name) => name.endsWith('.lua')).sort()
 
     for (const filename of filenames) {
       const lua = await createDistingLuaTestEngine(50)
       try {
+        await registerLuaModules(lua, modules)
         const runtime = await loadLuaProgramRuntime(
           lua,
           readFileSync(join(root, filename), 'utf8'),
@@ -76,7 +86,7 @@ describe('bundled community scripts', () => {
       }
     }
 
-    expect(filenames).toHaveLength(39)
+    expect(filenames).toHaveLength(40)
     expect(failures).toEqual([])
   }, 20_000)
 })

@@ -202,6 +202,43 @@ typed-input edge behavior replaces Vermona's specified +2 V input threshold,
 and the separate clock inputs are not automatically normalled to one another.
 The internal BPM parameters replace the original tap-tempo gesture.
 
+### Mutable Instruments Grids recreation
+
+The bundled **Mutable Instruments Grids** example ports the rhythm-generation
+behavior and original GPL-licensed data from Mutable Instruments'
+[Grids firmware](https://github.com/pichenettes/eurorack/tree/master/grids).
+Its **Grids** mode bilinearly interpolates between the firmware's 25 rhythm-map
+nodes. **Map X** and **Map Y** select the region, the three **Fill** parameters
+apply the original density thresholds, and **Chaos** chooses one perturbation
+per instrument at the beginning of each 32-step pattern. Levels above the
+firmware's fixed accent threshold also fire the corresponding accent output.
+
+The first three +5 V outputs are BD, SD, and HH. In **ACC 1/2/3** layout,
+outputs 4-6 carry their individual accents. In **ACC/CLK/RST** layout, those
+outputs instead carry a shared accent, the active clock, and the pattern reset.
+**Triggers** last one 1 ms Disting control step. **Gates** follow the falling
+edge of an external clock or use a 50% duty cycle with the internal clock.
+
+Select a 40-240 BPM internal clock or drive the Clock gate input externally.
+The **Resolution** parameter reproduces the firmware's 4, 8, and 24 PPQN input
+granularities; lower resolutions skip map positions instead of reconstructing
+missing pulses. Internal-clock swing uses **Chaos** as its amount, as on Grids,
+and is disabled in Euclidean mode. Reset returns the generator to its first
+step without retriggering it.
+
+In **Euclidean** mode, Map X, Map Y, and Chaos become the three 1-32 step cycle
+lengths, while the Fill controls set their densities. The port reads the
+original 32×32 Euclidean lookup table and emits events on sixteenth-note
+boundaries. In individual layout the auxiliary outputs mark each lane's cycle
+reset; in alternate layout they become shared reset, clock, and simultaneous
+three-lane reset.
+
+Inputs 3-6 add 0-5 V to Map X, Map Y, Chaos, and all Fill controls, clamped to
+their panel ranges. The script includes the upstream map and Euclidean data
+byte-for-byte, but it does not emulate Grids' AVR, ADC response, analogue input
+thresholds, tap-tempo button, LEDs, or sub-millisecond interrupt timing.
+Disting's 1 ms scheduling quantizes the internal clock, swing, and pulse edges.
+
 ### Automatonnetz recreation
 
 The bundled **Automatonnetz** example adapts Ornament & Crime's

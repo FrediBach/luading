@@ -1,5 +1,22 @@
 # Third-party notices
 
+## Mutable Instruments Grids
+
+`lua-scripts/fredi-bach/Mutable Instruments Grids.lua` adapts the pattern
+generator from Mutable Instruments Grids. Its companion
+`lua-scripts/fredi-bach/lib/MutableGridsData.lua` contains the original 25
+rhythm-map nodes and 32×32 Euclidean lookup table in a packed representation.
+Both files carry the upstream copyright and GNU General Public License notice.
+
+Copyright 2011, 2012 Emilie Gillet.
+
+Source: [pichenettes/eurorack/grids at revision 08460a6](https://github.com/pichenettes/eurorack/tree/08460a69a7e1f7a81c5a2abcc7189c9a6b7208d4/grids)
+
+The imported `grids/resources.cc` source had SHA-256
+`02c4911d1ee940f921d50207c25a39d911c3f6af9ace87869e7e667954c63265`.
+
+License: [GNU General Public License version 3 or later](LICENSES/GPL-3.0-or-later.txt)
+
 ## Ornament & Crime Automatonnetz and Tonnetz behavior
 
 `lua-scripts/fredi-bach/Automatonnetz.lua` adapts the grid sequencing and

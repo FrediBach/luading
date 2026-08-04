@@ -108,6 +108,16 @@ display. The tests compare the script with the published manual and
 MIT-licensed firmware logic; they do not claim parity with the original ADC,
 DAC, panel, random generator, or sub-millisecond ISR timing.
 
+`mutable-instruments-grids.test.ts` loads the bundled GPL-licensed Grids port
+and its packed data module through the Wasmoon `require` boundary. It pins the
+six-input/six-output contract, upstream rhythm-node interpolation and threshold
+behavior, accents, 24 PPQN quantization, external gate duration, the original
+Euclidean lookup table, transparent reset, internal clock cadence, and bounded
+map/lane display. The packed resource import was audited byte-for-byte against
+the revision and `resources.cc` hash recorded in `THIRD_PARTY_NOTICES.md`; the
+tests do not claim AVR, ADC, panel, random-sequence, electrical-threshold, or
+sub-millisecond timing parity with Grids hardware.
+
 Editor contract tests also expand the default API, lifecycle, and complete-script
 snippets and compile them with Wasmoon without executing the returned chunks.
 This keeps snippets syntactically valid at their default placeholder values and

@@ -20,16 +20,14 @@ it('gives every parameterized bundled example multiple valid presets', async () 
   for (const collection of collections) {
     const root = join(process.cwd(), 'lua-scripts', collection)
     const moduleRoot = join(root, 'lib')
-    const modules = collection === 'expert-sleepers'
-      ? Object.fromEntries(
-          readdirSync(moduleRoot)
-            .filter((name) => name.endsWith('.lua'))
-            .map((name) => [
-              name.slice(0, -4),
-              readFileSync(join(moduleRoot, name), 'utf8'),
-            ]),
-        )
-      : {}
+    const modules = Object.fromEntries(
+      readdirSync(moduleRoot)
+        .filter((name) => name.endsWith('.lua'))
+        .map((name) => [
+          name.slice(0, -4),
+          readFileSync(join(moduleRoot, name), 'utf8'),
+        ]),
+    )
     const filenames = readdirSync(root).filter((name) => name.endsWith('.lua')).sort()
     for (const filename of filenames) {
       const lua = await createDistingLuaTestEngine(50)
