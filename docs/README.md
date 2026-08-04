@@ -50,6 +50,10 @@ results separately from claims about the Disting hardware contract.
 - [Script-authored automated tests](plans/SCRIPT_AUTOMATED_TESTS_IMPLEMENTATION_PLAN.md)
   plans deterministic, preset-based behavioral suites in the workbench and
   project regression tests.
+- [Export customizer](plans/EXPORT_CUSTOMIZER_IMPLEMENTATION_PLAN.md) plans an
+  annotation-driven, export-only workflow for safely embedding user-supplied
+  values such as Strudel mini notation without changing the editor source or
+  live simulation.
 
 An active plan describes intended work and is not evidence that the behavior
 exists. Update its status as work lands. Once it is complete, move it to the
