@@ -156,6 +156,42 @@ uses an independently authored pattern and Disting NT's documented 1 ms Lua
 cadence. Clock handling is completed in `step()` so a clock edge uses the CV
 values sampled in that same control step.
 
+### Particle Bursts recreation
+
+The bundled **Particle Bursts** example is an independent Disting NT adaptation
+of the trigger-variation ideas documented in Patching Panda's
+[Particles manual](https://patchingpanda.com/wp-content/uploads/Particles_manual.pdf).
+Four trigger inputs feed four processed outputs. The Clock input measures the
+base interval, Reset clears pending bursts and returns sequenced shifting to its
+original position, and output 5 produces a new 0-10 V random value on every
+clock. Dedicated Rate, Shift, Probability, Absorb, and Gater CV inputs modulate
+the matching global controls.
+
+**Repetitions** is the total number of candidate pulses including the original.
+The candidates are evenly spread across the selected **Distribution** of 16-64
+measured clock intervals; for example, two pulses at C16 place the repeat eight
+clock intervals after the original. Before a clock interval has been measured,
+the script uses 125 ms. **Triplets: Filtered** steps triplet-derived repetition
+choices down to the previous straight choice. Each channel's repeat limit caps
+the global or CV-selected menu position.
+
+**Probability** may remove any candidate, including the original, while
+**Absorb** applies only to repeats. Their per-channel limits cap the effective
+global/CV percentage. The Gater alternates passing and muted blocks at its
+selected clock division, again capped per channel. Fixed shift rotates the
+input/output mapping by a stable amount; Forward and Random choose a new base
+rotation on each clock, with Shift CV added afterward. A channel in **Bypass**
+passes only its original trigger directly to the same-numbered output, ignoring
+shift and variation, while **Mute** suppresses it completely.
+
+This loose recreation is not a source port, hardware emulation, or panel-level
+clone. It replaces the module's sliders, button gestures, LEDs, SD-card saving,
+and mode menus with explicit script parameters and Luading presets. It does not
+implement the manual's cross-channel repetition-choke matrix. Pulse scheduling
+is quantized to Disting NT's documented 1 ms Lua cadence, and the original
+module's unpublished probability distributions and electrical timing have not
+been measured on hardware.
+
 ### ADDAC 508 Swell Physics recreation
 
 The bundled **ADDAC 508 Swell Physics** example independently recreates the
