@@ -16,6 +16,8 @@ keeps script selection and execution prominent while leaving a stable utility
 zone for additions such as sharing. The controls include Lua file
 import/export, Run/Reload and Pause/Resume, preset-state save, script health,
 runtime status, workspace presets, MIDI routing, appearance, and About.
+The bundled-script selector groups first-party project examples under
+**Luading** and upstream official examples under **Expert Sleepers**.
 
 The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the

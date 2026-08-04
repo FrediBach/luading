@@ -23,6 +23,10 @@ const moduleFiles = import.meta.glob('../../lua-scripts/*/lib/*.lua', {
   eager: true,
 }) as Record<string, string>
 
+const groupDisplayNames: Record<string, string> = {
+  'fredi-bach': 'Luading',
+}
+
 function displayName(value: string) {
   return value
     .replace(/[_-]+/g, ' ')
@@ -61,7 +65,7 @@ const examplesByGroup = Object.entries(scriptFiles)
 
 export const DISTING_SCRIPT_GROUPS = Object.entries(examplesByGroup)
   .map(([group, examples]) => ({
-    name: displayName(group),
+    name: groupDisplayNames[group] ?? displayName(group),
     examples: examples.sort((left, right) => left.name.localeCompare(right.name)),
   }))
   .sort((left, right) => left.name.localeCompare(right.name))
