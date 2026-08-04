@@ -89,6 +89,15 @@ behavior, pulse timing, and bounded custom display. Timing assertions use the
 documented 1 ms callback cadence; they do not claim sub-millisecond scheduling
 or prediction of future external clock edges.
 
+`addac-508-swell-physics.test.ts` loads the bundled hardware-inspired water
+surface through Wasmoon. It pins the five-input/seven-output contract,
+still-water levels, exact Scrolling-mode path delay, Evolving-mode spatial
+separation, average and comparator outputs, Fold/Thru/Limit bounds, CV depth
+mapping, serialized phase continuity, and bounded custom display. These tests
+establish the independently authored control-rate model described in the
+workbench guide; they do not compare its unpublished wave coefficients,
+control curves, electrical behavior, or timing with physical ADDAC508 hardware.
+
 `strudel-mini-player.test.ts` loads the bundled hardcoded mini-notation player
 through that same Wasmoon bridge. It pins structural syntax, time modifiers,
 weights and ties, replication, seeded choice and degradation, Euclidean

@@ -156,6 +156,39 @@ uses an independently authored pattern and Disting NT's documented 1 ms Lua
 cadence. Clock handling is completed in `step()` so a clock edge uses the CV
 values sampled in that same control step.
 
+### ADDAC 508 Swell Physics recreation
+
+The bundled **ADDAC 508 Swell Physics** example independently recreates the
+behavior described in the [ADDAC508 user guide](https://www.addacsystem.com/contents/productdownload/ADDAC508_SwellPhysics_A_1-compressed.pdf).
+Its deterministic water surface sums one primary swell and four progressively
+shorter, differently directed Gerstner-style vertical wave components.
+**Swell** sets the height and can drive the normalized surface beyond its
+ordinary range, while **Agitation** mixes in the secondary waves. **Spread**
+and **Speed** set the sampling distance and simulation rate.
+
+In **Scrolling** mode, all four buoys follow exactly the same path. Spread is a
+quadratic delay control from coincident sampling to two seconds between
+adjacent buoys. In **Evolving** mode, the buoys sample the corners of a square
+that grows with Spread; increasing Spread and Agitation therefore makes their
+paths less related. **Fold**, **Thru**, and **Limit** are explicit parameter
+choices for the manual's three clipping behaviors rather than a hidden panel
+switch gesture.
+
+Outputs 1-4 carry the buoy heights, output 5 their arithmetic average, output 6
+is +5 V while output 1 is below output 2, and output 7 is +5 V while output 3
+is above output 4. **Bipolar** maps the clipped surface to -5 to +5 V;
+**Positive** maps it to 0-10 V. Gain scales that base voltage and Offset is
+then added. Inputs 1-4 modulate Swell, Agitation, Spread, and Speed through
+individual bipolar depth parameters. **Aux target** routes input 5 to Offset
+at one volt per input volt or to Gain at 20 percentage points per input volt,
+before the shared Aux depth is applied.
+
+This is not a source port or a claim of exact ADDAC508 output matching: the
+hardware's wave coefficients, control curves, random or evolving state, and
+electrical implementation are not published in the manual. The script's wave
+field and scaling choices are original, run at Disting NT's documented 1 ms Lua
+cadence, and have not been validated against physical ADDAC508 hardware.
+
 ### Strudel mini-notation stress player
 
 The bundled **Strudel Mini Notation Player** is a self-contained Disting NT Lua
