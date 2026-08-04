@@ -136,6 +136,26 @@ be moved earlier without knowing its future arrival. The script uses Disting
 NT's documented 1 ms `step()` cadence, so scheduled triggers are quantized to
 the next control step rather than claiming sub-millisecond timing.
 
+### Matrix Variation Generator
+
+The bundled **Matrix Variation** example is an independent Disting NT
+recreation of the central musical idea in Darwin Grosse's ArdCore AC18
+Variation Generator. A clock advances through an original sixteen-column,
+ten-row gate matrix. Each active cell emits a +5 V trigger on its corresponding
+lane, giving ten related rhythm outputs from one clock.
+
+**Row Offset** rotates which source rhythm feeds each output, while **Column
+Offset** rotates the phase read from the matrix. The Row CV and Column CV inputs
+add one wrapped offset step per volt, including negative movement for bipolar
+modulation. **Pulse** sets the retriggerable gate duration from 1-250 ms. Reset
+makes a simultaneous or subsequent clock read step one, and the display shows
+the shifted matrix, current playback/source columns, offsets, and pulse state.
+
+The script is a control-rate adaptation rather than an ArdCore source port: it
+uses an independently authored pattern and Disting NT's documented 1 ms Lua
+cadence. Clock handling is completed in `step()` so a clock edge uses the CV
+values sampled in that same control step.
+
 ### Strudel mini-notation stress player
 
 The bundled **Strudel Mini Notation Player** is a self-contained Disting NT Lua
