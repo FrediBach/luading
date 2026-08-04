@@ -143,6 +143,30 @@ The colon adapter treats a numeric second value as gate velocity, so `60:0.8`
 emits MIDI note 60 as 0 V with a 4 V gate. To change the pattern in this first
 version, edit the `MINI_NOTATION` constant in the script and reload it.
 
+### Nibbler recreation
+
+The bundled **Nibbler** example recreates the control-rate behavior of
+[Schlappi Engineering's four-bit accumulator](https://schlappiengineering.com/products/nibbler-preorder).
+Its first four parameters stand in for the ADD 1, 2, 4, and 8 switches. The
+Operation, Mode, and Offset parameters reproduce the add/subtract,
+synchronous/asynchronous, and second stepped-output phase switches.
+
+Inputs expose Clock, Reset, Sub, the four weighted gate inputs, Shift, Shift
+Data, Data XOR, and Carry In. Outputs expose the two 0-10 V stepped words,
+Carry, and the 8, 4, 2, and 1 bits as 0/10 V gates. In asynchronous mode the
+adder result responds immediately to switch and gate changes; Clock and Shift
+are XORed for the register edge, matching the hardware's independent shift
+operation. The display shows the active word, both stepped levels, mode,
+direction, offset, and carry state.
+
+The **Shift source** parameter is an adapter for a physical distinction the
+Disting bus cannot observe: choose **Rotate** for the Nibbler's normalled top-bit
+feedback, or **Data in** to replace it with the Shift Data input. This Lua
+version runs at the documented 1 ms script cadence, so it is useful for
+sequences, rhythms, and control-rate modulation but does not reproduce the
+original discrete CMOS module's audio-rate timing or analogue voltage
+imperfections.
+
 ### Freeform CV
 
 Choose **Freeform CV** in an input's Signal generator inspector to create a

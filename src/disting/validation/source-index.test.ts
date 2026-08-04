@@ -194,7 +194,7 @@ describe('bundled source index corpus', () => {
         : [`${path}: complete=${index.complete}, fields=${index.topLevelFields.length}`]
     })
 
-    expect(files).toHaveLength(59)
+    expect(files).toHaveLength(60)
     expect(failures).toEqual([])
   })
 })
