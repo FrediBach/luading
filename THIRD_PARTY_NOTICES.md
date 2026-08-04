@@ -17,6 +17,18 @@ The imported `grids/resources.cc` source had SHA-256
 
 License: [GNU General Public License version 3 or later](LICENSES/GPL-3.0-or-later.txt)
 
+## Mutable Instruments Marbles behavior
+
+`lua-scripts/fredi-bach/Mutable Instruments Marbles.lua` is an independently
+written Disting NT adaptation whose decision-loop policy and generator model
+are informed by the Mutable Instruments Marbles manual and firmware. The Lua
+file carries the upstream copyright and full MIT license notice. It does not
+copy Marbles' DSP implementation or resource data.
+
+Copyright 2015 Emilie Gillet.
+
+Source: [pichenettes/eurorack/marbles](https://github.com/pichenettes/eurorack/tree/master/marbles)
+
 ## Ornament & Crime Automatonnetz and Tonnetz behavior
 
 `lua-scripts/fredi-bach/Automatonnetz.lua` adapts the grid sequencing and

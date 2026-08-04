@@ -99,6 +99,15 @@ script's control-rate scheduling and Lua-table behavior; they do not claim
 panel, electrical-threshold, random-generator, or sub-millisecond timing parity
 with Vermona hardware.
 
+`mutable-instruments-marbles.test.ts` loads the bundled control-rate Marbles
+adaptation through Wasmoon. It pins the eleven-input/seven-output contract,
+complementary coin bias and gate timing, independent three-value X decision
+loops, non-destructive reset, root-octave quantization, negative-Steps slew,
+preset-state round trips, and bounded custom display. These tests establish
+the Lua adaptation described in the workbench guide; they do not compare its
+jitter, ratio clocks, distributions, quantizer, random source, or 1 ms timing
+with Mutable Instruments hardware or the sample-rate firmware.
+
 `automatonnetz.test.ts` loads the bundled Ornament & Crime adaptation through
 the Wasmoon bridge. It pins the 5x5 wrapping and fractional vector movement,
 all six involutive triad transforms, cell offset/inversion processing, root-CV

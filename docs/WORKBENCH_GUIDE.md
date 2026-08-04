@@ -202,6 +202,49 @@ typed-input edge behavior replaces Vermona's specified +2 V input threshold,
 and the separate clock inputs are not automatically normalled to one another.
 The internal BPM parameters replace the original tap-tempo gesture.
 
+### Mutable Instruments Marbles recreation
+
+The bundled **Mutable Instruments Marbles** example adapts the musical model
+documented in the [Marbles manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/marbles/manual/)
+and its [MIT-licensed firmware](https://github.com/pichenettes/eurorack/tree/master/marbles).
+It couples a master `t2` clock to complementary, ratio, or independently
+authored drum-style `t1`/`t3` streams. The internal clock offers 10-480 BPM,
+quarter/normal/quadruple ranges, bounded jitter, and variable gate length.
+Choose **t Clock: Input** to clock it one-for-one from input 1. All three gate
+outputs use +5 V.
+
+The shared **Deja vu** control runs from fresh material at -100, through a
+locked loop at 0, to random jumps within the loop at +100. Values away from
+the lock use a squared probability response, so small offsets mutate or
+reorder a loop slowly. **Length** selects 1-16 stored decisions, while the
+separate **t Deja vu** and **X Deja vu** switches decide which half uses the
+history. Each X channel advances its own history, so a three-decision length
+can create a longer composite pattern when X1-X3 follow their corresponding t
+streams. Reset restarts all read positions without erasing the stored values,
+and **Save state** preserves the decision buffers.
+
+X1-X3 can follow t1/t2/t3 independently, all follow t2, or advance together
+from input 2. Their ranges are 0-2 V, 0-5 V, or -5 to +5 V. **Spread** moves
+from a fixed centre through bell-shaped and uniform distributions to binary
+extremes; **X Bias** skews the distribution. Positive **Steps** progresses
+from chromatic quantization through C major, pentatonic, root/fifth, and root
+octaves. Negative Steps applies increasingly slow slew. **X Mode** applies the
+controls identically, opposes the outer channels to X2, or tilts them from X1
+to X3. External processing samples input 11 instead of fresh voltages. Y is an
+independent -5 to +5 V random source, is never affected by Deja vu, and has
+its own X2 clock division, spread, bias, and steps controls.
+
+Inputs 4-10 add CV to Deja vu, Rate (1 V/oct), t Bias, Jitter, Spread, X Bias,
+and Steps. Disting cannot detect whether a jack is patched, so the two clock
+sources and external-processing mode are explicit parameters. This is a 1 ms
+control-rate adaptation: the jitter and ratio clocks, probability
+distributions, slew, and scale carving are musical approximations rather than
+ports of Marbles' sample-rate DSP. External t clocks remain 1:1 instead of
+repurposing Rate as a divider/multiplier; the external-CV path omits the
+firmware's 3 ms tolerance and shift-register special case; and the drum
+patterns are independently authored. Browser or Lua randomness does not model
+the original hardware entropy source.
+
 ### Mutable Instruments Grids recreation
 
 The bundled **Mutable Instruments Grids** example ports the rhythm-generation
