@@ -91,6 +91,29 @@ routes, outputs, or workspace layout, and they are separate from **Save state**.
 Every bundled parameterized example includes several ready-to-use snapshots;
 parameterless examples do not show the selector.
 
+### Probability Mixer
+
+The bundled **Probability Mixer** routes each input gate to complementary Pass
+or Reject outputs using a weighted blend of eight probability processes:
+Independent, Markov, without-replacement Bag, accumulating Hazard, Weighted
+cycle, Random walk, Alternating, and Streaky. **Base** is the shared density
+around which the processes operate; the other eight parameters are mixer
+weights, not additional percentages that must sum to 100.
+
+Each source proposes a current pass probability. The mixer subtracts their
+weighted failure distances from certainty and normalizes by the total weight:
+`100 - sum(weight * (100 - source)) / sum(weight)`. For example, Base 50%,
+Independent 100%, and Markov 15% is mostly an ordinary 50% Bernoulli gate with
+a small tendency toward Markov-shaped phrases. If all weights are zero, the
+script falls back to Base alone.
+
+Gate input 1 is held on exactly one output until its falling edge. Trigger
+input 2 resets the process histories, shuffled bag, counters, and both outputs.
+The without-replacement source contains sixteen positions and rounds Base to
+the nearest number of hits in that window. Preset state stores the shuffled
+bag, histories, random walk, and pseudorandom generator position so the mixed
+process continues exactly after restoration.
+
 ### Simulator I/O defaults
 
 A script can seed Luading's browser-only input generators and output audio
