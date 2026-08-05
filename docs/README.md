@@ -45,6 +45,10 @@ results separately from claims about the Disting hardware contract.
 
 ## Active plans
 
+- [New-script scaffolder](plans/NEW_SCRIPT_SCAFFOLDER_IMPLEMENTATION_PLAN.md)
+  plans a quick-start and guided dialog for generating valid algorithm-script
+  identity, I/O, parameters, controls, preset-related features, and optional
+  lifecycle scaffolding while preserving hardware/simulator provenance.
 - [Fredi Bach display animation](plans/FREDI_BACH_DISPLAY_ANIMATION_PLAN.md)
   tracks the remaining example-script display work.
 - [Script-authored automated tests](plans/SCRIPT_AUTOMATED_TESTS_IMPLEMENTATION_PLAN.md)
