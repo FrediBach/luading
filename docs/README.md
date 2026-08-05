@@ -54,6 +54,10 @@ results separately from claims about the Disting hardware contract.
   annotation-driven, export-only workflow for safely embedding user-supplied
   values such as Strudel mini notation without changing the editor source or
   live simulation.
+- [Display UI designer](plans/DISPLAY_UI_DESIGNER_IMPLEMENTATION_PLAN.md) plans
+  a hardware-vocabulary visual editor for composing the 256x64 display,
+  previewing static and dynamic states, and generating readable ordinary Lua
+  draw callbacks without changing the active source or worker contract.
 
 An active plan describes intended work and is not evidence that the behavior
 exists. Update its status as work lands. Once it is complete, move it to the
