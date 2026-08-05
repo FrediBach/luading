@@ -338,6 +338,24 @@ The colon adapter treats a numeric second value as gate velocity, so `60:0.8`
 emits MIDI note 60 as 0 V with a 4 V gate. To change the pattern in this first
 version, edit the `MINI_NOTATION` constant in the script and reload it.
 
+### LUT logic router
+
+The bundled **LUT Logic Router** builds its complete gate I/O schema from one
+hardcoded `LUT` string. Each non-empty line is an output bit word, ordered by
+the binary input state from all-low to all-high. The number of inputs is the
+base-2 logarithm of the line count, and the number of outputs is the width of
+each line. Input 1 is the most-significant bit; output bit 1 controls Out 1.
+`1` produces 5 V and `0` produces 0 V.
+
+The included eight-line, four-bit table is a three-input 1-to-4 router. In 1 is
+the enable input, while In 2 and In 3 select one of the four outputs. Replacing
+only the string with another generated table automatically changes the input
+and output counts and their names on reload. Blank lines and surrounding
+whitespace are ignored; all populated lines must contain only `0` and `1`,
+have equal widths, and total a power-of-two row count. Invalid tables fail in
+`init()` instead of running with a partially inferred schema. The Disting NT
+limit of 28 inputs and 28 outputs is enforced.
+
 ### Nibbler recreation
 
 The bundled **Nibbler** example recreates the control-rate behavior of
