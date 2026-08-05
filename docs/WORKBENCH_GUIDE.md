@@ -214,6 +214,47 @@ uses an independently authored pattern and Disting NT's documented 1 ms Lua
 cadence. Clock handling is completed in `step()` so a clock edge uses the CV
 values sampled in that same control step.
 
+### Micro Tracker
+
+The bundled **Micro Tracker** is a self-contained four-track step sequencer
+whose complete authoring workflow fits the documented algorithm custom UI. It
+ships with a playable two-pattern demo, eight patterns of sixteen rows, and a
+sixteen-slot looping Song order. Each cell stores a note, rest, or tie plus
+velocity/accent, probability, and one to four ratchets. The four pitch/gate
+pairs use outputs 1/2, 3/4, 5/6, and 7/8. Pitch is V/oct; the stepped gate
+output maps velocity to a 5-10 V accent convention rather than claiming to be
+a calibrated velocity DAC.
+
+In the Grid, Encoder 1 moves the row and Encoder 2 moves the track. A short
+Encoder 2 press opens the selected cell; Encoder 1 then chooses Note,
+Velocity, Probability, or Ratchet and Encoder 2 changes it. Hold Encoder 2
+while turning for coarse edits. Holding Encoder 2 for 500 ms without turning
+opens Commands, which provides copy/paste, clear cell, confirmed clear row,
+confirmed pattern clone, track mute, Song, Settings, one-level undo, and Help.
+Destructive confirmations start on **No**. Pot 1 always selects the edit
+pattern, Pot 2 sets 30-300 BPM, Pot 3 sets 0-60% swing, and pressing Pot 3
+starts or stops transport. These meanings do not change between screens.
+
+Input 1 is the external row clock, input 2 resets the playback position and
+seeded probability stream, and input 3 supplies V/oct transpose sampled at an
+accepted note onset. Settings choose internal or external clock, one, two, or
+four rows per beat, gate percentage, Pattern or Song playback, saved semitone
+transpose, and the deterministic seed. Internal swing alternates long/short
+row intervals; external timing and ratchet spacing follow measured input
+clocks and intentionally ignore Swing. Pattern selection while running queues
+the new pattern for the next sixteen-row boundary, while Song playback follows
+its order independently from the pattern being edited.
+
+**Save state** preserves patterns, performance fields, Song order, settings,
+mutes, cursor, selected pattern, and pseudorandom continuation. Reload starts
+stopped at row 1 with all gates low; held controls, menus, pending ratchets,
+clipboard, and undo are deliberately transient. The example is an ordinary
+exportable Lua file and does not use the simulator-only buttons, Encoder 1
+push, Pot 1/2 push, a React tracker editor, or browser timing as a Disting NT
+performance claim. Live browser control feel and physical display, voltage,
+timing, preset-capacity, and worst-case CPU behavior still require their
+separate validation environments.
+
 ### Particle Bursts recreation
 
 The bundled **Particle Bursts** example is an independent Disting NT adaptation

@@ -95,6 +95,12 @@ records the quick-start and guided creation workflow, deterministic Lua
 generation, hardware/simulator provenance rules, project-library integration,
 and final verification.
 
+The completed
+[Micro Tracker example plan](archive/implementation-plans/MICRO_TRACKER_EXAMPLE_IMPLEMENTATION_PLAN.md)
+records the hardware-portable four-track tracker, its custom-control grammar,
+deterministic scheduler and saved state, display architecture, and final
+automated verification and unavailable live/hardware matrix.
+
 ## Documentation lifecycle
 
 - Update `ARCHITECTURE.md` when ownership, boundaries, protocols, or invariants

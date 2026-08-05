@@ -548,6 +548,21 @@ countered by compensation on the other.
   limits, and a max-stop flash. Update the plan's visuals from effective values,
   not just the base parameters currently shown.
 
+### Micro Tracker (added after the initial numbering)
+
+Status: Implemented by the completed Micro Tracker example plan.
+
+The tracker owns a purpose-built seven-state screen rather than receiving a
+separate decorative animation pass. Its Grid shows a cursor-following
+four-row window, independent playback marker, queued pattern, mute state,
+probability, and ratchets. Cell, Song, Settings, Commands, Confirm, and Help
+screens retain the shared shade hierarchy, integer primitives, bounded ASCII,
+and read-only `draw()` rule. Playback motion comes only from scheduled rows and
+the 800 ms action feedback uses control-step time. Focused Wasmoon display tests
+cover every state, text bounds, and a fixed command-count ceiling. See the
+[archived Micro Tracker implementation plan](../archive/implementation-plans/MICRO_TRACKER_EXAMPLE_IMPLEMENTATION_PLAN.md)
+for its exact behavioral and verification record.
+
 ### 22. Note Compressor CV Control
 
 **Concept: an accordion keyboard squeezing notes into a movable range.**

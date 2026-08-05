@@ -89,6 +89,18 @@ behavior, pulse timing, and bounded custom display. Timing assertions use the
 documented 1 ms callback cadence; they do not claim sub-millisecond scheduling
 or prediction of future external clock edges.
 
+`micro-tracker.test.ts` loads the bundled four-track tracker through that same
+Wasmoon bridge. It pins the fixed three-input/eight-output contract, dense
+pattern and Song state normalization, JSON-friendly defensive serialization,
+internal and external clocks, swing pairs, reset ordering, V/oct transpose,
+velocity accents, rests, ties, deterministic probability continuation,
+ratchets, retrigger lows, mutes, Pattern queuing, Song looping, the documented
+custom-control grammar, confirmed destructive edits, value-owned copy/undo,
+and bounded rendering for every view. Its 1 ms timing, JSON byte counts, and
+draw-command limits are simulator regression evidence. They do not establish
+physical output accuracy, preset capacity, front-panel feel, OLED readability,
+or CPU/heap headroom on Disting NT hardware.
+
 `addac-508-swell-physics.test.ts` loads the bundled hardware-inspired water
 surface through Wasmoon. It pins the five-input/seven-output contract,
 still-water levels, exact Scrolling-mode path delay, Evolving-mode spatial
