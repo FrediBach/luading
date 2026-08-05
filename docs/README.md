@@ -45,10 +45,6 @@ results separately from claims about the Disting hardware contract.
 
 ## Active plans
 
-- [New-script scaffolder](plans/NEW_SCRIPT_SCAFFOLDER_IMPLEMENTATION_PLAN.md)
-  plans a quick-start and guided dialog for generating valid algorithm-script
-  identity, I/O, parameters, controls, preset-related features, and optional
-  lifecycle scaffolding while preserving hardware/simulator provenance.
 - [Fredi Bach display animation](plans/FREDI_BACH_DISPLAY_ANIMATION_PLAN.md)
   tracks the remaining example-script display work.
 - [Script-authored automated tests](plans/SCRIPT_AUTOMATED_TESTS_IMPLEMENTATION_PLAN.md)
@@ -92,6 +88,12 @@ The completed
 records the account-free IndexedDB project library, autosave and recovery,
 project-management workflow, portable backup/restore format, and final
 verification.
+
+The completed
+[new-script scaffolder plan](archive/implementation-plans/NEW_SCRIPT_SCAFFOLDER_IMPLEMENTATION_PLAN.md)
+records the quick-start and guided creation workflow, deterministic Lua
+generation, hardware/simulator provenance rules, project-library integration,
+and final verification.
 
 ## Documentation lifecycle
 

@@ -77,7 +77,7 @@ export interface ProjectLibrary {
   flush(): Promise<void>
   selectTemplate(id: string): Promise<boolean>
   selectProject(id: string): Promise<boolean>
-  createNew(): Promise<boolean>
+  createNew(input?: NewProjectInput): Promise<boolean>
   importScript(filename: string, source: string): Promise<boolean>
   rename(filename: string): Promise<boolean>
   duplicate(): Promise<boolean>
@@ -86,6 +86,11 @@ export interface ProjectLibrary {
   backup(): Promise<string>
   restoreBackup(source: string): Promise<ProjectBackupImportResult>
   protectDrafts(): Promise<boolean | null>
+}
+
+export interface NewProjectInput {
+  filename: string
+  source: string
 }
 
 function defaultId(): string {
@@ -742,7 +747,12 @@ export function useProjectLibrary(options: ProjectLibraryOptions): ProjectLibrar
     flush,
     selectTemplate: (id: string) => openRef({ kind: 'bundled', exampleId: id }),
     selectProject: (id: string) => openRef({ kind: 'project', projectId: id }),
-    createNew: () => createOwnedProject('New Script.lua', NEW_DISTING_SCRIPT, {}, { kind: 'new' }),
+    createNew: (input?: NewProjectInput) => createOwnedProject(
+      input?.filename ?? 'New Script.lua',
+      input?.source ?? NEW_DISTING_SCRIPT,
+      {},
+      { kind: 'new' },
+    ),
     importScript: (filename: string, source: string) => createOwnedProject(filename, source, {}, { kind: 'import' }),
     rename,
     duplicate,

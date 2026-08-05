@@ -73,7 +73,7 @@ describe('command bar utilities', () => {
         theme="dark"
         textSize="standard"
         onSelectExample={() => undefined}
-        onNewScript={() => undefined}
+        onCreateScript={async () => true}
         onImportScript={() => undefined}
         onExportScript={() => undefined}
         onToggleRunning={() => undefined}
@@ -100,6 +100,8 @@ describe('command bar utilities', () => {
     expect(markup).toContain('aria-label="Script status"')
     expect(markup).toContain('aria-label="Workbench utilities"')
     expect(markup).toContain('aria-label="Create new Lua script"')
+    expect(markup).toContain('aria-haspopup="dialog"')
+    expect(markup).toContain('aria-expanded="false"')
     expect(markup).toContain('aria-label="Import Lua script"')
     expect(markup).toContain('aria-label="Export Lua script"')
     expect(markup).toContain('accept=".lua,text/x-lua,application/x-lua"')
@@ -138,7 +140,7 @@ describe('command bar utilities', () => {
         theme="light"
         textSize="large"
         onSelectExample={() => undefined}
-        onNewScript={() => undefined}
+        onCreateScript={async () => true}
         onImportScript={() => undefined}
         onExportScript={() => undefined}
         onToggleRunning={() => undefined}

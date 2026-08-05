@@ -262,6 +262,17 @@ movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
 screen reader. User-interface changes need the applicable live browser checks
 in addition to model and rendering coverage.
 
+The new-script scaffolder adds a pure draft/validation/generation layer beside
+its React coverage. Generator tests pin the default quick-start source, I/O and
+parameter forms, callback provenance, exact scale conversion, Lua string
+escaping, optional MIDI/state/display metadata, and Luading-only parameter
+snapshots. Representative generated scripts compile, validate, load, and
+invoke callbacks through the production Wasmoon bridge. Interactive DOM tests
+cover both creation paths, guided changes, extension gating, source review,
+async submission, and focus return. As with other React tests, CSS layout,
+platform focus behavior, touch input, and screen-reader announcements still
+require live browser acceptance.
+
 ### Local project persistence
 
 Pure project tests pin filename allocation, defensive record validation,
@@ -283,9 +294,11 @@ The project-library hook runs in a DOM test environment with injected clocks,
 IDs, storage, and short timers. It verifies hydration before source exposure,
 first-edit template forks through the module boundary, debounced autosave,
 flush-before-switch behavior, and editor-view saves that do not claim a source
-revision. Interactive DOM tests cover the My Scripts current row, project
-actions, save labels, empty state, backup/restore filters, and durability
-guidance.
+revision. Generated scaffolds enter through the same protected creation path;
+focused tests pin caller-provided filename/source handling and collision
+allocation without adding scaffold concepts to storage. Interactive DOM tests
+cover the My Scripts current row, project actions, save labels, empty state,
+backup/restore filters, and durability guidance.
 
 These automated browser substitutes do not prove real eviction policy,
 `pagehide` completion, download dialogs, private-mode retention, or cross-origin

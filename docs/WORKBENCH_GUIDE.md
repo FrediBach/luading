@@ -699,10 +699,37 @@ authority.
 
 ## Importing and exporting scripts
 
-Use **New** to create an independent local project containing a minimal,
-working one-input/one-output script. Its short comments mark where to add
-shared state, I/O and parameters, signal processing, and optional lifecycle
-callbacks. Existing local projects remain in **My Scripts**.
+Use **New** to open the script scaffolder. Nothing is replaced until the final
+create action succeeds.
+
+Choose **Quick start** for the familiar minimal, working one-CV-input and
+one-linear-output pass-through script. Its name, short description, and author
+already have defaults and may be changed before creation.
+
+Choose **Guided setup** to step through Basics, Inputs, Outputs, Parameters,
+Hardware controls, Extras & presets, and Review. Every section is optional and
+every added row begins valid. Inputs can be CV, gate, or trigger; outputs can be
+linear or stepped; parameters can be numeric with a documented unit/precision
+or an ordered choice. The Review step shows the exact generated Lua and the
+collision-safe filename before creating the independent local project.
+
+The hardware-controls step defaults to the standard parameter UI. Its normal
+custom choices are the algorithm callbacks documented by the Disting NT Lua
+manual. Additional callbacks, including the front-panel button events exposed
+by Luading for algorithm scripts, remain disabled until you accept their
+non-manual status. Review and the generated source identify those callbacks as
+non-portable instead of presenting them as documented hardware behavior.
+
+Extras can scaffold custom drawing, filtered MIDI input, and additional
+JSON-friendly state saved through the hardware `serialise()` callback. **Named
+parameter starting points** generate `luading.parameterPresets`; they are a
+Luading simulator extension, not full Disting presets, and are labelled that
+way in the dialog and source. Ordinary script parameter values are already
+handled by the Disting preset system.
+
+Closing the dialog discards its temporary choices. After creation the source is
+ordinary editor text: the scaffolder does not parse, reopen, or regenerate an
+existing script. Existing local projects remain in **My Scripts**.
 
 Use **Import** in the command bar to create a local project from a `.lua` file.
 The imported script runs through the same isolated Lua worker used for bundled

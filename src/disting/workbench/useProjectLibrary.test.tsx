@@ -27,6 +27,12 @@ class FailingSaveStore extends MemoryProjectStore {
   }
 }
 
+class FailingCreateStore extends MemoryProjectStore {
+  override async createProject(): Promise<never> {
+    throw new DOMException('quota full', 'QuotaExceededError')
+  }
+}
+
 let library: ProjectLibrary
 let root: ReturnType<typeof createRoot>
 let container: HTMLDivElement
@@ -101,6 +107,38 @@ describe('project-library coordinator', () => {
     expect(library.active.key).toBe('bundled:bundled/example')
   })
 
+  it('creates generated sources through the normal collision-safe new-project path', async () => {
+    const store = new MemoryProjectStore()
+    await mount(store)
+    await act(async () => {
+      await library.createNew({ filename: 'Guided.lua', source: '-- generated one' })
+      await library.createNew({ filename: 'Guided.lua', source: '-- generated two' })
+    })
+    expect(library.active).toMatchObject({
+      filename: 'Guided 2.lua',
+      source: '-- generated two',
+      modules: {},
+    })
+    expect(library.projects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filename: 'Guided.lua', source: '-- generated one', origin: { kind: 'new' } }),
+      expect.objectContaining({ filename: 'Guided 2.lua', source: '-- generated two', origin: { kind: 'new' } }),
+    ]))
+    expect((await store.hydrate()).projects).toHaveLength(2)
+  })
+
+  it('keeps a generated project active and visibly degraded when its create transaction fails', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await mount(new FailingCreateStore())
+    await act(async () => {
+      await expect(library.createNew({ filename: 'Generated.lua', source: '-- browser only' }))
+        .resolves.toBe(true)
+    })
+    expect(library.active).toMatchObject({ filename: 'Generated.lua', source: '-- browser only' })
+    expect(library.saveStatus).toMatchObject({ kind: 'degraded', recoverable: true })
+    expect(window.localStorage.getItem('luading-active-source-recovery-v1')).toContain('-- browser only')
+    error.mockRestore()
+  })
+
   it('saves editor view metadata without advancing the source revision', async () => {
     const store = new MemoryProjectStore()
     await mount(store)
@@ -144,6 +182,7 @@ describe('project-library coordinator', () => {
     expect(window.localStorage.getItem('luading-active-source-recovery-v1')).toContain('-- cannot persist')
     await act(async () => {
       await expect(library.selectTemplate(template.id)).resolves.toBe(false)
+      await expect(library.createNew({ filename: 'Blocked.lua', source: '-- replacement' })).resolves.toBe(false)
     })
     expect(library.active.source).toBe('-- cannot persist')
   })

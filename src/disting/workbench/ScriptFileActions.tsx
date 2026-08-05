@@ -1,15 +1,21 @@
-import { useRef, type ChangeEvent } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { ControlIcon } from '../controls'
 import { Tooltip } from '../controls/Tooltip'
+import { NewScriptDialog } from './NewScriptDialog'
+import type { ScriptProject } from './projects'
+import type { ScriptScaffoldDraft } from './script-scaffold'
 
 interface Props {
-  onNew(): void
+  projects: ScriptProject[]
+  onCreate(draft: ScriptScaffoldDraft): Promise<boolean>
   onImport(file: File): void
   onExport(): void
 }
 
-export function ScriptFileActions({ onNew, onImport, onExport }: Props) {
+export function ScriptFileActions({ projects, onCreate, onImport, onExport }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const newButtonRef = useRef<HTMLButtonElement>(null)
+  const [newDialogOpen, setNewDialogOpen] = useState(false)
 
   const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0]
@@ -30,15 +36,25 @@ export function ScriptFileActions({ onNew, onImport, onExport }: Props) {
       />
       <Tooltip content="Create new Lua script" placement="bottom">
         <button
+          ref={newButtonRef}
           type="button"
           className="commandbar-icon-command"
           aria-label="Create new Lua script"
-          onClick={onNew}
+          aria-haspopup="dialog"
+          aria-expanded={newDialogOpen}
+          onClick={() => setNewDialogOpen(true)}
         >
           <ControlIcon name="new" size={14} />
           <span>New</span>
         </button>
       </Tooltip>
+      <NewScriptDialog
+        open={newDialogOpen}
+        projects={projects}
+        returnFocusRef={newButtonRef}
+        onClose={() => setNewDialogOpen(false)}
+        onCreate={onCreate}
+      />
       <Tooltip content="Import Lua script" placement="bottom">
         <button
           type="button"

@@ -1,9 +1,28 @@
 # New-script scaffolder implementation plan
 
+> **Historical snapshot.** Archived on 2026-08-05 after implementation. This
+> plan preserves the decisions and verification state from the work; current
+> behavior belongs in the workbench guide, architecture, testing strategy, and
+> conformance ledger.
+
 ## Status
 
-Proposed on 2026-08-05. No behavior described by this document is implemented
-until the relevant increment and its verification have landed.
+Implemented on 2026-08-05.
+
+Verification completed:
+
+- focused generator and production Wasmoon-boundary tests passed 8 tests;
+- focused dialog, command-bar, responsive, project-library, and project-model
+  tests passed 34 tests;
+- `npm run test:conformance` passed 8 tests;
+- `npm test` passed 116 files and 641 tests;
+- `npm run check` passed linting, coverage thresholds, TypeScript, the complete
+  test suite, and the production build;
+- coverage passed at 96.76% statements, 91.01% branches, 100% functions, and
+  98.43% lines; and
+- live browser interaction, visual, touch, narrow-viewport, and platform-focus
+  checks remain unverified because the browser runtime reported zero available
+  browser backends after the required discovery and troubleshooting checks.
 
 ## Goal
 

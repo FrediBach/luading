@@ -72,6 +72,10 @@ import {
   luaDownloadFilename,
   readLuaScriptFile,
 } from './workbench/script-file'
+import {
+  generateScriptScaffold,
+  type ScriptScaffoldDraft,
+} from './workbench/script-scaffold'
 import { useProjectLibrary } from './workbench/useProjectLibrary'
 import type { ProjectTemplate } from './workbench/projects'
 import type {
@@ -519,9 +523,11 @@ export function DistingPlayground() {
     }
   }
 
-  const createNewScript = () => {
+  const createNewScript = async (draft: ScriptScaffoldDraft) => {
+    const result = generateScriptScaffold(draft)
+    if (!result.ok) return false
     setFileError(null)
-    void projectLibrary.createNew()
+    return projectLibrary.createNew({ filename: result.filename, source: result.source })
   }
 
   const exportScript = () => {
@@ -895,7 +901,7 @@ export function DistingPlayground() {
           onBackupProjects={() => void downloadBackup()}
           onRestoreProjects={(file) => void restoreBackup(file)}
           onProtectDrafts={() => void projectLibrary.protectDrafts()}
-          onNewScript={createNewScript}
+          onCreateScript={createNewScript}
           onImportScript={(file) => void importScript(file)}
           onExportScript={exportScript}
           onToggleRunning={toggleRunning}

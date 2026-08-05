@@ -21,6 +21,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { WorkspacePresetMenu } from './WorkspacePresetMenu'
 import type { WorkspacePresetId } from './workbench-layout'
 import type { ScriptProject, SourceSaveStatus } from './projects'
+import type { ScriptScaffoldDraft } from './script-scaffold'
 import type { StorageDurability } from './storage-durability'
 
 interface Props {
@@ -62,7 +63,7 @@ interface Props {
   onBackupProjects?(): void
   onRestoreProjects?(file: File): void
   onProtectDrafts?(): void
-  onNewScript(): void
+  onCreateScript(draft: ScriptScaffoldDraft): Promise<boolean>
   onImportScript(file: File): void
   onExportScript(): void
   onToggleRunning(): void
@@ -113,7 +114,7 @@ export function CommandBar({
   onBackupProjects,
   onRestoreProjects,
   onProtectDrafts,
-  onNewScript,
+  onCreateScript,
   onImportScript,
   onExportScript,
   onToggleRunning,
@@ -172,7 +173,8 @@ export function CommandBar({
         />
 
         <ScriptFileActions
-          onNew={onNewScript}
+          projects={projects}
+          onCreate={onCreateScript}
           onImport={onImportScript}
           onExport={onExportScript}
         />
