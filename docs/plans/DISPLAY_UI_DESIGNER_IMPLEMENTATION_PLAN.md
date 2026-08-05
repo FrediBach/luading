@@ -16,9 +16,10 @@ recorded in this document.
 | 3. Dialog shell, entry point, and static-property editing | Proposed | Not started |
 | 4. Direct manipulation, layers, and keyboard workflow | Proposed | Not started |
 | 5. Dynamic bindings and state preview | Proposed | Not started |
-| 6. Design-file portability and source handoff | Proposed | Not started |
-| 7. Responsive/accessibility polish and documentation | Proposed | Not started |
-| 8. Final regression, browser, and hardware validation | Proposed | Not started |
+| 6. Symbols, instances, and multi-state variants | Proposed | Not started |
+| 7. Design-file portability and source handoff | Proposed | Not started |
+| 8. Responsive/accessibility polish and documentation | Proposed | Not started |
+| 9. Final regression, browser, and hardware validation | Proposed | Not started |
 
 ## Goal
 
@@ -26,8 +27,8 @@ Add a compact, Figma-like display designer to Luading in which every drawable
 element corresponds to the limited Disting NT Lua display vocabulary. Users
 will work directly on a magnified 256x64 artboard, organize and inspect
 elements, preview the firmware-facing raster, optionally mark properties as
-dynamic, and generate readable ordinary Lua as a starting point for further
-programming.
+dynamic, reuse local symbols/components with named visual states, and generate
+readable ordinary Lua as a starting point for further programming.
 
 The designer deliberately does not attempt to import or preserve arbitrary SVG.
 It makes valid target primitives easy to author and exposes approximations and
@@ -65,6 +66,16 @@ After version one lands:
 - dynamic properties generate explicit local placeholder values and TODOs for
   connecting them to `self`, inputs, parameters, or other script state; the
   designer does not invent a runtime binding API;
+- selected primitives can become a reusable local symbol/component, each
+  symbol can define multiple named states such as `idle`, `active`, and
+  `warning`, and editing a symbol definition updates every instance;
+- each symbol instance has an explicit static or choice-bound state, and
+  generated Lua includes one reusable helper that accepts the state as an
+  argument, selects the corresponding variant, and uses a deterministic
+  default for unknown values;
+- symbol helpers are created once when the returned script table is built, not
+  recreated on every `draw()` call, and instances remain ordinary documented
+  draw calls after helper expansion;
 - opening or saving a versioned `.luading-display.json` design is explicit and
   never changes the current script, local project, simulation, or diagnostics;
 - closing or replacing a changed design requires an explicit discard decision
@@ -215,13 +226,35 @@ planned later if explicit design files prove too cumbersome. That later work
 must define source/design divergence and project conflict behavior before
 adding storage fields.
 
-### Start with primitives; add components only after bindings are stable
+### Local symbols/components and variants are version-one authoring concepts
 
-Reusable meters, gates, dials, step rows, and waveform frames are attractive,
-but they are generated compositions rather than firmware primitives. Version
-one first establishes primitive editing and bindings. A later increment may
-add a small component gallery that expands into ordinary editable elements;
-components must not become opaque runtime widgets or simulator globals.
+Users can turn selected primitives into a reusable local symbol/component.
+Each symbol owns one or more named variants, called **states** in the UI. A gate
+indicator might define `low`, `high`, and `error`; a transport icon might define
+`stopped`, `playing`, and `recording`. Instances choose a literal state for a
+static design or attach a choice binding so the generated code is already
+prepared for runtime state selection.
+
+Symbols are local to one display-design document. They are not a built-in
+widget catalog, shared library, package dependency, firmware object, or hidden
+runtime. The compiler expands the selected variant into ordinary primitives,
+and the Lua generator emits one local helper per used symbol. Editing the
+definition updates all instances because instances reference the definition;
+detaching an instance deliberately expands its current preview state into
+ordinary top-level primitives and discards its alternate states after warning
+the user.
+
+Variant definitions contain complete ordered primitive lists relative to a
+symbol origin. Version one does not infer common layers, inheritance, or
+property overrides between variants. **Duplicate state** is the explicit way
+to start a new variant from existing artwork. This costs some document/source
+size but keeps every state inspectable and avoids a subtle override system.
+
+Symbols cannot contain symbol instances in version one. Prohibiting nesting
+avoids reference cycles, recursive draw expansion, ambiguous state propagation,
+and harder hardware-cost estimates while retaining the main reuse benefit.
+A future starter-component gallery may create ordinary local symbols, but it
+must not make symbols opaque or add simulator globals.
 
 ## Version-one document model
 
@@ -240,6 +273,7 @@ interface DisplayDesignDocumentV1 {
   elements: DisplayDesignElement[]
   groups: DisplayDesignGroup[]
   bindings: DisplayDesignBinding[]
+  symbols: DisplayDesignSymbol[]
 }
 
 interface DisplayDesignGroup {
@@ -247,10 +281,9 @@ interface DisplayDesignGroup {
   name: string
 }
 
-interface DisplayDesignElementBase {
+interface DisplayPrimitiveBase {
   id: string
   name: string
-  groupId?: string
   shade: DisplayScalar
   visible: DisplayVisibility
 }
@@ -260,26 +293,68 @@ interface DisplayDesignElementBase {
 authoring labels; an element belongs to at most one group, groups cannot nest,
 and group membership does not change draw order. This keeps reordering,
 generation, and selection predictable while still allowing a layers panel to
-collapse or select related elements.
+collapse or select related elements. A top-level entry is either one primitive
+or one symbol instance. Symbol variant primitives are stored inside their
+definition and use coordinates relative to the instance origin.
 
-Element variants hold only properties accepted by their target call:
+Primitive variants hold only properties accepted by their target call:
 
 ```ts
-type DisplayDesignElement =
+type DisplayPrimitiveElement =
   | { kind: 'line'; smooth: boolean; x1: DisplayScalar; y1: DisplayScalar;
-      x2: DisplayScalar; y2: DisplayScalar } & DisplayDesignElementBase
+      x2: DisplayScalar; y2: DisplayScalar } & DisplayPrimitiveBase
   | { kind: 'box'; fill: boolean; x1: DisplayScalar; y1: DisplayScalar;
-      x2: DisplayScalar; y2: DisplayScalar } & DisplayDesignElementBase
+      x2: DisplayScalar; y2: DisplayScalar } & DisplayPrimitiveBase
   | { kind: 'circle'; smooth: boolean; x: DisplayScalar; y: DisplayScalar;
-      radius: DisplayScalar } & DisplayDesignElementBase
+      radius: DisplayScalar } & DisplayPrimitiveBase
   | { kind: 'text'; tiny: boolean; x: DisplayScalar; y: DisplayScalar;
       text: DisplayText; align: 'left' | 'centre' | 'right' }
-      & DisplayDesignElementBase
+      & DisplayPrimitiveBase
+
+type DisplayDesignElement =
+  | (DisplayPrimitiveElement & { groupId?: string })
+  | DisplaySymbolInstance
+
+interface DisplaySymbolInstance {
+  kind: 'symbol-instance'
+  id: string
+  name: string
+  groupId?: string
+  symbolId: string
+  x: DisplayScalar
+  y: DisplayScalar
+  visible: DisplayVisibility
+  state: DisplaySymbolState
+}
+
+interface DisplayDesignSymbol {
+  id: string
+  name: string
+  luaName: string
+  defaultVariantId: string
+  variants: DisplaySymbolVariant[]
+}
+
+interface DisplaySymbolVariant {
+  id: string
+  name: string
+  luaValue: string
+  elements: DisplayPrimitiveElement[]
+}
+
+type DisplaySymbolState =
+  | { kind: 'literal'; variantId: string }
+  | {
+      kind: 'choice-binding'
+      bindingId: string
+      variantByChoiceId: Record<string, string>
+    }
 ```
 
 The actual implementation may refine property names, but it must retain the
 discriminated model and avoid optional fields that allow impossible
-combinations such as a filled smooth box or filled circle.
+combinations such as a filled smooth box or filled circle. Symbol variants may
+contain primitives only; a `symbol-instance` inside a variant is invalid.
 
 ### Identity and ordering
 
@@ -288,6 +363,12 @@ combinations such as a filled smooth box or filled circle.
 - Duplicate creates a new ID and a human-readable copy name.
 - Reordering changes only the `elements` sequence; drawing follows that order
   exactly.
+- Symbol, variant, instance, and variant-primitive IDs are stable and unique in
+  their relevant namespace. Variant `luaValue` strings are unique within one
+  symbol and remain stable when the visible state name is edited.
+- Duplicating a symbol creates a new definition and new variant/primitive IDs;
+  duplicating an instance keeps the same `symbolId` so definition edits remain
+  shared.
 - Group rename/collapse is authoring state. Collapse need not be serialized;
   membership and group name are.
 - All model operations return new defensive values and never mutate caller
@@ -353,7 +434,31 @@ type DisplayDesignBinding =
       luaName: string
       previewValue: string
     }
+  | {
+      kind: 'choice'
+      id: string
+      name: string
+      luaName: string
+      choices: Array<{
+        id: string
+        name: string
+        luaValue: string
+      }>
+      previewChoiceId: string
+    }
 ```
+
+A choice binding is the bridge between script state and symbol variants. The
+normal **Make state dynamic** action creates a choice binding whose options and
+Lua values mirror the symbol's current variants, and maps each choice to its
+matching variant. An advanced mapping control may attach an existing choice
+binding and map several choices to the same variant. Every choice must map to a
+valid variant; missing or dangling mappings are blocking design errors.
+
+Changing a symbol's variants does not silently rewrite an existing shared
+choice binding. The designer reports incomplete mappings and offers an explicit
+undoable **Sync choices with states** action. This prevents a symbol edit from
+unexpectedly changing other instances that deliberately share the binding.
 
 The designer exposes preview values as test controls only. Generated code starts
 each binding with its current preview value and a TODO comment, for example:
@@ -374,7 +479,10 @@ malformed imported data.
 
 Version-one workbench resource bounds are:
 
-- at most 512 elements;
+- at most 512 stored primitive elements across the top-level scene and every
+  symbol variant;
+- at most 128 top-level symbol instances;
+- at most 64 symbol definitions and 16 variants per symbol;
 - at most 64 groups;
 - at most 64 bindings;
 - at most 512 Unicode code points in one text element or text preview value;
@@ -386,9 +494,11 @@ Version-one workbench resource bounds are:
 
 These are browser/editor safety bounds, not Disting hardware capacity claims.
 Files above the bounds are rejected rather than truncated. Unknown keys,
-unknown versions, duplicate IDs, dangling group/binding references, impossible
-element variants, non-finite values, unsafe Lua identifiers, and invalid enum
-values receive deterministic findings.
+unknown versions, duplicate IDs, dangling group/binding/symbol/variant
+references, duplicate variant Lua values, incomplete choice-to-variant maps,
+nested symbol instances, empty symbols, impossible element variants,
+non-finite values, unsafe Lua identifiers, and invalid enum values receive
+deterministic findings.
 
 Findings are local designer findings, not `ScriptDiagnostic` values. They do not
 enter Problems, quality scoring, validation-worker state, or source-version
@@ -413,13 +523,19 @@ interface CompiledDisplayDesign {
   commands: DrawCommand[]
   commandSources: Array<{
     elementId: string
+    symbolId?: string
+    variantId?: string
+    primitiveId?: string
     firstCommand: number
     commandCount: number
   }>
   findings: DisplayDesignerFinding[]
   metrics: {
     elementCount: number
+    symbolCount: number
+    instanceCount: number
     drawCallCount: number
+    maximumVariantDrawCallCount: number
     smoothCallCount: number
     generatedUtf8Bytes: number
   }
@@ -427,8 +543,18 @@ interface CompiledDisplayDesign {
 ```
 
 Hidden elements emit no command at their current preview state. Every primitive
-otherwise emits exactly one command in version one. Parameter-line preview
-commands are UI context and are excluded from the design's draw-call metric.
+otherwise emits exactly one command in version one. A visible symbol instance
+resolves its current literal/bound state, selects the mapped variant, translates
+that variant's relative coordinates by the instance origin, and emits its
+ordered primitives. `commandSources` retains both the top-level instance and
+definition/variant primitive identity so a finding or selected preview pixel
+can navigate back to the correct editing context.
+
+`maximumVariantDrawCallCount` is the exact maximum for the current top-level
+scene when each visible symbol instance is assigned its largest valid variant;
+it is descriptive and does not attempt to model conditional user code added
+after export. Parameter-line preview commands are UI context and are excluded
+from all design draw-call metrics.
 
 The preview passes `commands` to the existing `renderDistingDisplay()` path.
 The designer must not rasterize fonts or target primitives independently.
@@ -454,6 +580,41 @@ draw = function(self)
 end,
 ```
 
+When symbols are used, generation still returns one pasteable table member. An
+immediately evaluated closure defines the helpers once when the script table is
+created, then returns the actual `draw(self)` callback:
+
+```lua
+draw = (function()
+  local function draw_status_indicator(x, y, state)
+    if state == "active" then
+      drawBox(x, y, x + 12, y + 8, 8)
+      drawRectangle(x + 2, y + 2, x + 10, y + 6, 15)
+    elseif state == "warning" then
+      drawBox(x, y, x + 12, y + 8, 15)
+      drawLine(x + 2, y + 2, x + 10, y + 6, 12)
+      drawLine(x + 10, y + 2, x + 2, y + 6, 12)
+    else
+      -- Default state: idle
+      drawBox(x, y, x + 12, y + 8, 4)
+    end
+  end
+
+  return function(self)
+    local status_state = "idle" -- TODO: choose this state from self or parameters.
+    draw_status_indicator(18, 24, status_state)
+    return true
+  end
+end)(),
+```
+
+The helper's `state` argument is the prepared seam requested from generated
+code: the script author replaces the placeholder with runtime logic or passes a
+different value per instance; no geometry rewrite is required. Unknown values
+draw the symbol's explicit default variant. Variant Lua values are serialized
+strings rather than inferred from display names, so renaming a state in the
+designer does not silently break already written state-selection logic.
+
 Rules:
 
 - element order is source call order;
@@ -467,6 +628,18 @@ Rules:
 - literal and preview text uses a reusable, tested Lua-string serializer;
 - binding locals appear once, in binding order, before draw calls;
 - unused bindings are omitted with a warning rather than emitted as dead code;
+- used symbol helpers appear once in stable symbol-definition order and before
+  the returned `draw` function; unused symbol definitions are omitted with a
+  local warning;
+- helpers receive instance `x`, `y`, and `state`; primitives use coordinates
+  relative to that origin and no scale/rotation transform is generated;
+- variants use explicit `if`/`elseif` branches in stable variant order, with an
+  `else` branch for the declared default variant so unknown runtime state is
+  deterministic;
+- literal-state instances pass their variant Lua value directly; dynamically
+  state-bound instances pass one generated choice-binding local;
+- symbol helper closures are allocated once when the returned algorithm table
+  is evaluated, not inside the 30 fps callback body;
 - parameter-line mode omits a return value; full-screen mode emits exactly
   `return true`;
 - no simulator-only source marker or metadata is added; and
@@ -491,6 +664,12 @@ Boundary fixtures must cover:
 - escaped quotes, backslashes, newlines, non-ASCII text, and fallback glyphs;
 - both display modes and exact boolean suppression behavior;
 - numeric, boolean, and text binding placeholders;
+- choice binding placeholders selecting every symbol variant plus an unknown
+  value selecting the declared default;
+- two instances of one symbol using different literal/dynamic states and
+  origins while sharing one helper;
+- symbol variants with different command counts, clipping, shade-zero
+  overdraw, and dynamic properties inside their primitive lists;
 - reversed box endpoints and clipped geometry;
 - shade-zero overdraw and layer order; and
 - generated output after duplicate/reorder/delete operations.
@@ -532,9 +711,10 @@ At wide viewports the dialog uses four stable regions:
 +-----------------------------------------------------------------------+
 | Display designer | mode | zoom | grid | undo/redo | open/download    |
 +------------+----------------------------------------+-----------------+
-| Tools and  |                                        | Inspector       |
-| layers     |          256 x 64 artboard             | exact values    |
-|            |          pixels + geometry             | bindings        |
+| Tools,     |                                        | Inspector       |
+| layers,    |          256 x 64 artboard             | exact values    |
+| symbols    |          pixels + geometry             | state/variants  |
+|            |                                        | bindings        |
 +------------+----------------------------------------+-----------------+
 | Preview values | Findings | Metrics | Generated Lua / Copy callback   |
 +-----------------------------------------------------------------------+
@@ -631,13 +811,59 @@ must translate between those orientations in one tested helper.
 
 Each row provides type, name, current visibility state, selection state, and a
 context or disclosed action menu. Users can rename, duplicate, delete, reorder,
-and assign elements to a one-level group. Group hide/show in the editor is an
-authoring convenience; generated visibility comes only from each element's
-explicit static or dynamic visibility model.
+and assign primitives or symbol instances to a one-level group. Symbol-instance
+rows show the referenced symbol and current preview state. Group hide/show in
+the editor is an authoring convenience; generated visibility comes only from
+each element's explicit static or dynamic visibility model.
 
 Group selection, movement, duplication, and deletion are atomic undo
 transactions. Deleting a group asks whether to ungroup or delete its elements;
 it never silently removes artwork.
+
+### Symbols/components and state variants
+
+The Symbols panel lists local definitions independently from scene instances.
+It shows the instance count, state count, default state, and whether a symbol is
+unused. Selecting **Create symbol from selection** performs one undoable
+operation:
+
+1. require one or more selected top-level primitives and no symbol instances;
+2. choose the selection's top-left logical bound as the proposed origin, with
+   an exact origin override before commit;
+3. move copies of the selected primitives into a `Default` variant using
+   coordinates relative to that origin;
+4. add the symbol definition with a stable Lua helper name; and
+5. replace the selected primitives in their lowest draw-order position with one
+   instance at the original origin.
+
+Editing a symbol enters an explicit context with a breadcrumb such as
+**Scene > Status indicator > Active**. The artboard shows that variant at local
+coordinates plus a visible origin marker. Users can switch variants without
+leaving symbol edit mode, duplicate a variant, add a blank variant, rename its
+visible label, edit its stable Lua value separately, choose the default, and
+return to the scene without losing selection context.
+
+Variant actions and guarantees:
+
+- a symbol always has at least one variant and exactly one default;
+- variants contain the same primitive vocabulary and property bindings as the
+  top-level scene but cannot contain instances;
+- adding a variant defaults to duplicating the current variant, while **Add
+  blank state** is the explicit empty alternative;
+- reordering variants changes code branch order but not their stable Lua values;
+- deleting a variant used by literal instances or choice maps requires the user
+  to choose a replacement variant or cancel;
+- changing an instance's literal preview state is an ordinary property edit;
+- **Make state dynamic** creates/attaches a choice binding and complete mapping;
+- **Detach instance** expands only the current preview variant at the instance
+  origin and clearly warns that reuse and alternate states will be lost; and
+- deleting a used symbol requires **Detach all instances**, **Delete instances
+  and symbol**, or **Cancel**—never an implicit cascade.
+
+Scene multi-selection may include symbol instances for move, align, distribute,
+duplicate, group, and reorder operations. Resizing an instance is unavailable
+because version one has translation-only instances; edit its definition when
+geometry should change for every instance.
 
 ### Inspector
 
@@ -645,6 +871,10 @@ The inspector is discriminated by element kind and exposes only meaningful
 properties. It includes:
 
 - stable element name and optional group;
+- for a symbol instance: definition, origin, literal/dynamic state, state
+  mapping, **Edit symbol**, and **Detach instance**;
+- for a symbol definition/variant: symbol name, stable helper name, visible
+  state name, stable Lua value, default-state choice, and instance usage;
 - endpoints or centre/radius;
 - computed inclusive box width/height;
 - shade with a 0-15 swatch grid and numeric value;
@@ -666,8 +896,9 @@ uncommitted form field do not each create entries.
 
 Required transactions include create, delete, duplicate, move, resize,
 property commit, reorder, group/ungroup, alignment/distribution, binding
-creation/update/removal, mode migration action, reset, and successful design
-file open.
+creation/update/removal, create/edit/detach symbol, add/duplicate/delete/reorder
+variant, instance state/mapping change, mode migration action, reset, and
+successful design file open.
 
 Command/Ctrl+Z performs undo; Command/Ctrl+Shift+Z and Ctrl+Y perform redo when
 focus is not inside a native text undo context. New edits after undo discard
@@ -677,10 +908,11 @@ current document.
 ### Dynamic state preview
 
 The State panel lists bindings in stable order. Numeric bindings use a 0-1
-slider plus exact input, booleans use an accessible switch, and text bindings
-use a bounded field. Changing a preview value updates commands immediately but
-does not create a document history entry unless the binding definition itself
-changes.
+slider plus exact input, booleans use an accessible switch, text bindings use a
+bounded field, and choice bindings use a select/radio group labelled with their
+state choices. Changing a preview value updates commands and every attached
+symbol instance immediately but does not create a document history entry unless
+the binding definition itself changes.
 
 The inspector can create a binding or attach a compatible existing one. It must
 show which other properties already use that binding before rename or delete.
@@ -700,8 +932,10 @@ useful, but no finding relies only on colour.
 Metrics show:
 
 - primitive elements;
+- symbols, variants, and instances;
 - currently visible draw calls;
-- maximum draw calls across boolean preview states when cheaply knowable;
+- the exact maximum draw calls across symbol variants at the current boolean
+  visibility preview state;
 - smooth calls;
 - binding count; and
 - generated source bytes.
@@ -738,9 +972,9 @@ Ownership rules:
   compilation, metrics, and Lua generation are pure modules;
 - `DistingPlayground` owns only whether the dialog is available/open if that is
   required to place the command; it does not own element edits;
-- no design IDs, file names, groups, bindings, selection, or preview values
-  enter `WorkerRequest`, `WorkerResponse`, Lua globals, `self`, or runtime
-  diagnostics;
+- no design IDs, file names, groups, symbol/variant metadata, bindings,
+  selection, or preview values enter `WorkerRequest`, `WorkerResponse`, Lua
+  globals, `self`, or runtime diagnostics;
 - the normal worker-owned display remains independent from the designer
   preview; and
 - generated Lua crosses the existing worker boundary only after it becomes
@@ -761,6 +995,8 @@ src/disting/workbench/display-designer/
   DisplayDesignerToolbar.tsx
   DisplayDesignerArtboard.tsx
   DisplayDesignerLayers.tsx
+  DisplayDesignerSymbols.tsx
+  DisplayDesignerSymbolEditor.tsx
   DisplayDesignerInspector.tsx
   DisplayDesignerState.tsx
   DisplayDesignerReview.tsx
@@ -777,6 +1013,12 @@ module or existing workbench rendering suite.
 space indentation and a trailing newline. It downloads a sanitized name such as
 `Envelope UI.luading-display.json`. Key and array order are deterministic so
 files produce useful diffs.
+
+The file preserves local symbol definitions, complete ordered variants,
+instance references/origins, default states, choice bindings, and explicit
+choice-to-variant maps. It stores no compiled helper source; helpers are always
+regenerated from the normalized model so stale code cannot disagree with the
+visual definition.
 
 **Open design** accepts only `.luading-display.json` or JSON MIME types, reads at
 most 1 MiB, parses into `unknown`, and passes the result through the pure
@@ -803,7 +1045,8 @@ substep in the status table before handoff.
 
 Implement:
 
-- discriminated version-one document, element, group, and binding types;
+- discriminated version-one document, primitive, symbol, variant, instance,
+  group, and binding types;
 - default empty document and injected stable-ID creation helpers;
 - normalization and strict `unknown` validation;
 - immutable CRUD, reorder, group, duplicate, mode, and selection operations;
@@ -812,9 +1055,11 @@ Implement:
 
 Focused tests must cover:
 
-- every valid element/binding variant;
+- every valid primitive/binding/symbol/variant/instance shape;
 - invalid/unknown versions, keys, enums, IDs, references, numbers, text, and
   resource limits;
+- symbol default/variant identity, choice mappings, nested-instance rejection,
+  and total primitive/instance budgets;
 - defensive copies and frozen-input safety;
 - draw-order changes and layer-orientation translation;
 - group delete choices;
@@ -830,7 +1075,8 @@ increment.
 Implement:
 
 - binding resolution and property mapping;
-- element-to-`DrawCommand` compilation;
+- primitive-element-to-`DrawCommand` compilation with an expansion seam for
+  increment 6 symbols;
 - bounds/reserved-area findings and descriptive metrics;
 - behavior-neutral extraction of standard parameter-line commands;
 - reusable Lua quoted-string serialization;
@@ -908,7 +1154,7 @@ transaction grouping before marking this increment complete.
 
 Implement:
 
-- number, boolean, and text binding definitions;
+- number, boolean, text, and choice binding definitions;
 - inspector create/attach/detach/mapping controls;
 - State-panel preview controls;
 - preview compilation for mapped/hidden/dynamic elements;
@@ -917,14 +1163,61 @@ Implement:
 - used-binding rename/delete behavior.
 
 Focused tests must cover mapping direction, integer/smooth quantization, shade
-clamping, visibility inversion, text escaping, one binding shared by many
-properties, unused bindings, delete-to-static conversion, identifier keywords,
-identifier collisions, and stable source ordering.
+clamping, visibility inversion, text escaping, choice identity/order, one
+binding shared by many properties, unused bindings, delete-to-static
+conversion, identifier keywords, identifier collisions, and stable source
+ordering.
 
-Add real Wasmoon-boundary cases for all three binding types and compare emitted
-commands with the compiler at multiple preview values.
+Add real Wasmoon-boundary cases for number, boolean, and text bindings and
+compare emitted commands with the compiler at multiple preview values. Choice
+bindings receive their Wasmoon state-selection boundary coverage with symbol
+helpers in increment 6.
 
-### 6. Design-file portability and source handoff
+### 6. Symbols, instances, and multi-state variants
+
+Implement:
+
+- Create symbol from selection and translation to relative coordinates;
+- local symbol list, stable helper names, usage counts, and unused findings;
+- symbol edit context with breadcrumb and origin marker;
+- add blank, duplicate, rename, reorder, default, replace, and delete variant
+  operations;
+- top-level symbol instances with translation-only origins;
+- literal instance states and complete choice-binding state maps;
+- state-map synchronization and missing-map repair actions;
+- detach instance and used-symbol/used-variant destructive choices;
+- compiler expansion with command-to-instance/variant/primitive source maps;
+- exact current/maximum-variant metrics;
+- one-time closure helper generation with deterministic default branches; and
+- source preview navigation between instance calls and helper definitions.
+
+Pure model tests must cover symbol creation from reversed/off-canvas selection,
+origin overrides, shared-definition propagation, instance duplication,
+relative-coordinate compilation, variant duplication/blank creation, stable
+Lua values across visible renames, default replacement, choice-map
+synchronization, used-variant deletion, detach expansion, used-symbol deletion
+choices, no nested instances, and every resource bound.
+
+Compiler/generator tests must cover different command counts per state, several
+instances sharing one helper, literal and choice-bound state arguments,
+translated dynamic properties, hidden instances/variant primitives, helper and
+binding identifier collisions, unused symbol omission, stable branch/source
+order, and unknown-state fallback to the declared default.
+
+Real Wasmoon-boundary tests must load generated closure callbacks and compare
+their command sequences with the compiler for every state, multiple instance
+origins, shared choice bindings, and an unknown runtime state. A structural
+generator assertion must pin the helper declaration inside the immediately
+evaluated closure and outside the returned `draw()` body; repeated Wasmoon draw
+invocations then verify the resulting callback behavior.
+
+Interactive tests cover symbol creation, entering/leaving symbol edit context,
+variant switching, all destructive confirmations, instance state controls,
+choice mapping, definition updates propagating to instances, detach, focus
+return, and undo/redo across scene/symbol contexts. Perform a live browser check
+of the full symbol/variant workflow before marking the increment complete.
+
+### 7. Design-file portability and source handoff
 
 Implement:
 
@@ -945,14 +1238,14 @@ clipboard rejection, and selection fallback.
 This increment must not change project storage, backup schemas, recovery
 journals, `.lua` import/export, or the active editor model.
 
-### 7. Responsive/accessibility polish and documentation
+### 8. Responsive/accessibility polish and documentation
 
 Implement:
 
 - medium and narrow responsive branches;
 - touch-density sizing and overflow behavior;
-- accessible toolbar, layers, tabs, sliders, swatches, findings, metrics, and
-  announcements;
+- accessible toolbar, layers, symbols, variant tabs, state choices, sliders,
+  swatches, findings, metrics, and announcements;
 - reduced-motion behavior;
 - visible approximation and browser-only-extension disclosure;
 - `WORKBENCH_GUIDE.md` user instructions;
@@ -969,7 +1262,7 @@ tests. Live checks must cover wide desktop, 721-900 px, <=720 px, coarse pointer
 keyboard-only navigation, reduced motion, browser zoom, and the largest
 supported text-size preference.
 
-### 8. Final regression, browser, and hardware validation
+### 9. Final regression, browser, and hardware validation
 
 Run the complete project workflow:
 
@@ -988,12 +1281,12 @@ exact unavailable cells:
 
 | Environment | Required observations |
 | --- | --- |
-| Chromium desktop | Open/close/focus, every tool, dragging, handles, layers, undo, bindings, copy, file round trip. |
-| Firefox desktop | Canvas scaling, pointer capture, clipboard fallback, file round trip, keyboard editing. |
-| Safari desktop | Canvas pixels/smooth preview, focus trap/return, file download, keyboard shortcuts. |
+| Chromium desktop | Open/close/focus, every tool, dragging, handles, layers, undo, bindings, symbols/variants, copy, file round trip. |
+| Firefox desktop | Canvas scaling, pointer capture, symbol edit context, state switching, clipboard fallback, file round trip, keyboard editing. |
+| Safari desktop | Canvas pixels/smooth preview, focus trap/return, symbol helper preview, file download, keyboard shortcuts. |
 | Narrow viewport | Full-height dialog, Fit zoom, panel tabs, no trapped/offscreen action, virtual-keyboard-safe fields. |
 | Coarse pointer/touch | Target sizes, creation/move/resize, scrolling without accidental drawing, cancellation. |
-| Keyboard only | Reach/order/operate every tool, layer, property, finding, binding, and handoff action. |
+| Keyboard only | Reach/order/operate every tool, layer, symbol, variant, instance state, property, finding, binding, and handoff action. |
 | Reduced motion/high browser zoom | No required motion, usable reflow, visible focus and non-colour state. |
 
 When a Disting NT and capture method are available, use a named firmware
@@ -1004,8 +1297,11 @@ version and record reproduction steps for this corpus:
 - all 16 shades in adjacent samples;
 - standard/tiny text with left/centre/right alignment and clipped text;
 - overlapping calls including shade-zero overdraw;
-- parameter-line and full-screen callback modes; and
-- one binding-generated callback after manually connecting its placeholder.
+- parameter-line and full-screen callback modes;
+- one binding-generated callback after manually connecting its placeholder;
+  and
+- one three-state symbol with two instances selecting different states plus an
+  unknown state confirming deterministic default fallback.
 
 Compare geometry, clipping, baseline/alignment, shade ordering, and coarse
 appearance. Pixel-identical smooth output is not an acceptance criterion until
@@ -1018,7 +1314,8 @@ Luading callback telemetry.
 ### Pure model and geometry
 
 - strict document normalization and unknown-input rejection;
-- stable IDs, names, ordering, grouping, selection, and defensive copies;
+- stable IDs, names, ordering, grouping, symbols, variants, instances,
+  selection, and defensive copies;
 - finite bounds, inclusive box sizes, radius, text baselines, and clipping;
 - coordinate transforms at every zoom and viewport offset;
 - integer/half-pixel snapping and property commit behavior;
@@ -1033,6 +1330,8 @@ Luading callback telemetry.
 - parameter-line/full-screen modes;
 - compiler/source equivalence through Wasmoon;
 - dynamic scalar, visibility, and text mappings;
+- choice-to-variant mappings, relative instance translation, helper reuse,
+  stable state branches, and unknown-state default fallback;
 - numeric and Lua string formatting;
 - safe/colliding binding identifiers;
 - stable source and JSON bytes; and
@@ -1043,9 +1342,11 @@ Luading callback telemetry.
 - command bar entry and responsive placement;
 - modal semantics, focus trap/return, and discard confirmation;
 - toolbar selection and element creation through exact controls;
-- layer selection/actions and inspector discrimination;
+- layer/symbol selection and actions, variant edit context, instance-state
+  controls, and inspector discrimination;
 - pointer/keyboard event wiring around pure geometry helpers;
-- State preview, Findings focus, metrics, and Lua preview;
+- State preview across symbol instances, Findings focus, current/maximum metrics,
+  helper/call Lua preview, and source navigation;
 - clipboard and file adapter success/failure; and
 - source, project, simulation worker, and normal display remaining unchanged
   while the designer is used.
@@ -1113,6 +1414,20 @@ Prefer explicit calls, stable group/element comments, short locals, and a
 self-contained callback over compressed tables or loops. Golden tests should
 review readability as well as syntax.
 
+### Multi-state symbols make generated source explode
+
+Emit each used symbol helper once regardless of instance count, omit unused
+definitions, show current and maximum variant draw-call/source-size metrics,
+and keep variant lists/resource bounds explicit. Do not silently rasterize or
+deduplicate visually similar states in ways that make generated code opaque.
+
+### Users edit an instance while believing they edit the symbol
+
+Use a persistent Scene/Symbol/State breadcrumb, distinct origin treatment, and
+clear **Edit symbol** versus **Detach instance** actions. Definition edits must
+update all instance previews immediately, while instance origin/state changes
+remain local and separately undoable.
+
 ### Pointer interaction becomes the only usable workflow
 
 Make layers and exact inspector controls complete from the first UI increment.
@@ -1149,11 +1464,17 @@ Version one is complete only when:
   baselines/alignment, clipping, and generated calls agree in automated tests;
 - static and dynamic generated callbacks compile, load, and draw through the
   real Wasmoon/display boundary;
+- local symbols can be created from primitives, reused by multiple instances,
+  edited through named variants, previewed with literal or choice-bound states,
+  detached deliberately, and round-tripped through the design file;
+- generated symbol helpers are defined once, accept an explicit state argument,
+  select every named variant correctly, and fall back to the declared default
+  for unknown runtime values through the real Wasmoon/display boundary;
 - the designer never mutates active source, project records, live simulation,
   worker protocol state, or the normal display preview;
-- exact editing, pointer editing, layers, grouping, undo/redo, bindings,
-  findings, metrics, copy, and design-file round trips work through accessible
-  controls;
+- exact editing, pointer editing, layers, grouping, symbols/variants,
+  instance-state selection, undo/redo, bindings, findings, metrics, copy, and
+  design-file round trips work through accessible controls;
 - smooth primitives and performance metrics are disclosed with their real
   evidence limits;
 - wide, medium, narrow, coarse-pointer, keyboard, and reduced-motion behavior
@@ -1177,10 +1498,10 @@ Version one is complete only when:
 - managed generated regions inside Lua source;
 - project-attached design autosave, IndexedDB schema changes, backup inclusion,
   conflict copies, or recovery journals;
-- multiplayer presence, comments, cloud storage, component libraries, plugins,
-  or Figma file compatibility;
-- nested groups, layout constraints, responsive Disting layouts, or animation
-  timelines;
+- multiplayer presence, comments, cloud storage, shared/remote component
+  libraries, plugins, or Figma file compatibility;
+- nested symbols/components, variant inheritance/overrides, nested groups,
+  layout constraints, responsive Disting layouts, or animation timelines;
 - simulator-only runtime draw helpers or new firmware-facing globals;
 - claiming browser smooth pixels are firmware-identical; and
 - estimating safe hardware CPU, heap, source-size, or draw-call limits without
