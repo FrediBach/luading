@@ -758,6 +758,13 @@ through draw order. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo complete
 gestures; editable fields protect their normal arrow, delete, and undo keys.
 One-level groups provide atomic selection, movement, duplication, deletion, and
 an editor-only hide/show switch; hiding a group never changes generated Lua.
+Layer, group, and symbol rows keep these less-frequent actions in their **•••**
+menu; right-clicking the row opens the same menu. A menu opened for an
+unselected layer targets only that layer. A menu opened for a selected layer
+targets the complete multi-selection where the operation supports it, exposing
+alignment and distribution only when enough layers are selected. Group menus
+provide select, rename, visibility, duplicate, ungroup, and delete-artwork
+actions without permanently expanding every row.
 
 Every coordinate, radius, and shade can be made dynamic through a normalized
 number binding with editable **From** and **To** endpoints. Integer primitives
@@ -785,7 +792,9 @@ stable Lua helper name. **Edit symbol** enters a breadcrumb-labelled definition
 context with an origin marker. State tabs can duplicate the current artwork,
 add a blank state, change ordering, rename the visible state label, edit its
 stable Lua value, or choose a new default. Definition edits update every
-instance. Symbol states contain primitives only; symbols cannot nest.
+instance. Symbol rows expose edit/delete through their own **•••** menu, while
+the current state menu contains duplicate, add-blank, reorder, make-default,
+and delete actions. Symbol states contain primitives only; symbols cannot nest.
 
 Instances choose a literal state or attach a choice binding with an explicit
 choice-to-state map. **Make state dynamic** creates matching choices, while

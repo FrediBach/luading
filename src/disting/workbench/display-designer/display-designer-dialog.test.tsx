@@ -41,6 +41,11 @@ async function addDefault(tool: string) {
   await click(button(`Add default ${tool}`))
 }
 
+async function openActions(label: string) {
+  await click(button(label))
+  expect(document.querySelector('[role="menu"]')).not.toBeNull()
+}
+
 async function choose(element: HTMLSelectElement, value: string) {
   await act(async () => {
     element.value = value
@@ -264,10 +269,13 @@ describe('Display designer dialog', () => {
     await addDefault('Pixel line')
     await addDefault('Filled box')
 
+    await openActions('Actions for Filled box')
     await click(button('Duplicate'))
     expect(document.body.textContent).toContain('Filled box copy')
     expect(source().match(/drawRectangle/g)).toHaveLength(2)
+    await openActions('Actions for Filled box copy')
     await click(button('Backward'))
+    await openActions('Actions for Filled box copy')
     await click(button('Delete'))
     expect(source().match(/drawRectangle/g)).toHaveLength(1)
 
@@ -288,6 +296,47 @@ describe('Display designer dialog', () => {
     expect(document.body.textContent).toContain('Pixel line')
     await commitInput(field('Exact shade') as HTMLInputElement, '20')
     expect(field('Exact shade')).toHaveProperty('value', '15')
+  })
+
+  it('opens accessible contextual actions for non-selected layers without changing their action target', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Pixel line')
+    await addDefault('Filled box')
+
+    expect(layer('Filled box').getAttribute('aria-pressed')).toBe('true')
+    const lineActions = button('Actions for Pixel line')
+    expect(lineActions.getAttribute('aria-haspopup')).toBe('menu')
+    expect(lineActions.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => {
+      lineActions.focus()
+      lineActions.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    expect(document.querySelector('[role="menu"]')?.getAttribute('aria-label')).toBe('Actions for Pixel line')
+    expect(document.activeElement?.getAttribute('role')).toBe('menuitem')
+    expect(document.activeElement?.textContent).toBe('Duplicate')
+
+    await act(async () => {
+      document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+    expect(document.activeElement).toBe(lineActions)
+
+    await act(async () => {
+      layer('Pixel line').closest('.display-designer-layer-row')?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    expect(document.querySelector('[role="menu"]')?.getAttribute('aria-label')).toBe('Actions for Pixel line')
+    await click(button('Duplicate'))
+    expect(source().match(/drawLine/g)).toHaveLength(2)
+    expect(source().match(/drawRectangle/g)).toHaveLength(1)
+
+    await click(layer('Filled box'))
+    await openActions('Actions for Pixel line')
+    await click(button('Delete'))
+    expect(source().match(/drawLine/g)).toHaveLength(1)
+    expect(layer('Filled box').getAttribute('aria-pressed')).toBe('true')
   })
 
   it('requires an explicit discard, restores body scroll, and returns focus to its trigger', async () => {
@@ -356,18 +405,25 @@ describe('Display designer dialog', () => {
     await pointer(layer('Pixel line'), 'click', 0, 0)
     await pointer(layer('Filled box'), 'click', 0, 0, { shiftKey: true })
     expect(document.body.textContent).toContain('2 selected')
+    await openActions('Actions for 2 selected layers from Pixel line')
     await click(button('Group'))
-    expect(document.body.textContent).toContain('Group (2)')
+    expect(document.body.textContent).toContain('Group2 layers')
+    await openActions('Actions for group Group')
+    await click(button('Rename group…'))
     await commitInput(field('Group name') as HTMLInputElement, 'Meter')
-    expect(document.body.textContent).toContain('Meter (2)')
+    expect(document.body.textContent).toContain('Meter2 layers')
     const beforeHide = source()
+    await openActions('Actions for group Meter')
     await click(button('Hide in editor'))
     expect(source()).toBe(beforeHide)
+    await openActions('Actions for group Meter')
     await click(button('Show in editor'))
-    await click(button('Duplicate group Meter'))
-    expect(document.body.textContent).toContain('Meter copy (2)')
-    await click(button('Ungroup Meter copy'))
-    expect(document.body.textContent).not.toContain('Meter copy (2)')
+    await openActions('Actions for group Meter')
+    await click(button('Duplicate group'))
+    expect(document.body.textContent).toContain('Meter copy2 layers')
+    await openActions('Actions for group Meter copy')
+    await click(button('Ungroup'))
+    expect(document.body.textContent).not.toContain('Meter copy2 layers')
   })
 
   it('supports multi-layer alignment, distribution, ordering, nudge, duplicate, delete, and keyboard history', async () => {
@@ -380,8 +436,11 @@ describe('Display designer dialog', () => {
     await pointer(layer('Pixel line'), 'click', 0, 0)
     await pointer(layer('Filled box'), 'click', 0, 0, { shiftKey: true })
     await pointer(layer('Pixel circle'), 'click', 0, 0, { shiftKey: true })
+    await openActions('Actions for 3 selected layers from Pixel line')
     await click(button('Align left'))
+    await openActions('Actions for 3 selected layers from Pixel line')
     await click(button('Distribute vertical'))
+    await openActions('Actions for 3 selected layers from Pixel line')
     await click(button('To front'))
 
     const dialog = document.querySelector<HTMLElement>('.display-designer-dialog')!
@@ -487,6 +546,7 @@ describe('Display designer dialog', () => {
     await click(button('Edit symbol'))
     expect(document.querySelector('[aria-label="Symbol edit context"]')?.textContent).toContain('Scene›Symbol›Default')
     expect(document.querySelector('.display-designer-origin-marker')).not.toBeNull()
+    await openActions('Actions for state Default')
     await click(button('Duplicate state'))
     expect(document.body.textContent).toContain('Symbols / variants / instances1 / 2 / 1')
     await commitInput(field('State name') as HTMLInputElement, 'Active')
@@ -520,6 +580,7 @@ describe('Display designer dialog', () => {
     expect(document.body.textContent).toContain('Dynamic state')
 
     await click(button('Edit symbol'))
+    await openActions('Actions for state Active')
     await click(button('Add blank state'))
     expect(document.body.textContent).toContain('Symbols / variants / instances1 / 3 / 1')
     await click(button('Scene'))
@@ -534,16 +595,19 @@ describe('Display designer dialog', () => {
 
     await click(button('Undo'))
     expect(source()).toContain('local function draw_symbol')
-    await click(button('Delete symbol Symbol'))
+    await openActions('Actions for symbol Symbol')
+    await click(button('Delete symbol…'))
     expect(document.body.textContent).toContain('used by 1 instances')
     await click(button('Cancel'))
     expect(source()).toContain('local function draw_symbol')
-    await click(button('Delete symbol Symbol'))
+    await openActions('Actions for symbol Symbol')
+    await click(button('Delete symbol…'))
     await click(button('Detach all instances'))
     expect(source()).not.toContain('local function draw_symbol')
     await click(button('Undo'))
     expect(source()).toContain('local function draw_symbol')
-    await click(button('Delete symbol Symbol'))
+    await openActions('Actions for symbol Symbol')
+    await click(button('Delete symbol…'))
     await click(button('Delete instances and symbol'))
     expect(source()).not.toContain('local function draw_symbol')
   })

@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -149,6 +150,126 @@ interface DisplayDesignerGesture {
   elementId?: string
   handle?: DisplayDesignHandle
   preset?: DisplayPrimitivePreset
+}
+
+interface DisplayDesignerMenuAction {
+  label: string
+  onSelect(): void
+  disabled?: boolean
+  danger?: boolean
+  group?: string
+}
+
+function DisplayDesignerContextMenu({ label, actions }: {
+  label: string
+  actions: DisplayDesignerMenuAction[]
+}) {
+  const id = useId()
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null)
+  const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 320 })
+
+  useEffect(() => {
+    if (!open) return
+    const closeOutside = (event: globalThis.PointerEvent) => {
+      const target = event.target as Node
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false)
+    }
+    const closeOnResize = () => setOpen(false)
+    globalThis.document.addEventListener('pointerdown', closeOutside)
+    window.addEventListener('resize', closeOnResize)
+    return () => {
+      globalThis.document.removeEventListener('pointerdown', closeOutside)
+      window.removeEventListener('resize', closeOnResize)
+    }
+  }, [open])
+
+  const focusItem = (index: number) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])]
+    if (items.length > 0) items[(index + items.length) % items.length]?.focus()
+  }
+
+  const openMenu = () => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const width = 220
+    const top = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 260))
+    setPosition({
+      top,
+      left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+      maxHeight: Math.max(120, window.innerHeight - top - 8),
+    })
+    setPortalHost(triggerRef.current?.closest<HTMLElement>('.disting-app') ?? globalThis.document.body)
+    setOpen(true)
+    window.requestAnimationFrame(() => focusItem(0))
+  }
+
+  const menu = open && <div
+    ref={menuRef}
+    id={id}
+    className="display-designer-context-menu"
+    role="menu"
+    aria-label={label}
+    style={{ top: position.top, left: position.left, maxHeight: position.maxHeight }}
+    onKeyDown={(event) => {
+      const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')]
+      const current = items.indexOf(globalThis.document.activeElement as HTMLButtonElement)
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+        triggerRef.current?.focus()
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        focusItem(current + 1)
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        focusItem(current - 1)
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        focusItem(0)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        focusItem(-1)
+      } else if (event.key === 'Tab') {
+        setOpen(false)
+      }
+    }}
+  >{actions.map((action, index) => <div key={`${action.group ?? ''}-${action.label}`}>
+      {index > 0 && action.group !== actions[index - 1]?.group && <hr />}
+      <button
+        type="button"
+        role="menuitem"
+        className={action.danger ? 'is-danger' : undefined}
+        disabled={action.disabled}
+        onClick={() => {
+          setOpen(false)
+          action.onSelect()
+        }}
+      >{action.label}</button>
+    </div>)}</div>
+
+  return <>
+    <button
+      ref={triggerRef}
+      type="button"
+      className="display-designer-context-trigger"
+      aria-label={label}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-controls={open ? id : undefined}
+      title={label}
+      onClick={() => open ? setOpen(false) : openMenu()}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          openMenu()
+        }
+      }}
+    ><span aria-hidden="true">•••</span></button>
+    {portalHost ? createPortal(menu, portalHost) : menu}
+  </>
 }
 
 function readBrowserFileText(file: File): Promise<string> {
@@ -407,9 +528,9 @@ function DisplayDesignerLayers({
   document,
   selectedIds,
   onSelect,
-  onDuplicateSelection,
-  onDeleteSelection,
-  onReorderSelection,
+  onDuplicateElements,
+  onDeleteElements,
+  onReorderElements,
   onAlign,
   onDistribute,
   onCreateGroup,
@@ -424,13 +545,13 @@ function DisplayDesignerLayers({
   document: DisplayDesignDocumentV1
   selectedIds: string[]
   onSelect(id: string, toggle: boolean): void
-  onDuplicateSelection(): void
-  onDeleteSelection(): void
-  onReorderSelection(operation: 'forward' | 'backward' | 'front' | 'back'): void
-  onAlign(alignment: DisplayDesignAlignment): void
-  onDistribute(direction: DisplayDesignDistribution): void
-  onCreateGroup(): void
-  onAssignGroup(groupId?: string): void
+  onDuplicateElements(ids: string[]): void
+  onDeleteElements(ids: string[]): void
+  onReorderElements(ids: string[], operation: 'forward' | 'backward' | 'front' | 'back'): void
+  onAlign(ids: string[], alignment: DisplayDesignAlignment): void
+  onDistribute(ids: string[], direction: DisplayDesignDistribution): void
+  onCreateGroup(ids: string[]): void
+  onAssignGroup(ids: string[], groupId?: string): void
   onSelectGroup(groupId: string): void
   onRenameGroup(groupId: string, name: string): void
   onDuplicateGroup(groupId: string): void
@@ -439,52 +560,59 @@ function DisplayDesignerLayers({
   onToggleGroup(groupId: string): void
 }) {
   const layers = [...document.elements].reverse()
+  const [editingGroupId, setEditingGroupId] = useState<string>()
   return (
     <section className="display-designer-panel display-designer-layers" aria-labelledby="display-designer-layers-title">
       <h3 id="display-designer-layers-title">Layers</h3>
-      {selectedIds.length > 0 && <div className="display-designer-selection-actions" aria-label="Selected layer actions">
-        <span>{selectedIds.length} selected</span>
-        <button type="button" onClick={onDuplicateSelection}>Duplicate</button>
-        <button type="button" onClick={onDeleteSelection}>Delete</button>
-        <button type="button" aria-label="Bring selection forward" onClick={() => onReorderSelection('forward')}>Forward</button>
-        <button type="button" aria-label="Send selection backward" onClick={() => onReorderSelection('backward')}>Backward</button>
-        <button type="button" aria-label="Move selection to front" onClick={() => onReorderSelection('front')}>To front</button>
-        <button type="button" aria-label="Move selection to back" onClick={() => onReorderSelection('back')}>To back</button>
-        <button type="button" onClick={onCreateGroup}>Group</button>
-        {document.groups.length > 0 && <label className="display-designer-layer-group"><span>Assign to</span><select aria-label="Assign selected layers to group" value="" onChange={(event) => onAssignGroup(event.currentTarget.value || undefined)}><option value="">No group</option>{document.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>}
-      </div>}
-      {selectedIds.length >= 2 && <div className="display-designer-alignment-actions" aria-label="Align selected layers">
-        {(['left', 'centre', 'right', 'top', 'middle', 'bottom'] as const).map((alignment) => <button key={alignment} type="button" onClick={() => onAlign(alignment)}>Align {alignment}</button>)}
-        <button type="button" disabled={selectedIds.length < 3} onClick={() => onDistribute('horizontal')}>Distribute horizontal</button>
-        <button type="button" disabled={selectedIds.length < 3} onClick={() => onDistribute('vertical')}>Distribute vertical</button>
-      </div>}
+      {selectedIds.length > 1 && <p className="display-designer-selection-summary" role="status">{selectedIds.length} layers selected. Open any selected layer’s menu for selection actions.</p>}
       {layers.length === 0 ? <p className="display-designer-empty">Choose a primitive tool to add its default shape.</p> : (
         <ol>
-          {layers.map((element) => (
-            <li key={element.id} className={selectedIds.includes(element.id) ? 'is-selected' : ''}>
+          {layers.map((element) => {
+            const actionIds = selectedIds.includes(element.id) ? selectedIds : [element.id]
+            const multiple = actionIds.length > 1
+            const actions: DisplayDesignerMenuAction[] = [
+              { label: multiple ? `Duplicate ${actionIds.length} selected layers` : 'Duplicate', group: 'edit', onSelect: () => onDuplicateElements(actionIds) },
+              { label: multiple ? `Delete ${actionIds.length} selected layers` : 'Delete', group: 'edit', danger: true, onSelect: () => onDeleteElements(actionIds) },
+              { label: 'Forward', group: 'order', onSelect: () => onReorderElements(actionIds, 'forward') },
+              { label: 'Backward', group: 'order', onSelect: () => onReorderElements(actionIds, 'backward') },
+              { label: 'To front', group: 'order', onSelect: () => onReorderElements(actionIds, 'front') },
+              { label: 'To back', group: 'order', onSelect: () => onReorderElements(actionIds, 'back') },
+              ...(multiple ? (['left', 'centre', 'right', 'top', 'middle', 'bottom'] as const).map((alignment) => ({ label: `Align ${alignment}`, group: 'align', onSelect: () => onAlign(actionIds, alignment) })) : []),
+              ...(actionIds.length >= 3 ? (['horizontal', 'vertical'] as const).map((direction) => ({ label: `Distribute ${direction}`, group: 'align', onSelect: () => onDistribute(actionIds, direction) })) : []),
+              { label: 'Group', group: 'group', disabled: document.groups.length >= DISPLAY_DESIGN_LIMITS.maximumGroups, onSelect: () => onCreateGroup(actionIds) },
+              { label: 'Remove from group', group: 'group', disabled: !actionIds.some((id) => document.elements.find((candidate) => candidate.id === id)?.groupId), onSelect: () => onAssignGroup(actionIds) },
+              ...document.groups.map((group) => ({ label: `Assign to ${group.name}`, group: 'group', onSelect: () => onAssignGroup(actionIds, group.id) })),
+            ]
+            return <li key={element.id} className={selectedIds.includes(element.id) ? 'is-selected' : ''}>
+              <div className="display-designer-layer-row" onContextMenu={(event) => { event.preventDefault(); event.currentTarget.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.click() }}>
               <button type="button" className="display-designer-layer-select" aria-pressed={selectedIds.includes(element.id)} onClick={(event) => onSelect(element.id, event.shiftKey)}>
                 <span>{element.name}</span><small>{elementTypeName(element)} · {element.visible.kind === 'visible' ? 'Visible' : 'Dynamic visibility'}</small>
               </button>
+              <DisplayDesignerContextMenu label={multiple ? `Actions for ${actionIds.length} selected layers from ${element.name}` : `Actions for ${element.name}`} actions={actions} />
+              </div>
             </li>
-          ))}
+          })}
         </ol>
       )}
       <h3>Groups</h3>
       {document.groups.length === 0 ? <p className="display-designer-empty">Select layers and choose Group.</p> : <ul className="display-designer-groups">{document.groups.map((group) => {
         const count = document.elements.filter(({ groupId }) => groupId === group.id).length
         return <li key={group.id}>
-          <CommitInput label="Group name" value={group.name} onCommit={(name) => {
+          {editingGroupId === group.id ? <CommitInput label="Group name" value={group.name} onCommit={(name) => {
             const trimmed = name.trim()
             if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
             onRenameGroup(group.id, trimmed)
+            setEditingGroupId(undefined)
             return true
-          }} />
-          <button type="button" onClick={() => onSelectGroup(group.id)}>Select {group.name} ({count})</button><div>
-          <button type="button" aria-pressed={hiddenGroupIds.has(group.id)} onClick={() => onToggleGroup(group.id)}>{hiddenGroupIds.has(group.id) ? 'Show in editor' : 'Hide in editor'}</button>
-          <button type="button" aria-label={`Duplicate group ${group.name}`} onClick={() => onDuplicateGroup(group.id)}>Duplicate</button>
-          <button type="button" aria-label={`Ungroup ${group.name}`} onClick={() => onDeleteGroup(group.id, 'ungroup')}>Ungroup</button>
-          <button type="button" aria-label={`Delete group ${group.name} and its layers`} onClick={() => onDeleteGroup(group.id, 'delete-elements')}>Delete artwork</button>
-        </div></li>
+          }} /> : <div className="display-designer-compact-row" onContextMenu={(event) => { event.preventDefault(); event.currentTarget.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.click() }}><span><strong>{group.name}</strong><small>{count} {count === 1 ? 'layer' : 'layers'} · {hiddenGroupIds.has(group.id) ? 'hidden in editor' : 'shown in editor'}</small></span><DisplayDesignerContextMenu label={`Actions for group ${group.name}`} actions={[
+            { label: 'Select layers', group: 'select', disabled: count === 0, onSelect: () => onSelectGroup(group.id) },
+            { label: 'Rename group…', group: 'edit', onSelect: () => setEditingGroupId(group.id) },
+            { label: hiddenGroupIds.has(group.id) ? 'Show in editor' : 'Hide in editor', group: 'edit', onSelect: () => onToggleGroup(group.id) },
+            { label: 'Duplicate group', group: 'edit', onSelect: () => onDuplicateGroup(group.id) },
+            { label: 'Ungroup', group: 'danger', onSelect: () => onDeleteGroup(group.id, 'ungroup') },
+            { label: 'Delete artwork', group: 'danger', danger: true, onSelect: () => onDeleteGroup(group.id, 'delete-elements') },
+          ]} /></div>}
+        </li>
       })}</ul>}
     </section>
   )
@@ -558,16 +686,16 @@ function DisplayDesignerSymbols({
         >{variant.name}{variant.id === activeSymbol.defaultVariantId ? ' · default' : ''}</button>)}
       </div>
       <div id="display-designer-symbol-state-panel" role="tabpanel" aria-labelledby={`display-designer-variant-tab-${activeVariant.id}`} tabIndex={0}>
-      <div className="display-designer-symbol-actions">
-        <button type="button" disabled={activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} onClick={() => onAddVariant(activeSymbol.id, activeVariant.id, false)}>Duplicate state</button>
-        <button type="button" disabled={activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} onClick={() => onAddVariant(activeSymbol.id, activeVariant.id, true)}>Add blank state</button>
-        <button type="button" disabled={activeSymbol.variants.indexOf(activeVariant) === 0} onClick={() => onReorderVariant(activeSymbol.id, activeSymbol.variants.indexOf(activeVariant), activeSymbol.variants.indexOf(activeVariant) - 1)}>State earlier</button>
-        <button type="button" disabled={activeSymbol.variants.indexOf(activeVariant) === activeSymbol.variants.length - 1} onClick={() => onReorderVariant(activeSymbol.id, activeSymbol.variants.indexOf(activeVariant), activeSymbol.variants.indexOf(activeVariant) + 1)}>State later</button>
-      </div>
+      <div className="display-designer-state-heading" onContextMenu={(event) => { event.preventDefault(); event.currentTarget.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.click() }}><h4>{activeVariant.name} state</h4><DisplayDesignerContextMenu label={`Actions for state ${activeVariant.name}`} actions={[
+        { label: 'Duplicate state', group: 'create', disabled: activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol, onSelect: () => onAddVariant(activeSymbol.id, activeVariant.id, false) },
+        { label: 'Add blank state', group: 'create', disabled: activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol, onSelect: () => onAddVariant(activeSymbol.id, activeVariant.id, true) },
+        { label: 'State earlier', group: 'order', disabled: activeSymbol.variants.indexOf(activeVariant) === 0, onSelect: () => onReorderVariant(activeSymbol.id, activeSymbol.variants.indexOf(activeVariant), activeSymbol.variants.indexOf(activeVariant) - 1) },
+        { label: 'State later', group: 'order', disabled: activeSymbol.variants.indexOf(activeVariant) === activeSymbol.variants.length - 1, onSelect: () => onReorderVariant(activeSymbol.id, activeSymbol.variants.indexOf(activeVariant), activeSymbol.variants.indexOf(activeVariant) + 1) },
+        { label: 'Make default state', group: 'default', disabled: activeSymbol.defaultVariantId === activeVariant.id, onSelect: () => onSetDefault(activeSymbol.id, activeVariant.id) },
+        ...(activeSymbol.variants.length > 1 ? [{ label: 'Delete state…', group: 'danger', danger: true, onSelect: () => setPendingVariantId(activeVariant.id) }] : []),
+      ]} /></div>
       <CommitInput label="State name" value={activeVariant.name} onCommit={(value) => { const name = value.trim(); if (!name) return false; onRenameVariant(activeSymbol.id, activeVariant.id, name); return true }} />
       <CommitInput label="Stable Lua value" value={activeVariant.luaValue} onCommit={(value) => { const stable = value.trim(); if (!stable || activeSymbol.variants.some((variant) => variant.id !== activeVariant.id && variant.luaValue === stable)) return false; onChangeLuaValue(activeSymbol.id, activeVariant.id, stable); return true }} />
-      <button type="button" disabled={activeSymbol.defaultVariantId === activeVariant.id} onClick={() => onSetDefault(activeSymbol.id, activeVariant.id)}>Make default state</button>
-      {activeSymbol.variants.length > 1 && <button type="button" onClick={() => setPendingVariantId(activeVariant.id)}>Delete state…</button>}
       {pendingVariantId === activeVariant.id && <div role="alert" className="display-designer-inline-confirm"><p>Replace every use of {activeVariant.name} before deleting it.</p>{activeSymbol.variants.filter(({ id }) => id !== activeVariant.id).map((replacement) => <button key={replacement.id} type="button" onClick={() => { onDeleteVariant(activeSymbol.id, activeVariant.id, replacement.id); setPendingVariantId(undefined) }}>Replace with {replacement.name}</button>)}<button type="button" onClick={() => setPendingVariantId(undefined)}>Cancel</button></div>}
       <h4>State layers</h4>
       {activeVariant.elements.length === 0 ? <p className="display-designer-empty">This state is blank.</p> : <ol>{[...activeVariant.elements].reverse().map((primitive) => <li key={primitive.id}><button type="button" aria-pressed={selection.primitiveIds.includes(primitive.id)} onClick={() => onSelectPrimitive(primitive.id)}>{primitive.name} · {elementTypeName(primitive)}</button></li>)}</ol>}
@@ -576,7 +704,10 @@ function DisplayDesignerSymbols({
       <button type="button" disabled={!canCreate || document.symbols.length >= DISPLAY_DESIGN_LIMITS.maximumSymbols} onClick={onCreate}>Create symbol from selection</button>
       {document.symbols.length === 0 ? <p className="display-designer-empty">Select one or more primitive layers to create a local symbol.</p> : <ol>{document.symbols.map((symbol) => {
         const usage = usages.get(symbol.id)
-        return <li key={symbol.id} className="display-designer-symbol-row"><button type="button" onClick={() => onEdit(symbol.id, symbol.defaultVariantId)}><strong>{symbol.name}</strong><small>{symbol.variants.length} states · {usage?.instanceCount ?? 0} instances{usage?.unused ? ' · unused' : ''}</small></button><button type="button" aria-label={`Delete symbol ${symbol.name}`} onClick={() => setPendingSymbolId(symbol.id)}>Delete…</button>{pendingSymbolId === symbol.id && <div role="alert" className="display-designer-inline-confirm">{usage?.instanceCount ? <><p>{symbol.name} is used by {usage.instanceCount} instances.</p><button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'detach-instances'); setPendingSymbolId(undefined) }}>Detach all instances</button><button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'delete-instances'); setPendingSymbolId(undefined) }}>Delete instances and symbol</button></> : <button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'delete-instances'); setPendingSymbolId(undefined) }}>Delete unused symbol</button>}<button type="button" onClick={() => setPendingSymbolId(undefined)}>Cancel</button></div>}</li>
+        return <li key={symbol.id} className="display-designer-symbol-row"><div className="display-designer-compact-row" onContextMenu={(event) => { event.preventDefault(); event.currentTarget.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.click() }}><span><strong>{symbol.name}</strong><small>{symbol.variants.length} states · {usage?.instanceCount ?? 0} instances{usage?.unused ? ' · unused' : ''}</small></span><DisplayDesignerContextMenu label={`Actions for symbol ${symbol.name}`} actions={[
+          { label: 'Edit symbol', group: 'edit', onSelect: () => onEdit(symbol.id, symbol.defaultVariantId) },
+          { label: 'Delete symbol…', group: 'danger', danger: true, onSelect: () => setPendingSymbolId(symbol.id) },
+        ]} /></div>{pendingSymbolId === symbol.id && <div role="alert" className="display-designer-inline-confirm">{usage?.instanceCount ? <><p>{symbol.name} is used by {usage.instanceCount} instances.</p><button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'detach-instances'); setPendingSymbolId(undefined) }}>Detach all instances</button><button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'delete-instances'); setPendingSymbolId(undefined) }}>Delete instances and symbol</button></> : <button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'delete-instances'); setPendingSymbolId(undefined) }}>Delete unused symbol</button>}<button type="button" onClick={() => setPendingSymbolId(undefined)}>Cancel</button></div>}</li>
       })}</ol>}
     </>}
   </section>
@@ -1402,20 +1533,20 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               document={document}
               selectedIds={selection.elementIds}
               onSelect={selectElement}
-              onDuplicateSelection={() => {
-                const duplicate = duplicateDisplayDesignElements(document, selection.elementIds, idFactory)
+              onDuplicateElements={(ids) => {
+                const duplicate = duplicateDisplayDesignElements(document, ids, idFactory)
                 commit('Duplicate selection', duplicate.document, { ...createEmptyDisplayDesignSelection(), elementIds: duplicate.duplicatedIds })
               }}
-              onDeleteSelection={() => commit('Delete selection', deleteDisplayDesignElements(document, selection.elementIds), createEmptyDisplayDesignSelection())}
-              onReorderSelection={(operation) => commit(`Reorder selection ${operation}`, reorderDisplayDesignSelection(document, selection.elementIds, operation))}
-              onAlign={(alignment) => commit(`Align ${alignment}`, alignDisplayElements(document, selection.elementIds, alignment))}
-              onDistribute={(direction) => commit(`Distribute ${direction}`, distributeDisplayElements(document, selection.elementIds, direction))}
-              onCreateGroup={() => {
+              onDeleteElements={(ids) => commit('Delete selection', deleteDisplayDesignElements(document, ids), { ...selection, elementIds: selection.elementIds.filter((id) => !ids.includes(id)) })}
+              onReorderElements={(ids, operation) => commit(`Reorder selection ${operation}`, reorderDisplayDesignSelection(document, ids, operation))}
+              onAlign={(ids, alignment) => commit(`Align ${alignment}`, alignDisplayElements(document, ids, alignment))}
+              onDistribute={(ids, direction) => commit(`Distribute ${direction}`, distributeDisplayElements(document, ids, direction))}
+              onCreateGroup={(ids) => {
                 const group = createDefaultDisplayGroup(idFactory)
                 const withGroup = addDisplayDesignGroup(document, group)
-                commit('Group selection', assignDisplayDesignGroup(withGroup, selection.elementIds, group.id), { ...selection, groupIds: [group.id] })
+                commit('Group selection', assignDisplayDesignGroup(withGroup, ids, group.id), { ...createEmptyDisplayDesignSelection(), elementIds: ids, groupIds: [group.id] })
               }}
-              onAssignGroup={(groupId) => commit(groupId ? 'Assign selection to group' : 'Ungroup selection', assignDisplayDesignGroup(document, selection.elementIds, groupId))}
+              onAssignGroup={(ids, groupId) => commit(groupId ? 'Assign selection to group' : 'Ungroup selection', assignDisplayDesignGroup(document, ids, groupId))}
               onSelectGroup={(groupId) => setSelection({
                 ...createEmptyDisplayDesignSelection(),
                 groupIds: [groupId],
