@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ParameterDefinition } from '../types'
-import { DistingDisplayApi } from './display-api'
+import { buildParameterLineCommands, DistingDisplayApi } from './display-api'
 
 type DrawFunction = (...args: unknown[]) => unknown
 
@@ -27,6 +27,14 @@ function registeredDisplay(
 }
 
 describe('Disting display API', () => {
+  it('builds the reusable standard parameter-line command sequence', () => {
+    expect(buildParameterLineCommands('Cutoff', '1.25 kHz', 3)).toEqual([
+      { kind: 'text', x: 2, y: 10, text: 'Cutoff', shade: 15, tiny: true, align: 'left' },
+      { kind: 'text', x: 253, y: 10, text: '1.25 kHz', shade: 15, tiny: true, align: 'right' },
+      { kind: 'line', x1: 0, y1: 12, x2: 255, y2: 12, shade: 5, smooth: false },
+    ])
+  })
+
   it('implements integer and smooth drawing coordinate rules', () => {
     const calls: string[] = []
     const { call, display } = registeredDisplay((name) => calls.push(name))

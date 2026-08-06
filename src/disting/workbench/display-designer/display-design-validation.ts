@@ -32,6 +32,12 @@ const LUA_KEYWORDS = new Set([
   'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while',
 ])
 
+const GENERATED_LUA_RESERVED_IDENTIFIERS = new Set([
+  'self', 'math',
+  'drawLine', 'drawSmoothLine', 'drawBox', 'drawRectangle',
+  'drawCircle', 'drawSmoothCircle', 'drawText', 'drawTinyText',
+])
+
 function isRecord(value: unknown): value is RecordValue {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -90,8 +96,13 @@ class Validator {
   }
 
   luaIdentifier(value: unknown, path: string, fallback: string, focus?: DisplayDesignerFindingFocus): string {
-    if (typeof value !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value) || LUA_KEYWORDS.has(value)) {
-      this.finding('invalid-lua-identifier', 'A non-keyword Lua identifier is required.', path, focus)
+    if (
+      typeof value !== 'string'
+      || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)
+      || LUA_KEYWORDS.has(value)
+      || GENERATED_LUA_RESERVED_IDENTIFIERS.has(value)
+    ) {
+      this.finding('invalid-lua-identifier', 'A safe, non-reserved Lua identifier is required.', path, focus)
       return fallback
     }
     return value
@@ -541,8 +552,10 @@ function crossValidate(validator: Validator, document: DisplayDesignDocumentV1):
   const bindings = new Map(document.bindings.map((binding) => [binding.id, binding]))
   const symbols = new Map(document.symbols.map((symbol) => [symbol.id, symbol]))
 
-  addDuplicateValues(validator, document.bindings.map((binding, index) => ({ value: binding.luaName, path: `bindings[${index}].luaName`, focus: { bindingId: binding.id } })), 'duplicate-lua-name', 'Binding Lua name')
-  addDuplicateValues(validator, document.symbols.map((symbol, index) => ({ value: symbol.luaName, path: `symbols[${index}].luaName`, focus: { symbolId: symbol.id } })), 'duplicate-lua-name', 'Symbol Lua name')
+  addDuplicateValues(validator, [
+    ...document.bindings.map((binding, index) => ({ value: binding.luaName, path: `bindings[${index}].luaName`, focus: { bindingId: binding.id } })),
+    ...document.symbols.map((symbol, index) => ({ value: symbol.luaName, path: `symbols[${index}].luaName`, focus: { symbolId: symbol.id } })),
+  ], 'duplicate-lua-name', 'Generated Lua name')
 
   for (const [bindingIndex, binding] of document.bindings.entries()) {
     if (binding.kind !== 'choice') continue

@@ -266,6 +266,31 @@ export function createEmptyDisplayDesignSelection(): DisplayDesignSelection {
 }
 
 export function createDefaultDisplayPrimitive(
+  preset: 'pixel-line' | 'smooth-line',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayLineElement
+export function createDefaultDisplayPrimitive(
+  preset: 'outline-box' | 'filled-box',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayBoxElement
+export function createDefaultDisplayPrimitive(
+  preset: 'pixel-circle' | 'smooth-circle',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayCircleElement
+export function createDefaultDisplayPrimitive(
+  preset: 'standard-text' | 'tiny-text',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayTextElement
+export function createDefaultDisplayPrimitive(
+  preset: DisplayPrimitivePreset,
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayPrimitiveElement
+export function createDefaultDisplayPrimitive(
   preset: DisplayPrimitivePreset,
   idFactory: DisplayDesignIdFactory,
   scope: 'element' | 'primitive' = 'element',

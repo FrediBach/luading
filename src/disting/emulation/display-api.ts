@@ -39,6 +39,14 @@ function parameterValue(parameter: ParameterDefinition | undefined, value: numbe
   return parameter.unit ? `${formatted} ${parameter.unit}` : formatted
 }
 
+export function buildParameterLineCommands(name: string, value: string, yOffset = 0): DrawCommand[] {
+  return [
+    { kind: 'text', x: 2, y: 7 + yOffset, text: name, shade: 15, tiny: true, align: 'left' },
+    { kind: 'text', x: 253, y: 7 + yOffset, text: value, shade: 15, tiny: true, align: 'right' },
+    { kind: 'line', x1: 0, y1: 9 + yOffset, x2: 255, y2: 9 + yOffset, shade: 5, smooth: false },
+  ]
+}
+
 export class DistingDisplayApi {
   private buffer: DrawCommand[] = []
   private standardLineRequested = false
@@ -227,10 +235,6 @@ export class DistingDisplayApi {
   }
 
   private drawParameterLine(name: string, value: string, yOffset: number) {
-    this.buffer.unshift(
-      { kind: 'text', x: 2, y: 7 + yOffset, text: name, shade: 15, tiny: true, align: 'left' },
-      { kind: 'text', x: 253, y: 7 + yOffset, text: value, shade: 15, tiny: true, align: 'right' },
-      { kind: 'line', x1: 0, y1: 9 + yOffset, x2: 255, y2: 9 + yOffset, shade: 5, smooth: false },
-    )
+    this.buffer.unshift(...buildParameterLineCommands(name, value, yOffset))
   }
 }

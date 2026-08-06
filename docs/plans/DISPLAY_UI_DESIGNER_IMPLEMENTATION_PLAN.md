@@ -13,7 +13,7 @@ recorded in this document.
 | Increment | Status | Verification/evidence |
 | --- | --- | --- |
 | 1. Pure document model, validation, and history | Complete (2026-08-06) | `npx vitest run src/disting/workbench/display-designer/display-design-model.test.ts src/disting/workbench/display-designer/display-design-validation.test.ts src/disting/workbench/display-designer/display-design-history.test.ts` (3 files, 23 tests); `npm test` (121 files, 685 tests); `npm run check` passed with 96.76% statements, 91.01% branches, 100% functions, and 98.43% lines. Pure increment; browser and hardware checks not applicable. |
-| 2. Command compiler and deterministic Lua generation | Proposed | Not started |
+| 2. Command compiler and deterministic Lua generation | Complete (2026-08-06) | `npx vitest run src/disting/workbench/display-designer/display-design-compiler.test.ts src/disting/workbench/display-designer/display-design-generator.test.ts src/disting/emulation/display-api.test.ts src/disting/workbench/script-scaffold.test.ts` (4 files, 30 tests); broader display/model regression run (10 files, 68 tests); `npm test` (123 files, 702 tests); `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines. Wasmoon fixtures matched compiler commands and callback suppression for both display modes. Symbol instances use the planned blocking expansion seam until increment 6. Pure/source-generation increment; browser and hardware checks not applicable. |
 | 3. Dialog shell, entry point, and static-property editing | Proposed | Not started |
 | 4. Direct manipulation, layers, and keyboard workflow | Proposed | Not started |
 | 5. Dynamic bindings and state preview | Proposed | Not started |

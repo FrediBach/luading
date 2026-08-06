@@ -157,6 +157,15 @@ describe('display design validation', () => {
     ]))
   })
 
+  it('rejects identifiers that would shadow generated callback dependencies', () => {
+    const input = validRichDocument()
+    const numberBinding = input.bindings.find((binding) => binding.kind === 'number')
+    const symbol = input.symbols[0]
+    if (numberBinding?.kind === 'number') numberBinding.luaName = 'math'
+    if (symbol) symbol.luaName = 'drawLine'
+    expect(errorRuleIds(input).filter((ruleId) => ruleId === 'invalid-lua-identifier')).toHaveLength(2)
+  })
+
   it('rejects duplicate identities, unsafe references, and mismatched binding kinds', () => {
     const input = validRichDocument()
     input.groups.push({ id: input.groups[0]!.id, name: 'Duplicate' })
