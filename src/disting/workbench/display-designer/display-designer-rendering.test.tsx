@@ -40,6 +40,9 @@ describe('Display designer rendering', () => {
   })
 
   it('pins the desktop regions, collapsible columns, pixel raster, and responsive fill shell', () => {
+    expect(designerCss).toMatch(/\.display-designer-title h2 \{[^}]*color: var\(--nt-text\);/s)
+    expect(designerCss).toMatch(/\.display-designer-source pre \{[^}]*font: var\(--font-micro\)\/1\.45 var\(--mono\);/s)
+    expect(designerCss).toMatch(/\.display-designer-copy-fallback textarea \{[^}]*font: var\(--font-micro\)\/1\.45 var\(--mono\);/s)
     expect(designerCss).toMatch(/\.display-designer-workspace \{[^}]*grid-template-columns: minmax\(190px, 17%\) minmax\(360px, 1fr\) minmax\(230px, 20%\)/s)
     expect(designerCss).toContain('.display-designer-workspace.layers-collapsed')
     expect(designerCss).toContain('.display-designer-workspace.inspector-collapsed')

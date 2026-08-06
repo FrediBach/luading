@@ -93,6 +93,7 @@
 }
 
 .display-designer-title h2 {
+  color: var(--nt-text);
   font-size: var(--font-body);
   line-height: 1.15;
 }
@@ -550,8 +551,8 @@
 .display-designer-source-actions { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
 .display-designer-source-actions p { margin: 0; color: var(--nt-muted); }
 .display-designer-copy-fallback { margin-top: 8px; display: grid; gap: 4px; color: var(--nt-muted); font-size: var(--font-micro); }
-.display-designer-copy-fallback textarea { width: 100%; min-height: 90px; box-sizing: border-box; resize: vertical; color: var(--nt-text); background: var(--surface-recessed); border: 1px solid var(--nt-line); border-radius: 5px; }
-.display-designer-source pre { margin: 8px 0 0; color: var(--nt-text); white-space: pre; }
+.display-designer-copy-fallback textarea { width: 100%; min-height: 90px; box-sizing: border-box; resize: vertical; color: var(--nt-text); background: var(--surface-recessed); border: 1px solid var(--nt-line); border-radius: 5px; font: var(--font-micro)/1.45 var(--mono); tab-size: 2; }
+.display-designer-source pre { margin: 8px 0 0; color: var(--nt-text); font: var(--font-micro)/1.45 var(--mono); tab-size: 2; white-space: pre; }
 .display-designer-source .lua-source-preview-code { display: block; color: inherit; background: transparent; font: inherit; }
 .display-designer-source-navigation { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .display-designer-source-navigation button { min-height: 25px; font-size: var(--font-micro); }
