@@ -1,0 +1,657 @@
+export const DISPLAY_DESIGN_KIND = 'luading-display-design' as const
+export const DISPLAY_DESIGN_VERSION = 1 as const
+
+export const DISPLAY_DESIGN_LIMITS = {
+  maximumPrimitives: 512,
+  maximumInstances: 128,
+  maximumSymbols: 64,
+  maximumVariantsPerSymbol: 16,
+  maximumGroups: 64,
+  maximumBindings: 64,
+  maximumTextCodePoints: 512,
+  maximumNameCodePoints: 80,
+  minimumCoordinate: -4096,
+  maximumCoordinate: 4096,
+  maximumRadius: 4096,
+  maximumHistoryTransactions: 100,
+} as const
+
+export type DisplayMode = 'parameter-line' | 'full-screen'
+export type DisplayTextAlignment = 'left' | 'centre' | 'right'
+export type DisplayScalarQuantization = 'none' | 'integer'
+
+export interface DisplayLiteralScalar {
+  kind: 'literal'
+  value: number
+}
+
+export interface DisplayNumberBindingScalar {
+  kind: 'number-binding'
+  bindingId: string
+  from: number
+  to: number
+  quantize: DisplayScalarQuantization
+}
+
+export type DisplayScalar = DisplayLiteralScalar | DisplayNumberBindingScalar
+
+export type DisplayVisibility =
+  | { kind: 'visible' }
+  | { kind: 'boolean-binding'; bindingId: string; invert: boolean }
+
+export type DisplayText =
+  | { kind: 'literal'; value: string }
+  | { kind: 'text-binding'; bindingId: string }
+
+export interface DisplayPrimitiveBase {
+  id: string
+  name: string
+  shade: DisplayScalar
+  visible: DisplayVisibility
+}
+
+export interface DisplayLineElement extends DisplayPrimitiveBase {
+  kind: 'line'
+  smooth: boolean
+  x1: DisplayScalar
+  y1: DisplayScalar
+  x2: DisplayScalar
+  y2: DisplayScalar
+}
+
+export interface DisplayBoxElement extends DisplayPrimitiveBase {
+  kind: 'box'
+  fill: boolean
+  x1: DisplayScalar
+  y1: DisplayScalar
+  x2: DisplayScalar
+  y2: DisplayScalar
+}
+
+export interface DisplayCircleElement extends DisplayPrimitiveBase {
+  kind: 'circle'
+  smooth: boolean
+  x: DisplayScalar
+  y: DisplayScalar
+  radius: DisplayScalar
+}
+
+export interface DisplayTextElement extends DisplayPrimitiveBase {
+  kind: 'text'
+  tiny: boolean
+  x: DisplayScalar
+  y: DisplayScalar
+  text: DisplayText
+  align: DisplayTextAlignment
+}
+
+export type DisplayPrimitiveElement =
+  | DisplayLineElement
+  | DisplayBoxElement
+  | DisplayCircleElement
+  | DisplayTextElement
+
+export type DisplaySymbolState =
+  | { kind: 'literal'; variantId: string }
+  | {
+      kind: 'choice-binding'
+      bindingId: string
+      variantByChoiceId: Record<string, string>
+    }
+
+export interface DisplaySymbolInstance {
+  kind: 'symbol-instance'
+  id: string
+  name: string
+  groupId?: string
+  symbolId: string
+  x: DisplayScalar
+  y: DisplayScalar
+  visible: DisplayVisibility
+  state: DisplaySymbolState
+}
+
+export type DisplayDesignElement =
+  | (DisplayPrimitiveElement & { groupId?: string })
+  | DisplaySymbolInstance
+
+export interface DisplayDesignGroup {
+  id: string
+  name: string
+}
+
+export interface DisplaySymbolVariant {
+  id: string
+  name: string
+  luaValue: string
+  elements: DisplayPrimitiveElement[]
+}
+
+export interface DisplayDesignSymbol {
+  id: string
+  name: string
+  luaName: string
+  defaultVariantId: string
+  variants: DisplaySymbolVariant[]
+}
+
+export interface DisplayNumberBinding {
+  kind: 'number'
+  id: string
+  name: string
+  luaName: string
+  previewValue: number
+}
+
+export interface DisplayBooleanBinding {
+  kind: 'boolean'
+  id: string
+  name: string
+  luaName: string
+  previewValue: boolean
+}
+
+export interface DisplayTextBinding {
+  kind: 'text'
+  id: string
+  name: string
+  luaName: string
+  previewValue: string
+}
+
+export interface DisplayChoiceBindingChoice {
+  id: string
+  name: string
+  luaValue: string
+}
+
+export interface DisplayChoiceBinding {
+  kind: 'choice'
+  id: string
+  name: string
+  luaName: string
+  choices: DisplayChoiceBindingChoice[]
+  previewChoiceId: string
+}
+
+export type DisplayDesignBinding =
+  | DisplayNumberBinding
+  | DisplayBooleanBinding
+  | DisplayTextBinding
+  | DisplayChoiceBinding
+
+export interface DisplayDesignDocumentV1 {
+  kind: typeof DISPLAY_DESIGN_KIND
+  version: typeof DISPLAY_DESIGN_VERSION
+  name: string
+  displayMode: DisplayMode
+  elements: DisplayDesignElement[]
+  groups: DisplayDesignGroup[]
+  bindings: DisplayDesignBinding[]
+  symbols: DisplayDesignSymbol[]
+}
+
+export interface DisplayDesignSelection {
+  elementIds: string[]
+  groupIds: string[]
+  symbolId?: string
+  variantId?: string
+  primitiveIds: string[]
+}
+
+export type DisplayDesignerFindingSeverity = 'error' | 'warning'
+
+export interface DisplayDesignerFindingFocus {
+  elementId?: string
+  groupId?: string
+  bindingId?: string
+  symbolId?: string
+  variantId?: string
+  primitiveId?: string
+  property?: string
+}
+
+export interface DisplayDesignerFinding {
+  ruleId: string
+  severity: DisplayDesignerFindingSeverity
+  message: string
+  path: string
+  focus?: DisplayDesignerFindingFocus
+}
+
+export type DisplayPrimitivePreset =
+  | 'pixel-line'
+  | 'smooth-line'
+  | 'outline-box'
+  | 'filled-box'
+  | 'pixel-circle'
+  | 'smooth-circle'
+  | 'standard-text'
+  | 'tiny-text'
+
+export type DisplayDesignIdScope =
+  | 'element'
+  | 'group'
+  | 'binding'
+  | 'choice'
+  | 'symbol'
+  | 'variant'
+  | 'primitive'
+
+export type DisplayDesignIdFactory = (scope: DisplayDesignIdScope) => string
+
+const literal = (value: number): DisplayLiteralScalar => ({ kind: 'literal', value })
+const visible = (): DisplayVisibility => ({ kind: 'visible' })
+
+export function createSequentialDisplayDesignIdFactory(prefix = 'display'): DisplayDesignIdFactory {
+  let nextId = 1
+  return (scope) => `${prefix}-${scope}-${nextId++}`
+}
+
+export function createEmptyDisplayDesign(name = 'Untitled display'): DisplayDesignDocumentV1 {
+  return {
+    kind: DISPLAY_DESIGN_KIND,
+    version: DISPLAY_DESIGN_VERSION,
+    name,
+    displayMode: 'parameter-line',
+    elements: [],
+    groups: [],
+    bindings: [],
+    symbols: [],
+  }
+}
+
+export function createEmptyDisplayDesignSelection(): DisplayDesignSelection {
+  return { elementIds: [], groupIds: [], primitiveIds: [] }
+}
+
+export function createDefaultDisplayPrimitive(
+  preset: DisplayPrimitivePreset,
+  idFactory: DisplayDesignIdFactory,
+  scope: 'element' | 'primitive' = 'element',
+): DisplayPrimitiveElement {
+  const id = idFactory(scope)
+  const base = { id, shade: literal(15), visible: visible() }
+  switch (preset) {
+    case 'pixel-line':
+      return { ...base, kind: 'line', name: 'Pixel line', smooth: false, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(16) }
+    case 'smooth-line':
+      return { ...base, kind: 'line', name: 'Smooth line', smooth: true, x1: literal(8.5), y1: literal(16.5), x2: literal(32.5), y2: literal(16.5) }
+    case 'outline-box':
+      return { ...base, kind: 'box', name: 'Outline box', fill: false, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(24) }
+    case 'filled-box':
+      return { ...base, kind: 'box', name: 'Filled box', fill: true, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(24) }
+    case 'pixel-circle':
+      return { ...base, kind: 'circle', name: 'Pixel circle', smooth: false, x: literal(20), y: literal(20), radius: literal(6) }
+    case 'smooth-circle':
+      return { ...base, kind: 'circle', name: 'Smooth circle', smooth: true, x: literal(20.5), y: literal(20.5), radius: literal(6.5) }
+    case 'standard-text':
+      return { ...base, kind: 'text', name: 'Standard text', tiny: false, x: literal(8), y: literal(20), text: { kind: 'literal', value: 'Text' }, align: 'left' }
+    case 'tiny-text':
+      return { ...base, kind: 'text', name: 'Tiny text', tiny: true, x: literal(8), y: literal(20), text: { kind: 'literal', value: 'Text' }, align: 'left' }
+  }
+}
+
+export function createDefaultDisplayGroup(idFactory: DisplayDesignIdFactory, name = 'Group'): DisplayDesignGroup {
+  return { id: idFactory('group'), name }
+}
+
+export function createDefaultDisplayBinding(
+  kind: DisplayDesignBinding['kind'],
+  idFactory: DisplayDesignIdFactory,
+): DisplayDesignBinding {
+  const id = idFactory('binding')
+  if (kind === 'number') return { kind, id, name: 'Value', luaName: 'value', previewValue: 0.5 }
+  if (kind === 'boolean') return { kind, id, name: 'Visible', luaName: 'visible', previewValue: true }
+  if (kind === 'text') return { kind, id, name: 'Label', luaName: 'label', previewValue: 'Text' }
+  const choiceId = idFactory('choice')
+  return {
+    kind,
+    id,
+    name: 'State',
+    luaName: 'state',
+    choices: [{ id: choiceId, name: 'Default', luaValue: 'default' }],
+    previewChoiceId: choiceId,
+  }
+}
+
+export function cloneDisplayDesign<T>(value: T): T {
+  return structuredClone(value)
+}
+
+function copiedName(name: string): string {
+  const match = /^(.*?)(?: copy(?: (\d+))?)?$/.exec(name)
+  const base = match?.[1] || name
+  const copyNumber = match?.[2] ? Number(match[2]) + 1 : match?.[0] !== base ? 2 : 1
+  return `${base} copy${copyNumber === 1 ? '' : ` ${copyNumber}`}`
+}
+
+export function addDisplayDesignElement(
+  document: DisplayDesignDocumentV1,
+  element: DisplayDesignElement,
+  index = document.elements.length,
+): DisplayDesignDocumentV1 {
+  const elements = cloneDisplayDesign(document.elements)
+  elements.splice(Math.max(0, Math.min(index, elements.length)), 0, cloneDisplayDesign(element))
+  return { ...cloneDisplayDesign(document), elements }
+}
+
+export function updateDisplayDesignElement(
+  document: DisplayDesignDocumentV1,
+  elementId: string,
+  update: (element: DisplayDesignElement) => DisplayDesignElement,
+): DisplayDesignDocumentV1 {
+  let changed = false
+  const elements = document.elements.map((element) => {
+    if (element.id !== elementId) return cloneDisplayDesign(element)
+    changed = true
+    return cloneDisplayDesign(update(cloneDisplayDesign(element)))
+  })
+  return changed ? { ...cloneDisplayDesign(document), elements } : cloneDisplayDesign(document)
+}
+
+export function deleteDisplayDesignElements(
+  document: DisplayDesignDocumentV1,
+  elementIds: Iterable<string>,
+): DisplayDesignDocumentV1 {
+  const deleted = new Set(elementIds)
+  return { ...cloneDisplayDesign(document), elements: document.elements.filter(({ id }) => !deleted.has(id)).map(cloneDisplayDesign) }
+}
+
+export function duplicateDisplayDesignElements(
+  document: DisplayDesignDocumentV1,
+  elementIds: Iterable<string>,
+  idFactory: DisplayDesignIdFactory,
+): { document: DisplayDesignDocumentV1; duplicatedIds: string[] } {
+  const selected = new Set(elementIds)
+  const duplicatedIds: string[] = []
+  const elements = document.elements.flatMap((element) => {
+    const original = cloneDisplayDesign(element)
+    if (!selected.has(element.id)) return [original]
+    const duplicate = cloneDisplayDesign(element)
+    duplicate.id = idFactory('element')
+    duplicate.name = copiedName(element.name)
+    duplicatedIds.push(duplicate.id)
+    return [original, duplicate]
+  })
+  return { document: { ...cloneDisplayDesign(document), elements }, duplicatedIds }
+}
+
+export function reorderDisplayDesignElement(
+  document: DisplayDesignDocumentV1,
+  fromIndex: number,
+  toIndex: number,
+): DisplayDesignDocumentV1 {
+  const elements = cloneDisplayDesign(document.elements)
+  if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= elements.length) return cloneDisplayDesign(document)
+  const destination = Math.max(0, Math.min(Math.trunc(toIndex), elements.length - 1))
+  const [element] = elements.splice(fromIndex, 1)
+  if (!element) return cloneDisplayDesign(document)
+  elements.splice(destination, 0, element)
+  return { ...cloneDisplayDesign(document), elements }
+}
+
+export function layerIndexToElementIndex(layerIndex: number, elementCount: number): number {
+  return elementCount - 1 - layerIndex
+}
+
+export function reorderDisplayDesignLayer(
+  document: DisplayDesignDocumentV1,
+  fromLayerIndex: number,
+  toLayerIndex: number,
+): DisplayDesignDocumentV1 {
+  return reorderDisplayDesignElement(
+    document,
+    layerIndexToElementIndex(fromLayerIndex, document.elements.length),
+    layerIndexToElementIndex(toLayerIndex, document.elements.length),
+  )
+}
+
+export function addDisplayDesignGroup(
+  document: DisplayDesignDocumentV1,
+  group: DisplayDesignGroup,
+): DisplayDesignDocumentV1 {
+  return { ...cloneDisplayDesign(document), groups: [...cloneDisplayDesign(document.groups), cloneDisplayDesign(group)] }
+}
+
+export function updateDisplayDesignGroup(
+  document: DisplayDesignDocumentV1,
+  groupId: string,
+  update: (group: DisplayDesignGroup) => DisplayDesignGroup,
+): DisplayDesignDocumentV1 {
+  return {
+    ...cloneDisplayDesign(document),
+    groups: document.groups.map((group) => group.id === groupId ? cloneDisplayDesign(update(cloneDisplayDesign(group))) : cloneDisplayDesign(group)),
+  }
+}
+
+export function assignDisplayDesignGroup(
+  document: DisplayDesignDocumentV1,
+  elementIds: Iterable<string>,
+  groupId?: string,
+): DisplayDesignDocumentV1 {
+  const selected = new Set(elementIds)
+  return {
+    ...cloneDisplayDesign(document),
+    elements: document.elements.map((element) => {
+      const next = cloneDisplayDesign(element)
+      if (!selected.has(element.id)) return next
+      if (groupId === undefined) delete next.groupId
+      else next.groupId = groupId
+      return next
+    }),
+  }
+}
+
+export type DeleteDisplayDesignGroupChoice = 'ungroup' | 'delete-elements'
+
+export function deleteDisplayDesignGroup(
+  document: DisplayDesignDocumentV1,
+  groupId: string,
+  choice: DeleteDisplayDesignGroupChoice,
+): DisplayDesignDocumentV1 {
+  const groups = document.groups.filter(({ id }) => id !== groupId).map(cloneDisplayDesign)
+  const elements = document.elements.flatMap((element) => {
+    if (element.groupId !== groupId) return [cloneDisplayDesign(element)]
+    if (choice === 'delete-elements') return []
+    const next = cloneDisplayDesign(element)
+    delete next.groupId
+    return [next]
+  })
+  return { ...cloneDisplayDesign(document), groups, elements }
+}
+
+export function duplicateDisplayDesignGroup(
+  document: DisplayDesignDocumentV1,
+  groupId: string,
+  idFactory: DisplayDesignIdFactory,
+): { document: DisplayDesignDocumentV1; groupId?: string; duplicatedElementIds: string[] } {
+  const sourceGroup = document.groups.find(({ id }) => id === groupId)
+  if (!sourceGroup) return { document: cloneDisplayDesign(document), duplicatedElementIds: [] }
+  const duplicateGroup = { ...cloneDisplayDesign(sourceGroup), id: idFactory('group'), name: copiedName(sourceGroup.name) }
+  const duplicatedElementIds: string[] = []
+  const elements = document.elements.flatMap((element) => {
+    const original = cloneDisplayDesign(element)
+    if (element.groupId !== groupId) return [original]
+    const duplicate = cloneDisplayDesign(element)
+    duplicate.id = idFactory('element')
+    duplicate.name = copiedName(element.name)
+    duplicate.groupId = duplicateGroup.id
+    duplicatedElementIds.push(duplicate.id)
+    return [original, duplicate]
+  })
+  return {
+    document: {
+      ...cloneDisplayDesign(document),
+      groups: [...cloneDisplayDesign(document.groups), duplicateGroup],
+      elements,
+    },
+    groupId: duplicateGroup.id,
+    duplicatedElementIds,
+  }
+}
+
+export function addDisplayDesignBinding(
+  document: DisplayDesignDocumentV1,
+  binding: DisplayDesignBinding,
+): DisplayDesignDocumentV1 {
+  return { ...cloneDisplayDesign(document), bindings: [...cloneDisplayDesign(document.bindings), cloneDisplayDesign(binding)] }
+}
+
+export function updateDisplayDesignBinding(
+  document: DisplayDesignDocumentV1,
+  bindingId: string,
+  update: (binding: DisplayDesignBinding) => DisplayDesignBinding,
+): DisplayDesignDocumentV1 {
+  return {
+    ...cloneDisplayDesign(document),
+    bindings: document.bindings.map((binding) => binding.id === bindingId ? cloneDisplayDesign(update(cloneDisplayDesign(binding))) : cloneDisplayDesign(binding)),
+  }
+}
+
+export function deleteDisplayDesignBinding(document: DisplayDesignDocumentV1, bindingId: string): DisplayDesignDocumentV1 {
+  return { ...cloneDisplayDesign(document), bindings: document.bindings.filter(({ id }) => id !== bindingId).map(cloneDisplayDesign) }
+}
+
+export function addDisplayDesignSymbol(
+  document: DisplayDesignDocumentV1,
+  symbol: DisplayDesignSymbol,
+): DisplayDesignDocumentV1 {
+  return { ...cloneDisplayDesign(document), symbols: [...cloneDisplayDesign(document.symbols), cloneDisplayDesign(symbol)] }
+}
+
+export function updateDisplayDesignSymbol(
+  document: DisplayDesignDocumentV1,
+  symbolId: string,
+  update: (symbol: DisplayDesignSymbol) => DisplayDesignSymbol,
+): DisplayDesignDocumentV1 {
+  return {
+    ...cloneDisplayDesign(document),
+    symbols: document.symbols.map((symbol) => symbol.id === symbolId ? cloneDisplayDesign(update(cloneDisplayDesign(symbol))) : cloneDisplayDesign(symbol)),
+  }
+}
+
+export function deleteDisplayDesignSymbol(document: DisplayDesignDocumentV1, symbolId: string): DisplayDesignDocumentV1 {
+  return { ...cloneDisplayDesign(document), symbols: document.symbols.filter(({ id }) => id !== symbolId).map(cloneDisplayDesign) }
+}
+
+function allocateCopiedLuaName(luaName: string, usedNames: Set<string>): string {
+  let suffix = 1
+  let candidate = `${luaName}_copy`
+  while (usedNames.has(candidate)) candidate = `${luaName}_copy_${++suffix}`
+  return candidate
+}
+
+export function duplicateDisplayDesignSymbol(
+  document: DisplayDesignDocumentV1,
+  symbolId: string,
+  idFactory: DisplayDesignIdFactory,
+): { document: DisplayDesignDocumentV1; symbolId?: string } {
+  const source = document.symbols.find(({ id }) => id === symbolId)
+  if (!source) return { document: cloneDisplayDesign(document) }
+  const variantIds = new Map<string, string>()
+  const variants = source.variants.map((variant) => {
+    const id = idFactory('variant')
+    variantIds.set(variant.id, id)
+    return {
+      ...cloneDisplayDesign(variant),
+      id,
+      elements: variant.elements.map((primitive) => ({
+        ...cloneDisplayDesign(primitive),
+        id: idFactory('primitive'),
+      })),
+    }
+  })
+  const duplicate: DisplayDesignSymbol = {
+    ...cloneDisplayDesign(source),
+    id: idFactory('symbol'),
+    name: copiedName(source.name),
+    luaName: allocateCopiedLuaName(source.luaName, new Set(document.symbols.map(({ luaName }) => luaName))),
+    defaultVariantId: variantIds.get(source.defaultVariantId) ?? variants[0]?.id ?? '',
+    variants,
+  }
+  return {
+    document: { ...cloneDisplayDesign(document), symbols: [...cloneDisplayDesign(document.symbols), duplicate] },
+    symbolId: duplicate.id,
+  }
+}
+
+export function setDisplayDesignMode(document: DisplayDesignDocumentV1, displayMode: DisplayMode): DisplayDesignDocumentV1 {
+  return { ...cloneDisplayDesign(document), displayMode }
+}
+
+export function normalizeDisplayDesignSelection(
+  document: DisplayDesignDocumentV1,
+  selection: DisplayDesignSelection,
+): DisplayDesignSelection {
+  const elementIds = new Set(document.elements.map(({ id }) => id))
+  const groupIds = new Set(document.groups.map(({ id }) => id))
+  const symbol = selection.symbolId ? document.symbols.find(({ id }) => id === selection.symbolId) : undefined
+  const variant = symbol && selection.variantId ? symbol.variants.find(({ id }) => id === selection.variantId) : undefined
+  const primitiveIds = new Set(variant?.elements.map(({ id }) => id) ?? [])
+  return {
+    elementIds: [...new Set(selection.elementIds)].filter((id) => elementIds.has(id)),
+    groupIds: [...new Set(selection.groupIds)].filter((id) => groupIds.has(id)),
+    ...(symbol ? { symbolId: symbol.id } : {}),
+    ...(variant ? { variantId: variant.id } : {}),
+    primitiveIds: [...new Set(selection.primitiveIds)].filter((id) => primitiveIds.has(id)),
+  }
+}
+
+export type DisplayDesignSelectionMode = 'replace' | 'add' | 'toggle'
+
+function updateSelectedIds(currentIds: string[], requestedIds: Iterable<string>, mode: DisplayDesignSelectionMode): string[] {
+  const requested = [...new Set(requestedIds)]
+  if (mode === 'replace') return requested
+  const next = new Set(currentIds)
+  for (const id of requested) {
+    if (mode === 'toggle' && next.has(id)) next.delete(id)
+    else next.add(id)
+  }
+  return [...next]
+}
+
+export function selectDisplayDesignElements(
+  document: DisplayDesignDocumentV1,
+  selection: DisplayDesignSelection,
+  elementIds: Iterable<string>,
+  mode: DisplayDesignSelectionMode = 'replace',
+): DisplayDesignSelection {
+  return normalizeDisplayDesignSelection(document, {
+    ...cloneDisplayDesign(selection),
+    elementIds: updateSelectedIds(selection.elementIds, elementIds, mode),
+    symbolId: undefined,
+    variantId: undefined,
+    primitiveIds: [],
+  })
+}
+
+export function selectDisplayDesignGroups(
+  document: DisplayDesignDocumentV1,
+  selection: DisplayDesignSelection,
+  groupIds: Iterable<string>,
+  mode: DisplayDesignSelectionMode = 'replace',
+): DisplayDesignSelection {
+  return normalizeDisplayDesignSelection(document, {
+    ...cloneDisplayDesign(selection),
+    groupIds: updateSelectedIds(selection.groupIds, groupIds, mode),
+  })
+}
+
+export function selectDisplayDesignVariantPrimitives(
+  document: DisplayDesignDocumentV1,
+  symbolId: string,
+  variantId: string,
+  primitiveIds: Iterable<string>,
+  mode: DisplayDesignSelectionMode = 'replace',
+  selection = createEmptyDisplayDesignSelection(),
+): DisplayDesignSelection {
+  const sameContext = selection.symbolId === symbolId && selection.variantId === variantId
+  return normalizeDisplayDesignSelection(document, {
+    elementIds: [],
+    groupIds: [],
+    symbolId,
+    variantId,
+    primitiveIds: updateSelectedIds(sameContext ? selection.primitiveIds : [], primitiveIds, mode),
+  })
+}

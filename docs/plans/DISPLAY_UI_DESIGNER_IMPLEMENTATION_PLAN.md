@@ -2,8 +2,9 @@
 
 ## Status
 
-Proposed on 2026-08-05. No behavior described by this document is implemented
-until the relevant increment and its verification have landed.
+Proposed on 2026-08-05. Implementation began on 2026-08-06. Only increments
+marked complete below are implemented; later behavior remains proposed until
+its increment and verification have landed.
 
 Use the progress table below as the cross-session handoff record. An increment
 may be marked complete only after its focused tests pass and the evidence is
@@ -11,7 +12,7 @@ recorded in this document.
 
 | Increment | Status | Verification/evidence |
 | --- | --- | --- |
-| 1. Pure document model, validation, and history | Proposed | Not started |
+| 1. Pure document model, validation, and history | Complete (2026-08-06) | `npx vitest run src/disting/workbench/display-designer/display-design-model.test.ts src/disting/workbench/display-designer/display-design-validation.test.ts src/disting/workbench/display-designer/display-design-history.test.ts` (3 files, 23 tests); `npm test` (121 files, 685 tests); `npm run check` passed with 96.76% statements, 91.01% branches, 100% functions, and 98.43% lines. Pure increment; browser and hardware checks not applicable. |
 | 2. Command compiler and deterministic Lua generation | Proposed | Not started |
 | 3. Dialog shell, entry point, and static-property editing | Proposed | Not started |
 | 4. Direct manipulation, layers, and keyboard workflow | Proposed | Not started |
