@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react'
+import { act, createRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { serializeDisplayDesign } from './display-design-file'
@@ -10,6 +10,7 @@ import {
   createSequentialDisplayDesignIdFactory,
 } from './display-design-model'
 import { DisplayDesignerLauncher } from './DisplayDesignerLauncher'
+import { DisplayDesignerDialog } from './DisplayDesignerDialog'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -139,6 +140,56 @@ afterEach(async () => {
 })
 
 describe('Display designer dialog', () => {
+  it('operates responsive panels as linked roving tabs with arrow, Home, and End keys', async () => {
+    await act(async () => {
+      root.render(<DisplayDesignerDialog open viewportWidth={800} returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />)
+    })
+    const layersTab = document.querySelector<HTMLButtonElement>('#display-designer-tab-layers')!
+    expect(layersTab.getAttribute('aria-selected')).toBe('true')
+    expect(layersTab.tabIndex).toBe(0)
+    expect(document.querySelector('#display-designer-panel-layers')?.hasAttribute('hidden')).toBe(false)
+    expect(document.querySelector('#display-designer-panel-symbols')?.hasAttribute('hidden')).toBe(true)
+
+    await act(async () => {
+      layersTab.focus()
+      layersTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    const symbolsTab = document.querySelector<HTMLButtonElement>('#display-designer-tab-symbols')!
+    expect(symbolsTab.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(symbolsTab)
+    expect(document.querySelector('#display-designer-panel-symbols')?.hasAttribute('hidden')).toBe(false)
+
+    await act(async () => {
+      symbolsTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    expect(document.querySelector('#display-designer-tab-lua')?.getAttribute('aria-selected')).toBe('true')
+    expect(document.querySelector('#display-designer-panel-lua')?.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('labels dynamic controls, shade state, findings, metrics, and preview announcements', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Smooth line')
+
+    expect(button('Smooth line').getAttribute('aria-pressed')).toBe('true')
+    expect(button('Shade 15').getAttribute('aria-pressed')).toBe('true')
+    expect(document.querySelector('#display-designer-warnings-title')?.textContent).toContain('Warnings')
+    expect(document.querySelector('[data-severity="warning"] button')?.textContent).toContain('approximation')
+    expect(document.querySelector('dl')?.getAttribute('aria-describedby')).toBe('display-designer-metrics-note')
+    expect(document.querySelector('.display-designer-stage-status')?.getAttribute('aria-live')).toBe('polite')
+
+    await click(button('Make X1 dynamic'))
+    const slider = document.querySelector<HTMLInputElement>('[type="range"]')!
+    expect(slider.getAttribute('aria-label')).toBe('X1 preview value')
+    expect(slider.getAttribute('aria-valuetext')).toBe('0')
+    await click(button('Make visibility dynamic'))
+    const previewSwitch = document.querySelector<HTMLButtonElement>('[role="switch"]')!
+    expect(previewSwitch.getAttribute('aria-label')).toBe('Visibility boolean preview')
+    expect(previewSwitch.getAttribute('aria-checked')).toBe('true')
+  })
+
   it('opens from the utility command, edits every primitive type, and updates the raster source', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     const trigger = button('Open Display designer')
@@ -439,6 +490,22 @@ describe('Display designer dialog', () => {
     expect(document.body.textContent).toContain('Symbols / variants / instances1 / 2 / 1')
     await commitInput(field('State name') as HTMLInputElement, 'Active')
     expect(document.querySelector('[aria-label="Symbol edit context"]')?.textContent).toContain('Active')
+    const stateTabs = [...document.querySelectorAll<HTMLButtonElement>('.display-designer-variant-tabs [role="tab"]')]
+    expect(stateTabs.map((tab) => tab.tabIndex)).toEqual([-1, 0])
+    expect(stateTabs[1]?.getAttribute('aria-controls')).toBe('display-designer-symbol-state-panel')
+    expect(document.querySelector('#display-designer-symbol-state-panel')?.getAttribute('aria-labelledby')).toBe(stateTabs[1]?.id)
+    await act(async () => {
+      stateTabs[1]!.focus()
+      stateTabs[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    expect(document.activeElement?.textContent).toContain('Default')
+    const defaultTab = document.querySelector<HTMLButtonElement>('.display-designer-variant-tabs [aria-selected="true"]')!
+    await act(async () => {
+      defaultTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    expect(document.activeElement?.textContent).toContain('Active')
     expect(source()).toContain('if state == "default_copy" then')
     expect(source()).toContain('else\n      -- Default state: Default')
 

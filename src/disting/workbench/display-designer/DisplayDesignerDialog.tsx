@@ -17,6 +17,13 @@ import { LuaSourcePreview } from '../LuaSourcePreview'
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import {
+  DISPLAY_DESIGNER_PANELS,
+  displayDesignerLayoutForWidth,
+  moveDisplayDesignerTab,
+  type DisplayDesignerLayoutMode,
+  type DisplayDesignerPanel,
+} from './display-designer-layout'
+import {
   DISPLAY_DESIGN_FILE_SUFFIX,
   parseDisplayDesignText,
   serializeDisplayDesign,
@@ -108,12 +115,29 @@ interface Props {
   open: boolean
   returnFocusRef: RefObject<HTMLElement | null>
   onClose(): void
+  viewportWidth?: number
 }
 
 type DesignerTool = 'select' | DisplayPrimitivePreset
 type DesignerZoom = 'fit' | 2 | 3 | 4
 type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
 type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
+
+function useDisplayDesignerLayout(viewportWidth?: number): DisplayDesignerLayoutMode {
+  const [measuredLayout, setMeasuredLayout] = useState(() => displayDesignerLayoutForWidth(
+    typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth,
+  ))
+
+  useEffect(() => {
+    if (viewportWidth !== undefined) return
+    const update = () => setMeasuredLayout(displayDesignerLayoutForWidth(window.innerWidth))
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [viewportWidth])
+
+  return viewportWidth === undefined ? measuredLayout : displayDesignerLayoutForWidth(viewportWidth)
+}
 
 interface DisplayDesignerGesture {
   kind: 'create' | 'move' | 'resize'
@@ -370,7 +394,7 @@ function DisplayDesignerArtboard({
           </svg>
         </div>
       </div>
-      <p className="display-designer-stage-status" role="status">
+      <p className="display-designer-stage-status" role="status" aria-live="polite" aria-atomic="true">
         {selectedElements.length > 0
           ? `${selectedElements.length} selected: ${selectedElements.map(({ name }) => name).join(', ')}.`
           : activeTool === 'select' ? 'Select a layer or drag a primitive on the artboard.' : `Drag to create ${TOOLS.find(({ id }) => id === activeTool)?.label}.`}
@@ -514,8 +538,26 @@ function DisplayDesignerSymbols({
         const name = value.trim(); if (!name) return false; onRenameSymbol(activeSymbol.id, name); return true
       }} />
       <div className="display-designer-variant-tabs" role="tablist" aria-label={`${activeSymbol.name} states`}>
-        {activeSymbol.variants.map((variant) => <button key={variant.id} type="button" role="tab" aria-selected={variant.id === activeVariant.id} onClick={() => onEdit(activeSymbol.id, variant.id)}>{variant.name}{variant.id === activeSymbol.defaultVariantId ? ' · default' : ''}</button>)}
+        {activeSymbol.variants.map((variant, index) => <button
+          key={variant.id}
+          id={`display-designer-variant-tab-${variant.id}`}
+          type="button"
+          role="tab"
+          aria-selected={variant.id === activeVariant.id}
+          aria-controls="display-designer-symbol-state-panel"
+          tabIndex={variant.id === activeVariant.id ? 0 : -1}
+          onClick={() => onEdit(activeSymbol.id, variant.id)}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+            event.preventDefault()
+            const nextIndex = moveDisplayDesignerTab(index, event.key as 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End', activeSymbol.variants.length)
+            onEdit(activeSymbol.id, activeSymbol.variants[nextIndex]!.id)
+            const tabs = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+            window.requestAnimationFrame(() => tabs?.[nextIndex]?.focus())
+          }}
+        >{variant.name}{variant.id === activeSymbol.defaultVariantId ? ' · default' : ''}</button>)}
       </div>
+      <div id="display-designer-symbol-state-panel" role="tabpanel" aria-labelledby={`display-designer-variant-tab-${activeVariant.id}`} tabIndex={0}>
       <div className="display-designer-symbol-actions">
         <button type="button" disabled={activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} onClick={() => onAddVariant(activeSymbol.id, activeVariant.id, false)}>Duplicate state</button>
         <button type="button" disabled={activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} onClick={() => onAddVariant(activeSymbol.id, activeVariant.id, true)}>Add blank state</button>
@@ -529,6 +571,7 @@ function DisplayDesignerSymbols({
       {pendingVariantId === activeVariant.id && <div role="alert" className="display-designer-inline-confirm"><p>Replace every use of {activeVariant.name} before deleting it.</p>{activeSymbol.variants.filter(({ id }) => id !== activeVariant.id).map((replacement) => <button key={replacement.id} type="button" onClick={() => { onDeleteVariant(activeSymbol.id, activeVariant.id, replacement.id); setPendingVariantId(undefined) }}>Replace with {replacement.name}</button>)}<button type="button" onClick={() => setPendingVariantId(undefined)}>Cancel</button></div>}
       <h4>State layers</h4>
       {activeVariant.elements.length === 0 ? <p className="display-designer-empty">This state is blank.</p> : <ol>{[...activeVariant.elements].reverse().map((primitive) => <li key={primitive.id}><button type="button" aria-pressed={selection.primitiveIds.includes(primitive.id)} onClick={() => onSelectPrimitive(primitive.id)}>{primitive.name} · {elementTypeName(primitive)}</button></li>)}</ol>}
+      </div>
     </> : <>
       <button type="button" disabled={!canCreate || document.symbols.length >= DISPLAY_DESIGN_LIMITS.maximumSymbols} onClick={onCreate}>Create symbol from selection</button>
       {document.symbols.length === 0 ? <p className="display-designer-empty">Select one or more primitive layers to create a local symbol.</p> : <ol>{document.symbols.map((symbol) => {
@@ -788,7 +831,7 @@ function DisplayDesignerStatePanel({
         <header><strong>{binding.name}</strong><span>{binding.kind} · <code>{binding.luaName}</code></span></header>
         <CommitInput label="Binding name" value={binding.name} onCommit={(name) => renameBinding(binding, name)} />
         {binding.kind === 'number' && <>
-          <label className="display-designer-field"><span>Preview value: {binding.previewValue}</span><input aria-label={`${binding.name} preview value`} type="range" min="0" max="1" step="0.01" value={binding.previewValue} onChange={(event) => {
+          <label className="display-designer-field"><span>Preview value: {binding.previewValue}</span><input aria-label={`${binding.name} preview value`} aria-valuetext={`${binding.previewValue}`} type="range" min="0" max="1" step="0.01" value={binding.previewValue} onChange={(event) => {
             const previewValue = Number(event.currentTarget.value)
             onPreviewUpdate(binding.id, (current) => current.kind === 'number' ? { ...current, previewValue } : current)
           }} /></label>
@@ -799,7 +842,7 @@ function DisplayDesignerStatePanel({
             return true
           }} />
         </>}
-        {binding.kind === 'boolean' && <button type="button" role="switch" aria-checked={binding.previewValue} onClick={() => onPreviewUpdate(binding.id, (current) => current.kind === 'boolean' ? { ...current, previewValue: !current.previewValue } : current)}>{binding.previewValue ? 'Preview on' : 'Preview off'}</button>}
+        {binding.kind === 'boolean' && <button type="button" role="switch" aria-label={`${binding.name} boolean preview`} aria-checked={binding.previewValue} onClick={() => onPreviewUpdate(binding.id, (current) => current.kind === 'boolean' ? { ...current, previewValue: !current.previewValue } : current)}>{binding.previewValue ? 'Preview on' : 'Preview off'}</button>}
         {binding.kind === 'text' && <label className="display-designer-field"><span>Preview text</span><input value={binding.previewValue} onChange={(event) => {
           const previewValue = event.currentTarget.value
           if ([...previewValue].length <= DISPLAY_DESIGN_LIMITS.maximumTextCodePoints) onPreviewUpdate(binding.id, (current) => current.kind === 'text' ? { ...current, previewValue } : current)
@@ -852,6 +895,8 @@ function DisplayDesignerReview({
   bindingCount,
   variantCount,
   onFocusFinding,
+  responsive,
+  activePanel,
 }: {
   document: DisplayDesignDocumentV1
   compiled: ReturnType<typeof compileDisplayDesign>
@@ -859,8 +904,12 @@ function DisplayDesignerReview({
   bindingCount: number
   variantCount: number
   onFocusFinding(elementId?: string): void
+  responsive: boolean
+  activePanel: DisplayDesignerPanel
 }) {
   const findings = compiled.findings
+  const errorFindings = findings.filter(({ severity }) => severity === 'error')
+  const warningFindings = findings.filter(({ severity }) => severity === 'warning')
   const [activeSourceLine, setActiveSourceLine] = useState<number>()
   const [copyStatus, setCopyStatus] = useState('')
   const [showCopyFallback, setShowCopyFallback] = useState(false)
@@ -904,13 +953,28 @@ function DisplayDesignerReview({
 
   return (
     <section className="display-designer-review" aria-label="Design review">
-      <section aria-labelledby="display-designer-findings-title">
+      <section
+        className="display-designer-responsive-panel"
+        role={responsive ? 'tabpanel' : undefined}
+        id={responsive ? 'display-designer-panel-findings' : undefined}
+        aria-labelledby={responsive ? 'display-designer-tab-findings' : 'display-designer-findings-title'}
+        hidden={responsive && activePanel !== 'findings'}
+      >
         <h3 id="display-designer-findings-title">Findings <span>{findings.length}</span></h3>
-        {findings.length === 0 ? <p>No design findings.</p> : <ul>{findings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId)}><strong>{finding.severity}</strong> {finding.message}</button></li>)}</ul>}
+        {findings.length === 0 ? <p role="status">No design findings.</p> : <>
+          {errorFindings.length > 0 && <section aria-labelledby="display-designer-errors-title"><h4 id="display-designer-errors-title">Errors ({errorFindings.length})</h4><ul>{errorFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId)}>{finding.message}</button></li>)}</ul></section>}
+          {warningFindings.length > 0 && <section aria-labelledby="display-designer-warnings-title"><h4 id="display-designer-warnings-title">Warnings ({warningFindings.length})</h4><ul>{warningFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId)}>{finding.message}</button></li>)}</ul></section>}
+        </>}
       </section>
-      <section aria-labelledby="display-designer-metrics-title">
+      <section
+        className="display-designer-responsive-panel"
+        role={responsive ? 'tabpanel' : undefined}
+        id={responsive ? 'display-designer-panel-metrics' : undefined}
+        aria-labelledby={responsive ? 'display-designer-tab-metrics' : 'display-designer-metrics-title'}
+        hidden={responsive && activePanel !== 'metrics'}
+      >
         <h3 id="display-designer-metrics-title">Metrics</h3>
-        <dl>
+        <dl aria-describedby="display-designer-metrics-note">
           <div><dt>Primitive elements</dt><dd>{compiled.metrics.elementCount}</dd></div>
           <div><dt>Visible draw calls</dt><dd>{compiled.metrics.drawCallCount}</dd></div>
           <div><dt>Maximum variant draw calls</dt><dd>{compiled.metrics.maximumVariantDrawCallCount}</dd></div>
@@ -919,9 +983,16 @@ function DisplayDesignerReview({
           <div><dt>Bindings</dt><dd>{bindingCount}</dd></div>
           <div><dt>Generated UTF-8</dt><dd>{compiled.metrics.generatedUtf8Bytes} bytes</dd></div>
         </dl>
-        <p>Descriptive only; measure actual performance on Disting NT hardware.</p>
+        <p id="display-designer-metrics-note">Descriptive only; measure actual performance on Disting NT hardware.</p>
       </section>
-      <details className="display-designer-source" open>
+      <details
+        className="display-designer-source display-designer-responsive-panel"
+        open
+        role={responsive ? 'tabpanel' : undefined}
+        id={responsive ? 'display-designer-panel-lua' : undefined}
+        aria-labelledby={responsive ? 'display-designer-tab-lua' : undefined}
+        hidden={responsive && activePanel !== 'lua'}
+      >
         <summary>Generated Lua</summary>
         <div className="display-designer-source-actions">
           <button type="button" disabled={!generated.ok} onClick={copyDrawCallback}>Copy draw callback</button>
@@ -953,7 +1024,7 @@ function initialSavedDocumentText(): string {
   return serialized.ok ? serialized.text : ''
 }
 
-export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) {
+export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportWidth }: Props) {
   const [history, setHistory] = useState(initialHistory)
   const [activeTool, setActiveTool] = useState<DesignerTool>('select')
   const [zoom, setZoom] = useState<DesignerZoom>('fit')
@@ -966,6 +1037,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   const [confirmReplace, setConfirmReplace] = useState(false)
   const [pendingDetachId, setPendingDetachId] = useState<string>()
   const [fileStatus, setFileStatus] = useState('')
+  const [responsivePanel, setResponsivePanel] = useState<DisplayDesignerPanel>('layers')
   const [savedDocumentText, setSavedDocumentText] = useState(initialSavedDocumentText)
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
@@ -975,6 +1047,9 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   const discardRef = useRef<HTMLButtonElement>(null)
   const replaceRef = useRef<HTMLButtonElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const layout = useDisplayDesignerLayout(viewportWidth)
+  const responsive = layout !== 'wide'
+  const effectiveZoom = layout === 'narrow' ? 'fit' : zoom
   const document = gesture?.document ?? history.present.document
   const selection = gesture?.selection ?? history.present.selection
   const selectedId = selection.elementIds[0]
@@ -1275,11 +1350,11 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
 
   const dialog = (
     <div className="display-designer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose() }}>
-      <div ref={dialogRef} className="display-designer-dialog" role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description" onKeyDown={handleKeyDown}>
+      <div ref={dialogRef} className={`display-designer-dialog is-${layout}`} data-layout={layout} role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description display-designer-disclosure" onKeyDown={handleKeyDown}>
         <header className="display-designer-header">
           <div className="display-designer-title"><h2 id="display-designer-title">Display designer</h2><p id="display-designer-description">Browser-only authoring for the 256 × 64 Disting NT display.</p></div>
           <label><span>Display mode</span><select value={document.displayMode} onChange={(event) => commit('Change display mode', setDisplayDesignMode(document, event.currentTarget.value as DisplayDesignDocumentV1['displayMode']))}><option value="parameter-line">Keep standard parameter line</option><option value="full-screen">Use full display</option></select></label>
-          <label><span>Zoom</span><select aria-label="Artboard zoom" value={zoom} onChange={(event) => setZoom(event.currentTarget.value === 'fit' ? 'fit' : Number(event.currentTarget.value) as DesignerZoom)}><option value="fit">Fit</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
+          <label><span>Zoom</span><select aria-label="Artboard zoom" value={effectiveZoom} disabled={layout === 'narrow'} title={layout === 'narrow' ? 'Narrow layouts use Fit zoom' : undefined} onChange={(event) => setZoom(event.currentTarget.value === 'fit' ? 'fit' : Number(event.currentTarget.value) as DesignerZoom)}><option value="fit">Fit</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
           <button type="button" aria-pressed={showGrid} onClick={() => setShowGrid((value) => !value)}>Grid</button>
           <button type="button" aria-pressed={showPixels} onClick={() => setShowPixels((value) => !value)}>Pixels</button>
           <button type="button" aria-pressed={showGeometry} onClick={() => setShowGeometry((value) => !value)}>Geometry</button>
@@ -1305,17 +1380,25 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
           <button type="button" aria-label="Close Display designer" onClick={requestClose}><ControlIcon name="close" size={16} /></button>
         </header>
 
-        <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives">
+        <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
           {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
             setActiveTool(tool.id)
           }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
           {activeTool !== 'select' && <button type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
         </div>
 
+        <p id="display-designer-disclosure" className="display-designer-disclosure" role="note">Browser-only extension: design files and preview controls are not available on Disting NT hardware. Generated Lua uses documented draw calls; smooth rasterization remains an approximate preview.</p>
+
         <main className={`display-designer-workspace${layersCollapsed ? ' layers-collapsed' : ''}${inspectorCollapsed ? ' inspector-collapsed' : ''}`}>
           <aside className="display-designer-sidebar display-designer-sidebar--layers">
             <button type="button" className="display-designer-collapse" aria-expanded={!layersCollapsed} onClick={() => setLayersCollapsed((value) => !value)}>{layersCollapsed ? 'Show layers' : 'Hide layers'}</button>
-            {!layersCollapsed && <DisplayDesignerLayers
+            {(!layersCollapsed || responsive) && <div
+              className="display-designer-responsive-panel"
+              role={responsive ? 'tabpanel' : undefined}
+              id={responsive ? 'display-designer-panel-layers' : undefined}
+              aria-labelledby={responsive ? 'display-designer-tab-layers' : undefined}
+              hidden={responsive && responsivePanel !== 'layers'}
+            ><DisplayDesignerLayers
               document={document}
               selectedIds={selection.elementIds}
               onSelect={selectElement}
@@ -1355,8 +1438,14 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
                 else next.add(groupId)
                 return next
               })}
-            />}
-            {!layersCollapsed && <DisplayDesignerSymbols
+            /></div>}
+            {(!layersCollapsed || responsive) && <div
+              className="display-designer-responsive-panel"
+              role={responsive ? 'tabpanel' : undefined}
+              id={responsive ? 'display-designer-panel-symbols' : undefined}
+              aria-labelledby={responsive ? 'display-designer-tab-symbols' : undefined}
+              hidden={responsive && responsivePanel !== 'symbols'}
+            ><DisplayDesignerSymbols
               document={document}
               selection={selection}
               onCreate={() => {
@@ -1378,7 +1467,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
               onReorderVariant={(symbolId, fromIndex, toIndex) => commit('Reorder symbol state', reorderDisplaySymbolVariant(document, symbolId, fromIndex, toIndex))}
               onDeleteVariant={(symbolId, variantId, replacementVariantId) => commit('Replace and delete symbol state', deleteDisplaySymbolVariant(document, symbolId, variantId, replacementVariantId), { ...createEmptyDisplayDesignSelection(), symbolId, variantId: replacementVariantId, primitiveIds: [] })}
               onDeleteSymbol={(symbolId, choice) => commit(choice === 'detach-instances' ? 'Detach instances and delete symbol' : 'Delete instances and symbol', deleteUsedDisplaySymbol(document, symbolId, choice, idFactory), createEmptyDisplayDesignSelection())}
-            />}
+            /></div>}
           </aside>
 
           <DisplayDesignerArtboard
@@ -1388,7 +1477,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
             selectedElementIds={activeVariant ? selection.primitiveIds : selection.elementIds}
             commandSources={previewCompiled.commandSources}
             activeTool={activeTool}
-            zoom={zoom}
+            zoom={effectiveZoom}
             showGrid={showGrid}
             showPixels={showPixels}
             showGeometry={showGeometry}
@@ -1401,8 +1490,14 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
 
           <aside className="display-designer-sidebar display-designer-sidebar--inspector">
             <button type="button" className="display-designer-collapse" aria-expanded={!inspectorCollapsed} onClick={() => setInspectorCollapsed((value) => !value)}>{inspectorCollapsed ? 'Show properties' : 'Hide properties'}</button>
-            {!inspectorCollapsed && <>
-              <DisplayDesignerInspector
+            {(!inspectorCollapsed || responsive) && <>
+              <div
+                className="display-designer-responsive-panel"
+                role={responsive ? 'tabpanel' : undefined}
+                id={responsive ? 'display-designer-panel-properties' : undefined}
+                aria-labelledby={responsive ? 'display-designer-tab-properties' : undefined}
+                hidden={responsive && responsivePanel !== 'properties'}
+              ><DisplayDesignerInspector
                 element={selectedElement}
                 document={activeVariant ? previewDocument : document}
                 idFactory={idFactory}
@@ -1427,13 +1522,55 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
                   setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: symbol.id, variantId, primitiveIds: [] })
                 }}
                 onDetachInstance={(instance) => setPendingDetachId(instance.id)}
-              />
-              <DisplayDesignerStatePanel document={document} idFactory={idFactory} onCommit={commit} onPreviewUpdate={updateBindingPreview} />
+              /></div>
+              <div
+                className="display-designer-responsive-panel"
+                role={responsive ? 'tabpanel' : undefined}
+                id={responsive ? 'display-designer-panel-state' : undefined}
+                aria-labelledby={responsive ? 'display-designer-tab-state' : undefined}
+                hidden={responsive && responsivePanel !== 'state'}
+              ><DisplayDesignerStatePanel document={document} idFactory={idFactory} onCommit={commit} onPreviewUpdate={updateBindingPreview} /></div>
             </>}
           </aside>
         </main>
 
-        <DisplayDesignerReview document={document} compiled={compiled} generated={generated} bindingCount={document.bindings.length} variantCount={document.symbols.reduce((count, symbol) => count + symbol.variants.length, 0)} onFocusFinding={(elementId) => { if (elementId) selectElement(elementId) }} />
+        {responsive && <div className="display-designer-responsive-tabs" role="tablist" aria-label="Display designer panels">
+          {DISPLAY_DESIGNER_PANELS.map((panel, index) => <button
+            key={panel.id}
+            id={`display-designer-tab-${panel.id}`}
+            type="button"
+            role="tab"
+            aria-selected={responsivePanel === panel.id}
+            aria-controls={`display-designer-panel-${panel.id}`}
+            tabIndex={responsivePanel === panel.id ? 0 : -1}
+            onClick={() => setResponsivePanel(panel.id)}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+              event.preventDefault()
+              const nextIndex = moveDisplayDesignerTab(index, event.key as 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End', DISPLAY_DESIGNER_PANELS.length)
+              const nextPanel = DISPLAY_DESIGNER_PANELS[nextIndex]!
+              setResponsivePanel(nextPanel.id)
+              window.requestAnimationFrame(() => globalThis.document.getElementById(`display-designer-tab-${nextPanel.id}`)?.focus())
+            }}
+          >{panel.label}</button>)}
+          <span className="sr-only" role="status" aria-live="polite">{DISPLAY_DESIGNER_PANELS.find(({ id }) => id === responsivePanel)?.label} panel selected.</span>
+        </div>}
+
+        <DisplayDesignerReview
+          document={document}
+          compiled={compiled}
+          generated={generated}
+          bindingCount={document.bindings.length}
+          variantCount={document.symbols.reduce((count, symbol) => count + symbol.variants.length, 0)}
+          responsive={responsive}
+          activePanel={responsivePanel}
+          onFocusFinding={(elementId) => {
+            if (elementId) {
+              selectElement(elementId)
+              if (responsive) setResponsivePanel('properties')
+            }
+          }}
+        />
 
         {pendingDetachId && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-detach-title"><h3 id="display-designer-detach-title">Detach symbol instance?</h3><p>Only the current preview state will remain as ordinary layers. Reuse and alternate states will be lost for this instance.</p><div><button type="button" onClick={() => setPendingDetachId(undefined)}>Cancel</button><button type="button" onClick={() => { const next = detachDisplaySymbolInstance(document, pendingDetachId, idFactory); setPendingDetachId(undefined); commit('Detach symbol instance', next, createEmptyDisplayDesignSelection()) }}>Detach instance</button></div></section></div>}
 

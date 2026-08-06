@@ -303,6 +303,33 @@ context, state editing, literal/dynamic instance controls, explicit detach,
 destructive confirmation, and undo across scene/symbol contexts; it does not
 prove live Canvas layout, pointer capture, or assistive-technology behavior.
 
+Display-design file tests pin canonical key ordering and bytes, the trailing
+newline, round trips, version/size/type rejection, unsafe file-name repair, and
+defensive parsing without partial documents. jsdom covers read and parse
+failure without scene replacement, discard-before-open confirmation,
+collision-safe editing after open, Blob download dispatch and failure, exact
+clipboard writes, clipboard rejection, and the selected manual-copy fallback.
+These tests do not exercise a native file picker, download shelf, clipboard
+permission prompt, or durable storage because design files are explicit
+browser handoffs rather than project persistence.
+
+The pure display-designer layout model pins the 900/720 CSS-pixel boundaries,
+stable lower-panel order, and wrapping Home/End/arrow tab navigation. Server
+rendering covers wide, medium, and narrow branches, linked roving tabs and
+panels, narrow Fit zoom, persistent browser-extension/smoothing disclosure,
+non-colour pressed/finding states, live status semantics, coarse-pointer target
+rules, and reduced-motion CSS. jsdom operates responsive and symbol-state tab
+keyboards and checks accessible labels/states for sliders, switches, shade
+swatches, findings, metrics, and announcements.
+
+CSS assertions and jsdom do not prove actual reflow, hit-target dimensions,
+horizontal overflow, browser zoom, text enlargement, virtual-keyboard effects,
+screen-reader output, or reduced-motion preference application. Live display-
+designer acceptance therefore records wide desktop, 721-900 px, no-more-than-
+720 px, coarse pointer, keyboard-only, reduced motion, browser zoom, and the
+largest supported text-size preference. An unavailable browser backend is
+reported explicitly rather than treated as a passing cell.
+
 These tests do not run browser effects, CSS layout, pointer capture, focus
 movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
 screen reader. User-interface changes need the applicable live browser checks

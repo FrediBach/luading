@@ -61,6 +61,9 @@ flowchart LR
   Simulation -->|WorkerResponse| Main
   Main --> Display[Canvas display and scope]
   Main --> BrowserIO[Web Audio and Web MIDI]
+  Main --> Designer[Display designer draft, compiler, and history]
+  Designer --> DesignFiles[Explicit JSON open and download]
+  Designer --> Clipboard[Generated Lua clipboard handoff]
   MonacoWorker[Monaco editor worker] --> Monaco
 ```
 
@@ -91,6 +94,7 @@ pure and do not communicate with the simulation worker.
 | Web Audio and Web MIDI routing | Main thread | Never serialized into the Lua contract; browser port identities never enter the worker |
 | Saved `self.state` | Produced by the worker, held by the coordinator | Kept in memory for a subsequent load; not browser-persisted |
 | Layout, density, responsive mode, theme, and editor text size | Main thread | Best-effort `localStorage`; storage failures fall back to defaults |
+| Open display design, selection, preview values, responsive panel, and undo history | Main-thread `DisplayDesignerDialog` | Retained only for the mounted workbench session unless the user explicitly downloads a `.luading-display.json` file; never mirrored to a worker, project record, recovery journal, or Lua state |
 | Syntax/static diagnostics and source index | Validation worker result | Accepted only for the current source version |
 | Contract diagnostics | Simulation worker during load | Cleared on source changes and replaced by the next load result |
 | Runtime diagnostics and console events | Simulation worker, accumulated by the coordinator | Bounded or deduplicated for display; never treated as source-version-independent proof |
@@ -161,6 +165,33 @@ newer source. `BroadcastChannel`, when available, provides early notification
 but is not the correctness boundary. If IndexedDB fails, an explicit in-memory
 store keeps the workbench usable and the journal protects only the active
 source when possible; the UI does not label that state as saved locally.
+
+### Display-design authoring and file handoff
+
+The display designer is an independent main-thread authoring flow. Its React
+dialog owns the normalized design document, semantic undo history, selection,
+pointer gesture preview, responsive panel state, preview binding values, and
+downloaded-revision marker. Pure modules below the dialog validate the
+document, transform geometry, expand symbols, compile ordinary draw commands,
+calculate descriptive metrics, and generate deterministic Lua. The existing
+main-thread display renderer rasterizes the compiled commands; neither the
+designer document nor its UI state crosses the simulation-worker protocol.
+
+Opening a design first validates browser file metadata, reads and defensively
+parses the versioned JSON, and produces canonical serialized bytes. Only a
+fully accepted document replaces the current draft and receives a fresh
+history/ID allocator. Download creates an explicit browser Blob and marks only
+the dispatched canonical revision as downloaded. These files do not enter the
+project database, backup schema, recovery journal, active Monaco model, or Lua
+runtime.
+
+Generated Lua is a one-way clipboard handoff. A successful copy contains the
+exact source preview; clipboard denial exposes the same source in a selected
+manual-copy field. Copying never edits or runs the active script. Responsive
+layout is presentation-only: wide mode exposes stable side columns, medium and
+narrow modes keep the artboard visible while a linked tab list selects one
+lower authoring panel, and narrow mode forces CSS Fit zoom without changing the
+logical 256x64 document.
 
 ### Script load and replacement
 

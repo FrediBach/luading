@@ -812,14 +812,42 @@ as the simulator; **Geometry** adds authoring guides and handles, and **Grid**
 adds logical-pixel chrome. Smooth pixels remain an approximation of firmware
 antialiasing and appear with a finding whenever used.
 
+Above 900 CSS pixels, Layers/Symbols and Properties/State remain in independent
+side columns. From 721 through 900 pixels, and at 720 pixels or below, the
+artboard stays visible while a lower tab strip provides Layers, Symbols,
+Properties, State, Findings, Metrics, and Lua one panel at a time. Narrow mode
+fills the viewport and locks the artboard to **Fit**; the underlying design is
+still exactly 256×64. The primitive toolbar and lower tabs scroll horizontally
+when needed. Their active states use text/borders as well as colour, arrow keys
+wrap between tabs, and Home/End move to the first/last tab. Coarse-pointer
+layouts enlarge controls and handles, and reduced-motion preferences remove
+nonessential transition/animation timing.
+
 **Keep standard parameter line** reserves rows 0–9 and previews the shared
 standard-line command layout. **Use full display** exposes all 64 rows and adds
 `return true` to the generated callback. Findings describe clipping, reserved
 rows, empty text, shade-zero overdraw, and smoothing uncertainty. Metrics are
 descriptive counts and source bytes, never Disting CPU or safety claims. The
-generated Lua panel is a preview only in this increment: it does not copy,
-insert, or run source. Closing a changed design requires explicit discard
-confirmation, and focus returns to the command-bar trigger.
+dialog persistently labels the design files and preview controls as a browser-
+only extension: Disting NT receives only the generated ordinary draw calls.
+
+Use **Open design** to choose a versioned `.luading-display.json` authoring
+file. Type, size, version, and document validation complete before the current
+draft is replaced; a failed read or invalid file keeps the draft unchanged.
+Use **Download design** for a deterministic JSON file with a safe name. A
+dispatched download marks that exact revision as downloaded, while later edits
+become changed again. Open/download never changes the active script, local
+project, recovery journal, simulation, or diagnostics, and a downloaded design
+is not a format that Disting hardware can load.
+
+**Copy draw callback** copies exactly the generated source shown in the Lua
+panel. If browser clipboard access is unavailable or denied, the designer
+opens a focused, selected read-only source field for manual copying. Copying
+does not insert, replace, or run editor source. Closing or replacing a changed,
+nonempty draft requires explicit discard confirmation, and closing returns
+focus to the command-bar trigger. The draft may remain in memory while the
+workbench stays mounted, but only an explicit downloaded design file is durable
+across page reloads.
 
 ## Importing and exporting scripts
 

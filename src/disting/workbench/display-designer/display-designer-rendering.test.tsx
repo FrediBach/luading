@@ -44,4 +44,39 @@ describe('Display designer rendering', () => {
     expect(designerCss).toMatch(/@media \(max-width: 720px\)/)
     expect(designerCss).toMatch(/height: 100dvh/)
   })
+
+  it('server-renders linked, roving panel tabs for medium and narrow layouts', () => {
+    const medium = renderToStaticMarkup(
+      <DisplayDesignerDialog open viewportWidth={800} returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />,
+    )
+    expect(medium).toContain('class="display-designer-dialog is-medium"')
+    expect(medium).toContain('role="tablist" aria-label="Display designer panels"')
+    expect(medium).toContain('id="display-designer-tab-layers"')
+    expect(medium).toContain('aria-selected="true" aria-controls="display-designer-panel-layers" tabindex="0"')
+    expect(medium).toContain('id="display-designer-tab-symbols"')
+    expect(medium).toContain('aria-selected="false" aria-controls="display-designer-panel-symbols" tabindex="-1"')
+    expect(medium).toContain('role="tabpanel" id="display-designer-panel-layers" aria-labelledby="display-designer-tab-layers"')
+    expect(medium).toContain('id="display-designer-panel-properties" aria-labelledby="display-designer-tab-properties" hidden=""')
+
+    const narrow = renderToStaticMarkup(
+      <DisplayDesignerDialog open viewportWidth={720} returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />,
+    )
+    expect(narrow).toContain('class="display-designer-dialog is-narrow"')
+    expect(narrow).toContain('aria-label="Artboard zoom" disabled="" title="Narrow layouts use Fit zoom"')
+    expect(narrow).toContain('data-zoom="fit"')
+  })
+
+  it('exposes non-colour states, disclosures, announcements, touch targets, and reduced motion', () => {
+    const markup = renderToStaticMarkup(
+      <DisplayDesignerDialog open returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />,
+    )
+    expect(markup).toContain('role="note"')
+    expect(markup).toContain('Browser-only extension')
+    expect(markup).toContain('smooth rasterization remains an approximate preview')
+    expect(markup).toContain('role="status" aria-live="polite" aria-atomic="true"')
+    expect(markup).toContain('aria-pressed="true"')
+    expect(designerCss).toMatch(/@media \(pointer: coarse\)[\s\S]*?min-height: 44px/)
+    expect(designerCss).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation-duration: 0\.01ms !important/)
+    expect(designerCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?grid-template-rows: auto auto auto minmax\(190px, 1fr\) auto minmax\(180px, 35%\)/)
+  })
 })
