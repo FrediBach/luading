@@ -196,6 +196,7 @@ describe('Display designer dialog', () => {
     await click(trigger)
 
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
+    expect(document.querySelector('.display-designer-backdrop')?.parentElement).toBe(container)
     expect(document.body.style.overflow).toBe('hidden')
     await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
     expect(document.activeElement).toBe(button('Select'))

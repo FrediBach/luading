@@ -1582,5 +1582,6 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   )
 
   if (typeof globalThis.document === 'undefined') return dialog
-  return createPortal(dialog, globalThis.document.body)
+  const portalHost = returnFocusRef.current?.closest('.disting-app') ?? globalThis.document.body
+  return createPortal(dialog, portalHost)
 }

@@ -159,7 +159,7 @@
   overflow-wrap: anywhere;
   border-bottom: 1px solid var(--nt-line);
   color: var(--nt-muted);
-  background: color-mix(in srgb, var(--warning, #f6b73c) 5%, var(--workbench-surface-panel));
+  background: color-mix(in srgb, var(--signal-warning) 5%, var(--workbench-surface-panel));
   font-size: var(--font-micro);
   line-height: 1.35;
 }
@@ -320,10 +320,10 @@
 .display-designer-breadcrumb,
 .display-designer-symbol-actions,
 .display-designer-variant-tabs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.display-designer-variant-tabs button[aria-selected='true'] { border-color: var(--accent); color: var(--nt-text); }
+.display-designer-variant-tabs button[aria-selected='true'] { border-color: var(--nt-green); color: var(--nt-text); }
 .display-designer-symbol-row > button:first-child { display: grid; gap: 2px; width: 100%; text-align: left; }
 .display-designer-symbol-row small { color: var(--nt-muted); }
-.display-designer-inline-confirm { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border: 1px solid var(--warning, #f6b73c); border-radius: 4px; }
+.display-designer-inline-confirm { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border: 1px solid var(--signal-warning); border-radius: 4px; }
 .display-designer-inline-confirm p { flex-basis: 100%; margin: 0; }
 .display-designer-origin-marker { fill: none; stroke: #ffbe55; stroke-width: 0.6; vector-effect: non-scaling-stroke; }
 
@@ -409,8 +409,8 @@
 }
 
 .display-designer-reserved-rows {
-  fill: color-mix(in srgb, var(--warning, #f6b73c) 18%, transparent);
-  stroke: color-mix(in srgb, var(--warning, #f6b73c) 72%, transparent);
+  fill: color-mix(in srgb, var(--signal-warning) 18%, transparent);
+  stroke: color-mix(in srgb, var(--signal-warning) 72%, transparent);
   stroke-width: 0.35;
 }
 
@@ -481,7 +481,7 @@
 .display-designer-state-binding details li { color: var(--nt-muted); font-size: var(--font-micro); }
 .display-designer-state-binding details ul { margin: 4px 0 0; padding-left: 18px; }
 .display-designer-choice-list li { padding: 6px; display: grid; gap: 4px; border-left: 2px solid var(--nt-line); }
-.display-designer-binding-delete { padding: 7px; border: 1px solid var(--error); border-radius: 5px; }
+.display-designer-binding-delete { padding: 7px; border: 1px solid var(--signal-error); border-radius: 5px; }
 .display-designer-binding-delete p { margin: 0 0 6px; color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.4; }
 .display-designer-binding-delete > div { display: flex; flex-wrap: wrap; gap: 4px; }
 
@@ -541,8 +541,8 @@
 
 .display-designer-review ul { margin: 8px 0 0; padding: 0; display: grid; gap: 5px; list-style: none; }
 .display-designer-review li button { width: 100%; height: auto; text-align: left; }
-.display-designer-review li[data-severity='error'] button { border-left: 3px solid var(--error); }
-.display-designer-review li[data-severity='warning'] button { border-left: 3px solid var(--warning, #f6b73c); }
+.display-designer-review li[data-severity='error'] button { border-left: 3px solid var(--signal-error); }
+.display-designer-review li[data-severity='warning'] button { border-left: 3px solid var(--signal-warning); }
 .display-designer-review dl { margin: 8px 0; display: grid; gap: 4px; }
 .display-designer-review dl div { display: flex; justify-content: space-between; gap: 10px; }
 .display-designer-review dd { margin: 0; color: var(--nt-text); }
@@ -556,7 +556,7 @@
 .display-designer-source-navigation { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .display-designer-source-navigation button { min-height: 25px; font-size: var(--font-micro); }
 .display-designer-source .lua-source-preview-line { display: block; min-height: 1lh; }
-.display-designer-source .lua-source-preview-line[aria-current='true'] { background: color-mix(in srgb, var(--accent) 22%, transparent); outline: 1px solid var(--accent); }
+.display-designer-source .lua-source-preview-line[aria-current='true'] { background: color-mix(in srgb, var(--nt-green) 22%, transparent); outline: 1px solid var(--nt-green); }
 
 .display-designer-confirm-shell {
   position: absolute;
@@ -579,7 +579,7 @@
 
 .display-designer-confirm-shell p { margin-top: 8px; color: var(--nt-muted); font-size: var(--font-label); }
 .display-designer-confirm-shell section > div { margin-top: 16px; display: flex; justify-content: flex-end; gap: 7px; }
-.display-designer-confirm-shell button.is-danger { border-color: var(--error); color: var(--error); }
+.display-designer-confirm-shell button.is-danger { border-color: var(--signal-error); color: var(--signal-error); }
 
 @media (max-width: 900px) {
   .display-designer-backdrop { padding: 0; }

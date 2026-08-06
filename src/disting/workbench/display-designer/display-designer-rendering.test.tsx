@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest'
 import { DisplayDesignerDialog } from './DisplayDesignerDialog'
 
 const designerCss = readFileSync(new URL('./display-designer.css', import.meta.url), 'utf8')
+const distingCss = readFileSync(new URL('../../DistingPlayground.css', import.meta.url), 'utf8')
+const workbenchCss = readFileSync(new URL('../workbench.css', import.meta.url), 'utf8')
+const rootCss = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8')
 
 describe('Display designer rendering', () => {
   it('renders a labelled full-size authoring dialog with every static primitive path', () => {
@@ -78,5 +81,17 @@ describe('Display designer rendering', () => {
     expect(designerCss).toMatch(/@media \(pointer: coarse\)[\s\S]*?min-height: 44px/)
     expect(designerCss).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation-duration: 0\.01ms !important/)
     expect(designerCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?grid-template-rows: auto auto auto minmax\(190px, 1fr\) auto minmax\(180px, 35%\)/)
+  })
+
+  it('references only variables declared by the inherited app theme or the designer itself', () => {
+    const references = new Set([...designerCss.matchAll(/var\((--[A-Za-z0-9_-]+)/g)].map((match) => match[1]))
+    const declarations = new Set(
+      [...`${rootCss}\n${distingCss}\n${workbenchCss}\n${designerCss}`.matchAll(/(--[A-Za-z0-9_-]+)\s*:/g)]
+        .map((match) => match[1]),
+    )
+    // Each shade button sets this custom property through its React style.
+    declarations.add('--shade')
+
+    expect([...references].filter((variable) => !declarations.has(variable))).toEqual([])
   })
 })
