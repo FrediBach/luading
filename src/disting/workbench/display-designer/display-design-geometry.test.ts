@@ -28,7 +28,7 @@ import {
 const literal = (value: number) => ({ kind: 'literal' as const, value })
 
 describe('display design geometry', () => {
-  it.each([2, 3, 4])('round trips logical coordinates through %s× CSS bounds', (zoom) => {
+  it.each([1, 2, 3, 4])('round trips logical coordinates through %s× CSS bounds', (zoom) => {
     const rect = { left: 17.25, top: 30.5, width: 256 * zoom, height: 64 * zoom }
     const logical = { x: 83.5, y: 12.25 }
     expect(clientToLogical(logicalToClient(logical, rect), rect)).toEqual(logical)

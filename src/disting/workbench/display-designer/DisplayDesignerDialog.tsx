@@ -123,7 +123,7 @@ interface Props {
 }
 
 type DesignerTool = 'select' | DisplayPrimitivePreset
-type DesignerZoom = 'fit' | 2 | 3 | 4
+type DesignerZoom = 'fit' | 1 | 2 | 3 | 4
 type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
 type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
 
@@ -1554,7 +1554,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         <header className="display-designer-header">
           <div className="display-designer-title"><h2 id="display-designer-title">Display designer</h2><p id="display-designer-description">Browser-only authoring for the 256 × 64 Disting NT display.</p></div>
           <label><span>Display mode</span><select value={document.displayMode} onChange={(event) => commit('Change display mode', setDisplayDesignMode(document, event.currentTarget.value as DisplayDesignDocumentV1['displayMode']))}><option value="parameter-line">Keep standard parameter line</option><option value="full-screen">Use full display</option></select></label>
-          <label><span>Zoom</span><select aria-label="Artboard zoom" value={effectiveZoom} disabled={layout === 'narrow'} title={layout === 'narrow' ? 'Narrow layouts use Fit zoom' : undefined} onChange={(event) => setZoom(event.currentTarget.value === 'fit' ? 'fit' : Number(event.currentTarget.value) as DesignerZoom)}><option value="fit">Fit</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
+          <label><span>Zoom</span><select aria-label="Artboard zoom" value={effectiveZoom} disabled={layout === 'narrow'} title={layout === 'narrow' ? 'Narrow layouts use Fit zoom' : undefined} onChange={(event) => setZoom(event.currentTarget.value === 'fit' ? 'fit' : Number(event.currentTarget.value) as DesignerZoom)}><option value="fit">Fit</option><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
           <button type="button" aria-pressed={showGrid} onClick={() => setShowGrid((value) => !value)}>Grid</button>
           <button type="button" aria-pressed={showPixels} onClick={() => setShowPixels((value) => !value)}>Pixels</button>
           <button type="button" aria-pressed={showGeometry} onClick={() => setShowGeometry((value) => !value)}>Geometry</button>

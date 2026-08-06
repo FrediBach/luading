@@ -814,7 +814,7 @@ and every helper branch expands to ordinary documented draw calls. Unused
 definitions are omitted with a finding. Current and largest-state draw-call
 metrics remain descriptive authoring counts.
 
-The artboard always remains 256×64 logically while **Fit**, 2×, 3×, and 4×
+The artboard always remains 256×64 logically while **Fit**, 1×, 2×, 3×, and 4×
 only change its CSS size. Pointer hit targets are enlarged in screen space while
 committed coordinates use integer snapping, or half-pixel snapping for smooth
 primitives. Pointer creation and manipulation stay below row 10 in parameter-

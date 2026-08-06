@@ -259,6 +259,11 @@ describe('Display designer dialog', () => {
     await click(button('Geometry'))
     expect(document.querySelector('[aria-label="Display designer geometry overlay"]')).not.toBeNull()
     expect(document.querySelector('.display-designer-selection-geometry')).toBeNull()
+    await choose(document.querySelector<HTMLSelectElement>('[aria-label="Artboard zoom"]')!, '1')
+    expect(document.querySelector<HTMLElement>('.display-designer-artboard')).toMatchObject({
+      dataset: { zoom: '1' },
+      style: { width: '256px' },
+    })
     await choose(document.querySelector<HTMLSelectElement>('[aria-label="Artboard zoom"]')!, '3')
     expect(document.querySelector<HTMLElement>('.display-designer-artboard')?.dataset.zoom).toBe('3')
   })
