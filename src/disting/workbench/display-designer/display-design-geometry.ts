@@ -147,6 +147,32 @@ export function displaySelectionBounds(
   }
 }
 
+export function displayAreaBounds(start: DisplayDesignPoint, end: DisplayDesignPoint): DisplayDesignBounds {
+  return {
+    left: Math.min(start.x, end.x),
+    top: Math.min(start.y, end.y),
+    right: Math.max(start.x, end.x),
+    bottom: Math.max(start.y, end.y),
+  }
+}
+
+export function displayElementsWithinArea(
+  document: DisplayDesignDocumentV1,
+  start: DisplayDesignPoint,
+  end: DisplayDesignPoint,
+): string[] {
+  const area = displayAreaBounds(start, end)
+  return document.elements
+    .filter((element) => {
+      const bounds = displayElementBounds(element, document)
+      return bounds.left >= area.left
+        && bounds.top >= area.top
+        && bounds.right <= area.right
+        && bounds.bottom <= area.bottom
+    })
+    .map(({ id }) => id)
+}
+
 export function displayElementHandles(element: DisplayDesignElement, document?: DisplayDesignDocumentV1): Array<{ id: DisplayDesignHandle; point: DisplayDesignPoint }> {
   const scalar = (value: DisplayScalar) => resolvedScalar(value, document)
   if (element.kind === 'line') return [

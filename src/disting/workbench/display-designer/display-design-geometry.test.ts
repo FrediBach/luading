@@ -5,8 +5,10 @@ import {
   constrainDisplayCreationPoint,
   constrainDisplayPointerTranslation,
   createDisplayPrimitiveFromGesture,
+  displayAreaBounds,
   displayElementBounds,
   displayElementHitTest,
+  displayElementsWithinArea,
   displaySelectionBounds,
   distributeDisplayElements,
   logicalToClient,
@@ -75,6 +77,19 @@ describe('display design geometry', () => {
     expect(displayElementHitTest(box, { x: 20, y: 14.4 }, 1)).toBe(true)
     expect(displayElementHitTest(box, { x: 20, y: 20 }, 1)).toBe(false)
     expect(displayElementHitTest(circle, { x: 57.8, y: 30 }, 1)).toBe(true)
+  })
+
+  it('finds layers fully enclosed by a drag area in either direction', () => {
+    const ids = createSequentialDisplayDesignIdFactory('area')
+    const first = { ...createDefaultDisplayPrimitive('filled-box', ids), x1: literal(10), y1: literal(10), x2: literal(30), y2: literal(20) }
+    const second = { ...createDefaultDisplayPrimitive('filled-box', ids), x1: literal(40), y1: literal(15), x2: literal(60), y2: literal(25) }
+    let document = addDisplayDesignElement(createEmptyDisplayDesign(), first)
+    document = addDisplayDesignElement(document, second)
+
+    expect(displayAreaBounds({ x: 35, y: 30 }, { x: 5, y: 5 })).toEqual({ left: 5, top: 5, right: 35, bottom: 30 })
+    expect(displayElementsWithinArea(document, { x: 35, y: 30 }, { x: 5, y: 5 })).toEqual([first.id])
+    expect(displayElementsWithinArea(document, { x: 5, y: 5 }, { x: 50, y: 30 })).toEqual([first.id])
+    expect(displayElementsWithinArea(document, { x: 65, y: 30 }, { x: 5, y: 5 })).toEqual([first.id, second.id])
   })
 
   it('moves off canvas and resizes element-specific handles without clamping', () => {

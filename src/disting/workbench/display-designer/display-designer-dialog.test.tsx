@@ -426,6 +426,48 @@ describe('Display designer dialog', () => {
     expect(document.body.textContent).not.toContain('Meter copy2 layers')
   })
 
+  it('selects enclosed layers with a reversible, additive drag area', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    const artboard = prepareArtboard()
+
+    await click(button('Filled box'))
+    await pointer(artboard, 'pointerdown', 20, 24)
+    await pointer(artboard, 'pointermove', 60, 40)
+    await pointer(artboard, 'pointerup', 60, 40)
+    await pointer(artboard, 'pointerdown', 200, 80)
+    await pointer(artboard, 'pointermove', 240, 100)
+    await pointer(artboard, 'pointerup', 240, 100)
+    await click(button('Select'))
+    const filledBoxLayers = () => [...document.querySelectorAll<HTMLButtonElement>('.display-designer-layer-select')]
+      .filter((candidate) => candidate.querySelector('span')?.textContent === 'Filled box')
+
+    await pointer(artboard, 'pointerdown', 4, 4)
+    await pointer(artboard, 'pointermove', 80, 50)
+    expect(document.querySelector('.display-designer-marquee')).not.toBeNull()
+    expect(filledBoxLayers().map((candidate) => candidate.getAttribute('aria-pressed'))).toEqual(['false', 'true'])
+    await pointer(artboard, 'pointerup', 80, 50)
+    expect(document.querySelector('.display-designer-marquee')).toBeNull()
+    expect(document.body.textContent).toContain('1 selected')
+
+    await pointer(artboard, 'pointerdown', 180, 70, { shiftKey: true })
+    await pointer(artboard, 'pointermove', 250, 110, { shiftKey: true })
+    await pointer(artboard, 'pointerup', 250, 110, { shiftKey: true })
+    expect(document.body.textContent).toContain('2 selected')
+
+    await pointer(artboard, 'pointerdown', 260, 115)
+    await pointer(artboard, 'pointermove', 180, 70)
+    await pointer(artboard, 'pointerup', 180, 70)
+    expect(document.body.textContent).toContain('1 selected')
+    expect(filledBoxLayers().map((candidate) => candidate.getAttribute('aria-pressed'))).toEqual(['true', 'false'])
+
+    await pointer(artboard, 'pointerdown', 4, 4)
+    await pointer(artboard, 'pointermove', 80, 50)
+    expect(filledBoxLayers().map((candidate) => candidate.getAttribute('aria-pressed'))).toEqual(['false', 'true'])
+    await pointer(artboard, 'pointercancel', 80, 50)
+    expect(filledBoxLayers().map((candidate) => candidate.getAttribute('aria-pressed'))).toEqual(['true', 'false'])
+  })
+
   it('supports multi-layer alignment, distribution, ordering, nudge, duplicate, delete, and keyboard history', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))

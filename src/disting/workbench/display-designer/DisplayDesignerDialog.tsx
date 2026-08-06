@@ -44,7 +44,9 @@ import {
   constrainDisplayCreationPoint,
   constrainDisplayPointerTranslation,
   createDisplayPrimitiveFromGesture,
+  displayAreaBounds,
   displayElementHandles,
+  displayElementsWithinArea,
   distributeDisplayElements,
   hitTestDisplayElements,
   reorderDisplayDesignSelection,
@@ -81,6 +83,7 @@ import {
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
   selectDisplayDesignElements,
+  selectDisplayDesignVariantPrimitives,
   setDisplayDesignMode,
   updateDisplayDesignBinding,
   updateDisplayDesignElement,
@@ -141,12 +144,15 @@ function useDisplayDesignerLayout(viewportWidth?: number): DisplayDesignerLayout
 }
 
 interface DisplayDesignerGesture {
-  kind: 'create' | 'move' | 'resize'
+  kind: 'create' | 'move' | 'resize' | 'marquee'
   pointerId: number
   start: DisplayDesignPoint
   baseDocument: DisplayDesignDocumentV1
   document: DisplayDesignDocumentV1
   selection: DisplayDesignSelection
+  baseSelection?: DisplayDesignSelection
+  end?: DisplayDesignPoint
+  selectionMode?: 'replace' | 'add'
   elementId?: string
   handle?: DisplayDesignHandle
   preset?: DisplayPrimitivePreset
@@ -408,6 +414,7 @@ function DisplayDesignerArtboard({
   showPixels,
   showGeometry,
   showOriginMarker,
+  selectionArea,
   onPointerStart,
   onPointerMove,
   onPointerEnd,
@@ -424,6 +431,7 @@ function DisplayDesignerArtboard({
   showPixels: boolean
   showGeometry: boolean
   showOriginMarker?: boolean
+  selectionArea?: { start: DisplayDesignPoint; end: DisplayDesignPoint }
   onPointerStart(input: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }): void
   onPointerMove(point: DisplayDesignPoint, pointerId: number): void
   onPointerEnd(pointerId: number): void
@@ -494,6 +502,16 @@ function DisplayDesignerArtboard({
           <svg viewBox="0 0 256 64" aria-label="Display designer geometry overlay">
             {showGeometry && displayMode === 'parameter-line' && <rect className="display-designer-reserved-rows" x="0" y="0" width="256" height="10" />}
             {showGeometry && showOriginMarker && <g className="display-designer-origin-marker" aria-label="Symbol origin"><line x1="-4" y1="0" x2="4" y2="0" /><line x1="0" y1="-4" x2="0" y2="4" /><circle cx="0" cy="0" r="2" /></g>}
+            {selectionArea && (() => {
+              const bounds = displayAreaBounds(selectionArea.start, selectionArea.end)
+              return <rect
+                className="display-designer-marquee"
+                x={bounds.left}
+                y={bounds.top}
+                width={bounds.right - bounds.left}
+                height={bounds.bottom - bounds.top}
+              />
+            })()}
             {showGeometry && selectedElements.map((element) => {
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
@@ -518,7 +536,7 @@ function DisplayDesignerArtboard({
       <p className="display-designer-stage-status" role="status" aria-live="polite" aria-atomic="true">
         {selectedElements.length > 0
           ? `${selectedElements.length} selected: ${selectedElements.map(({ name }) => name).join(', ')}.`
-          : activeTool === 'select' ? 'Select a layer or drag a primitive on the artboard.' : `Drag to create ${TOOLS.find(({ id }) => id === activeTool)?.label}.`}
+          : activeTool === 'select' ? 'Select a layer, or drag over empty artboard space to select an area.' : `Drag to create ${TOOLS.find(({ id }) => id === activeTool)?.label}.`}
       </p>
     </section>
   )
@@ -1275,8 +1293,31 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
 
   const beginPointerGesture = ({ point, pointerId, elementId, handle, shiftKey }: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }) => {
     if (activeSymbol && activeVariant) {
-      if (activeTool !== 'select' || !elementId) return
-      setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: activeSymbol.id, variantId: activeVariant.id, primitiveIds: [elementId] })
+      if (activeTool !== 'select') return
+      if (!elementId) {
+        const baseSelection = selection
+        const nextSelection = selectDisplayDesignVariantPrimitives(
+          document,
+          activeSymbol.id,
+          activeVariant.id,
+          [],
+          shiftKey ? 'add' : 'replace',
+          baseSelection,
+        )
+        updateGesture({
+          kind: 'marquee', pointerId, start: point, end: point, baseDocument: document, document,
+          baseSelection, selection: nextSelection, selectionMode: shiftKey ? 'add' : 'replace',
+        })
+        return
+      }
+      setSelection(selectDisplayDesignVariantPrimitives(
+        document,
+        activeSymbol.id,
+        activeVariant.id,
+        [elementId],
+        shiftKey ? 'toggle' : 'replace',
+        selection,
+      ))
       return
     }
     if (activeTool !== 'select') {
@@ -1290,7 +1331,12 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       return
     }
     if (!elementId) {
-      setSelection(createEmptyDisplayDesignSelection())
+      const baseSelection = selection
+      const nextSelection = selectDisplayDesignElements(document, baseSelection, [], shiftKey ? 'add' : 'replace')
+      updateGesture({
+        kind: 'marquee', pointerId, start: point, end: point, baseDocument: document, document,
+        baseSelection, selection: nextSelection, selectionMode: shiftKey ? 'add' : 'replace',
+      })
       return
     }
     const nextSelection = selectDisplayDesignElements(document, selection, [elementId], shiftKey ? 'toggle' : selection.elementIds.includes(elementId) ? 'add' : 'replace')
@@ -1322,6 +1368,25 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       const smooth = element ? (element.kind === 'line' || element.kind === 'circle') && element.smooth : false
       const constrained = constrainDisplayCreationPoint(point, current.baseDocument.displayMode, smooth)
       nextDocument = updateDisplayDesignElement(current.baseDocument, current.elementId, (currentElement) => resizeDisplayElement(currentElement, current.handle!, constrained))
+    } else if (current.kind === 'marquee' && current.baseSelection && current.selectionMode) {
+      const elementIds = displayElementsWithinArea(previewDocument, current.start, point)
+      const nextSelection = activeSymbol && activeVariant
+        ? selectDisplayDesignVariantPrimitives(
+            current.baseDocument,
+            activeSymbol.id,
+            activeVariant.id,
+            elementIds,
+            current.selectionMode,
+            current.baseSelection,
+          )
+        : selectDisplayDesignElements(
+            current.baseDocument,
+            current.baseSelection,
+            elementIds,
+            current.selectionMode,
+          )
+      updateGesture({ ...current, document: nextDocument, selection: nextSelection, end: point })
+      return
     }
     updateGesture({ ...current, document: nextDocument })
   }
@@ -1330,6 +1395,10 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     const current = gestureRef.current
     if (!current || current.pointerId !== pointerId) return
     updateGesture(null)
+    if (current.kind === 'marquee') {
+      setSelection(current.selection)
+      return
+    }
     const label = current.kind === 'create' ? `Add ${current.preset}` : current.kind === 'move' ? 'Move selection' : 'Resize layer'
     commit(label, current.document, current.selection)
     if (current.kind === 'create' && current.preset?.includes('text')) {
@@ -1613,6 +1682,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
             showPixels={showPixels}
             showGeometry={showGeometry}
             showOriginMarker={Boolean(activeVariant)}
+            selectionArea={gesture?.kind === 'marquee' && gesture.end ? { start: gesture.start, end: gesture.end } : undefined}
             onPointerStart={beginPointerGesture}
             onPointerMove={movePointerGesture}
             onPointerEnd={finishPointerGesture}

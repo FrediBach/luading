@@ -751,7 +751,10 @@ remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
 
 Layers are shown front-to-back. Select on the artboard or in Layers, and use
-Shift to build a multi-selection. Selected artwork can be dragged, nudged by
+Shift to build a multi-selection. With the Select tool, drag from empty
+artboard space to select every layer fully enclosed by the area; drag in either
+direction, or hold Shift to add the enclosed layers to the current selection.
+Selected artwork can be dragged, nudged by
 one pixel with the arrow keys or five with Shift+arrow, resized through
 element-specific handles, aligned, distributed, duplicated, deleted, or moved
 through draw order. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo complete
