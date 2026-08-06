@@ -13,14 +13,13 @@ export function DisplayDesignerLauncher() {
         <button
           ref={triggerRef}
           type="button"
-          className="commandbar-icon-command display-designer-command"
+          className="commandbar-icon-command"
           aria-label="Open Display designer"
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => setOpen(true)}
         >
-          <ControlIcon name="monitor" size={14} />
-          <span>Display designer</span>
+          <ControlIcon name="monitor" size={15} />
         </button>
       </Tooltip>
       <DisplayDesignerDialog

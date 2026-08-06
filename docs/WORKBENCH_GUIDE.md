@@ -16,6 +16,8 @@ keeps script selection and execution prominent while leaving a stable utility
 zone for additions such as sharing. The controls include Lua file
 import/export, Run/Reload and Pause/Resume, preset-state save, script health,
 runtime status, workspace presets, MIDI routing, appearance, and About.
+The Display designer uses a compact monitor-icon command with a hover/focus
+tooltip so the script selector retains space for the current example name.
 The bundled-script selector groups first-party project examples under
 **Luading** and upstream official examples under **Expert Sleepers**.
 

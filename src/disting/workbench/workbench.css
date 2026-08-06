@@ -1581,7 +1581,6 @@
   .workbench-commandbar-brand strong,
   .clock-transport-label,
   .workspace-preset-menu .commandbar-icon-command > span,
-  .display-designer-command > span,
   .device-save-state > span {
     display: none;
   }
