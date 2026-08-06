@@ -18,6 +18,7 @@ import {
   type DisplayText,
   type DisplayVisibility,
 } from './display-design-model'
+import { isSafeDisplayLuaIdentifier } from './display-design-lua-identifiers'
 
 export interface DisplayDesignValidationResult {
   ok: boolean
@@ -26,17 +27,6 @@ export interface DisplayDesignValidationResult {
 }
 
 type RecordValue = Record<string, unknown>
-
-const LUA_KEYWORDS = new Set([
-  'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'goto',
-  'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while',
-])
-
-const GENERATED_LUA_RESERVED_IDENTIFIERS = new Set([
-  'self', 'math',
-  'drawLine', 'drawSmoothLine', 'drawBox', 'drawRectangle',
-  'drawCircle', 'drawSmoothCircle', 'drawText', 'drawTinyText',
-])
 
 function isRecord(value: unknown): value is RecordValue {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -98,9 +88,7 @@ class Validator {
   luaIdentifier(value: unknown, path: string, fallback: string, focus?: DisplayDesignerFindingFocus): string {
     if (
       typeof value !== 'string'
-      || !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(value)
-      || LUA_KEYWORDS.has(value)
-      || GENERATED_LUA_RESERVED_IDENTIFIERS.has(value)
+      || !isSafeDisplayLuaIdentifier(value)
     ) {
       this.finding('invalid-lua-identifier', 'A safe, non-reserved Lua identifier is required.', path, focus)
       return fallback

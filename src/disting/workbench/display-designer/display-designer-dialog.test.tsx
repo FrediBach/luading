@@ -59,6 +59,13 @@ function layer(name: string) {
   return match
 }
 
+function bindingCard(name: string) {
+  const match = [...document.querySelectorAll<HTMLElement>('.display-designer-state-binding')]
+    .find((candidate) => candidate.querySelector('header strong')?.textContent === name)
+  if (!match) throw new Error(`Missing binding: ${name}`)
+  return match
+}
+
 async function pointer(element: Element, type: string, x: number, y: number, options: { pointerId?: number; shiftKey?: boolean } = {}) {
   await act(async () => {
     const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, shiftKey: options.shiftKey })
@@ -312,5 +319,77 @@ describe('Display designer dialog', () => {
     expect(source().match(/drawLine/g)).toHaveLength(2)
     await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true, bubbles: true })) })
     expect(source().match(/drawLine/g)).toHaveLength(1)
+  })
+
+  it('creates, maps, previews, detaches, and safely deletes dynamic property bindings', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Pixel line')
+
+    await click(button('Make X1 dynamic'))
+    expect(source()).toContain('local x1 = 0')
+    expect(source()).toContain('math.floor((8 + 16 * x1) + 0.5)')
+    expect(bindingCard('X1').textContent).toContain('1 use')
+    expect(document.body.textContent).toContain('Preview 8')
+    const attachY1 = document.querySelector<HTMLSelectElement>('[aria-label="Attach Y1 binding"]')!
+    await choose(attachY1, attachY1.options[1]!.value)
+    expect(bindingCard('X1').textContent).toContain('2 uses')
+    await click(button('Make Y1 static'))
+    expect(bindingCard('X1').textContent).toContain('1 use')
+
+    await commitInput(field('From') as HTMLInputElement, '20')
+    await commitInput(field('To') as HTMLInputElement, '40')
+    expect(source()).toContain('math.floor((20 + 20 * x1) + 0.5)')
+    const preview = document.querySelector<HTMLInputElement>('[aria-label="X1 preview value"]')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(preview, '1')
+      preview.dispatchEvent(new Event('input', { bubbles: true }))
+      preview.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(source()).toContain('local x1 = 1')
+    expect(document.body.textContent).toContain('Preview 40')
+
+    await click(button('Make X1 static'))
+    expect(source()).toContain('drawLine(40, 16, 32, 16, 15)')
+    expect(bindingCard('X1').textContent).toContain('0 uses')
+
+    await click(button('Make visibility dynamic'))
+    expect(document.body.textContent).toContain('Visible draw calls1')
+    await click(bindingCard('Visibility').querySelector<HTMLButtonElement>('[role="switch"]')!)
+    expect(document.body.textContent).toContain('Visible draw calls0')
+    await click(bindingCard('Visibility').querySelectorAll<HTMLButtonElement>('button')[1]!)
+    expect(bindingCard('Visibility').textContent).toContain('converted to their current preview')
+    await click(button('Convert uses and delete'))
+    expect(document.body.textContent).toContain('Visible draw calls1')
+    expect(document.body.textContent).not.toContain('Visibilityboolean')
+  })
+
+  it('attaches shared text bindings, renames locals without breaking uses, and previews choice definitions in order', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Standard text')
+    await click(button('Make Text dynamic'))
+    const textCard = bindingCard('Text')
+    const previewText = [...textCard.querySelectorAll<HTMLLabelElement>('label')].find((label) => label.querySelector('span')?.textContent === 'Preview text')!.querySelector<HTMLInputElement>('input')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(previewText, 'Bound "text"')
+      previewText.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(source()).toContain('local text = "Bound \\"text\\""')
+
+    const bindingName = [...textCard.querySelectorAll<HTMLLabelElement>('label')].find((label) => label.querySelector('span')?.textContent === 'Binding name')!.querySelector<HTMLInputElement>('input')!
+    await commitInput(bindingName, 'local')
+    expect(bindingCard('local').textContent).toContain('value_local')
+    expect(source()).toContain('local value_local =')
+
+    await click(button('Add choice binding'))
+    const choiceCard = bindingCard('State')
+    await click([...choiceCard.querySelectorAll<HTMLButtonElement>('button')].find((candidate) => candidate.textContent === 'Add choice')!)
+    expect(choiceCard.querySelectorAll('select option')).toHaveLength(2)
+    const choiceSelect = choiceCard.querySelector<HTMLSelectElement>('select')!
+    await choose(choiceSelect, choiceSelect.options[1]!.value)
+    expect(choiceSelect.selectedIndex).toBe(1)
+    expect(source()).not.toContain('local state =')
+    expect(document.body.textContent).toContain('Binding “State” is not used')
   })
 })

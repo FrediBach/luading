@@ -279,6 +279,17 @@ groups, and protected shortcuts. They deliberately do not claim real pointer
 capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
 Canvas visual fidelity.
 
+Display-designer binding tests pin safe Lua-local allocation, keywords and
+collisions, stable usage discovery across scene and symbol primitives,
+number/boolean/text/choice binding creation, reverse mappings, integer and
+smooth quantization, shade clamping, visibility inversion, shared bindings,
+and delete-to-static conversion. Generator tests compare number, boolean, and
+text preview commands with the real Wasmoon/display boundary at multiple
+values. jsdom tests cover inspector attachment and detachment, State-panel
+preview updates, used-binding confirmation, rename preservation, and ordered
+choice editing; they do not turn browser preview controls into a firmware
+binding API.
+
 These tests do not run browser effects, CSS layout, pointer capture, focus
 movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
 screen reader. User-interface changes need the applicable live browser checks

@@ -390,6 +390,47 @@
   gap: 8px;
 }
 
+.display-designer-dynamic-property,
+.display-designer-binding-map {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.display-designer-dynamic-property p { margin: 0; color: var(--nt-muted); font-size: var(--font-micro); }
+.display-designer-dynamic-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.display-designer-dynamic-actions button,
+.display-designer-dynamic-actions label,
+.display-designer-dynamic-actions select { min-width: 0; flex: 1 1 100px; }
+
+.display-designer-binding-map {
+  margin: 0;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, var(--nt-green) 34%, var(--nt-line));
+  border-radius: 6px;
+}
+
+.display-designer-binding-map legend { color: var(--nt-green); font-size: var(--font-micro); }
+.display-designer-check { display: flex; align-items: center; gap: 6px; color: var(--nt-muted); font-size: var(--font-micro); }
+
+.display-designer-state { border-top: 1px solid var(--nt-line); }
+.display-designer-state-add { margin: 7px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.display-designer-state-add button { min-width: 0; padding-inline: 4px; font-size: var(--font-micro); }
+.display-designer-state > ol,
+.display-designer-choice-list { margin: 0; padding: 0; display: grid; gap: 7px; list-style: none; }
+.display-designer-state-binding { min-width: 0; padding: 7px; display: grid; gap: 6px; border: 1px solid var(--nt-line); border-radius: 6px; background: var(--surface-recessed); }
+.display-designer-state-binding > header { min-width: 0; display: grid; gap: 2px; }
+.display-designer-state-binding > header strong,
+.display-designer-state-binding > header span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.display-designer-state-binding > header span,
+.display-designer-state-binding details,
+.display-designer-state-binding details li { color: var(--nt-muted); font-size: var(--font-micro); }
+.display-designer-state-binding details ul { margin: 4px 0 0; padding-left: 18px; }
+.display-designer-choice-list li { padding: 6px; display: grid; gap: 4px; border-left: 2px solid var(--nt-line); }
+.display-designer-binding-delete { padding: 7px; border: 1px solid var(--error); border-radius: 5px; }
+.display-designer-binding-delete p { margin: 0 0 6px; color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.4; }
+.display-designer-binding-delete > div { display: flex; flex-wrap: wrap; gap: 4px; }
+
 .display-designer-field {
   display: grid;
   gap: 3px;

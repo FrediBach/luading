@@ -17,6 +17,14 @@ import { LuaSourcePreview } from '../LuaSourcePreview'
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import {
+  createDisplayBindingInDocument,
+  deleteDisplayBindingAndConvertUses,
+  listDisplayBindingUsages,
+  staticDisplayScalarValue,
+  staticDisplayTextValue,
+} from './display-design-bindings'
+import { allocateDisplayLuaIdentifier } from './display-design-lua-identifiers'
+import {
   alignDisplayElements,
   clientToLogical,
   constrainDisplayCreationPoint,
@@ -58,13 +66,15 @@ import {
   duplicateDisplayDesignGroup,
   selectDisplayDesignElements,
   setDisplayDesignMode,
+  updateDisplayDesignBinding,
   updateDisplayDesignElement,
   updateDisplayDesignGroup,
   type DisplayDesignDocumentV1,
   type DisplayDesignElement,
+  type DisplayDesignBinding,
   type DisplayDesignIdFactory,
   type DisplayDesignSelection,
-  type DisplayLiteralScalar,
+  type DisplayScalar,
   type DisplayPrimitiveElement,
   type DisplayPrimitivePreset,
   type DisplayTextElement,
@@ -80,6 +90,7 @@ interface Props {
 type DesignerTool = 'select' | DisplayPrimitivePreset
 type DesignerZoom = 'fit' | 2 | 3 | 4
 type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
+type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
 
 interface DisplayDesignerGesture {
   kind: 'create' | 'move' | 'resize'
@@ -104,10 +115,6 @@ const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
   { id: 'standard-text', label: 'Standard text', shortLabel: 'Text' },
   { id: 'tiny-text', label: 'Tiny text', shortLabel: 'Tiny text' },
 ]
-
-function literalValue(value: DisplayLiteralScalar): number {
-  return value.value
-}
 
 function elementTypeName(element: DisplayDesignElement): string {
   if (element.kind === 'symbol-instance') return 'Symbol instance'
@@ -414,14 +421,79 @@ function DisplayDesignerLayers({
   )
 }
 
+function DisplayScalarEditor({
+  document,
+  scalar,
+  label,
+  integer,
+  minimum = DISPLAY_DESIGN_LIMITS.minimumCoordinate,
+  maximum = DISPLAY_DESIGN_LIMITS.maximumCoordinate,
+  onChange,
+  onMakeDynamic,
+}: {
+  document: DisplayDesignDocumentV1
+  scalar: DisplayScalar
+  label: string
+  integer: boolean
+  minimum?: number
+  maximum?: number
+  onChange(value: DisplayScalar, action: string): void
+  onMakeDynamic(): void
+}) {
+  const bindings = document.bindings.filter((binding) => binding.kind === 'number')
+  const preview = staticDisplayScalarValue(document, scalar)
+  const commitLiteral = (draft: string) => {
+    const value = Number(draft)
+    if (!Number.isFinite(value) || value < minimum || value > maximum || (integer && !Number.isInteger(value))) return false
+    onChange({ kind: 'literal', value }, `Change ${label}`)
+    return true
+  }
+  const attach = (bindingId: string) => onChange({
+    kind: 'number-binding',
+    bindingId,
+    from: scalar.kind === 'number-binding' ? scalar.from : scalar.value,
+    to: scalar.kind === 'number-binding' ? scalar.to : Math.min(maximum, scalar.value + (label.toLowerCase().includes('shade') ? 0 : 16)),
+    quantize: integer ? 'integer' : 'none',
+  }, `Attach ${label} binding`)
+
+  if (scalar.kind === 'literal') return <div className="display-designer-dynamic-property">
+    <CommitInput label={label} type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.value} onCommit={commitLiteral} />
+    <div className="display-designer-dynamic-actions">
+      <button type="button" onClick={onMakeDynamic}>Make {label} dynamic</button>
+      {bindings.length > 0 && <label><span className="sr-only">Attach {label} binding</span><select aria-label={`Attach ${label} binding`} value="" onChange={(event) => { if (event.currentTarget.value) attach(event.currentTarget.value) }}><option value="">Attach existing…</option>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label>}
+    </div>
+  </div>
+
+  return <fieldset className="display-designer-binding-map"><legend>{label} · Preview {preview}</legend>
+    <label className="display-designer-field"><span>Binding</span><select value={scalar.bindingId} onChange={(event) => attach(event.currentTarget.value)}>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label>
+    <div className="display-designer-field-grid">
+      <CommitInput label="From" type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.from} onCommit={(draft) => {
+        const value = Number(draft)
+        if (!Number.isFinite(value) || value < minimum || value > maximum || (integer && !Number.isInteger(value))) return false
+        onChange({ ...scalar, from: value }, `Change ${label} mapping`)
+        return true
+      }} />
+      <CommitInput label="To" type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.to} onCommit={(draft) => {
+        const value = Number(draft)
+        if (!Number.isFinite(value) || value < minimum || value > maximum || (integer && !Number.isInteger(value))) return false
+        onChange({ ...scalar, to: value }, `Change ${label} mapping`)
+        return true
+      }} />
+    </div>
+    <button type="button" onClick={() => onChange({ kind: 'literal', value: preview }, `Make ${label} static`)}>Make {label} static</button>
+  </fieldset>
+}
+
 function DisplayDesignerInspector({
   element,
-  groups,
-  onUpdate,
+  document,
+  idFactory,
+  onCommit,
 }: {
   element?: DisplayDesignElement
-  groups: DisplayDesignDocumentV1['groups']
-  onUpdate(label: string, update: (element: DisplayDesignElement) => DisplayDesignElement): void
+  document: DisplayDesignDocumentV1
+  idFactory: DisplayDesignIdFactory
+  onCommit(label: string, document: DisplayDesignDocumentV1): void
 }) {
   if (!element) return (
     <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
@@ -431,27 +503,38 @@ function DisplayDesignerInspector({
   )
   if (element.kind === 'symbol-instance') return null
 
-  const updateNumber = (
-    property: DisplayScalarProperty,
-    label: string,
-    integer = false,
-  ) => (draft: string) => {
-    const value = Number(draft)
-    if (
-      !Number.isFinite(value)
-      || value < DISPLAY_DESIGN_LIMITS.minimumCoordinate
-      || value > DISPLAY_DESIGN_LIMITS.maximumCoordinate
-      || (integer && !Number.isInteger(value))
-    ) return false
-    onUpdate(`Change ${label}`, (current) => current.kind === 'symbol-instance' ? current : {
-      ...current,
-      [property]: { kind: 'literal', value },
-    } as DisplayPrimitiveElement)
-    return true
+  const update = (label: string, change: (element: DisplayScenePrimitive) => DisplayScenePrimitive) => {
+    onCommit(label, updateDisplayDesignElement(document, element.id, (current) => current.kind === 'symbol-instance' ? current : change(current)))
   }
-  const scalar = (property: DisplayScalarProperty) => {
-    const value = (element as unknown as Record<DisplayScalarProperty, DisplayLiteralScalar>)[property]
-    return literalValue(value)
+
+  const bindWithNewDocument = (
+    kind: DisplayDesignBinding['kind'],
+    name: string,
+    change: (current: DisplayScenePrimitive, bindingId: string) => DisplayScenePrimitive,
+  ) => {
+    const created = createDisplayBindingInDocument(document, kind, idFactory, name)
+    let withPreview = created.document
+    if (kind === 'number') withPreview = updateDisplayDesignBinding(withPreview, created.binding.id, (binding) => binding.kind === 'number' ? { ...binding, previewValue: 0 } : binding)
+    if (kind === 'text' && element.kind === 'text') {
+      const previewValue = staticDisplayTextValue(document, element)
+      withPreview = updateDisplayDesignBinding(withPreview, created.binding.id, (binding) => binding.kind === 'text' ? { ...binding, previewValue } : binding)
+    }
+    onCommit(`Make ${name} dynamic`, updateDisplayDesignElement(withPreview, element.id, (current) => current.kind === 'symbol-instance' ? current : change(current, created.binding.id)))
+    return created.binding.id
+  }
+
+  const scalar = (property: DisplayScalarProperty) => (element as unknown as Record<DisplayScalarProperty, DisplayScalar>)[property]
+  const setScalar = (property: DisplayScalarProperty, value: DisplayScalar, label: string) => update(label, (current) => ({ ...current, [property]: value } as DisplayPrimitiveElement))
+  const createScalarBinding = (property: DisplayScalarProperty, label: string) => {
+    const currentScalar = scalar(property)
+    bindWithNewDocument('number', label, (current, id) => {
+      return { ...current, [property]: {
+        kind: 'number-binding', bindingId: id,
+        from: currentScalar.kind === 'literal' ? currentScalar.value : currentScalar.from,
+        to: currentScalar.kind === 'literal' ? currentScalar.value + (label.toLowerCase().includes('shade') ? 0 : 16) : currentScalar.to,
+        quantize: label.toLowerCase().includes('shade') || !((element.kind === 'line' || element.kind === 'circle') && element.smooth) ? 'integer' : 'none',
+      } } as DisplayScenePrimitive
+    })
   }
   const coordinateStep = (element.kind === 'line' || element.kind === 'circle') && element.smooth ? 'any' : 1
 
@@ -462,52 +545,156 @@ function DisplayDesignerInspector({
       <CommitInput label="Layer name" value={element.name} onCommit={(name) => {
         const trimmed = name.trim()
         if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
-        onUpdate('Rename layer', (current) => ({ ...current, name: trimmed }))
+        update('Rename layer', (current) => ({ ...current, name: trimmed }))
         return true
       }} />
       <label className="display-designer-field"><span>Group</span><select value={element.groupId ?? ''} onChange={(event) => {
         const groupId = event.currentTarget.value || undefined
-        onUpdate('Assign group', (current) => {
+        update('Assign group', (current) => {
           const next = { ...current }
           if (groupId) next.groupId = groupId
           else delete next.groupId
           return next
         })
-      }}><option value="">No group</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
+      }}><option value="">No group</option>{document.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
       {(element.kind === 'line' || element.kind === 'box') && <div className="display-designer-field-grid">
-        {(['x1', 'y1', 'x2', 'y2'] as const).map((property) => <CommitInput key={property} label={property.toUpperCase()} type="number" min={DISPLAY_DESIGN_LIMITS.minimumCoordinate} max={DISPLAY_DESIGN_LIMITS.maximumCoordinate} step={coordinateStep} value={scalar(property)} onCommit={updateNumber(property, property.toUpperCase(), coordinateStep === 1)} />)}
+        {(['x1', 'y1', 'x2', 'y2'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer={coordinateStep === 1} onChange={(value, label) => setScalar(property, value, label)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
       </div>}
-      {element.kind === 'box' && <p className="display-designer-computed">Inclusive size: {Math.abs(scalar('x2') - scalar('x1')) + 1} × {Math.abs(scalar('y2') - scalar('y1')) + 1}</p>}
+      {element.kind === 'box' && <p className="display-designer-computed">Inclusive size: {Math.abs(staticDisplayScalarValue(document, scalar('x2')) - staticDisplayScalarValue(document, scalar('x1'))) + 1} × {Math.abs(staticDisplayScalarValue(document, scalar('y2')) - staticDisplayScalarValue(document, scalar('y1'))) + 1}</p>}
       {element.kind === 'circle' && <div className="display-designer-field-grid">
-        {(['x', 'y', 'radius'] as const).map((property) => <CommitInput key={property} label={property === 'radius' ? 'Radius' : property.toUpperCase()} type="number" min={property === 'radius' ? 0 : undefined} max={property === 'radius' ? 4096 : undefined} step={coordinateStep} value={scalar(property)} onCommit={(draft) => {
-          if (property === 'radius' && Number(draft) < 0) return false
-          if (Number(draft) > DISPLAY_DESIGN_LIMITS.maximumRadius) return false
-          return updateNumber(property, property, coordinateStep === 1)(draft)
-        }} />)}
+        {(['x', 'y', 'radius'] as const).map((property) => {
+          const label = property === 'radius' ? 'Radius' : property.toUpperCase()
+          return <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={label} integer={coordinateStep === 1} minimum={property === 'radius' ? 0 : undefined} maximum={property === 'radius' ? DISPLAY_DESIGN_LIMITS.maximumRadius : undefined} onChange={(value, action) => setScalar(property, value, action)} onMakeDynamic={() => createScalarBinding(property, label)} />
+        })}
       </div>}
       {element.kind === 'text' && <>
         <div className="display-designer-field-grid">
-          {(['x', 'y'] as const).map((property) => <CommitInput key={property} label={property.toUpperCase()} type="number" min={DISPLAY_DESIGN_LIMITS.minimumCoordinate} max={DISPLAY_DESIGN_LIMITS.maximumCoordinate} step={1} value={scalar(property)} onCommit={updateNumber(property, property.toUpperCase(), true)} />)}
+          {(['x', 'y'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer onChange={(value, action) => setScalar(property, value, action)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
         </div>
-        <CommitInput label="Text" value={element.text.kind === 'literal' ? element.text.value : ''} onCommit={(text) => {
+        {element.text.kind === 'literal' ? <div className="display-designer-dynamic-property"><CommitInput label="Text" value={element.text.value} onCommit={(text) => {
           if ([...text].length > DISPLAY_DESIGN_LIMITS.maximumTextCodePoints) return false
-          onUpdate('Change text', (current) => current.kind === 'text' ? { ...current, text: { kind: 'literal', value: text } } : current)
+          update('Change text', (current) => current.kind === 'text' ? { ...current, text: { kind: 'literal', value: text } } : current)
           return true
-        }} />
+        }} /><div className="display-designer-dynamic-actions"><button type="button" onClick={() => bindWithNewDocument('text', 'Text', (current, bindingId) => current.kind === 'text' ? { ...current, text: { kind: 'text-binding', bindingId } } : current)}>Make Text dynamic</button>{document.bindings.some(({ kind }) => kind === 'text') && <select aria-label="Attach Text binding" value="" onChange={(event) => { const bindingId = event.currentTarget.value; if (bindingId) update('Attach Text binding', (current) => current.kind === 'text' ? { ...current, text: { kind: 'text-binding', bindingId } } : current) }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'text').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}</div></div> : <fieldset className="display-designer-binding-map"><legend>Text · Preview {staticDisplayTextValue(document, element)}</legend><label className="display-designer-field"><span>Binding</span><select value={element.text.bindingId} onChange={(event) => update('Attach Text binding', (current) => current.kind === 'text' ? { ...current, text: { kind: 'text-binding', bindingId: event.currentTarget.value } } : current)}>{document.bindings.filter(({ kind }) => kind === 'text').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label><button type="button" onClick={() => update('Make Text static', (current) => current.kind === 'text' ? { ...current, text: { kind: 'literal', value: staticDisplayTextValue(document, element) } } : current)}>Make Text static</button></fieldset>}
         <label className="display-designer-field"><span>Alignment</span><select value={element.align} onChange={(event) => {
           const align = event.currentTarget.value as DisplayTextElement['align']
-          onUpdate('Change text alignment', (current) => current.kind === 'text' ? { ...current, align } : current)
+          update('Change text alignment', (current) => current.kind === 'text' ? { ...current, align } : current)
         }}><option value="left">Left</option><option value="centre">Centre</option><option value="right">Right</option></select></label>
       </>}
 
-      <fieldset className="display-designer-shades"><legend>Shade: {scalar('shade')}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Shade ${shade}`} aria-pressed={scalar('shade') === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => onUpdate('Change shade', (current) => current.kind === 'symbol-instance' ? current : { ...current, shade: { kind: 'literal', value: shade } })}>{shade}</button>)}</div></fieldset>
-      <CommitInput label="Exact shade" type="number" min={0} max={15} step={1} value={scalar('shade')} onCommit={(draft) => {
-        const value = Number(draft)
-        if (!Number.isInteger(value) || value < 0 || value > 15) return false
-        return updateNumber('shade', 'shade', true)(draft)
-      }} />
+      <fieldset className="display-designer-shades"><legend>Shade: {staticDisplayScalarValue(document, scalar('shade'))}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Shade ${shade}`} aria-pressed={staticDisplayScalarValue(document, scalar('shade')) === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setScalar('shade', { kind: 'literal', value: shade }, 'Change shade')}>{shade}</button>)}</div></fieldset>
+      <DisplayScalarEditor document={document} scalar={scalar('shade')} label="Exact shade" integer minimum={0} maximum={15} onChange={(value, action) => setScalar('shade', value, action)} onMakeDynamic={() => createScalarBinding('shade', 'Shade')} />
+      {element.visible.kind === 'visible' ? <div className="display-designer-dynamic-property"><p>Visibility · Always visible</p><div className="display-designer-dynamic-actions"><button type="button" onClick={() => bindWithNewDocument('boolean', 'Visibility', (current, bindingId) => ({ ...current, visible: { kind: 'boolean-binding', bindingId, invert: false } }))}>Make visibility dynamic</button>{document.bindings.some(({ kind }) => kind === 'boolean') && <select aria-label="Attach visibility binding" value="" onChange={(event) => { if (event.currentTarget.value) update('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: false } })) }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}</div></div> : <fieldset className="display-designer-binding-map"><legend>Visibility</legend><label className="display-designer-field"><span>Binding</span><select value={element.visible.bindingId} onChange={(event) => update('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: current.visible.kind === 'boolean-binding' ? current.visible.invert : false } }))}>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label><label className="display-designer-check"><input type="checkbox" checked={element.visible.invert} onChange={(event) => update('Invert visibility', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: element.visible.kind === 'boolean-binding' ? element.visible.bindingId : '', invert: event.currentTarget.checked } }))} />Invert binding</label><button type="button" onClick={() => update('Make visibility static', (current) => ({ ...current, visible: { kind: 'visible' } }))}>Make visibility static</button></fieldset>}
     </section>
   )
+}
+
+function DisplayDesignerStatePanel({
+  document,
+  idFactory,
+  onCommit,
+  onPreviewUpdate,
+}: {
+  document: DisplayDesignDocumentV1
+  idFactory: DisplayDesignIdFactory
+  onCommit(label: string, document: DisplayDesignDocumentV1): void
+  onPreviewUpdate(bindingId: string, update: (binding: DisplayDesignBinding) => DisplayDesignBinding): void
+}) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string>()
+  const usages = listDisplayBindingUsages(document)
+
+  const addBinding = (kind: DisplayDesignBinding['kind']) => {
+    const created = createDisplayBindingInDocument(document, kind, idFactory)
+    onCommit(`Create ${kind} binding`, created.document)
+  }
+
+  const renameBinding = (binding: DisplayDesignBinding, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
+    const luaName = allocateDisplayLuaIdentifier(
+      trimmed,
+      [
+        ...document.bindings.filter(({ id }) => id !== binding.id).map((other) => other.luaName),
+        ...document.symbols.map((symbol) => symbol.luaName),
+      ],
+      binding.kind === 'choice' ? 'state' : 'value',
+    )
+    onCommit('Rename binding', updateDisplayDesignBinding(document, binding.id, (current) => ({ ...current, name: trimmed, luaName })))
+    return true
+  }
+
+  const requestDelete = (binding: DisplayDesignBinding) => {
+    if (usages.some(({ bindingId }) => bindingId === binding.id)) setPendingDeleteId(binding.id)
+    else onCommit('Delete unused binding', deleteDisplayBindingAndConvertUses(document, binding.id))
+  }
+
+  return <section className="display-designer-panel display-designer-state" aria-labelledby="display-designer-state-title">
+    <h3 id="display-designer-state-title">State</h3>
+    <p className="display-designer-empty">Preview controls are browser-only placeholders for generated Lua locals.</p>
+    <div className="display-designer-state-add" aria-label="Add binding">
+      {(['number', 'boolean', 'text', 'choice'] as const).map((kind) => <button key={kind} type="button" disabled={document.bindings.length >= DISPLAY_DESIGN_LIMITS.maximumBindings} onClick={() => addBinding(kind)}>Add {kind} binding</button>)}
+    </div>
+    {document.bindings.length === 0 ? <p className="display-designer-empty">Make a property dynamic or add a binding here.</p> : <ol>{document.bindings.map((binding) => {
+      const bindingUsages = usages.filter(({ bindingId }) => bindingId === binding.id)
+      return <li key={binding.id} className="display-designer-state-binding">
+        <header><strong>{binding.name}</strong><span>{binding.kind} · <code>{binding.luaName}</code></span></header>
+        <CommitInput label="Binding name" value={binding.name} onCommit={(name) => renameBinding(binding, name)} />
+        {binding.kind === 'number' && <>
+          <label className="display-designer-field"><span>Preview value: {binding.previewValue}</span><input aria-label={`${binding.name} preview value`} type="range" min="0" max="1" step="0.01" value={binding.previewValue} onChange={(event) => {
+            const previewValue = Number(event.currentTarget.value)
+            onPreviewUpdate(binding.id, (current) => current.kind === 'number' ? { ...current, previewValue } : current)
+          }} /></label>
+          <CommitInput label="Exact preview" type="number" min={0} max={1} step="any" value={binding.previewValue} onCommit={(draft) => {
+            const value = Number(draft)
+            if (!Number.isFinite(value) || value < 0 || value > 1) return false
+            onPreviewUpdate(binding.id, (current) => current.kind === 'number' ? { ...current, previewValue: value } : current)
+            return true
+          }} />
+        </>}
+        {binding.kind === 'boolean' && <button type="button" role="switch" aria-checked={binding.previewValue} onClick={() => onPreviewUpdate(binding.id, (current) => current.kind === 'boolean' ? { ...current, previewValue: !current.previewValue } : current)}>{binding.previewValue ? 'Preview on' : 'Preview off'}</button>}
+        {binding.kind === 'text' && <label className="display-designer-field"><span>Preview text</span><input value={binding.previewValue} onChange={(event) => {
+          const previewValue = event.currentTarget.value
+          if ([...previewValue].length <= DISPLAY_DESIGN_LIMITS.maximumTextCodePoints) onPreviewUpdate(binding.id, (current) => current.kind === 'text' ? { ...current, previewValue } : current)
+        }} /></label>}
+        {binding.kind === 'choice' && <>
+          <label className="display-designer-field"><span>Preview choice</span><select value={binding.previewChoiceId} onChange={(event) => {
+            const previewChoiceId = event.currentTarget.value
+            onPreviewUpdate(binding.id, (current) => current.kind === 'choice' ? { ...current, previewChoiceId } : current)
+          }}>{binding.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.name}</option>)}</select></label>
+          <ol className="display-designer-choice-list">{binding.choices.map((choice) => <li key={choice.id}>
+            <CommitInput label="Choice name" value={choice.name} onCommit={(name) => {
+              const trimmed = name.trim()
+              if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
+              onCommit('Rename binding choice', updateDisplayDesignBinding(document, binding.id, (current) => current.kind === 'choice' ? { ...current, choices: current.choices.map((item) => item.id === choice.id ? { ...item, name: trimmed } : item) } : current))
+              return true
+            }} />
+            <CommitInput label="Lua value" value={choice.luaValue} onCommit={(luaValue) => {
+              const trimmed = luaValue.trim()
+              if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints || binding.choices.some((item) => item.id !== choice.id && item.luaValue === trimmed)) return false
+              onCommit('Change binding choice value', updateDisplayDesignBinding(document, binding.id, (current) => current.kind === 'choice' ? { ...current, choices: current.choices.map((item) => item.id === choice.id ? { ...item, luaValue: trimmed } : item) } : current))
+              return true
+            }} />
+            <button type="button" disabled={binding.choices.length === 1} onClick={() => onCommit('Delete binding choice', updateDisplayDesignBinding(document, binding.id, (current) => {
+              if (current.kind !== 'choice' || current.choices.length === 1) return current
+              const choices = current.choices.filter(({ id }) => id !== choice.id)
+              return { ...current, choices, previewChoiceId: current.previewChoiceId === choice.id ? choices[0]!.id : current.previewChoiceId }
+            }))}>Delete choice</button>
+          </li>)}</ol>
+          <button type="button" onClick={() => onCommit('Add binding choice', updateDisplayDesignBinding(document, binding.id, (current) => {
+            if (current.kind !== 'choice') return current
+            const id = idFactory('choice')
+            let suffix = current.choices.length + 1
+            let luaValue = `choice_${suffix}`
+            while (current.choices.some((choice) => choice.luaValue === luaValue)) luaValue = `choice_${++suffix}`
+            return { ...current, choices: [...current.choices, { id, name: `Choice ${suffix}`, luaValue }] }
+          }))}>Add choice</button>
+        </>}
+        <details><summary>{bindingUsages.length} {bindingUsages.length === 1 ? 'use' : 'uses'}</summary>{bindingUsages.length === 0 ? <p>Not attached.</p> : <ul>{bindingUsages.map((usage, index) => <li key={`${usage.property}-${index}`}>{usage.ownerName} · {usage.property}</li>)}</ul>}</details>
+        <button type="button" className="is-danger" onClick={() => requestDelete(binding)}>Delete binding</button>
+        {pendingDeleteId === binding.id && <div className="display-designer-binding-delete" role="alert"><p>{bindingUsages.length} attached {bindingUsages.length === 1 ? 'property' : 'properties'} will be converted to their current preview. Dynamic visibility becomes always visible.</p><div><button type="button" onClick={() => setPendingDeleteId(undefined)}>Cancel</button><button type="button" className="is-danger" onClick={() => { onCommit('Convert binding uses to static', deleteDisplayBindingAndConvertUses(document, binding.id)); setPendingDeleteId(undefined) }}>Convert uses and delete</button></div></div>}
+      </li>
+    })}</ol>}
+  </section>
 }
 
 function DisplayDesignerReview({
@@ -567,7 +754,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
   const gestureRef = useRef<DisplayDesignerGesture | null>(null)
-  const idFactoryRef = useRef<DisplayDesignIdFactory>(createSequentialDisplayDesignIdFactory('designer'))
+  const [idFactory] = useState<DisplayDesignIdFactory>(() => createSequentialDisplayDesignIdFactory('designer'))
   const dialogRef = useRef<HTMLDivElement>(null)
   const discardRef = useRef<HTMLButtonElement>(null)
   const document = gesture?.document ?? history.present.document
@@ -618,6 +805,17 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
     present: { ...current.present, selection: nextSelection },
   }))
 
+  const updateBindingPreview = (
+    bindingId: string,
+    update: (binding: DisplayDesignBinding) => DisplayDesignBinding,
+  ) => setHistory((current) => ({
+    ...current,
+    present: {
+      ...current.present,
+      document: updateDisplayDesignBinding(current.present.document, bindingId, update),
+    },
+  }))
+
   const selectElement = (id: string, toggle = false) => setSelection(selectDisplayDesignElements(
     history.present.document,
     history.present.selection,
@@ -626,14 +824,14 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   ))
 
   const addPrimitive = (preset: DisplayPrimitivePreset) => {
-    const primitive = createDefaultDisplayPrimitive(preset, idFactoryRef.current)
+    const primitive = createDefaultDisplayPrimitive(preset, idFactory)
     const nextDocument = addDisplayDesignElement(document, primitive)
     commit(`Add ${primitive.name}`, nextDocument, { ...createEmptyDisplayDesignSelection(), elementIds: [primitive.id] })
   }
 
   const beginPointerGesture = ({ point, pointerId, elementId, handle, shiftKey }: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }) => {
     if (activeTool !== 'select') {
-      const primitive = createDisplayPrimitiveFromGesture(activeTool, point, point, document.displayMode, idFactoryRef.current)
+      const primitive = createDisplayPrimitiveFromGesture(activeTool, point, point, document.displayMode, idFactory)
       const nextDocument = addDisplayDesignElement(document, primitive)
       updateGesture({
         kind: 'create', pointerId, start: point, baseDocument: document, document: nextDocument,
@@ -735,7 +933,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
     }
     if (!protectsEditing && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd' && selection.elementIds.length > 0) {
       event.preventDefault()
-      const duplicate = duplicateDisplayDesignElements(document, selection.elementIds, idFactoryRef.current)
+      const duplicate = duplicateDisplayDesignElements(document, selection.elementIds, idFactory)
       commit('Duplicate selection', duplicate.document, { ...createEmptyDisplayDesignSelection(), elementIds: duplicate.duplicatedIds })
       return
     }
@@ -789,7 +987,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
               selectedIds={selection.elementIds}
               onSelect={selectElement}
               onDuplicateSelection={() => {
-                const duplicate = duplicateDisplayDesignElements(document, selection.elementIds, idFactoryRef.current)
+                const duplicate = duplicateDisplayDesignElements(document, selection.elementIds, idFactory)
                 commit('Duplicate selection', duplicate.document, { ...createEmptyDisplayDesignSelection(), elementIds: duplicate.duplicatedIds })
               }}
               onDeleteSelection={() => commit('Delete selection', deleteDisplayDesignElements(document, selection.elementIds), createEmptyDisplayDesignSelection())}
@@ -797,7 +995,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
               onAlign={(alignment) => commit(`Align ${alignment}`, alignDisplayElements(document, selection.elementIds, alignment))}
               onDistribute={(direction) => commit(`Distribute ${direction}`, distributeDisplayElements(document, selection.elementIds, direction))}
               onCreateGroup={() => {
-                const group = createDefaultDisplayGroup(idFactoryRef.current)
+                const group = createDefaultDisplayGroup(idFactory)
                 const withGroup = addDisplayDesignGroup(document, group)
                 commit('Group selection', assignDisplayDesignGroup(withGroup, selection.elementIds, group.id), { ...selection, groupIds: [group.id] })
               }}
@@ -809,7 +1007,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
               })}
               onRenameGroup={(groupId, name) => commit('Rename group', updateDisplayDesignGroup(document, groupId, (group) => ({ ...group, name })))}
               onDuplicateGroup={(groupId) => {
-                const duplicate = duplicateDisplayDesignGroup(document, groupId, idFactoryRef.current)
+                const duplicate = duplicateDisplayDesignGroup(document, groupId, idFactory)
                 commit('Duplicate group', duplicate.document, {
                   ...createEmptyDisplayDesignSelection(),
                   groupIds: duplicate.groupId ? [duplicate.groupId] : [],
@@ -846,10 +1044,10 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
 
           <aside className="display-designer-sidebar display-designer-sidebar--inspector">
             <button type="button" className="display-designer-collapse" aria-expanded={!inspectorCollapsed} onClick={() => setInspectorCollapsed((value) => !value)}>{inspectorCollapsed ? 'Show properties' : 'Hide properties'}</button>
-            {!inspectorCollapsed && <DisplayDesignerInspector element={selectedElement} groups={document.groups} onUpdate={(label, update) => {
-              if (!selectedId) return
-              commit(label, updateDisplayDesignElement(document, selectedId, update))
-            }} />}
+            {!inspectorCollapsed && <>
+              <DisplayDesignerInspector element={selectedElement} document={document} idFactory={idFactory} onCommit={commit} />
+              <DisplayDesignerStatePanel document={document} idFactory={idFactory} onCommit={commit} onPreviewUpdate={updateBindingPreview} />
+            </>}
           </aside>
         </main>
 

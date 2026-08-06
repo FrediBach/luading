@@ -743,7 +743,7 @@ authority.
 Open **Display designer** from the workbench utilities to author a separate,
 browser-only 256×64 display design. Opening the full-size dialog does not pause
 the Lua runtime, change the active script, or replace the normal simulated
-display. The current increment supports static pixel and smooth lines, outlined
+display. The current implementation supports pixel and smooth lines, outlined
 and filled boxes, pixel and smooth outline circles, standard text, and tiny
 text. Choose a primitive tool and drag on the artboard to create repeatedly, or
 use its **Add default** action for a keyboard-only starting shape. The inspector
@@ -758,6 +758,25 @@ through draw order. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo complete
 gestures; editable fields protect their normal arrow, delete, and undo keys.
 One-level groups provide atomic selection, movement, duplication, deletion, and
 an editor-only hide/show switch; hiding a group never changes generated Lua.
+
+Every coordinate, radius, and shade can be made dynamic through a normalized
+number binding with editable **From** and **To** endpoints. Integer primitives
+quantize mapped values, smooth geometry may retain fractions, and shades are
+rounded and clamped to 0–15. Text can use a text binding and visibility can use
+a boolean binding with optional inversion. A property can create a new binding,
+attach a compatible existing binding, edit its mapping, or become static at its
+current preview value.
+
+The **State** panel lists number, boolean, text, and choice bindings in document
+order. Its slider, switch, text, and choice controls update every attached
+preview immediately without adding undo entries. Binding names are converted
+to deterministic safe Lua locals; keywords, generated dependencies, and name
+collisions receive safe alternatives. The usage list shows every attached
+property before rename or deletion. An unused binding deletes directly, while
+a used binding requires explicit conversion of all uses to their current
+preview; because the document has no permanently hidden static element,
+converted visibility becomes always visible. Choice definitions are available
+for the symbol-state workflow implemented by the next designer increment.
 
 The artboard always remains 256×64 logically while **Fit**, 2×, 3×, and 4×
 only change its CSS size. Pointer hit targets are enlarged in screen space while
