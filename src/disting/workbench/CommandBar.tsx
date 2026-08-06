@@ -19,6 +19,7 @@ import { ScriptFileActions } from './ScriptFileActions'
 import { ScriptMenu } from './ScriptMenu'
 import { ThemeToggle } from './ThemeToggle'
 import { WorkspacePresetMenu } from './WorkspacePresetMenu'
+import { DisplayDesignerLauncher } from './display-designer/DisplayDesignerLauncher'
 import type { WorkspacePresetId } from './workbench-layout'
 import type { ScriptProject, SourceSaveStatus } from './projects'
 import type { ScriptScaffoldDraft } from './script-scaffold'
@@ -225,6 +226,7 @@ export function CommandBar({
         role="group"
         aria-label="Workbench utilities"
       >
+        <DisplayDesignerLauncher />
         <WorkspacePresetMenu
           activePreset={workspacePreset}
           onApply={onApplyWorkspacePreset}

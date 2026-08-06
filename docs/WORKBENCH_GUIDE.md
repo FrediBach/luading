@@ -738,6 +738,34 @@ measurements. It is useful for finding simulator-local regressions, but it is
 not calibrated Disting NT CPU usage. Real Disting NT hardware remains the final
 authority.
 
+## Display designer
+
+Open **Display designer** from the workbench utilities to author a separate,
+browser-only 256×64 display design. Opening the full-size dialog does not pause
+the Lua runtime, change the active script, or replace the normal simulated
+display. The current increment supports static pixel and smooth lines, outlined
+and filled boxes, pixel and smooth outline circles, standard text, and tiny
+text. Choosing a primitive tool adds a valid default layer immediately; select
+that layer to enter exact coordinates, text, alignment, and one of the 16
+documented shades.
+
+Layers are shown front-to-back and can be selected, duplicated, moved forward
+or backward, and deleted without relying on artboard pointer gestures. The
+artboard always remains 256×64 logically while **Fit**, 2×, 3×, and 4× only
+change its CSS size. **Pixels** uses the same display renderer as the simulator;
+**Geometry** adds authoring guides, and **Grid** adds logical-pixel chrome.
+Smooth pixels remain an approximation of firmware antialiasing and appear with
+a finding whenever used.
+
+**Keep standard parameter line** reserves rows 0–9 and previews the shared
+standard-line command layout. **Use full display** exposes all 64 rows and adds
+`return true` to the generated callback. Findings describe clipping, reserved
+rows, empty text, shade-zero overdraw, and smoothing uncertainty. Metrics are
+descriptive counts and source bytes, never Disting CPU or safety claims. The
+generated Lua panel is a preview only in this increment: it does not copy,
+insert, or run source. Closing a changed design requires explicit discard
+confirmation, and focus returns to the command-bar trigger.
+
 ## Importing and exporting scripts
 
 Use **New** to open the script scaffolder. Nothing is replaced until the final
