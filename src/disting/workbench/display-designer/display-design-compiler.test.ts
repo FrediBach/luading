@@ -5,7 +5,7 @@ import {
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
   type DisplayDesignBinding,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayPrimitiveElement,
 } from './display-design-model'
 import {
@@ -15,7 +15,7 @@ import {
 import { createDisplayBindingMap } from './display-design-resolution'
 import { generateDisplayDesignLua } from './display-design-generator'
 
-function staticPrimitiveDocument(): DisplayDesignDocumentV1 {
+function staticPrimitiveDocument(): DisplayDesignDocument {
   const ids = createSequentialDisplayDesignIdFactory('static')
   const presets = [
     'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
@@ -28,7 +28,7 @@ function staticPrimitiveDocument(): DisplayDesignDocumentV1 {
   }
 }
 
-function findingRules(document: DisplayDesignDocumentV1): string[] {
+function findingRules(document: DisplayDesignDocument): string[] {
   return compileDisplayDesign(document).findings.map(({ ruleId }) => ruleId)
 }
 
@@ -125,7 +125,7 @@ describe('display design compiler', () => {
     const booleanId = ids('binding')
     const hidden = createDefaultDisplayPrimitive('pixel-line', ids)
     hidden.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: false }
-    const document: DisplayDesignDocumentV1 = {
+    const document: DisplayDesignDocument = {
       ...createEmptyDisplayDesign(),
       displayMode: 'full-screen',
       bindings: [{ kind: 'boolean', id: booleanId, name: 'Visible', luaName: 'visible', previewValue: false }],
@@ -162,7 +162,7 @@ describe('display design compiler', () => {
     const variantId = ids('variant')
     const symbolId = ids('symbol')
     const primitive = createDefaultDisplayPrimitive('pixel-circle', ids, 'primitive')
-    const withSymbol: DisplayDesignDocumentV1 = {
+    const withSymbol: DisplayDesignDocument = {
       ...createEmptyDisplayDesign(),
       symbols: [{ id: symbolId, name: 'Status', luaName: 'draw_status', defaultVariantId: variantId, variants: [{ id: variantId, name: 'Default', luaValue: 'default', elements: [primitive] }] }],
       elements: [{

@@ -3,7 +3,7 @@ import { DISTING_DISPLAY } from '../../types'
 import {
   cloneDisplayDesign,
   createDefaultDisplayPrimitive,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignElement,
   type DisplayDesignIdFactory,
   type DisplayMode,
@@ -80,14 +80,14 @@ export function createDisplayPrimitiveFromGesture(
   return { ...element, x: literal(start.x), y: literal(start.y) }
 }
 
-function resolvedScalar(value: DisplayScalar, document?: DisplayDesignDocumentV1): number {
+function resolvedScalar(value: DisplayScalar, document?: DisplayDesignDocument): number {
   if (value.kind === 'literal') return value.value
   return resolveDisplayScalar(value, createDisplayBindingMap(document?.bindings ?? []))
 }
 
 export function displayElementBounds(
   element: DisplayDesignElement,
-  document?: DisplayDesignDocumentV1,
+  document?: DisplayDesignDocument,
 ): DisplayDesignBounds {
   const scalar = (value: DisplayScalar) => resolvedScalar(value, document)
   if (element.kind === 'symbol-instance') {
@@ -133,7 +133,7 @@ export function displayElementBounds(
 }
 
 export function displaySelectionBounds(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
 ): DisplayDesignBounds | undefined {
   const selected = new Set(elementIds)
@@ -157,7 +157,7 @@ export function displayAreaBounds(start: DisplayDesignPoint, end: DisplayDesignP
 }
 
 export function displayElementsWithinArea(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   start: DisplayDesignPoint,
   end: DisplayDesignPoint,
 ): string[] {
@@ -173,7 +173,7 @@ export function displayElementsWithinArea(
     .map(({ id }) => id)
 }
 
-export function displayElementHandles(element: DisplayDesignElement, document?: DisplayDesignDocumentV1): Array<{ id: DisplayDesignHandle; point: DisplayDesignPoint }> {
+export function displayElementHandles(element: DisplayDesignElement, document?: DisplayDesignDocument): Array<{ id: DisplayDesignHandle; point: DisplayDesignPoint }> {
   const scalar = (value: DisplayScalar) => resolvedScalar(value, document)
   if (element.kind === 'line') return [
     { id: 'start', point: { x: scalar(element.x1), y: scalar(element.y1) } },
@@ -207,7 +207,7 @@ export function displayElementHitTest(
   element: DisplayDesignElement,
   point: DisplayDesignPoint,
   tolerance: number,
-  document?: DisplayDesignDocumentV1,
+  document?: DisplayDesignDocument,
 ): boolean {
   if (element.kind === 'line') {
     const [start, end] = displayElementHandles(element, document)
@@ -228,7 +228,7 @@ export function displayElementHitTest(
 }
 
 export function hitTestDisplayElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   point: DisplayDesignPoint,
   tolerance: number,
 ): string | undefined {
@@ -249,17 +249,17 @@ export function translateDisplayElement(element: DisplayDesignElement, dx: numbe
 }
 
 export function translateDisplayElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   dx: number,
   dy: number,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const selected = new Set(elementIds)
   return { ...cloneDisplayDesign(document), elements: document.elements.map((element) => selected.has(element.id) ? translateDisplayElement(element, dx, dy) : cloneDisplayDesign(element)) }
 }
 
 export function constrainDisplayPointerTranslation(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   requested: DisplayDesignPoint,
 ): DisplayDesignPoint {
@@ -306,10 +306,10 @@ export function resizeDisplayElement(
 }
 
 export function alignDisplayElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   alignment: DisplayDesignAlignment,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const selected = new Set(elementIds)
   const overall = displaySelectionBounds(document, selected)
   if (!overall || selected.size < 2) return cloneDisplayDesign(document)
@@ -328,10 +328,10 @@ export function alignDisplayElements(
 }
 
 export function distributeDisplayElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   direction: DisplayDesignDistribution,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const selected = new Set(elementIds)
   const ordered = document.elements.filter(({ id }) => selected.has(id)).map((element) => {
     const bounds = displayElementBounds(element, document)
@@ -350,10 +350,10 @@ export function distributeDisplayElements(
 }
 
 export function reorderDisplayDesignSelection(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   operation: 'forward' | 'backward' | 'front' | 'back',
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const selected = new Set(elementIds)
   if (selected.size === 0) return cloneDisplayDesign(document)
   let elements = cloneDisplayDesign(document.elements)

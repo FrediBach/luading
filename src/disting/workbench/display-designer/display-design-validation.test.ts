@@ -4,7 +4,7 @@ import {
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignElement,
 } from './display-design-model'
 import { validateDisplayDesign } from './display-design-validation'
@@ -17,7 +17,7 @@ function deepFreeze<T>(value: T): T {
   return value
 }
 
-function validRichDocument(): DisplayDesignDocumentV1 {
+function validRichDocument(): DisplayDesignDocument {
   const ids = createSequentialDisplayDesignIdFactory('valid')
   const groupId = ids('group')
   const numberId = ids('binding')
@@ -121,7 +121,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 2 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 3 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -134,10 +134,43 @@ describe('display design validation', () => {
     expect(validateDisplayDesign(circular).ok).toBe(false)
   })
 
+  it('migrates strict version-1 documents and validates version-2 layout grids', () => {
+    const current = createEmptyDisplayDesign('Legacy')
+    const legacy = structuredClone(current) as unknown as Record<string, unknown>
+    delete legacy.layoutGrid
+    legacy.version = 1
+    const migrated = validateDisplayDesign(legacy)
+
+    expect(migrated.ok).toBe(true)
+    expect(migrated.document).toEqual({ ...current, version: 2, layoutGrid: null })
+
+    const valid = validateDisplayDesign({
+      ...current,
+      layoutGrid: { kind: 'uniform', size: 64, color: '#12abef', opacity: 100 },
+    })
+    expect(valid.ok).toBe(true)
+    expect(valid.document?.layoutGrid).toEqual({ kind: 'uniform', size: 64, color: '#12abef', opacity: 100 })
+
+    for (const layoutGrid of [
+      undefined,
+      { kind: 'columns', size: 8, color: '#ff0000', opacity: 10 },
+      { kind: 'uniform', size: 0, color: '#ff0000', opacity: 10 },
+      { kind: 'uniform', size: 8.5, color: '#ff0000', opacity: 10 },
+      { kind: 'uniform', size: 8, color: '#FF0000', opacity: 10 },
+      { kind: 'uniform', size: 8, color: '#ff0000', opacity: 0 },
+      { kind: 'uniform', size: 8, color: '#ff0000', opacity: 10.5 },
+    ]) {
+      expect(validateDisplayDesign({ ...current, layoutGrid }).ok).toBe(false)
+    }
+    expect(validateDisplayDesign({ ...legacy, layoutGrid: null }).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'unknown-key' }),
+    ]))
+  })
+
   it('reports unknown keys and invalid enum, ID, number, text, and Lua-identifier values', () => {
-    const input = validRichDocument() as DisplayDesignDocumentV1 & Record<string, unknown>
+    const input = validRichDocument() as DisplayDesignDocument & Record<string, unknown>
     input.surprise = true
-    input.displayMode = 'wide' as DisplayDesignDocumentV1['displayMode']
+    input.displayMode = 'wide' as DisplayDesignDocument['displayMode']
     const firstBinding = input.bindings[0]
     if (firstBinding?.kind === 'number') input.bindings[0] = { ...firstBinding, id: 'bad id', luaName: 'local', previewValue: Number.NaN }
     const first = input.elements[0]

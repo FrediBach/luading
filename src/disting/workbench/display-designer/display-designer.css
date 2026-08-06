@@ -129,6 +129,37 @@
   gap: 5px;
 }
 
+.display-designer-view-options { position: relative; align-self: end; }
+
+.display-designer-view-menu {
+  position: absolute;
+  z-index: 250;
+  top: calc(100% + 5px);
+  right: 0;
+  width: min(310px, calc(100vw - 24px));
+  padding: 5px;
+  border: 1px solid var(--nt-line);
+  border-radius: 7px;
+  background: var(--workbench-surface-raised);
+  box-shadow: 0 14px 36px var(--shadow-strong);
+}
+
+.display-designer-view-option + .display-designer-view-option { border-top: 1px solid color-mix(in srgb, var(--nt-line) 70%, transparent); }
+
+.display-designer-view-option > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  text-align: left;
+}
+
+.display-designer-view-option > button[aria-checked='true'] { color: var(--nt-green); }
+.display-designer-view-option kbd { color: var(--nt-muted); font: inherit; }
+.display-designer-view-option small { display: block; padding: 0 8px 6px 30px; color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.3; }
+
 .display-designer-file-status {
   max-width: 250px;
   color: var(--nt-muted);
@@ -433,7 +464,7 @@
 
 .display-designer-artboard canvas.is-hidden { visibility: hidden; }
 
-.display-designer-artboard.has-grid::after {
+.display-designer-artboard.has-pixel-grid::after {
   content: '';
   position: absolute;
   pointer-events: none;
@@ -442,6 +473,25 @@
   background-image: linear-gradient(to right, var(--nt-green) 1px, transparent 1px), linear-gradient(to bottom, var(--nt-green) 1px, transparent 1px);
   background-size: calc(100% / 256) calc(100% / 64);
 }
+
+.display-designer-layout-grid {
+  color: inherit;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.display-designer-snap-guides {
+  pointer-events: none;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.display-designer-snap-label rect { fill: #fff; stroke: #000; stroke-width: 0.5px; }
+.display-designer-snap-label text { fill: #000; stroke: none; font-size: 4px; font-weight: 700; }
 
 .display-designer-artboard svg {
   z-index: 2;
@@ -493,6 +543,24 @@
   display: grid;
   gap: 8px;
 }
+
+.display-designer-layout-grid-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.display-designer-layout-grid-settings {
+  padding: 7px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--nt-line);
+  border-radius: 6px;
+}
+
+.display-designer-layout-grid-settings summary { color: var(--nt-green); cursor: pointer; }
 
 .display-designer-dynamic-property,
 .display-designer-binding-map {

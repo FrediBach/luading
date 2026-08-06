@@ -90,9 +90,9 @@ function bindingCard(name: string) {
   return match
 }
 
-async function pointer(element: Element, type: string, x: number, y: number, options: { pointerId?: number; shiftKey?: boolean } = {}) {
+async function pointer(element: Element, type: string, x: number, y: number, options: { pointerId?: number; shiftKey?: boolean; ctrlKey?: boolean } = {}) {
   await act(async () => {
-    const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, shiftKey: options.shiftKey })
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, shiftKey: options.shiftKey, ctrlKey: options.ctrlKey })
     Object.defineProperty(event, 'pointerId', { value: options.pointerId ?? 1 })
     element.dispatchEvent(event)
     await Promise.resolve()
@@ -145,6 +145,128 @@ afterEach(async () => {
 })
 
 describe('Display designer dialog', () => {
+  it('edits the document layout grid from Artboard properties and keeps view preferences out of history', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+
+    expect(document.body.textContent).toContain('Artboard')
+    expect(button('Undo').disabled).toBe(true)
+    const viewOptions = button('View options')
+    viewOptions.focus()
+    await click(viewOptions)
+    expect(button('Layout grid').disabled).toBe(true)
+    expect(button('Snap to layout grid').disabled).toBe(true)
+    await act(async () => {
+      document.querySelector<HTMLElement>('[role="menu"]')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    expect(document.activeElement).toBe(viewOptions)
+
+    const generatedBefore = source()
+    await click(button('Add layout grid'))
+    expect(document.querySelectorAll('.display-designer-layout-grid line')).toHaveLength(42)
+    expect(source()).toBe(generatedBefore)
+    expect(button('Undo').disabled).toBe(false)
+
+    await commitInput(field('Grid size') as HTMLInputElement, '16')
+    expect(document.querySelectorAll('.display-designer-layout-grid line')).toHaveLength(22)
+    await commitInput(field('Grid opacity') as HTMLInputElement, '0')
+    expect(field('Grid opacity')).toHaveProperty('value', '10')
+    await click(button('Hide layout grid'))
+    expect(document.querySelector('.display-designer-layout-grid')).toBeNull()
+    await click(button('Undo'))
+    expect(field('Grid size')).toHaveProperty('value', '8')
+    expect(document.querySelector('.display-designer-layout-grid')).toBeNull()
+    await click(button('Show layout grid'))
+    await click(button('Remove layout grid'))
+    expect(button('Add layout grid')).not.toBeNull()
+    await click(button('Undo'))
+    expect(field('Grid size')).toHaveProperty('value', '8')
+  })
+
+  it('operates checked View options, shortcuts, focus protection, and the four-CSS-pixel threshold', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Add layout grid'))
+    const artboard = document.querySelector<HTMLElement>('.display-designer-artboard')!
+    vi.spyOn(artboard, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, left: 0, top: 0, right: 1024, bottom: 256, width: 1024, height: 256,
+      toJSON: () => ({}),
+    })
+
+    await click(button('View options'))
+    expect(button('Layout grid').getAttribute('role')).toBe('menuitemcheckbox')
+    expect(button('Layout grid').getAttribute('aria-checked')).toBe('true')
+    await click(button('Pixel grid'))
+    expect(artboard.classList.contains('has-pixel-grid')).toBe(false)
+    await choose(document.querySelector<HTMLSelectElement>('[aria-label="Artboard zoom"]')!, '4')
+    expect(artboard.classList.contains('has-pixel-grid')).toBe(true)
+
+    const dialog = document.querySelector<HTMLElement>('.display-designer-dialog')!
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, bubbles: true })) })
+    expect(document.querySelector('.display-designer-layout-grid')).toBeNull()
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, bubbles: true })) })
+    expect(document.querySelector('.display-designer-layout-grid')).not.toBeNull()
+
+    const size = field('Grid size') as HTMLInputElement
+    await act(async () => {
+      size.focus()
+      size.dispatchEvent(new KeyboardEvent('keydown', { key: "'", ctrlKey: true, bubbles: true }))
+    })
+    await click(button('View options'))
+    expect(button('Pixel grid').getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('snaps pointer previews independently of grid visibility and honours Control through pointer up', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Add layout grid'))
+    const artboard = prepareArtboard()
+    await click(button('Hide layout grid'))
+    await click(button('Pixel line'))
+
+    await pointer(artboard, 'pointerdown', 18, 34)
+    await pointer(artboard, 'pointermove', 50, 50)
+    expect(source()).toContain('drawLine(8, 16, 24, 24, 15)')
+    expect(document.querySelector('.display-designer-snap-guides')).not.toBeNull()
+    expect(document.querySelector('.display-designer-layout-grid')).toBeNull()
+
+    await pointer(artboard, 'pointermove', 50, 50, { ctrlKey: true })
+    expect(source()).toContain('drawLine(9, 17, 25, 25, 15)')
+    expect(document.querySelector('.display-designer-snap-guides')).toBeNull()
+    await pointer(artboard, 'pointermove', 50, 50)
+    expect(source()).toContain('drawLine(8, 16, 24, 24, 15)')
+    await pointer(artboard, 'pointerup', 50, 50, { ctrlKey: true })
+    expect(source()).toContain('drawLine(9, 17, 25, 25, 15)')
+    expect(document.querySelector('.display-designer-snap-guides')).toBeNull()
+    await click(button('Undo'))
+    expect(source()).not.toContain('drawLine')
+  })
+
+  it('applies grid targets to box corners, circle centres/radii, and text anchors', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Add layout grid'))
+    const artboard = prepareArtboard()
+    expect(artboard.querySelector('canvas')?.classList.contains('is-hidden')).toBe(false)
+
+    await click(button('Filled box'))
+    await pointer(artboard, 'pointerdown', 18, 34)
+    await pointer(artboard, 'pointerup', 50, 50)
+    expect(source()).toContain('drawRectangle(8, 16, 24, 24, 15)')
+    expect(artboard.querySelector('.display-designer-selection-geometry')).not.toBeNull()
+
+    await click(button('Pixel circle'))
+    await pointer(artboard, 'pointerdown', 18, 34)
+    await pointer(artboard, 'pointerup', 50, 50)
+    expect(source()).toContain('drawCircle(8, 16, 16, 15)')
+
+    await click(button('Standard text'))
+    await pointer(artboard, 'pointerdown', 18, 34)
+    await pointer(artboard, 'pointerup', 70, 58)
+    expect(source()).toContain('drawText(8, 16, "Text", 15, "left")')
+  })
+
   it('operates responsive panels as linked roving tabs with arrow, Home, and End keys', async () => {
     await act(async () => {
       root.render(<DisplayDesignerDialog open viewportWidth={800} returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />)
@@ -252,10 +374,13 @@ describe('Display designer dialog', () => {
     expect(source()).toContain('return true')
     expect(document.querySelector('.display-designer-reserved-rows')).toBeNull()
 
-    await click(button('Grid'))
-    expect(document.querySelector('.display-designer-artboard')?.classList.contains('has-grid')).toBe(false)
-    await click(button('Pixels'))
+    await click(button('View options'))
+    await click(button('Pixel grid'))
+    expect(document.querySelector('.display-designer-artboard')?.getAttribute('data-pixel-grid-suppressed')).toBe('true')
+    await click(button('View options'))
+    await click(button('Pixel preview'))
     expect(document.querySelector('.display-designer-artboard canvas')?.classList.contains('is-hidden')).toBe(true)
+    await click(button('View options'))
     await click(button('Geometry'))
     expect(document.querySelector('[aria-label="Display designer geometry overlay"]')).not.toBeNull()
     expect(document.querySelector('.display-designer-selection-geometry')).toBeNull()

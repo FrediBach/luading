@@ -4,7 +4,7 @@ import { allocateDisplayLuaIdentifier } from './display-design-lua-identifiers'
 import {
   cloneDisplayDesign,
   type DisplayChoiceBinding,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignElement,
   type DisplayDesignIdFactory,
   type DisplayDesignSymbol,
@@ -52,7 +52,7 @@ export function translateDisplayPrimitive(
   return next
 }
 
-export function listDisplaySymbolUsages(document: DisplayDesignDocumentV1): DisplaySymbolUsage[] {
+export function listDisplaySymbolUsages(document: DisplayDesignDocument): DisplaySymbolUsage[] {
   const counts = new Map<string, number>()
   for (const element of document.elements) {
     if (element.kind === 'symbol-instance') counts.set(element.symbolId, (counts.get(element.symbolId) ?? 0) + 1)
@@ -65,11 +65,11 @@ export function listDisplaySymbolUsages(document: DisplayDesignDocumentV1): Disp
 }
 
 export function createDisplaySymbolFromSelection(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   idFactory: DisplayDesignIdFactory,
   options: CreateDisplaySymbolOptions = {},
-): { document: DisplayDesignDocumentV1; symbol?: DisplayDesignSymbol; instance?: DisplaySymbolInstance } {
+): { document: DisplayDesignDocument; symbol?: DisplayDesignSymbol; instance?: DisplaySymbolInstance } {
   const selectedIds = new Set(elementIds)
   const selected = document.elements.filter((element): element is DisplayPrimitiveElement & { groupId?: string } => (
     selectedIds.has(element.id) && element.kind !== 'symbol-instance'
@@ -131,11 +131,11 @@ function uniqueVariantValue(symbol: DisplayDesignSymbol, requested: string): str
 }
 
 export function addDisplaySymbolVariant(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   idFactory: DisplayDesignIdFactory,
   options: { sourceVariantId?: string; blank?: boolean; name?: string } = {},
-): { document: DisplayDesignDocumentV1; variantId?: string } {
+): { document: DisplayDesignDocument; variantId?: string } {
   let variantId: string | undefined
   const symbols = document.symbols.map((symbol) => {
     if (symbol.id !== symbolId) return cloneDisplayDesign(symbol)
@@ -157,11 +157,11 @@ export function addDisplaySymbolVariant(
 }
 
 export function updateDisplaySymbolVariant(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   variantId: string,
   update: (variant: DisplaySymbolVariant) => DisplaySymbolVariant,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return {
     ...cloneDisplayDesign(document),
     symbols: document.symbols.map((symbol) => symbol.id === symbolId ? {
@@ -174,11 +174,11 @@ export function updateDisplaySymbolVariant(
 }
 
 export function reorderDisplaySymbolVariant(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   fromIndex: number,
   toIndex: number,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return {
     ...cloneDisplayDesign(document),
     symbols: document.symbols.map((symbol) => {
@@ -192,10 +192,10 @@ export function reorderDisplaySymbolVariant(
 }
 
 export function setDefaultDisplaySymbolVariant(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   variantId: string,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return {
     ...cloneDisplayDesign(document),
     symbols: document.symbols.map((symbol) => symbol.id === symbolId && symbol.variants.some(({ id }) => id === variantId)
@@ -205,10 +205,10 @@ export function setDefaultDisplaySymbolVariant(
 }
 
 export function syncDisplaySymbolChoiceMap(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementId: string,
   idFactory?: DisplayDesignIdFactory,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const target = document.elements.find((element): element is DisplaySymbolInstance => element.id === elementId && element.kind === 'symbol-instance')
   if (!target || target.state.kind !== 'choice-binding') return cloneDisplayDesign(document)
   const targetState = target.state
@@ -263,10 +263,10 @@ export function syncDisplaySymbolChoiceMap(
 }
 
 export function makeDisplaySymbolStateDynamic(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementId: string,
   idFactory: DisplayDesignIdFactory,
-): { document: DisplayDesignDocumentV1; binding?: DisplayChoiceBinding } {
+): { document: DisplayDesignDocument; binding?: DisplayChoiceBinding } {
   const instance = document.elements.find((element): element is DisplaySymbolInstance => element.id === elementId && element.kind === 'symbol-instance')
   const symbol = instance && document.symbols.find(({ id }) => id === instance.symbolId)
   if (!instance || !symbol) return { document: cloneDisplayDesign(document) }
@@ -285,10 +285,10 @@ export function makeDisplaySymbolStateDynamic(
 }
 
 export function detachDisplaySymbolInstance(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementId: string,
   idFactory: DisplayDesignIdFactory,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const bindings = createDisplayBindingMap(document.bindings)
   const index = document.elements.findIndex(({ id }) => id === elementId)
   const instance = document.elements[index]
@@ -317,11 +317,11 @@ export function detachDisplaySymbolInstance(
 }
 
 export function deleteDisplaySymbolVariant(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   variantId: string,
   replacementVariantId: string,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const symbol = document.symbols.find(({ id }) => id === symbolId)
   if (!symbol || symbol.variants.length <= 1 || variantId === replacementVariantId || !symbol.variants.some(({ id }) => id === replacementVariantId)) return cloneDisplayDesign(document)
   const symbols = document.symbols.map((candidate) => candidate.id === symbolId ? {
@@ -346,11 +346,11 @@ export function deleteDisplaySymbolVariant(
 export type DeleteDisplaySymbolChoice = 'detach-instances' | 'delete-instances'
 
 export function deleteUsedDisplaySymbol(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   choice: DeleteDisplaySymbolChoice,
   idFactory: DisplayDesignIdFactory,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   let next = cloneDisplayDesign(document)
   const ids = next.elements.filter((element) => element.kind === 'symbol-instance' && element.symbolId === symbolId).map(({ id }) => id)
   if (choice === 'detach-instances') {

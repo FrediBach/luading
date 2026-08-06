@@ -2,9 +2,11 @@ import {
   DISPLAY_DESIGN_KIND,
   DISPLAY_DESIGN_LIMITS,
   DISPLAY_DESIGN_VERSION,
+  DISPLAY_DESIGN_VERSION_V1,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
+  type DisplayDesignLayoutGrid,
   type DisplayDesignerFinding,
   type DisplayDesignerFindingFocus,
   type DisplayDesignElement,
@@ -22,7 +24,7 @@ import { isSafeDisplayLuaIdentifier } from './display-design-lua-identifiers'
 
 export interface DisplayDesignValidationResult {
   ok: boolean
-  document?: DisplayDesignDocumentV1
+  document?: DisplayDesignDocument
   findings: DisplayDesignerFinding[]
 }
 
@@ -34,6 +36,52 @@ function isRecord(value: unknown): value is RecordValue {
 
 function codePointLength(value: string): number {
   return [...value].length
+}
+
+function validateLayoutGrid(
+  validator: Validator,
+  value: unknown,
+): DisplayDesignLayoutGrid | null {
+  if (value === null) return null
+  if (!isRecord(value)) {
+    validator.finding('invalid-layout-grid', 'Layout grid must be a uniform grid object or null.', 'layoutGrid')
+    return null
+  }
+  validator.keys(value, ['kind', 'size', 'color', 'opacity'], 'layoutGrid')
+  if (value.kind !== 'uniform') {
+    validator.finding('invalid-layout-grid-kind', 'Layout grid kind must be “uniform”.', 'layoutGrid.kind')
+  }
+  const size = typeof value.size === 'number' && Number.isInteger(value.size)
+    && value.size >= DISPLAY_DESIGN_LIMITS.minimumLayoutGridSize
+    && value.size <= DISPLAY_DESIGN_LIMITS.maximumLayoutGridSize
+    ? value.size
+    : 8
+  if (size !== value.size) {
+    validator.finding(
+      'invalid-layout-grid-size',
+      `Layout grid size must be a whole number from ${DISPLAY_DESIGN_LIMITS.minimumLayoutGridSize} through ${DISPLAY_DESIGN_LIMITS.maximumLayoutGridSize}.`,
+      'layoutGrid.size',
+    )
+  }
+  const color = typeof value.color === 'string' && /^#[0-9a-f]{6}$/u.test(value.color)
+    ? value.color
+    : '#ff0000'
+  if (color !== value.color) {
+    validator.finding('invalid-layout-grid-color', 'Layout grid color must be a normalized six-digit hexadecimal RGB value.', 'layoutGrid.color')
+  }
+  const opacity = typeof value.opacity === 'number' && Number.isInteger(value.opacity)
+    && value.opacity >= DISPLAY_DESIGN_LIMITS.minimumLayoutGridOpacity
+    && value.opacity <= DISPLAY_DESIGN_LIMITS.maximumLayoutGridOpacity
+    ? value.opacity
+    : 10
+  if (opacity !== value.opacity) {
+    validator.finding(
+      'invalid-layout-grid-opacity',
+      `Layout grid opacity must be a whole percentage from ${DISPLAY_DESIGN_LIMITS.minimumLayoutGridOpacity} through ${DISPLAY_DESIGN_LIMITS.maximumLayoutGridOpacity}.`,
+      'layoutGrid.opacity',
+    )
+  }
+  return { kind: 'uniform', size, color, opacity }
 }
 
 class Validator {
@@ -535,7 +583,7 @@ function checkPrimitiveReferences(
   }
 }
 
-function crossValidate(validator: Validator, document: DisplayDesignDocumentV1): void {
+function crossValidate(validator: Validator, document: DisplayDesignDocument): void {
   const groups = new Set(document.groups.map(({ id }) => id))
   const bindings = new Map(document.bindings.map((binding) => [binding.id, binding]))
   const symbols = new Map(document.symbols.map((symbol) => [symbol.id, symbol]))
@@ -605,15 +653,23 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-document', 'A display design object is required.', '$')
       return { ok: false, findings: validator.findings }
     }
-    validator.keys(value, ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols'], '$')
     if (value.kind !== DISPLAY_DESIGN_KIND) {
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION) {
-      validator.finding('unsupported-version', `Only display design version ${DISPLAY_DESIGN_VERSION} is supported.`, '$.version')
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION) {
+      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} and ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
+    const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
+    validator.keys(
+      value,
+      isVersion1
+        ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols']
+        : ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols', 'layoutGrid'],
+      '$',
+    )
+    const layoutGrid = isVersion1 ? null : validateLayoutGrid(validator, value.layoutGrid)
 
     const rawGroups = validator.array(value.groups, 'groups')
     const rawBindings = validator.array(value.bindings, 'bindings')
@@ -650,7 +706,7 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       ? value.displayMode
       : 'parameter-line'
     if (displayMode !== value.displayMode) validator.finding('invalid-display-mode', 'Display mode must be “parameter-line” or “full-screen”.', 'displayMode')
-    const document: DisplayDesignDocumentV1 = {
+    const document: DisplayDesignDocument = {
       kind: DISPLAY_DESIGN_KIND,
       version: DISPLAY_DESIGN_VERSION,
       name: validator.name(value.name, 'name', 'Untitled display'),
@@ -659,6 +715,7 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       groups,
       bindings,
       symbols,
+      layoutGrid,
     }
     crossValidate(validator, document)
     return {

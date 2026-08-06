@@ -1,6 +1,6 @@
 import {
   DISPLAY_DESIGN_LIMITS,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignerFinding,
 } from './display-design-model'
 import { validateDisplayDesign } from './display-design-validation'
@@ -32,14 +32,15 @@ export interface SerializedDisplayDesign {
   text: string
   bytes: number
   fileName: string
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
 }
 
 export interface ParsedDisplayDesign {
   ok: true
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   findings: DisplayDesignerFinding[]
   bytes: number
+  migratedFromVersion?: 1
 }
 
 export type SerializeDisplayDesignResult = SerializedDisplayDesign | DisplayDesignFileFailure
@@ -144,6 +145,10 @@ export function parseDisplayDesignText(text: string): ParseDisplayDesignResult {
     } catch {
       return { ok: false, code: 'invalid-json', message: 'The selected file does not contain valid JSON.' }
     }
+    const migratedFromVersion = typeof value === 'object' && value !== null
+      && 'version' in value && value.version === 1
+      ? 1
+      : undefined
     const validation = validateDisplayDesign(value)
     if (!validation.ok || !validation.document) {
       return {
@@ -154,7 +159,13 @@ export function parseDisplayDesignText(text: string): ParseDisplayDesignResult {
         findings: validation.findings,
       }
     }
-    return { ok: true, document: validation.document, findings: validation.findings, bytes }
+    return {
+      ok: true,
+      document: validation.document,
+      findings: validation.findings,
+      bytes,
+      ...(migratedFromVersion ? { migratedFromVersion } : {}),
+    }
   } catch {
     return { ok: false, code: 'invalid-document', message: 'The selected display design could not be inspected safely.' }
   }

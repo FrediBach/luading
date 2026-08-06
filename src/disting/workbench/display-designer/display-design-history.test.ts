@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   DISPLAY_DESIGN_LIMITS,
+  addDefaultDisplayDesignLayoutGrid,
   addDisplayDesignElement,
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
   createEmptyDisplayDesignSelection,
   createSequentialDisplayDesignIdFactory,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
 } from './display-design-model'
 import {
   applyDisplayDesignTransaction,
@@ -16,7 +17,7 @@ import {
   undoDisplayDesign,
 } from './display-design-history'
 
-function named(document: DisplayDesignDocumentV1, name: string): DisplayDesignDocumentV1 {
+function named(document: DisplayDesignDocument, name: string): DisplayDesignDocument {
   return { ...structuredClone(document), name }
 }
 
@@ -56,6 +57,19 @@ describe('display design history', () => {
     const committed = commitDisplayDesignTransaction(history, { label: 'No change', document: structuredClone(document) })
     expect(committed).toEqual(history)
     expect(committed).not.toBe(history)
+  })
+
+  it('treats layout-grid definition changes as undoable document edits', () => {
+    const original = createEmptyDisplayDesign()
+    const added = commitDisplayDesignTransaction(createDisplayDesignHistory(original), {
+      label: 'Add layout grid',
+      document: addDefaultDisplayDesignLayoutGrid(original),
+    })
+
+    expect(added.present.document.layoutGrid?.size).toBe(8)
+    expect(added.past).toHaveLength(1)
+    expect(undoDisplayDesign(added).present.document.layoutGrid).toBeNull()
+    expect(redoDisplayDesign(undoDisplayDesign(added)).present.document.layoutGrid?.size).toBe(8)
   })
 
   it('runs operations against a defensive snapshot', () => {

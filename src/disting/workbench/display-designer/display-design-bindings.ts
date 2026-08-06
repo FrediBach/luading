@@ -4,7 +4,7 @@ import {
   createDefaultDisplayBinding,
   deleteDisplayDesignBinding,
   type DisplayDesignBinding,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignElement,
   type DisplayDesignIdFactory,
   type DisplayPrimitiveElement,
@@ -58,7 +58,7 @@ function collectPrimitiveUsages(
   }
 }
 
-export function listDisplayBindingUsages(document: DisplayDesignDocumentV1): DisplayBindingUsage[] {
+export function listDisplayBindingUsages(document: DisplayDesignDocument): DisplayBindingUsage[] {
   const usages: DisplayBindingUsage[] = []
   for (const element of document.elements) {
     if (element.kind !== 'symbol-instance') {
@@ -84,11 +84,11 @@ export function listDisplayBindingUsages(document: DisplayDesignDocumentV1): Dis
 }
 
 export function createDisplayBindingInDocument(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   kind: DisplayDesignBinding['kind'],
   idFactory: DisplayDesignIdFactory,
   name?: string,
-): { document: DisplayDesignDocumentV1; binding: DisplayDesignBinding } {
+): { document: DisplayDesignDocument; binding: DisplayDesignBinding } {
   const binding = createDefaultDisplayBinding(kind, idFactory)
   if (name) binding.name = name
   binding.luaName = allocateDisplayLuaIdentifier(
@@ -133,9 +133,9 @@ function mapPrimitive(
 }
 
 export function convertDisplayBindingUsesToStatic(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   bindingId: string,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const bindings = createDisplayBindingMap(document.bindings)
   const scalar = (value: DisplayScalar): DisplayScalar => value.kind === 'number-binding' && value.bindingId === bindingId
     ? { kind: 'literal', value: resolveDisplayScalar(value, bindings) }
@@ -166,16 +166,16 @@ export function convertDisplayBindingUsesToStatic(
 }
 
 export function deleteDisplayBindingAndConvertUses(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   bindingId: string,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return deleteDisplayDesignBinding(convertDisplayBindingUsesToStatic(document, bindingId), bindingId)
 }
 
-export function staticDisplayScalarValue(document: DisplayDesignDocumentV1, scalar: DisplayScalar): number {
+export function staticDisplayScalarValue(document: DisplayDesignDocument, scalar: DisplayScalar): number {
   return resolveDisplayScalar(scalar, createDisplayBindingMap(document.bindings))
 }
 
-export function staticDisplayTextValue(document: DisplayDesignDocumentV1, element: Extract<DisplayPrimitiveElement, { kind: 'text' }>): string {
+export function staticDisplayTextValue(document: DisplayDesignDocument, element: Extract<DisplayPrimitiveElement, { kind: 'text' }>): string {
   return resolveDisplayText(element.text, createDisplayBindingMap(document.bindings))
 }

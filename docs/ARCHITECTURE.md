@@ -94,7 +94,8 @@ pure and do not communicate with the simulation worker.
 | Web Audio and Web MIDI routing | Main thread | Never serialized into the Lua contract; browser port identities never enter the worker |
 | Saved `self.state` | Produced by the worker, held by the coordinator | Kept in memory for a subsequent load; not browser-persisted |
 | Layout, density, responsive mode, theme, and editor text size | Main thread | Best-effort `localStorage`; storage failures fall back to defaults |
-| Open display design, selection, preview values, responsive panel, and undo history | Main-thread `DisplayDesignerDialog` | Retained only for the mounted workbench session unless the user explicitly downloads a `.luading-display.json` file; never mirrored to a worker, project record, recovery journal, or Lua state |
+| Open display design, document-owned layout-grid definition, selection, preview values, and undo history | Main-thread `DisplayDesignerDialog` | Document edits are retained for the mounted workbench session unless explicitly downloaded as `.luading-display.json`; never mirrored to a worker, project record, recovery journal, or Lua state |
+| Display-designer layout-grid visibility, pixel-grid visibility, pixel preview, geometry overlay, and snap preference | Main-thread `DisplayDesignerDialog` view state | Retained only for the mounted workbench session, including across opened designs; excluded from document history, dirty state, downloads, generated Lua, and worker protocols |
 | Syntax/static diagnostics and source index | Validation worker result | Accepted only for the current source version |
 | Contract diagnostics | Simulation worker during load | Cleared on source changes and replaced by the next load result |
 | Runtime diagnostics and console events | Simulation worker, accumulated by the coordinator | Bounded or deduplicated for display; never treated as source-version-independent proof |
@@ -171,19 +172,31 @@ source when possible; the UI does not label that state as saved locally.
 The display designer is an independent main-thread authoring flow. Its React
 dialog owns the normalized design document, semantic undo history, selection,
 pointer gesture preview, responsive panel state, preview binding values, and
-downloaded-revision marker. Pure modules below the dialog validate the
+downloaded-revision marker. The singleton uniform layout-grid definition is
+document-owned; grid visibility and pointer-snapping preferences remain view
+state. Pure modules below the dialog validate the
 document, transform geometry, expand symbols, compile ordinary draw commands,
 calculate descriptive metrics, and generate deterministic Lua. The existing
 main-thread display renderer rasterizes the compiled commands; neither the
 designer document nor its UI state crosses the simulation-worker protocol.
 
 Opening a design first validates browser file metadata, reads and defensively
-parses the versioned JSON, and produces canonical serialized bytes. Only a
+parses strict version-1 or version-2 JSON, migrates version 1 to the canonical
+version-2 shape, and produces canonical serialized bytes. Only a
 fully accepted document replaces the current draft and receives a fresh
 history/ID allocator. Download creates an explicit browser Blob and marks only
 the dispatched canonical revision as downloaded. These files do not enter the
 project database, backup schema, recovery journal, active Monaco model, or Lua
 runtime.
+
+Pointer gestures retain raw samples separately from snapped previews. The pure
+snapping module ranks grid candidates, converts logical deltas through the
+measured artboard rectangle, applies independent 6-pixel enter and 8-pixel exit
+thresholds, filters unrepresentable whole/half-pixel corrections, and returns
+render-only guide metadata. The dialog then re-applies display-mode constraints
+and suppresses guides whose target was not actually reached. Exact inspector,
+keyboard nudge, alignment, distribution, import, and generator paths do not
+pass through this snapping layer.
 
 Generated Lua is a one-way clipboard handoff. A successful copy contains the
 exact source preview; clipboard denial exposes the same source in a selected

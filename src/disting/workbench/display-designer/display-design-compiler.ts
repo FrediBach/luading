@@ -1,7 +1,7 @@
 import { rasterizeDistingText } from '../../emulation/display-font'
 import { DISTING_DISPLAY, type DrawCommand } from '../../types'
 import {
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignerFinding,
   type DisplayPrimitiveElement,
   type DisplaySymbolInstance,
@@ -145,7 +145,7 @@ function commandBounds(command: DrawCommand): CommandBounds | undefined {
 }
 
 function boundsFindings(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   command: DrawCommand,
   elementId: string,
   elementIndex: number,
@@ -191,7 +191,7 @@ function boundsFindings(
 
 function resolveInstanceVariant(
   instance: DisplaySymbolInstance,
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   bindings: DisplayBindingMap,
 ): DisplaySymbolVariant | undefined {
   const symbol = document.symbols.find(({ id }) => id === instance.symbolId)
@@ -206,7 +206,7 @@ function resolveInstanceVariant(
     ?? symbol.variants.find(({ id }) => id === symbol.defaultVariantId)
 }
 
-function emptyMetrics(document?: DisplayDesignDocumentV1): CompiledDisplayDesignMetrics {
+function emptyMetrics(document?: DisplayDesignDocument): CompiledDisplayDesignMetrics {
   const elementCount = document
     ? document.elements.filter(({ kind }) => kind !== 'symbol-instance').length
       + document.symbols.reduce((count, symbol) => count + symbol.variants.reduce((sum, variant) => sum + variant.elements.length, 0), 0)
@@ -222,7 +222,7 @@ function emptyMetrics(document?: DisplayDesignDocumentV1): CompiledDisplayDesign
   }
 }
 
-export function compileDisplayDesign(value: DisplayDesignDocumentV1): CompiledDisplayDesign {
+export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisplayDesign {
   const validation = validateDisplayDesign(value)
   if (!validation.document || !validation.ok) {
     return { commands: [], commandSources: [], findings: validation.findings, metrics: emptyMetrics(validation.document) }

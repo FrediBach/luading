@@ -1,7 +1,7 @@
 import { luaQuotedString } from '../lua-source'
 import type {
   DisplayDesignBinding,
-  DisplayDesignDocumentV1,
+  DisplayDesignDocument,
   DisplayDesignerFinding,
   DisplayPrimitiveElement,
   DisplayScalar,
@@ -171,7 +171,7 @@ function collectInstanceBindingIds(instance: DisplaySymbolInstance, bindingIds: 
 }
 
 function symbolHelperSource(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   bindings: DisplayBindingMap,
 ): string[] {
@@ -194,7 +194,7 @@ function symbolHelperSource(
 }
 
 function instanceSource(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   instance: DisplaySymbolInstance,
   bindings: DisplayBindingMap,
 ): string[] {
@@ -221,7 +221,7 @@ function instanceSource(
   return lines
 }
 
-export function buildDisplayDesignSource(document: DisplayDesignDocumentV1): DisplayDesignSourceBuild {
+export function buildDisplayDesignSource(document: DisplayDesignDocument): DisplayDesignSourceBuild {
   const findings: DisplayDesignerFinding[] = []
   const usedBindingIds = new Set<string>()
   const usedSymbolIds = new Set<string>()
@@ -311,7 +311,7 @@ export function buildDisplayDesignSource(document: DisplayDesignDocumentV1): Dis
   return { source, generatedUtf8Bytes: new TextEncoder().encode(source).byteLength, findings }
 }
 
-export function generateDisplayDesignLua(value: DisplayDesignDocumentV1): DisplayDesignGenerationResult {
+export function generateDisplayDesignLua(value: DisplayDesignDocument): DisplayDesignGenerationResult {
   const validation = validateDisplayDesign(value)
   if (!validation.document || !validation.ok) {
     return { ok: false, source: '', generatedUtf8Bytes: 0, findings: validation.findings }

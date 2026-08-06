@@ -3,12 +3,12 @@ import {
   cloneDisplayDesign,
   createEmptyDisplayDesignSelection,
   normalizeDisplayDesignSelection,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignSelection,
 } from './display-design-model'
 
 export interface DisplayDesignHistorySnapshot {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   selection: DisplayDesignSelection
 }
 
@@ -26,12 +26,12 @@ export interface DisplayDesignHistory {
 
 export interface DisplayDesignTransactionUpdate {
   label: string
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   selection?: DisplayDesignSelection
 }
 
 function ownedSnapshot(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   selection: DisplayDesignSelection,
 ): DisplayDesignHistorySnapshot {
   const ownedDocument = cloneDisplayDesign(document)
@@ -46,7 +46,7 @@ function snapshotsEqual(left: DisplayDesignHistorySnapshot, right: DisplayDesign
 }
 
 export function createDisplayDesignHistory(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   selection = createEmptyDisplayDesignSelection(),
 ): DisplayDesignHistory {
   return { present: ownedSnapshot(document, selection), past: [], future: [] }

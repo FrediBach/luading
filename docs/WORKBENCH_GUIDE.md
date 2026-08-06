@@ -821,10 +821,33 @@ only change its CSS size. Pointer hit targets are enlarged in screen space while
 committed coordinates use integer snapping, or half-pixel snapping for smooth
 primitives. Pointer creation and manipulation stay below row 10 in parameter-
 line mode; exact fields may deliberately retain clipped or reserved-area
-coordinates, which produce findings. **Pixels** uses the same display renderer
-as the simulator; **Geometry** adds authoring guides and handles, and **Grid**
-adds logical-pixel chrome. Smooth pixels remain an approximation of firmware
+coordinates, which produce findings. **View options** independently controls
+the simulator-backed **Pixel preview**, authoring **Geometry**, the one-logical-
+pixel **Pixel grid**, the document's **Layout grid**, and **Snap to layout
+grid**. The dense Pixel grid appears only when each logical pixel occupies at
+least four CSS pixels; its checked preference remains available at lower zoom.
+The configurable Layout grid remains visible at every zoom and can be hidden
+without disabling snapping. Smooth pixels remain an approximation of firmware
 antialiasing and appear with a finding whenever used.
+
+With no layer selected, Properties shows the **Artboard** and can add one
+uniform Layout grid, edit its whole-pixel size from 1–64, six-digit RGB colour,
+and 1–100% opacity, or remove it. Grid definition edits are part of document
+history and dirty state. Layout-grid visibility, Pixel-grid visibility, and
+the snapping preference are session view choices and do not change the design.
+The defaults are an 8-pixel red grid at 10% opacity, visible layout grids,
+hidden Pixel grid, and enabled layout-grid snapping.
+
+Layout-grid snapping applies only to pointer creation, movement, and resize.
+It evaluates x and y independently in screen space, preserves a multi-layer
+selection as one rigid shape, and shows a strong guide plus coordinate badge
+while active. Hold Control during a gesture to bypass layout-grid snapping;
+releasing it re-evaluates the raw pointer sample without accumulating rounding
+error. Exact inspector commits, one/five-pixel keyboard nudges, alignment,
+distribution, duplication, imports, and existing artwork are never rewritten
+just because snapping is enabled. Command/Ctrl+`'` toggles the Pixel grid,
+Command/Ctrl+Shift+`'` toggles snapping, and Control+G or Control+Shift+4 toggles
+Layout-grid visibility when focus is not in an editable control.
 
 Above 900 CSS pixels, Layers/Symbols and Properties/State remain in independent
 side columns. From 721 through 900 pixels, and at 720 pixels or below, the
@@ -848,7 +871,10 @@ only extension: Disting NT receives only the generated ordinary draw calls.
 Use **Open design** to choose a versioned `.luading-display.json` authoring
 file. Type, size, version, and document validation complete before the current
 draft is replaced; a failed read or invalid file keeps the draft unchanged.
-Use **Download design** for a deterministic JSON file with a safe name. A
+Version-1 files open through a non-destructive migration with no layout grid;
+downloads always use the strict version-2 format, where `layoutGrid` is either
+the uniform-grid definition or `null`. Use **Download design** for a
+deterministic JSON file with a safe name. A
 dispatched download marks that exact revision as downloaded, while later edits
 become changed again. Open/download never changes the active script, local
 project, recovery journal, simulation, or diagnostics, and a downloaded design

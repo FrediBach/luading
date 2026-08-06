@@ -10,7 +10,7 @@ import {
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
 } from './display-design-model'
 
 describe('display design binding operations', () => {
@@ -48,7 +48,7 @@ describe('display design binding operations', () => {
     text.text = { kind: 'text-binding', bindingId: textId }
     const variantId = ids('variant')
     const symbolId = ids('symbol')
-    const document: DisplayDesignDocumentV1 = {
+    const document: DisplayDesignDocument = {
       ...createEmptyDisplayDesign(),
       bindings: [
         { kind: 'number', id: numberId, name: 'Level', luaName: 'level', previewValue: 0.25 },
@@ -79,7 +79,7 @@ describe('display design binding operations', () => {
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: true }
     const text = createDefaultDisplayPrimitive('tiny-text', ids)
     text.text = { kind: 'text-binding', bindingId: textId }
-    let document: DisplayDesignDocumentV1 = {
+    let document: DisplayDesignDocument = {
       ...createEmptyDisplayDesign(),
       bindings: [
         { kind: 'number', id: numberId, name: 'Level', luaName: 'level', previewValue: 0.25 },

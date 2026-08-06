@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   addDisplayDesignBinding,
+  addDefaultDisplayDesignLayoutGrid,
   addDisplayDesignElement,
   addDisplayDesignGroup,
   addDisplayDesignSymbol,
@@ -14,6 +15,7 @@ import {
   deleteDisplayDesignBinding,
   deleteDisplayDesignElements,
   deleteDisplayDesignGroup,
+  removeDisplayDesignLayoutGrid,
   deleteDisplayDesignSymbol,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
@@ -29,8 +31,9 @@ import {
   updateDisplayDesignBinding,
   updateDisplayDesignElement,
   updateDisplayDesignGroup,
+  updateDisplayDesignLayoutGrid,
   updateDisplayDesignSymbol,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignSymbol,
 } from './display-design-model'
 
@@ -42,7 +45,7 @@ function deepFreeze<T>(value: T): T {
   return value
 }
 
-function documentWithThreeElements(): DisplayDesignDocumentV1 {
+function documentWithThreeElements(): DisplayDesignDocument {
   const ids = createSequentialDisplayDesignIdFactory('test')
   return {
     ...createEmptyDisplayDesign(),
@@ -67,23 +70,41 @@ describe('display design model', () => {
     expect(ids('element')).toBe('designer-element-3')
   })
 
-  it('creates a browser-only empty v1 document and deterministic scoped IDs', () => {
+  it('creates a browser-only empty v2 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({
       kind: 'luading-display-design',
-      version: 1,
+      version: 2,
       name: 'Untitled display',
       displayMode: 'parameter-line',
       elements: [],
       groups: [],
       bindings: [],
       symbols: [],
+      layoutGrid: null,
     })
     expect([ids('element'), ids('variant'), ids('element')]).toEqual([
       'scene-element-1',
       'scene-variant-2',
       'scene-element-3',
     ])
+  })
+
+  it('adds, updates, and removes the singleton layout grid immutably', () => {
+    const original = deepFreeze(createEmptyDisplayDesign())
+    const added = addDefaultDisplayDesignLayoutGrid(original)
+    const updated = updateDisplayDesignLayoutGrid(added, (grid) => ({
+      ...grid,
+      size: 16,
+      color: '#123abc',
+      opacity: 25,
+    }))
+    const removed = removeDisplayDesignLayoutGrid(updated)
+
+    expect(added.layoutGrid).toEqual({ kind: 'uniform', size: 8, color: '#ff0000', opacity: 10 })
+    expect(updated.layoutGrid).toEqual({ kind: 'uniform', size: 16, color: '#123abc', opacity: 25 })
+    expect(removed.layoutGrid).toBeNull()
+    expect(original.layoutGrid).toBeNull()
   })
 
   it('creates every supported primitive without impossible shape combinations', () => {

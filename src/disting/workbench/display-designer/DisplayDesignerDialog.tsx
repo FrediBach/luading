@@ -58,7 +58,17 @@ import {
   type DisplayDesignDistribution,
   type DisplayDesignHandle,
   type DisplayDesignPoint,
+  type DisplayDesignClientRect,
 } from './display-design-geometry'
+import {
+  generateDisplayLayoutGridLines,
+  snapDisplayAxisToLayoutGrid,
+  snapDisplayPointToLayoutGrid,
+  snapDisplaySelectionTranslation,
+  snapGuidesFromState,
+  type DisplayDesignSnapGuide,
+  type DisplayDesignSnapState,
+} from './display-design-snapping'
 import {
   applyDisplayDesignTransaction,
   createDisplayDesignHistory,
@@ -68,6 +78,7 @@ import {
 } from './display-design-history'
 import {
   addDisplayDesignElement,
+  addDefaultDisplayDesignLayoutGrid,
   addDisplayDesignGroup,
   assignDisplayDesignGroup,
   cloneDisplayDesign,
@@ -79,6 +90,7 @@ import {
   createSequentialDisplayDesignIdFactory,
   deleteDisplayDesignElements,
   deleteDisplayDesignGroup,
+  removeDisplayDesignLayoutGrid,
   DISPLAY_DESIGN_LIMITS,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
@@ -88,8 +100,9 @@ import {
   updateDisplayDesignBinding,
   updateDisplayDesignElement,
   updateDisplayDesignGroup,
+  updateDisplayDesignLayoutGrid,
   updateDisplayDesignSymbol,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
   type DisplayDesignElement,
   type DisplayDesignBinding,
   type DisplayDesignIdFactory,
@@ -127,6 +140,30 @@ type DesignerZoom = 'fit' | 1 | 2 | 3 | 4
 type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
 type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
 
+interface DisplayDesignerViewPreferences {
+  showPixelGrid: boolean
+  showLayoutGrid: boolean
+  snapToLayoutGrid: boolean
+  showPixelPreview: boolean
+  showGeometry: boolean
+}
+
+const DEFAULT_DISPLAY_DESIGNER_VIEW_PREFERENCES: DisplayDesignerViewPreferences = {
+  showPixelGrid: false,
+  showLayoutGrid: true,
+  snapToLayoutGrid: true,
+  showPixelPreview: true,
+  showGeometry: true,
+}
+
+function validDisplayDesignerViewPreferences(value: unknown): value is DisplayDesignerViewPreferences {
+  if (typeof value !== 'object' || value === null) return false
+  const preferences = value as Record<keyof DisplayDesignerViewPreferences, unknown>
+  return Object.keys(DEFAULT_DISPLAY_DESIGNER_VIEW_PREFERENCES).every(
+    (key) => typeof preferences[key as keyof DisplayDesignerViewPreferences] === 'boolean',
+  )
+}
+
 function useDisplayDesignerLayout(viewportWidth?: number): DisplayDesignerLayoutMode {
   const [measuredLayout, setMeasuredLayout] = useState(() => displayDesignerLayoutForWidth(
     typeof window === 'undefined' ? Number.POSITIVE_INFINITY : window.innerWidth,
@@ -147,8 +184,11 @@ interface DisplayDesignerGesture {
   kind: 'create' | 'move' | 'resize' | 'marquee'
   pointerId: number
   start: DisplayDesignPoint
-  baseDocument: DisplayDesignDocumentV1
-  document: DisplayDesignDocumentV1
+  rawStart: DisplayDesignPoint
+  rawCurrent: DisplayDesignPoint
+  rect: DisplayDesignClientRect
+  baseDocument: DisplayDesignDocument
+  document: DisplayDesignDocument
   selection: DisplayDesignSelection
   baseSelection?: DisplayDesignSelection
   end?: DisplayDesignPoint
@@ -156,6 +196,9 @@ interface DisplayDesignerGesture {
   elementId?: string
   handle?: DisplayDesignHandle
   preset?: DisplayPrimitivePreset
+  startSnapState?: DisplayDesignSnapState
+  snapState?: DisplayDesignSnapState
+  snapGuides: DisplayDesignSnapGuide[]
 }
 
 interface DisplayDesignerMenuAction {
@@ -278,6 +321,85 @@ function DisplayDesignerContextMenu({ label, actions }: {
   </>
 }
 
+interface DisplayDesignerViewOption {
+  label: string
+  checked: boolean
+  onToggle(): void
+  disabled?: boolean
+  description?: string
+  shortcut?: string
+}
+
+function DisplayDesignerViewOptions({ options }: { options: DisplayDesignerViewOption[] }) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (event: globalThis.PointerEvent) => {
+      const target = event.target as Node
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false)
+    }
+    globalThis.document.addEventListener('pointerdown', close)
+    return () => globalThis.document.removeEventListener('pointerdown', close)
+  }, [open])
+
+  const focusItem = (index: number) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemcheckbox"]:not(:disabled)') ?? [])]
+    items[(index + items.length) % items.length]?.focus()
+  }
+
+  return <div className="display-designer-view-options">
+    <button
+      ref={triggerRef}
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      onClick={() => {
+        const next = !open
+        setOpen(next)
+        if (next) window.requestAnimationFrame(() => focusItem(0))
+      }}
+    >View options</button>
+    {open && <div
+      ref={menuRef}
+      className="display-designer-view-menu"
+      role="menu"
+      aria-label="View options"
+      onKeyDown={(event) => {
+        const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitemcheckbox"]:not(:disabled)')]
+        const current = items.indexOf(globalThis.document.activeElement as HTMLButtonElement)
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          event.stopPropagation()
+          setOpen(false)
+          triggerRef.current?.focus()
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault(); focusItem(current + 1)
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault(); focusItem(current - 1)
+        } else if (event.key === 'Home') {
+          event.preventDefault(); focusItem(0)
+        } else if (event.key === 'End') {
+          event.preventDefault(); focusItem(-1)
+        }
+      }}
+    >{options.map((option) => <div key={option.label} className="display-designer-view-option">
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-label={option.label}
+        aria-checked={option.checked}
+        disabled={option.disabled}
+        title={option.shortcut}
+        onClick={() => { option.onToggle(); setOpen(false); triggerRef.current?.focus() }}
+      ><span aria-hidden="true">{option.checked ? '✓' : ''}</span><span>{option.label}</span>{option.shortcut && <kbd>{option.shortcut}</kbd>}</button>
+      {option.description && <small>{option.description}</small>}
+    </div>)}</div>}
+  </div>
+}
+
 function readBrowserFileText(file: File): Promise<string> {
   if (typeof file.text === 'function') return file.text()
   return new Promise((resolve, reject) => {
@@ -290,11 +412,12 @@ function readBrowserFileText(file: File): Promise<string> {
   })
 }
 
-function isEmptyDisplayDesign(document: DisplayDesignDocumentV1): boolean {
+function isEmptyDisplayDesign(document: DisplayDesignDocument): boolean {
   return document.elements.length === 0
     && document.groups.length === 0
     && document.bindings.length === 0
     && document.symbols.length === 0
+    && document.layoutGrid === null
 }
 
 const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
@@ -328,7 +451,7 @@ function CommitInput({
 }: {
   label: string
   value: string | number
-  type?: 'text' | 'number'
+  type?: 'text' | 'number' | 'color'
   min?: number
   max?: number
   step?: number | 'any'
@@ -410,9 +533,11 @@ function DisplayDesignerArtboard({
   commandSources,
   activeTool,
   zoom,
-  showGrid,
-  showPixels,
+  showPixelGrid,
+  showLayoutGrid,
+  showPixelPreview,
   showGeometry,
+  snapGuides,
   showOriginMarker,
   selectionArea,
   onPointerStart,
@@ -420,28 +545,36 @@ function DisplayDesignerArtboard({
   onPointerEnd,
   onPointerCancel,
 }: {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   commands: DrawCommand[]
-  displayMode: DisplayDesignDocumentV1['displayMode']
+  displayMode: DisplayDesignDocument['displayMode']
   selectedElementIds: string[]
   commandSources: Array<{ elementId: string; firstCommand: number }>
   activeTool: DesignerTool
   zoom: DesignerZoom
-  showGrid: boolean
-  showPixels: boolean
+  showPixelGrid: boolean
+  showLayoutGrid: boolean
+  showPixelPreview: boolean
   showGeometry: boolean
+  snapGuides: DisplayDesignSnapGuide[]
   showOriginMarker?: boolean
   selectionArea?: { start: DisplayDesignPoint; end: DisplayDesignPoint }
-  onPointerStart(input: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }): void
-  onPointerMove(point: DisplayDesignPoint, pointerId: number): void
-  onPointerEnd(pointerId: number): void
+  onPointerStart(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean; ctrlKey: boolean }): void
+  onPointerMove(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }): void
+  onPointerEnd(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }): void
   onPointerCancel(pointerId: number): void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const artboardRef = useRef<HTMLDivElement>(null)
+  const [pixelGridEligible, setPixelGridEligible] = useState(zoom === 4)
   const previewCommands = useMemo(() => displayMode === 'parameter-line'
     ? [...buildParameterLineCommands('Parameter', 'Value'), ...commands]
     : commands, [commands, displayMode])
   const selectedElements = document.elements.filter(({ id }) => selectedElementIds.includes(id))
+  const layoutLines = useMemo(
+    () => document.layoutGrid ? generateDisplayLayoutGridLines(document.layoutGrid.size) : { x: [], y: [] },
+    [document.layoutGrid],
+  )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -450,6 +583,20 @@ function DisplayDesignerArtboard({
     if (context) renderDistingDisplay(context, previewCommands)
   }, [previewCommands])
 
+  useEffect(() => {
+    const artboard = artboardRef.current
+    if (!artboard) return
+    const update = () => {
+      const rect = artboard.getBoundingClientRect()
+      setPixelGridEligible(rect.width / DISTING_DISPLAY.width >= 4 && rect.height / DISTING_DISPLAY.height >= 4)
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(artboard)
+    return () => observer.disconnect()
+  }, [zoom])
+
   const scaleStyle = zoom === 'fit'
     ? { width: '100%' }
     : { width: `${DISTING_DISPLAY.width * zoom}px` }
@@ -457,6 +604,11 @@ function DisplayDesignerArtboard({
   const logicalEventPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
     return clientToLogical({ x: event.clientX, y: event.clientY }, rect)
+  }
+
+  const eventRect = (event: ReactPointerEvent<HTMLDivElement>): DisplayDesignClientRect => {
+    const { left, top, width, height } = event.currentTarget.getBoundingClientRect()
+    return { left, top, width, height }
   }
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -471,10 +623,12 @@ function DisplayDesignerArtboard({
     event.preventDefault()
     onPointerStart({
       point,
+      rect: eventRect(event),
       pointerId: event.pointerId,
       elementId,
       handle: handleTarget?.dataset.displayHandle as DisplayDesignHandle | undefined,
       shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
     })
   }
 
@@ -483,23 +637,34 @@ function DisplayDesignerArtboard({
       <div className="display-designer-rulers" aria-hidden="true"><span>0,0</span><span>256 × 64</span></div>
       <div className="display-designer-artboard-scroll">
         <div
-          className={`display-designer-artboard${showGrid ? ' has-grid' : ''}`}
+          ref={artboardRef}
+          className={`display-designer-artboard${showPixelGrid && pixelGridEligible ? ' has-pixel-grid' : ''}`}
           style={scaleStyle}
           data-zoom={zoom}
+          data-pixel-grid-suppressed={showPixelGrid && !pixelGridEligible ? 'true' : undefined}
           data-active-tool={activeTool}
           onPointerDown={handlePointerDown}
-          onPointerMove={(event) => onPointerMove(logicalEventPoint(event), event.pointerId)}
-          onPointerUp={(event) => { onPointerEnd(event.pointerId); event.currentTarget.releasePointerCapture?.(event.pointerId) }}
+          onPointerMove={(event) => onPointerMove({ point: logicalEventPoint(event), rect: eventRect(event), pointerId: event.pointerId, ctrlKey: event.ctrlKey })}
+          onPointerUp={(event) => { onPointerEnd({ point: logicalEventPoint(event), rect: eventRect(event), pointerId: event.pointerId, ctrlKey: event.ctrlKey }); event.currentTarget.releasePointerCapture?.(event.pointerId) }}
           onPointerCancel={(event) => onPointerCancel(event.pointerId)}
+          onContextMenu={(event) => { if (event.ctrlKey) event.preventDefault() }}
         >
           <canvas
             ref={canvasRef}
             width={DISTING_DISPLAY.width}
             height={DISTING_DISPLAY.height}
             aria-label="Display designer pixel preview"
-            className={showPixels ? '' : 'is-hidden'}
+            className={showPixelPreview ? '' : 'is-hidden'}
           />
           <svg viewBox="0 0 256 64" aria-label="Display designer geometry overlay">
+            {showLayoutGrid && document.layoutGrid && <g
+              className="display-designer-layout-grid"
+              aria-label="Layout grid"
+              style={{ color: document.layoutGrid.color, opacity: document.layoutGrid.opacity / 100 }}
+            >
+              {layoutLines.x.map((coordinate) => <line key={`x-${coordinate}`} x1={coordinate} y1="0" x2={coordinate} y2="64" />)}
+              {layoutLines.y.map((coordinate) => <line key={`y-${coordinate}`} x1="0" y1={coordinate} x2="256" y2={coordinate} />)}
+            </g>}
             {showGeometry && displayMode === 'parameter-line' && <rect className="display-designer-reserved-rows" x="0" y="0" width="256" height="10" />}
             {showGeometry && showOriginMarker && <g className="display-designer-origin-marker" aria-label="Symbol origin"><line x1="-4" y1="0" x2="4" y2="0" /><line x1="0" y1="-4" x2="0" y2="4" /><circle cx="0" cy="0" r="2" /></g>}
             {selectionArea && (() => {
@@ -512,6 +677,17 @@ function DisplayDesignerArtboard({
                 height={bounds.bottom - bounds.top}
               />
             })()}
+            {snapGuides.length > 0 && <g className="display-designer-snap-guides" aria-label="Active snap guides">
+              {snapGuides.map((guide, index) => <g key={`${guide.axis}-${guide.coordinate}-${index}`}>
+                {guide.axis === 'x'
+                  ? <line x1={guide.coordinate} y1="0" x2={guide.coordinate} y2="64" />
+                  : <line x1="0" y1={guide.coordinate} x2="256" y2={guide.coordinate} />}
+                <g className="display-designer-snap-label" transform={`translate(${guide.axis === 'x' ? Math.min(guide.coordinate + 2, 238) : 2} ${guide.axis === 'y' ? Math.max(guide.coordinate - 2, 6) : 6})`}>
+                  <rect x="0" y="-5" width="16" height="7" rx="1" />
+                  <text x="1" y="0">{guide.label}</text>
+                </g>
+              </g>)}
+            </g>}
             {showGeometry && selectedElements.map((element) => {
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
@@ -560,7 +736,7 @@ function DisplayDesignerLayers({
   hiddenGroupIds,
   onToggleGroup,
 }: {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   selectedIds: string[]
   onSelect(id: string, toggle: boolean): void
   onDuplicateElements(ids: string[]): void
@@ -652,7 +828,7 @@ function DisplayDesignerSymbols({
   onDeleteVariant,
   onDeleteSymbol,
 }: {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   selection: DisplayDesignSelection
   onCreate(): void
   onEdit(symbolId: string, variantId: string): void
@@ -741,7 +917,7 @@ function DisplayScalarEditor({
   onChange,
   onMakeDynamic,
 }: {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   scalar: DisplayScalar
   label: string
   integer: boolean
@@ -797,22 +973,79 @@ function DisplayScalarEditor({
 function DisplayDesignerInspector({
   element,
   document,
+  artboardDocument,
   idFactory,
   onCommit,
+  onArtboardCommit,
+  showLayoutGrid,
+  onToggleLayoutGrid,
   onEditSymbol,
   onDetachInstance,
 }: {
   element?: DisplayDesignElement
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
+  artboardDocument: DisplayDesignDocument
   idFactory: DisplayDesignIdFactory
-  onCommit(label: string, document: DisplayDesignDocumentV1): void
+  onCommit(label: string, document: DisplayDesignDocument): void
+  onArtboardCommit(label: string, document: DisplayDesignDocument): void
+  showLayoutGrid: boolean
+  onToggleLayoutGrid(): void
   onEditSymbol?(instance: DisplaySymbolInstance): void
   onDetachInstance?(instance: DisplaySymbolInstance): void
 }) {
   if (!element) return (
     <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
       <h3 id="display-designer-properties-title">Properties</h3>
-      <p className="display-designer-empty">Select a layer to edit exact values.</p>
+      <p className="display-designer-element-kind">Artboard</p>
+      <div className="display-designer-layout-grid-row">
+        <strong>Layout grid</strong>
+        {artboardDocument.layoutGrid
+          ? <button type="button" aria-pressed={showLayoutGrid} onClick={onToggleLayoutGrid}>{showLayoutGrid ? 'Hide layout grid' : 'Show layout grid'}</button>
+          : <button type="button" onClick={() => onArtboardCommit('Add layout grid', addDefaultDisplayDesignLayoutGrid(artboardDocument))}>Add layout grid</button>}
+      </div>
+      {artboardDocument.layoutGrid && <details className="display-designer-layout-grid-settings" open>
+        <summary>Layout grid settings</summary>
+        <CommitInput
+          label="Grid size"
+          type="number"
+          min={DISPLAY_DESIGN_LIMITS.minimumLayoutGridSize}
+          max={DISPLAY_DESIGN_LIMITS.maximumLayoutGridSize}
+          step={1}
+          value={artboardDocument.layoutGrid.size}
+          onCommit={(draft) => {
+            const size = Number(draft)
+            if (!Number.isInteger(size) || size < DISPLAY_DESIGN_LIMITS.minimumLayoutGridSize || size > DISPLAY_DESIGN_LIMITS.maximumLayoutGridSize) return false
+            onArtboardCommit('Change layout grid size', updateDisplayDesignLayoutGrid(artboardDocument, (grid) => ({ ...grid, size })))
+            return true
+          }}
+        />
+        <CommitInput
+          label="Grid color"
+          type="color"
+          value={artboardDocument.layoutGrid.color}
+          onCommit={(color) => {
+            const normalized = color.toLowerCase()
+            if (!/^#[0-9a-f]{6}$/u.test(normalized)) return false
+            onArtboardCommit('Change layout grid color', updateDisplayDesignLayoutGrid(artboardDocument, (grid) => ({ ...grid, color: normalized })))
+            return true
+          }}
+        />
+        <CommitInput
+          label="Grid opacity"
+          type="number"
+          min={DISPLAY_DESIGN_LIMITS.minimumLayoutGridOpacity}
+          max={DISPLAY_DESIGN_LIMITS.maximumLayoutGridOpacity}
+          step={1}
+          value={artboardDocument.layoutGrid.opacity}
+          onCommit={(draft) => {
+            const opacity = Number(draft)
+            if (!Number.isInteger(opacity) || opacity < DISPLAY_DESIGN_LIMITS.minimumLayoutGridOpacity || opacity > DISPLAY_DESIGN_LIMITS.maximumLayoutGridOpacity) return false
+            onArtboardCommit('Change layout grid opacity', updateDisplayDesignLayoutGrid(artboardDocument, (grid) => ({ ...grid, opacity })))
+            return true
+          }}
+        />
+        <button type="button" className="is-danger" onClick={() => onArtboardCommit('Remove layout grid', removeDisplayDesignLayoutGrid(artboardDocument))}>Remove layout grid</button>
+      </details>}
     </section>
   )
   if (element.kind === 'symbol-instance') {
@@ -935,9 +1168,9 @@ function DisplayDesignerStatePanel({
   onCommit,
   onPreviewUpdate,
 }: {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   idFactory: DisplayDesignIdFactory
-  onCommit(label: string, document: DisplayDesignDocumentV1): void
+  onCommit(label: string, document: DisplayDesignDocument): void
   onPreviewUpdate(bindingId: string, update: (binding: DisplayDesignBinding) => DisplayDesignBinding): void
 }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string>()
@@ -1047,7 +1280,7 @@ function DisplayDesignerReview({
   responsive,
   activePanel,
 }: {
-  document: DisplayDesignDocumentV1
+  document: DisplayDesignDocument
   compiled: ReturnType<typeof compileDisplayDesign>
   generated: ReturnType<typeof generateDisplayDesignLua>
   bindingCount: number
@@ -1177,9 +1410,27 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const [history, setHistory] = useState(initialHistory)
   const [activeTool, setActiveTool] = useState<DesignerTool>('select')
   const [zoom, setZoom] = useState<DesignerZoom>('fit')
-  const [showGrid, setShowGrid] = useState(true)
-  const [showPixels, setShowPixels] = useState(true)
-  const [showGeometry, setShowGeometry] = useState(true)
+  const [storedViewPreferences, setViewPreferences] = useState<DisplayDesignerViewPreferences>(
+    DEFAULT_DISPLAY_DESIGNER_VIEW_PREFERENCES,
+  )
+  const viewPreferences = validDisplayDesignerViewPreferences(storedViewPreferences)
+    ? storedViewPreferences
+    : DEFAULT_DISPLAY_DESIGNER_VIEW_PREFERENCES
+  const { showPixelGrid, showLayoutGrid, snapToLayoutGrid, showPixelPreview, showGeometry } = viewPreferences
+  const updateViewPreference = <Key extends keyof DisplayDesignerViewPreferences>(
+    key: Key,
+    update: (value: DisplayDesignerViewPreferences[Key]) => DisplayDesignerViewPreferences[Key],
+  ) => setViewPreferences((current) => {
+    const safe = validDisplayDesignerViewPreferences(current)
+      ? current
+      : DEFAULT_DISPLAY_DESIGNER_VIEW_PREFERENCES
+    return { ...safe, [key]: update(safe[key]) }
+  })
+  const setShowPixelGrid = (update: (value: boolean) => boolean) => updateViewPreference('showPixelGrid', update)
+  const setShowLayoutGrid = (update: (value: boolean) => boolean) => updateViewPreference('showLayoutGrid', update)
+  const setSnapToLayoutGrid = (update: (value: boolean) => boolean) => updateViewPreference('snapToLayoutGrid', update)
+  const setShowPixelPreview = (update: (value: boolean) => boolean) => updateViewPreference('showPixelPreview', update)
+  const setShowGeometry = (update: (value: boolean) => boolean) => updateViewPreference('showGeometry', update)
   const [layersCollapsed, setLayersCollapsed] = useState(false)
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -1253,7 +1504,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
 
   const commit = (
     label: string,
-    nextDocument: DisplayDesignDocumentV1,
+    nextDocument: DisplayDesignDocument,
     nextSelection: DisplayDesignSelection = selection,
   ) => setHistory((current) => applyDisplayDesignTransaction(current, label, () => ({ document: nextDocument, selection: nextSelection })))
 
@@ -1291,7 +1542,34 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     commit(`Add ${primitive.name}`, nextDocument, { ...createEmptyDisplayDesignSelection(), elementIds: [primitive.id] })
   }
 
-  const beginPointerGesture = ({ point, pointerId, elementId, handle, shiftKey }: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }) => {
+  const snapPointerPoint = (
+    baseDocument: DisplayDesignDocument,
+    rawPoint: DisplayDesignPoint,
+    smooth: boolean,
+    rect: DisplayDesignClientRect,
+    active: DisplayDesignSnapState | undefined,
+    controlBypass: boolean,
+  ) => {
+    const ordinary = constrainDisplayCreationPoint(rawPoint, baseDocument.displayMode, smooth)
+    if (!baseDocument.layoutGrid || !snapToLayoutGrid || controlBypass) {
+      return { point: ordinary, state: {} as DisplayDesignSnapState, guides: [] as DisplayDesignSnapGuide[] }
+    }
+    const snapped = snapDisplayPointToLayoutGrid({
+      point: ordinary,
+      gridSize: baseDocument.layoutGrid.size,
+      rect,
+      precision: smooth ? 0.5 : 1,
+      active,
+    })
+    const point = constrainDisplayCreationPoint(snapped.point, baseDocument.displayMode, smooth)
+    const state: DisplayDesignSnapState = {
+      ...(snapped.state.x && point.x === snapped.state.x.coordinate ? { x: snapped.state.x } : {}),
+      ...(snapped.state.y && point.y === snapped.state.y.coordinate ? { y: snapped.state.y } : {}),
+    }
+    return { point, state, guides: snapGuidesFromState(state) }
+  }
+
+  const beginPointerGesture = ({ point, rect, pointerId, elementId, handle, shiftKey, ctrlKey }: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean; ctrlKey: boolean }) => {
     if (activeSymbol && activeVariant) {
       if (activeTool !== 'select') return
       if (!elementId) {
@@ -1307,6 +1585,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         updateGesture({
           kind: 'marquee', pointerId, start: point, end: point, baseDocument: document, document,
           baseSelection, selection: nextSelection, selectionMode: shiftKey ? 'add' : 'replace',
+          rawStart: point, rawCurrent: point, rect, snapGuides: [],
         })
         return
       }
@@ -1321,12 +1600,16 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       return
     }
     if (activeTool !== 'select') {
-      const primitive = createDisplayPrimitiveFromGesture(activeTool, point, point, document.displayMode, idFactory)
+      const smooth = activeTool === 'smooth-line' || activeTool === 'smooth-circle'
+      const snappedStart = snapPointerPoint(document, point, smooth, rect, undefined, ctrlKey)
+      const primitive = createDisplayPrimitiveFromGesture(activeTool, snappedStart.point, snappedStart.point, document.displayMode, idFactory)
       const nextDocument = addDisplayDesignElement(document, primitive)
       updateGesture({
-        kind: 'create', pointerId, start: point, baseDocument: document, document: nextDocument,
+        kind: 'create', pointerId, start: snappedStart.point, rawStart: point, rawCurrent: point, rect,
+        baseDocument: document, document: nextDocument,
         selection: { ...createEmptyDisplayDesignSelection(), elementIds: [primitive.id] },
         elementId: primitive.id, preset: activeTool,
+        startSnapState: snappedStart.state, snapState: {}, snapGuides: snappedStart.guides,
       })
       return
     }
@@ -1336,6 +1619,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       updateGesture({
         kind: 'marquee', pointerId, start: point, end: point, baseDocument: document, document,
         baseSelection, selection: nextSelection, selectionMode: shiftKey ? 'add' : 'replace',
+        rawStart: point, rawCurrent: point, rect, snapGuides: [],
       })
       return
     }
@@ -1345,29 +1629,87 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     updateGesture({
       kind: handle ? 'resize' : 'move', pointerId, start: point, baseDocument: document, document,
       selection: nextSelection, elementId, handle,
+      rawStart: point, rawCurrent: point, rect, snapGuides: [],
     })
   }
 
-  const movePointerGesture = (point: DisplayDesignPoint, pointerId: number) => {
+  const movePointerGesture = ({ point, rect, pointerId, ctrlKey }: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }) => {
     const current = gestureRef.current
     if (!current || current.pointerId !== pointerId) return
     let nextDocument = current.document
+    let snapState: DisplayDesignSnapState = {}
+    let startSnapState = current.startSnapState
+    let snapGuides: DisplayDesignSnapGuide[] = []
+    let start = current.start
     if (current.kind === 'create' && current.preset && current.elementId) {
-      const primitive = createDisplayPrimitiveFromGesture(current.preset, current.start, point, current.baseDocument.displayMode, () => current.elementId!)
+      const smooth = current.preset === 'smooth-line' || current.preset === 'smooth-circle'
+      const snappedStart = snapPointerPoint(current.baseDocument, current.rawStart, smooth, rect, current.startSnapState, ctrlKey)
+      const snappedEnd = snapPointerPoint(current.baseDocument, point, smooth, rect, current.snapState, ctrlKey)
+      start = snappedStart.point
+      startSnapState = snappedStart.state
+      snapState = snappedEnd.state
+      snapGuides = [...snappedStart.guides, ...snappedEnd.guides]
+      const endPoint = current.preset.includes('circle')
+        ? constrainDisplayCreationPoint(point, current.baseDocument.displayMode, smooth)
+        : snappedEnd.point
+      let primitive = createDisplayPrimitiveFromGesture(current.preset, snappedStart.point, endPoint, current.baseDocument.displayMode, () => current.elementId!)
+      if (primitive.kind === 'text') {
+        snapState = {}
+        snapGuides = snappedStart.guides
+      } else if (primitive.kind === 'circle' && current.baseDocument.layoutGrid && snapToLayoutGrid && !ctrlKey) {
+        const centreX = primitive.x.kind === 'literal' ? primitive.x.value : 0
+        const radius = primitive.radius.kind === 'literal' ? primitive.radius.value : 0
+        const east = snapDisplayAxisToLayoutGrid({
+          axis: 'x',
+          candidates: [{ id: 'radius', coordinate: centreX + radius, priority: 'trailing' }],
+          gridSize: current.baseDocument.layoutGrid.size,
+          rect,
+          precision: smooth ? 0.5 : 1,
+          active: current.snapState?.x,
+        })
+        if (east.target) {
+          primitive = { ...primitive, radius: { kind: 'literal', value: Math.max(0, radius + east.correction) } }
+          snapState = { x: east.target }
+          snapGuides = [...snappedStart.guides, ...snapGuidesFromState(snapState)]
+        } else {
+          snapState = {}
+          snapGuides = snappedStart.guides
+        }
+      }
       nextDocument = addDisplayDesignElement(current.baseDocument, primitive)
     } else if (current.kind === 'move') {
       const selected = current.baseDocument.elements.filter(({ id }) => current.selection.elementIds.includes(id))
       const smoothOnly = selected.length > 0 && selected.every((element) => (element.kind === 'line' || element.kind === 'circle') && element.smooth)
-      const delta = constrainDisplayPointerTranslation(current.baseDocument, current.selection.elementIds, {
-        x: snapDisplayCoordinate(point.x - current.start.x, smoothOnly),
-        y: snapDisplayCoordinate(point.y - current.start.y, smoothOnly),
+      const requested = constrainDisplayPointerTranslation(current.baseDocument, current.selection.elementIds, {
+        x: snapDisplayCoordinate(point.x - current.rawStart.x, smoothOnly),
+        y: snapDisplayCoordinate(point.y - current.rawStart.y, smoothOnly),
       })
+      const snapped = current.baseDocument.layoutGrid && snapToLayoutGrid
+        ? snapDisplaySelectionTranslation({
+            document: current.baseDocument,
+            elementIds: current.selection.elementIds,
+            requested,
+            gridSize: current.baseDocument.layoutGrid.size,
+            rect,
+            active: current.snapState,
+            disabled: ctrlKey,
+          })
+        : { delta: requested, state: {}, guides: [] }
+      const delta = snapped.delta
+      snapState = snapped.state
+      snapGuides = snapped.guides
       nextDocument = translateDisplayElements(current.baseDocument, current.selection.elementIds, delta.x, delta.y)
     } else if (current.kind === 'resize' && current.elementId && current.handle) {
       const element = current.baseDocument.elements.find(({ id }) => id === current.elementId)
       const smooth = element ? (element.kind === 'line' || element.kind === 'circle') && element.smooth : false
-      const constrained = constrainDisplayCreationPoint(point, current.baseDocument.displayMode, smooth)
-      nextDocument = updateDisplayDesignElement(current.baseDocument, current.elementId, (currentElement) => resizeDisplayElement(currentElement, current.handle!, constrained))
+      let snapped = snapPointerPoint(current.baseDocument, point, smooth, rect, current.snapState, ctrlKey)
+      if (element?.kind === 'circle' && current.handle === 'radius') {
+        const centreY = staticDisplayScalarValue(current.baseDocument, element.y)
+        snapped = { ...snapped, point: { x: snapped.point.x, y: centreY }, state: snapped.state.x ? { x: snapped.state.x } : {}, guides: snapped.guides.filter(({ axis }) => axis === 'x') }
+      }
+      snapState = snapped.state
+      snapGuides = snapped.guides
+      nextDocument = updateDisplayDesignElement(current.baseDocument, current.elementId, (currentElement) => resizeDisplayElement(currentElement, current.handle!, snapped.point))
     } else if (current.kind === 'marquee' && current.baseSelection && current.selectionMode) {
       const elementIds = displayElementsWithinArea(previewDocument, current.start, point)
       const nextSelection = activeSymbol && activeVariant
@@ -1385,15 +1727,16 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
             elementIds,
             current.selectionMode,
           )
-      updateGesture({ ...current, document: nextDocument, selection: nextSelection, end: point })
+      updateGesture({ ...current, document: nextDocument, selection: nextSelection, end: point, rawCurrent: point, rect })
       return
     }
-    updateGesture({ ...current, document: nextDocument })
+    updateGesture({ ...current, start, rawCurrent: point, rect, document: nextDocument, startSnapState, snapState, snapGuides })
   }
 
-  const finishPointerGesture = (pointerId: number) => {
+  const finishPointerGesture = (input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }) => {
+    movePointerGesture(input)
     const current = gestureRef.current
-    if (!current || current.pointerId !== pointerId) return
+    if (!current || current.pointerId !== input.pointerId) return
     updateGesture(null)
     if (current.kind === 'marquee') {
       setSelection(current.selection)
@@ -1463,7 +1806,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     setHiddenGroupIds(new Set())
     setPendingDetachId(undefined)
     updateGesture(null)
-    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.`)
+    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.${parsed.migratedFromVersion ? ' Version 1 was migrated in memory; downloading saves version 2.' : ''}`)
   }
 
   const downloadDesign = () => {
@@ -1498,6 +1841,23 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
     const protectsEditing = target.matches('input, textarea, select') || target.isContentEditable
+    if (!protectsEditing && (event.metaKey || event.ctrlKey) && event.key === "'") {
+      event.preventDefault()
+      if (event.shiftKey) {
+        if (document.layoutGrid) setSnapToLayoutGrid((value) => !value)
+      } else setShowPixelGrid((value) => !value)
+      return
+    }
+    if (!protectsEditing && event.ctrlKey && (
+      event.key.toLowerCase() === 'g'
+      || (event.shiftKey && event.key === '4')
+    )) {
+      if (document.layoutGrid) {
+        event.preventDefault()
+        setShowLayoutGrid((value) => !value)
+      }
+      return
+    }
     if (event.key === 'Escape') {
       event.preventDefault()
       if (confirmDiscard) setConfirmDiscard(false)
@@ -1553,11 +1913,15 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       <div ref={dialogRef} className={`display-designer-dialog is-${layout}`} data-layout={layout} role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description display-designer-disclosure" onKeyDown={handleKeyDown}>
         <header className="display-designer-header">
           <div className="display-designer-title"><h2 id="display-designer-title">Display designer</h2><p id="display-designer-description">Browser-only authoring for the 256 × 64 Disting NT display.</p></div>
-          <label><span>Display mode</span><select value={document.displayMode} onChange={(event) => commit('Change display mode', setDisplayDesignMode(document, event.currentTarget.value as DisplayDesignDocumentV1['displayMode']))}><option value="parameter-line">Keep standard parameter line</option><option value="full-screen">Use full display</option></select></label>
+          <label><span>Display mode</span><select value={document.displayMode} onChange={(event) => commit('Change display mode', setDisplayDesignMode(document, event.currentTarget.value as DisplayDesignDocument['displayMode']))}><option value="parameter-line">Keep standard parameter line</option><option value="full-screen">Use full display</option></select></label>
           <label><span>Zoom</span><select aria-label="Artboard zoom" value={effectiveZoom} disabled={layout === 'narrow'} title={layout === 'narrow' ? 'Narrow layouts use Fit zoom' : undefined} onChange={(event) => setZoom(event.currentTarget.value === 'fit' ? 'fit' : Number(event.currentTarget.value) as DesignerZoom)}><option value="fit">Fit</option><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
-          <button type="button" aria-pressed={showGrid} onClick={() => setShowGrid((value) => !value)}>Grid</button>
-          <button type="button" aria-pressed={showPixels} onClick={() => setShowPixels((value) => !value)}>Pixels</button>
-          <button type="button" aria-pressed={showGeometry} onClick={() => setShowGeometry((value) => !value)}>Geometry</button>
+          <DisplayDesignerViewOptions options={[
+            { label: 'Pixel preview', checked: showPixelPreview, onToggle: () => setShowPixelPreview((value) => !value) },
+            { label: 'Geometry', checked: showGeometry, onToggle: () => setShowGeometry((value) => !value) },
+            { label: 'Pixel grid', checked: showPixelGrid, onToggle: () => setShowPixelGrid((value) => !value), shortcut: "⌘/Ctrl+'", description: showPixelGrid && effectiveZoom !== 4 ? 'Visible only when a logical pixel occupies at least four CSS pixels.' : undefined },
+            { label: 'Layout grid', checked: showLayoutGrid, onToggle: () => setShowLayoutGrid((value) => !value), disabled: !document.layoutGrid, shortcut: 'Ctrl+G', description: !document.layoutGrid ? 'Add a layout grid in Artboard properties to enable this view.' : undefined },
+            { label: 'Snap to layout grid', checked: snapToLayoutGrid, onToggle: () => setSnapToLayoutGrid((value) => !value), disabled: !document.layoutGrid, shortcut: "⌘/Ctrl+Shift+'", description: !document.layoutGrid ? 'Add a layout grid to enable snapping.' : 'Hold Control during a pointer gesture to bypass snapping.' },
+          ]} />
           <button type="button" disabled={history.past.length === 0} onClick={() => setHistory(undoDisplayDesign)}>Undo</button>
           <button type="button" disabled={history.future.length === 0} onClick={() => setHistory(redoDisplayDesign)}>Redo</button>
           <div className="display-designer-file-actions">
@@ -1678,9 +2042,11 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
             commandSources={previewCompiled.commandSources}
             activeTool={activeTool}
             zoom={effectiveZoom}
-            showGrid={showGrid}
-            showPixels={showPixels}
+            showPixelGrid={showPixelGrid}
+            showLayoutGrid={showLayoutGrid}
+            showPixelPreview={showPixelPreview}
             showGeometry={showGeometry}
+            snapGuides={gesture?.snapGuides ?? []}
             showOriginMarker={Boolean(activeVariant)}
             selectionArea={gesture?.kind === 'marquee' && gesture.end ? { start: gesture.start, end: gesture.end } : undefined}
             onPointerStart={beginPointerGesture}
@@ -1701,7 +2067,11 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               ><DisplayDesignerInspector
                 element={selectedElement}
                 document={activeVariant ? previewDocument : document}
+                artboardDocument={document}
                 idFactory={idFactory}
+                showLayoutGrid={showLayoutGrid}
+                onToggleLayoutGrid={() => setShowLayoutGrid((value) => !value)}
+                onArtboardCommit={commit}
                 onCommit={(label, nextDocument) => {
                   if (!activeSymbol || !activeVariant) { commit(label, nextDocument); return }
                   const merged = updateDisplaySymbolVariant(document, activeSymbol.id, activeVariant.id, (variant) => ({

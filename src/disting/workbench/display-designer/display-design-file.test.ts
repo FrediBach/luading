@@ -28,7 +28,7 @@ describe('display design files', () => {
     expect(result.fileName).toBe(`Envelope UI${DISPLAY_DESIGN_FILE_SUFFIX}`)
     expect(result.text).toBe(`{
   "kind": "luading-display-design",
-  "version": 1,
+  "version": 2,
   "name": "Envelope UI",
   "displayMode": "full-screen",
   "elements": [
@@ -64,10 +64,29 @@ describe('display design files', () => {
   ],
   "groups": [],
   "bindings": [],
-  "symbols": []
+  "symbols": [],
+  "layoutGrid": null
 }
 `)
     expect(result.bytes).toBe(new TextEncoder().encode(result.text).byteLength)
+  })
+
+  it('migrates version-1 files without making them invalid and always serializes version 2', () => {
+    const current = createEmptyDisplayDesign('Legacy')
+    const legacy = structuredClone(current) as unknown as Record<string, unknown>
+    delete legacy.layoutGrid
+    legacy.version = 1
+    const parsed = parseDisplayDesignText(JSON.stringify(legacy))
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.migratedFromVersion).toBe(1)
+    expect(parsed.document).toEqual(current)
+
+    const serialized = serializeDisplayDesign(parsed.document)
+    expect(serialized.ok).toBe(true)
+    if (!serialized.ok) return
+    expect(JSON.parse(serialized.text)).toMatchObject({ version: 2, layoutGrid: null })
   })
 
   it('round trips rich documents into defensive normalized values', () => {
@@ -91,7 +110,7 @@ describe('display design files', () => {
   it('rejects malformed, oversized, unknown-version, and invalid documents without throwing', () => {
     expect(parseDisplayDesignText('{')).toMatchObject({ ok: false, code: 'invalid-json' })
     expect(parseDisplayDesignText('x'.repeat(DISPLAY_DESIGN_LIMITS.maximumJsonBytes + 1))).toMatchObject({ ok: false, code: 'file-too-large' })
-    expect(parseDisplayDesignText(JSON.stringify({ ...createEmptyDisplayDesign(), version: 2 }))).toMatchObject({
+    expect(parseDisplayDesignText(JSON.stringify({ ...createEmptyDisplayDesign(), version: 3 }))).toMatchObject({
       ok: false,
       code: 'invalid-document',
       findings: [{ ruleId: 'unsupported-version' }],

@@ -273,9 +273,17 @@ Display-designer geometry tests pin logical/client transforms at every offered
 zoom, fractional artboard bounds, integer and half-pixel snapping, reserved-row
 constraints, hit testing, reversed geometry, handles, off-canvas translation,
 multi-selection bounds, alignment, distribution, and draw-order translation.
+Dedicated layout-grid snapping tests pin grid sizes 1, 8, and 64; fractional
+Fit and explicit-zoom client bounds; independent axes; artboard edges;
+leading/trailing/centre priority; representable whole/half-pixel corrections;
+6/8 CSS-pixel hysteresis; Control bypass and re-entry; rigid multi-selection;
+reserved-row post-constraints; hidden-grid operation; and suppression of false
+guides for dynamic geometry.
 Its jsdom interaction tests dispatch pointer and keyboard events to pin pointer
 capture requests, gesture cancellation, one-transaction undo, multi-selection,
-groups, and protected shortcuts. They deliberately do not claim real pointer
+groups, final pointer-up modifiers, checked View-options semantics, shortcut
+focus protection, Artboard grid editing, hidden-grid snapping, and protected
+shortcuts. They deliberately do not claim real pointer
 capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
 Canvas visual fidelity.
 
@@ -303,9 +311,10 @@ context, state editing, literal/dynamic instance controls, explicit detach,
 destructive confirmation, and undo across scene/symbol contexts; it does not
 prove live Canvas layout, pointer capture, or assistive-technology behavior.
 
-Display-design file tests pin canonical key ordering and bytes, the trailing
-newline, round trips, version/size/type rejection, unsafe file-name repair, and
-defensive parsing without partial documents. jsdom covers read and parse
+Display-design file tests pin canonical version-2 key ordering and bytes, the
+trailing newline, strict version-1 migration, layout-grid validation and round
+trips, future-version/size/type rejection, unsafe file-name repair, generated-
+Lua invariance, and defensive parsing without partial documents. jsdom covers read and parse
 failure without scene replacement, discard-before-open confirmation,
 collision-safe editing after open, Blob download dispatch and failure, exact
 clipboard writes, clipboard rejection, and the selected manual-copy fallback.

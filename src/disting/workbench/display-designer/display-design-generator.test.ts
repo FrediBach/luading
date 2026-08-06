@@ -9,7 +9,7 @@ import {
   deleteDisplayDesignElements,
   duplicateDisplayDesignElements,
   reorderDisplayDesignElement,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
 } from './display-design-model'
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
@@ -27,7 +27,7 @@ afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
 })
 
-function everyPrimitiveDocument(displayMode: DisplayDesignDocumentV1['displayMode'] = 'full-screen'): DisplayDesignDocumentV1 {
+function everyPrimitiveDocument(displayMode: DisplayDesignDocument['displayMode'] = 'full-screen'): DisplayDesignDocument {
   const ids = createSequentialDisplayDesignIdFactory('generated')
   const presets = [
     'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
@@ -44,7 +44,7 @@ function everyPrimitiveDocument(displayMode: DisplayDesignDocumentV1['displayMod
   return { ...createEmptyDisplayDesign('Generated vocabulary'), displayMode, elements }
 }
 
-async function runGenerated(document: DisplayDesignDocumentV1) {
+async function runGenerated(document: DisplayDesignDocument) {
   const generated = generateDisplayDesignLua(document)
   expect(generated.ok).toBe(true)
   if (!generated.ok) throw new Error('Expected generated source')
@@ -90,6 +90,17 @@ end,
     expect(first.generatedUtf8Bytes).toBe(new TextEncoder().encode(first.source).byteLength)
   })
 
+  it('keeps layout-grid authoring metadata out of generated Lua', () => {
+    const document = everyPrimitiveDocument()
+    const withoutGrid = generateDisplayDesignLua(document)
+    const withGrid = generateDisplayDesignLua({
+      ...document,
+      layoutGrid: { kind: 'uniform', size: 8, color: '#ff0000', opacity: 10 },
+    })
+
+    expect(withGrid).toEqual(withoutGrid)
+  })
+
   it('emits binding locals once in document order with ordinary mapping and visibility expressions', () => {
     const ids = createSequentialDisplayDesignIdFactory('binding')
     const numberId = ids('binding')
@@ -101,7 +112,7 @@ end,
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: true }
     const text = createDefaultDisplayPrimitive('tiny-text', ids)
     text.text = { kind: 'text-binding', bindingId: textId }
-    const document: DisplayDesignDocumentV1 = {
+    const document: DisplayDesignDocument = {
       ...createEmptyDisplayDesign(),
       displayMode: 'full-screen',
       bindings: [
@@ -185,7 +196,7 @@ end,
       const text = createDefaultDisplayPrimitive('standard-text', ids)
       text.text = { kind: 'text-binding', bindingId: textId }
       text.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: false }
-      const document: DisplayDesignDocumentV1 = {
+      const document: DisplayDesignDocument = {
         ...createEmptyDisplayDesign(), displayMode: 'full-screen',
         bindings: [
           { kind: 'number', id: numberId, name: 'Position', luaName: 'position', previewValue },
@@ -203,7 +214,7 @@ end,
 
   it('keeps generated output equivalent after immutable duplicate, reorder, and delete operations', async () => {
     const ids = createSequentialDisplayDesignIdFactory('operations')
-    let document: DisplayDesignDocumentV1 = {
+    let document: DisplayDesignDocument = {
       ...createEmptyDisplayDesign(), displayMode: 'full-screen',
       elements: [
         createDefaultDisplayPrimitive('pixel-line', ids),
@@ -228,7 +239,7 @@ end,
     box.y1 = { kind: 'literal', value: 0 }
     box.x2 = { kind: 'literal', value: 8 }
     box.y2 = { kind: 'literal', value: 6 }
-    let document: DisplayDesignDocumentV1 = { ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [box] }
+    let document: DisplayDesignDocument = { ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [box] }
     const created = createDisplaySymbolFromSelection(document, [box.id], ids, { name: 'Status', origin: { x: 0, y: 0 } })
     const added = addDisplaySymbolVariant(created.document, created.symbol!.id, ids, { name: 'Active' })
     document = updateDisplaySymbolVariant(added.document, created.symbol!.id, added.variantId!, (variant) => {
@@ -304,7 +315,7 @@ end,
 
   it('blocks invalid documents and symbol instances from producing partial source', () => {
     const invalid = everyPrimitiveDocument()
-    invalid.displayMode = 'invalid' as DisplayDesignDocumentV1['displayMode']
+    invalid.displayMode = 'invalid' as DisplayDesignDocument['displayMode']
     expect(generateDisplayDesignLua(invalid)).toMatchObject({ ok: false, source: '', generatedUtf8Bytes: 0 })
 
     const withInstance = everyPrimitiveDocument()

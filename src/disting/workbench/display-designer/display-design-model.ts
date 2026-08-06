@@ -1,5 +1,13 @@
 export const DISPLAY_DESIGN_KIND = 'luading-display-design' as const
-export const DISPLAY_DESIGN_VERSION = 1 as const
+export const DISPLAY_DESIGN_VERSION_V1 = 1 as const
+export const DISPLAY_DESIGN_VERSION = 2 as const
+
+export const DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID = {
+  kind: 'uniform',
+  size: 8,
+  color: '#ff0000',
+  opacity: 10,
+} as const
 
 export const DISPLAY_DESIGN_LIMITS = {
   maximumPrimitives: 512,
@@ -15,6 +23,10 @@ export const DISPLAY_DESIGN_LIMITS = {
   maximumRadius: 4096,
   maximumJsonBytes: 1024 * 1024,
   maximumHistoryTransactions: 100,
+  minimumLayoutGridSize: 1,
+  maximumLayoutGridSize: 64,
+  minimumLayoutGridOpacity: 1,
+  maximumLayoutGridOpacity: 100,
 } as const
 
 export type DisplayMode = 'parameter-line' | 'full-screen'
@@ -181,9 +193,15 @@ export type DisplayDesignBinding =
   | DisplayTextBinding
   | DisplayChoiceBinding
 
-export interface DisplayDesignDocumentV1 {
+export interface DisplayDesignLayoutGrid {
+  kind: 'uniform'
+  size: number
+  color: string
+  opacity: number
+}
+
+interface DisplayDesignDocumentFields {
   kind: typeof DISPLAY_DESIGN_KIND
-  version: typeof DISPLAY_DESIGN_VERSION
   name: string
   displayMode: DisplayMode
   elements: DisplayDesignElement[]
@@ -191,6 +209,17 @@ export interface DisplayDesignDocumentV1 {
   bindings: DisplayDesignBinding[]
   symbols: DisplayDesignSymbol[]
 }
+
+export interface DisplayDesignDocumentV1 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION_V1
+}
+
+export interface DisplayDesignDocumentV2 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION
+  layoutGrid: DisplayDesignLayoutGrid | null
+}
+
+export type DisplayDesignDocument = DisplayDesignDocumentV2
 
 export interface DisplayDesignSelection {
   elementIds: string[]
@@ -250,7 +279,7 @@ export function createSequentialDisplayDesignIdFactory(prefix = 'display'): Disp
 }
 
 export function createCollisionSafeDisplayDesignIdFactory(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   prefix = 'display',
 ): DisplayDesignIdFactory {
   const usedIds = new Set<string>([
@@ -274,7 +303,7 @@ export function createCollisionSafeDisplayDesignIdFactory(
   }
 }
 
-export function createEmptyDisplayDesign(name = 'Untitled display'): DisplayDesignDocumentV1 {
+export function createEmptyDisplayDesign(name = 'Untitled display'): DisplayDesignDocument {
   return {
     kind: DISPLAY_DESIGN_KIND,
     version: DISPLAY_DESIGN_VERSION,
@@ -284,7 +313,32 @@ export function createEmptyDisplayDesign(name = 'Untitled display'): DisplayDesi
     groups: [],
     bindings: [],
     symbols: [],
+    layoutGrid: null,
   }
+}
+
+export function addDefaultDisplayDesignLayoutGrid(
+  document: DisplayDesignDocument,
+): DisplayDesignDocument {
+  if (document.layoutGrid) return cloneDisplayDesign(document)
+  return { ...cloneDisplayDesign(document), layoutGrid: cloneDisplayDesign(DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID) }
+}
+
+export function updateDisplayDesignLayoutGrid(
+  document: DisplayDesignDocument,
+  update: (layoutGrid: DisplayDesignLayoutGrid) => DisplayDesignLayoutGrid,
+): DisplayDesignDocument {
+  if (!document.layoutGrid) return cloneDisplayDesign(document)
+  return {
+    ...cloneDisplayDesign(document),
+    layoutGrid: cloneDisplayDesign(update(cloneDisplayDesign(document.layoutGrid))),
+  }
+}
+
+export function removeDisplayDesignLayoutGrid(
+  document: DisplayDesignDocument,
+): DisplayDesignDocument {
+  return document.layoutGrid ? { ...cloneDisplayDesign(document), layoutGrid: null } : cloneDisplayDesign(document)
 }
 
 export function createEmptyDisplayDesignSelection(): DisplayDesignSelection {
@@ -378,20 +432,20 @@ function copiedName(name: string): string {
 }
 
 export function addDisplayDesignElement(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   element: DisplayDesignElement,
   index = document.elements.length,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const elements = cloneDisplayDesign(document.elements)
   elements.splice(Math.max(0, Math.min(index, elements.length)), 0, cloneDisplayDesign(element))
   return { ...cloneDisplayDesign(document), elements }
 }
 
 export function updateDisplayDesignElement(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementId: string,
   update: (element: DisplayDesignElement) => DisplayDesignElement,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   let changed = false
   const elements = document.elements.map((element) => {
     if (element.id !== elementId) return cloneDisplayDesign(element)
@@ -402,18 +456,18 @@ export function updateDisplayDesignElement(
 }
 
 export function deleteDisplayDesignElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const deleted = new Set(elementIds)
   return { ...cloneDisplayDesign(document), elements: document.elements.filter(({ id }) => !deleted.has(id)).map(cloneDisplayDesign) }
 }
 
 export function duplicateDisplayDesignElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   idFactory: DisplayDesignIdFactory,
-): { document: DisplayDesignDocumentV1; duplicatedIds: string[] } {
+): { document: DisplayDesignDocument; duplicatedIds: string[] } {
   const selected = new Set(elementIds)
   const duplicatedIds: string[] = []
   const elements = document.elements.flatMap((element) => {
@@ -429,10 +483,10 @@ export function duplicateDisplayDesignElements(
 }
 
 export function reorderDisplayDesignElement(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   fromIndex: number,
   toIndex: number,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const elements = cloneDisplayDesign(document.elements)
   if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= elements.length) return cloneDisplayDesign(document)
   const destination = Math.max(0, Math.min(Math.trunc(toIndex), elements.length - 1))
@@ -447,10 +501,10 @@ export function layerIndexToElementIndex(layerIndex: number, elementCount: numbe
 }
 
 export function reorderDisplayDesignLayer(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   fromLayerIndex: number,
   toLayerIndex: number,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return reorderDisplayDesignElement(
     document,
     layerIndexToElementIndex(fromLayerIndex, document.elements.length),
@@ -459,17 +513,17 @@ export function reorderDisplayDesignLayer(
 }
 
 export function addDisplayDesignGroup(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   group: DisplayDesignGroup,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), groups: [...cloneDisplayDesign(document.groups), cloneDisplayDesign(group)] }
 }
 
 export function updateDisplayDesignGroup(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   groupId: string,
   update: (group: DisplayDesignGroup) => DisplayDesignGroup,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return {
     ...cloneDisplayDesign(document),
     groups: document.groups.map((group) => group.id === groupId ? cloneDisplayDesign(update(cloneDisplayDesign(group))) : cloneDisplayDesign(group)),
@@ -477,10 +531,10 @@ export function updateDisplayDesignGroup(
 }
 
 export function assignDisplayDesignGroup(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   elementIds: Iterable<string>,
   groupId?: string,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const selected = new Set(elementIds)
   return {
     ...cloneDisplayDesign(document),
@@ -497,10 +551,10 @@ export function assignDisplayDesignGroup(
 export type DeleteDisplayDesignGroupChoice = 'ungroup' | 'delete-elements'
 
 export function deleteDisplayDesignGroup(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   groupId: string,
   choice: DeleteDisplayDesignGroupChoice,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   const groups = document.groups.filter(({ id }) => id !== groupId).map(cloneDisplayDesign)
   const elements = document.elements.flatMap((element) => {
     if (element.groupId !== groupId) return [cloneDisplayDesign(element)]
@@ -513,10 +567,10 @@ export function deleteDisplayDesignGroup(
 }
 
 export function duplicateDisplayDesignGroup(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   groupId: string,
   idFactory: DisplayDesignIdFactory,
-): { document: DisplayDesignDocumentV1; groupId?: string; duplicatedElementIds: string[] } {
+): { document: DisplayDesignDocument; groupId?: string; duplicatedElementIds: string[] } {
   const sourceGroup = document.groups.find(({ id }) => id === groupId)
   if (!sourceGroup) return { document: cloneDisplayDesign(document), duplicatedElementIds: [] }
   const duplicateGroup = { ...cloneDisplayDesign(sourceGroup), id: idFactory('group'), name: copiedName(sourceGroup.name) }
@@ -543,46 +597,46 @@ export function duplicateDisplayDesignGroup(
 }
 
 export function addDisplayDesignBinding(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   binding: DisplayDesignBinding,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), bindings: [...cloneDisplayDesign(document.bindings), cloneDisplayDesign(binding)] }
 }
 
 export function updateDisplayDesignBinding(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   bindingId: string,
   update: (binding: DisplayDesignBinding) => DisplayDesignBinding,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return {
     ...cloneDisplayDesign(document),
     bindings: document.bindings.map((binding) => binding.id === bindingId ? cloneDisplayDesign(update(cloneDisplayDesign(binding))) : cloneDisplayDesign(binding)),
   }
 }
 
-export function deleteDisplayDesignBinding(document: DisplayDesignDocumentV1, bindingId: string): DisplayDesignDocumentV1 {
+export function deleteDisplayDesignBinding(document: DisplayDesignDocument, bindingId: string): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), bindings: document.bindings.filter(({ id }) => id !== bindingId).map(cloneDisplayDesign) }
 }
 
 export function addDisplayDesignSymbol(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbol: DisplayDesignSymbol,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), symbols: [...cloneDisplayDesign(document.symbols), cloneDisplayDesign(symbol)] }
 }
 
 export function updateDisplayDesignSymbol(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   update: (symbol: DisplayDesignSymbol) => DisplayDesignSymbol,
-): DisplayDesignDocumentV1 {
+): DisplayDesignDocument {
   return {
     ...cloneDisplayDesign(document),
     symbols: document.symbols.map((symbol) => symbol.id === symbolId ? cloneDisplayDesign(update(cloneDisplayDesign(symbol))) : cloneDisplayDesign(symbol)),
   }
 }
 
-export function deleteDisplayDesignSymbol(document: DisplayDesignDocumentV1, symbolId: string): DisplayDesignDocumentV1 {
+export function deleteDisplayDesignSymbol(document: DisplayDesignDocument, symbolId: string): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), symbols: document.symbols.filter(({ id }) => id !== symbolId).map(cloneDisplayDesign) }
 }
 
@@ -594,10 +648,10 @@ function allocateCopiedLuaName(luaName: string, usedNames: Set<string>): string 
 }
 
 export function duplicateDisplayDesignSymbol(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   idFactory: DisplayDesignIdFactory,
-): { document: DisplayDesignDocumentV1; symbolId?: string } {
+): { document: DisplayDesignDocument; symbolId?: string } {
   const source = document.symbols.find(({ id }) => id === symbolId)
   if (!source) return { document: cloneDisplayDesign(document) }
   const variantIds = new Map<string, string>()
@@ -627,12 +681,12 @@ export function duplicateDisplayDesignSymbol(
   }
 }
 
-export function setDisplayDesignMode(document: DisplayDesignDocumentV1, displayMode: DisplayMode): DisplayDesignDocumentV1 {
+export function setDisplayDesignMode(document: DisplayDesignDocument, displayMode: DisplayMode): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), displayMode }
 }
 
 export function normalizeDisplayDesignSelection(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   selection: DisplayDesignSelection,
 ): DisplayDesignSelection {
   const elementIds = new Set(document.elements.map(({ id }) => id))
@@ -663,7 +717,7 @@ function updateSelectedIds(currentIds: string[], requestedIds: Iterable<string>,
 }
 
 export function selectDisplayDesignElements(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   selection: DisplayDesignSelection,
   elementIds: Iterable<string>,
   mode: DisplayDesignSelectionMode = 'replace',
@@ -678,7 +732,7 @@ export function selectDisplayDesignElements(
 }
 
 export function selectDisplayDesignGroups(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   selection: DisplayDesignSelection,
   groupIds: Iterable<string>,
   mode: DisplayDesignSelectionMode = 'replace',
@@ -690,7 +744,7 @@ export function selectDisplayDesignGroups(
 }
 
 export function selectDisplayDesignVariantPrimitives(
-  document: DisplayDesignDocumentV1,
+  document: DisplayDesignDocument,
   symbolId: string,
   variantId: string,
   primitiveIds: Iterable<string>,

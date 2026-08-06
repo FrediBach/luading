@@ -4,7 +4,7 @@ import {
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
   duplicateDisplayDesignElements,
-  type DisplayDesignDocumentV1,
+  type DisplayDesignDocument,
 } from './display-design-model'
 import {
   addDisplaySymbolVariant,
@@ -20,7 +20,7 @@ import {
   updateDisplaySymbolVariant,
 } from './display-design-symbols'
 
-function symbolDocument(): { document: DisplayDesignDocumentV1; ids: ReturnType<typeof createSequentialDisplayDesignIdFactory> } {
+function symbolDocument(): { document: DisplayDesignDocument; ids: ReturnType<typeof createSequentialDisplayDesignIdFactory> } {
   const ids = createSequentialDisplayDesignIdFactory('symbols')
   const box = createDefaultDisplayPrimitive('outline-box', ids)
   box.x1 = { kind: 'literal', value: 20 }
