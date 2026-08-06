@@ -535,7 +535,7 @@ function DisplayDesignerArtboard({
       </div>
       <p className="display-designer-stage-status" role="status" aria-live="polite" aria-atomic="true">
         {selectedElements.length > 0
-          ? `${selectedElements.length} selected: ${selectedElements.map(({ name }) => name).join(', ')}.`
+          ? `${selectedElements.length} selected: ${selectedElements.map(({ name }) => name).join(', ')}. Arrow keys move by 1 pixel; Shift plus Arrow moves by 5 pixels.`
           : activeTool === 'select' ? 'Select a layer, or drag over empty artboard space to select an area.' : `Drag to create ${TOOLS.find(({ id }) => id === activeTool)?.label}.`}
       </p>
     </section>

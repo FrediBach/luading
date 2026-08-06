@@ -491,6 +491,15 @@ describe('Display designer dialog', () => {
     await click(button('To front'))
 
     const dialog = document.querySelector<HTMLElement>('.display-designer-dialog')!
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })) })
+    expect(source()).toContain('drawLine(9, 16, 33, 16, 15)')
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })) })
+    expect(source()).toContain('drawLine(9, 17, 33, 17, 15)')
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })) })
+    expect(source()).toContain('drawLine(8, 17, 32, 17, 15)')
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })) })
+    expect(source()).toContain('drawLine(8, 16, 32, 16, 15)')
+    expect(document.querySelector('.display-designer-stage-status')?.textContent).toContain('Arrow keys move by 1 pixel')
     await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true })) })
     expect(source()).toContain('drawLine(13, 16, 37, 16, 15)')
     await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true })) })
