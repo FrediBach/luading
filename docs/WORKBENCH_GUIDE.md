@@ -775,8 +775,32 @@ collisions receive safe alternatives. The usage list shows every attached
 property before rename or deletion. An unused binding deletes directly, while
 a used binding requires explicit conversion of all uses to their current
 preview; because the document has no permanently hidden static element,
-converted visibility becomes always visible. Choice definitions are available
-for the symbol-state workflow implemented by the next designer increment.
+converted visibility becomes always visible. Choice definitions also drive
+dynamic symbol states.
+
+The **Symbols** panel turns selected scene primitives into a local definition
+and replaces them with a translation-only instance at their logical top-left
+origin. Each symbol has ordered named states, one explicit default, and a
+stable Lua helper name. **Edit symbol** enters a breadcrumb-labelled definition
+context with an origin marker. State tabs can duplicate the current artwork,
+add a blank state, change ordering, rename the visible state label, edit its
+stable Lua value, or choose a new default. Definition edits update every
+instance. Symbol states contain primitives only; symbols cannot nest.
+
+Instances choose a literal state or attach a choice binding with an explicit
+choice-to-state map. **Make state dynamic** creates matching choices, while
+**Sync choices with states** is the explicit, undoable way to adopt later state
+changes; editing a definition never silently rewrites a shared choice binding.
+Detaching keeps only the current preview state as ordinary scene layers after a
+warning. Deleting a used state requires a replacement, and deleting a used
+symbol requires either detaching all instances or deleting its instances.
+
+Generated source emits each used symbol helper once inside an immediately
+evaluated closure and outside the returned 30 fps `draw` callback. Instances
+pass origin and state arguments, unknown values select the declared default,
+and every helper branch expands to ordinary documented draw calls. Unused
+definitions are omitted with a finding. Current and largest-state draw-call
+metrics remain descriptive authoring counts.
 
 The artboard always remains 256×64 logically while **Fit**, 2×, 3×, and 4×
 only change its CSS size. Pointer hit targets are enlarged in screen space while

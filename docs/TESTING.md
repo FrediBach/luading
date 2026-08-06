@@ -290,6 +290,19 @@ preview updates, used-binding confirmation, rename preservation, and ordered
 choice editing; they do not turn browser preview controls into a firmware
 binding API.
 
+Display-designer symbol tests pin selection-to-relative-coordinate conversion,
+origin overrides, shared definitions, fresh IDs, ordered and blank states,
+stable Lua values, defaults, complete choice maps, explicit synchronization,
+state replacement, detach expansion, used-symbol deletion choices, and
+instance bounds. Compiler tests cover translated state expansion, source maps,
+and current/maximum-state metrics. Generator tests load immediately evaluated
+helper closures through the real Wasmoon/display boundary for multiple states
+and origins, compare commands with the pure compiler, exercise unknown-state
+fallback, and repeat the returned callback. jsdom covers creation, definition
+context, state editing, literal/dynamic instance controls, explicit detach,
+destructive confirmation, and undo across scene/symbol contexts; it does not
+prove live Canvas layout, pointer capture, or assistive-technology behavior.
+
 These tests do not run browser effects, CSS layout, pointer capture, focus
 movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
 screen reader. User-interface changes need the applicable live browser checks

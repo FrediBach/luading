@@ -54,6 +54,7 @@ import {
   addDisplayDesignElement,
   addDisplayDesignGroup,
   assignDisplayDesignGroup,
+  cloneDisplayDesign,
   createDefaultDisplayGroup,
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
@@ -69,6 +70,7 @@ import {
   updateDisplayDesignBinding,
   updateDisplayDesignElement,
   updateDisplayDesignGroup,
+  updateDisplayDesignSymbol,
   type DisplayDesignDocumentV1,
   type DisplayDesignElement,
   type DisplayDesignBinding,
@@ -78,7 +80,21 @@ import {
   type DisplayPrimitiveElement,
   type DisplayPrimitivePreset,
   type DisplayTextElement,
+  type DisplaySymbolInstance,
 } from './display-design-model'
+import {
+  addDisplaySymbolVariant,
+  createDisplaySymbolFromSelection,
+  deleteDisplaySymbolVariant,
+  deleteUsedDisplaySymbol,
+  detachDisplaySymbolInstance,
+  listDisplaySymbolUsages,
+  makeDisplaySymbolStateDynamic,
+  reorderDisplaySymbolVariant,
+  setDefaultDisplaySymbolVariant,
+  syncDisplaySymbolChoiceMap,
+  updateDisplaySymbolVariant,
+} from './display-design-symbols'
 import './display-designer.css'
 
 interface Props {
@@ -220,6 +236,7 @@ function DisplayDesignerArtboard({
   showGrid,
   showPixels,
   showGeometry,
+  showOriginMarker,
   onPointerStart,
   onPointerMove,
   onPointerEnd,
@@ -235,6 +252,7 @@ function DisplayDesignerArtboard({
   showGrid: boolean
   showPixels: boolean
   showGeometry: boolean
+  showOriginMarker?: boolean
   onPointerStart(input: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }): void
   onPointerMove(point: DisplayDesignPoint, pointerId: number): void
   onPointerEnd(pointerId: number): void
@@ -304,6 +322,7 @@ function DisplayDesignerArtboard({
           />
           <svg viewBox="0 0 256 64" aria-label="Display designer geometry overlay">
             {showGeometry && displayMode === 'parameter-line' && <rect className="display-designer-reserved-rows" x="0" y="0" width="256" height="10" />}
+            {showGeometry && showOriginMarker && <g className="display-designer-origin-marker" aria-label="Symbol origin"><line x1="-4" y1="0" x2="4" y2="0" /><line x1="0" y1="-4" x2="0" y2="4" /><circle cx="0" cy="0" r="2" /></g>}
             {showGeometry && selectedElements.map((element) => {
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
@@ -421,6 +440,79 @@ function DisplayDesignerLayers({
   )
 }
 
+function DisplayDesignerSymbols({
+  document,
+  selection,
+  onCreate,
+  onEdit,
+  onExit,
+  onSelectPrimitive,
+  onAddVariant,
+  onRenameSymbol,
+  onRenameVariant,
+  onChangeLuaValue,
+  onSetDefault,
+  onReorderVariant,
+  onDeleteVariant,
+  onDeleteSymbol,
+}: {
+  document: DisplayDesignDocumentV1
+  selection: DisplayDesignSelection
+  onCreate(): void
+  onEdit(symbolId: string, variantId: string): void
+  onExit(): void
+  onSelectPrimitive(primitiveId: string): void
+  onAddVariant(symbolId: string, sourceVariantId: string, blank: boolean): void
+  onRenameSymbol(symbolId: string, name: string): void
+  onRenameVariant(symbolId: string, variantId: string, name: string): void
+  onChangeLuaValue(symbolId: string, variantId: string, value: string): void
+  onSetDefault(symbolId: string, variantId: string): void
+  onReorderVariant(symbolId: string, fromIndex: number, toIndex: number): void
+  onDeleteVariant(symbolId: string, variantId: string, replacementVariantId: string): void
+  onDeleteSymbol(symbolId: string, choice: 'detach-instances' | 'delete-instances'): void
+}) {
+  const [pendingSymbolId, setPendingSymbolId] = useState<string>()
+  const [pendingVariantId, setPendingVariantId] = useState<string>()
+  const usages = new Map(listDisplaySymbolUsages(document).map((usage) => [usage.symbolId, usage]))
+  const activeSymbol = selection.symbolId ? document.symbols.find(({ id }) => id === selection.symbolId) : undefined
+  const activeVariant = activeSymbol?.variants.find(({ id }) => id === selection.variantId)
+  const canCreate = selection.elementIds.length > 0 && selection.elementIds.every((id) => document.elements.find((element) => element.id === id)?.kind !== 'symbol-instance')
+
+  return <section className="display-designer-panel display-designer-symbols" aria-labelledby="display-designer-symbols-title">
+    <h3 id="display-designer-symbols-title">Symbols</h3>
+    {activeSymbol && activeVariant ? <>
+      <nav className="display-designer-breadcrumb" aria-label="Symbol edit context">
+        <button type="button" onClick={onExit}>Scene</button><span>›</span><span>{activeSymbol.name}</span><span>›</span><span>{activeVariant.name}</span>
+      </nav>
+      <CommitInput label="Symbol name" value={activeSymbol.name} onCommit={(value) => {
+        const name = value.trim(); if (!name) return false; onRenameSymbol(activeSymbol.id, name); return true
+      }} />
+      <div className="display-designer-variant-tabs" role="tablist" aria-label={`${activeSymbol.name} states`}>
+        {activeSymbol.variants.map((variant) => <button key={variant.id} type="button" role="tab" aria-selected={variant.id === activeVariant.id} onClick={() => onEdit(activeSymbol.id, variant.id)}>{variant.name}{variant.id === activeSymbol.defaultVariantId ? ' · default' : ''}</button>)}
+      </div>
+      <div className="display-designer-symbol-actions">
+        <button type="button" disabled={activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} onClick={() => onAddVariant(activeSymbol.id, activeVariant.id, false)}>Duplicate state</button>
+        <button type="button" disabled={activeSymbol.variants.length >= DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} onClick={() => onAddVariant(activeSymbol.id, activeVariant.id, true)}>Add blank state</button>
+        <button type="button" disabled={activeSymbol.variants.indexOf(activeVariant) === 0} onClick={() => onReorderVariant(activeSymbol.id, activeSymbol.variants.indexOf(activeVariant), activeSymbol.variants.indexOf(activeVariant) - 1)}>State earlier</button>
+        <button type="button" disabled={activeSymbol.variants.indexOf(activeVariant) === activeSymbol.variants.length - 1} onClick={() => onReorderVariant(activeSymbol.id, activeSymbol.variants.indexOf(activeVariant), activeSymbol.variants.indexOf(activeVariant) + 1)}>State later</button>
+      </div>
+      <CommitInput label="State name" value={activeVariant.name} onCommit={(value) => { const name = value.trim(); if (!name) return false; onRenameVariant(activeSymbol.id, activeVariant.id, name); return true }} />
+      <CommitInput label="Stable Lua value" value={activeVariant.luaValue} onCommit={(value) => { const stable = value.trim(); if (!stable || activeSymbol.variants.some((variant) => variant.id !== activeVariant.id && variant.luaValue === stable)) return false; onChangeLuaValue(activeSymbol.id, activeVariant.id, stable); return true }} />
+      <button type="button" disabled={activeSymbol.defaultVariantId === activeVariant.id} onClick={() => onSetDefault(activeSymbol.id, activeVariant.id)}>Make default state</button>
+      {activeSymbol.variants.length > 1 && <button type="button" onClick={() => setPendingVariantId(activeVariant.id)}>Delete state…</button>}
+      {pendingVariantId === activeVariant.id && <div role="alert" className="display-designer-inline-confirm"><p>Replace every use of {activeVariant.name} before deleting it.</p>{activeSymbol.variants.filter(({ id }) => id !== activeVariant.id).map((replacement) => <button key={replacement.id} type="button" onClick={() => { onDeleteVariant(activeSymbol.id, activeVariant.id, replacement.id); setPendingVariantId(undefined) }}>Replace with {replacement.name}</button>)}<button type="button" onClick={() => setPendingVariantId(undefined)}>Cancel</button></div>}
+      <h4>State layers</h4>
+      {activeVariant.elements.length === 0 ? <p className="display-designer-empty">This state is blank.</p> : <ol>{[...activeVariant.elements].reverse().map((primitive) => <li key={primitive.id}><button type="button" aria-pressed={selection.primitiveIds.includes(primitive.id)} onClick={() => onSelectPrimitive(primitive.id)}>{primitive.name} · {elementTypeName(primitive)}</button></li>)}</ol>}
+    </> : <>
+      <button type="button" disabled={!canCreate || document.symbols.length >= DISPLAY_DESIGN_LIMITS.maximumSymbols} onClick={onCreate}>Create symbol from selection</button>
+      {document.symbols.length === 0 ? <p className="display-designer-empty">Select one or more primitive layers to create a local symbol.</p> : <ol>{document.symbols.map((symbol) => {
+        const usage = usages.get(symbol.id)
+        return <li key={symbol.id} className="display-designer-symbol-row"><button type="button" onClick={() => onEdit(symbol.id, symbol.defaultVariantId)}><strong>{symbol.name}</strong><small>{symbol.variants.length} states · {usage?.instanceCount ?? 0} instances{usage?.unused ? ' · unused' : ''}</small></button><button type="button" aria-label={`Delete symbol ${symbol.name}`} onClick={() => setPendingSymbolId(symbol.id)}>Delete…</button>{pendingSymbolId === symbol.id && <div role="alert" className="display-designer-inline-confirm">{usage?.instanceCount ? <><p>{symbol.name} is used by {usage.instanceCount} instances.</p><button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'detach-instances'); setPendingSymbolId(undefined) }}>Detach all instances</button><button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'delete-instances'); setPendingSymbolId(undefined) }}>Delete instances and symbol</button></> : <button type="button" onClick={() => { onDeleteSymbol(symbol.id, 'delete-instances'); setPendingSymbolId(undefined) }}>Delete unused symbol</button>}<button type="button" onClick={() => setPendingSymbolId(undefined)}>Cancel</button></div>}</li>
+      })}</ol>}
+    </>}
+  </section>
+}
+
 function DisplayScalarEditor({
   document,
   scalar,
@@ -489,11 +581,15 @@ function DisplayDesignerInspector({
   document,
   idFactory,
   onCommit,
+  onEditSymbol,
+  onDetachInstance,
 }: {
   element?: DisplayDesignElement
   document: DisplayDesignDocumentV1
   idFactory: DisplayDesignIdFactory
   onCommit(label: string, document: DisplayDesignDocumentV1): void
+  onEditSymbol?(instance: DisplaySymbolInstance): void
+  onDetachInstance?(instance: DisplaySymbolInstance): void
 }) {
   if (!element) return (
     <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
@@ -501,7 +597,33 @@ function DisplayDesignerInspector({
       <p className="display-designer-empty">Select a layer to edit exact values.</p>
     </section>
   )
-  if (element.kind === 'symbol-instance') return null
+  if (element.kind === 'symbol-instance') {
+    const symbol = document.symbols.find(({ id }) => id === element.symbolId)
+    if (!symbol) return null
+    const elementState = element.state
+    const updateInstance = (label: string, update: (instance: DisplaySymbolInstance) => DisplaySymbolInstance) => onCommit(label, updateDisplayDesignElement(document, element.id, (current) => current.kind === 'symbol-instance' ? update(current) : current))
+    const binding = elementState.kind === 'choice-binding' ? document.bindings.find(({ id }) => id === elementState.bindingId) : undefined
+    return <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
+      <h3 id="display-designer-properties-title">Properties</h3>
+      <p className="display-designer-element-kind">Symbol instance · {symbol.name}</p>
+      <CommitInput label="Layer name" value={element.name} onCommit={(value) => { const name = value.trim(); if (!name) return false; updateInstance('Rename instance', (instance) => ({ ...instance, name })); return true }} />
+      <div className="display-designer-field-grid">{(['x', 'y'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={element[property]} label={property.toUpperCase()} integer={false} onChange={(value, label) => updateInstance(label, (instance) => ({ ...instance, [property]: value }))} onMakeDynamic={() => {
+        const created = createDisplayBindingInDocument(document, 'number', idFactory, `${symbol.name} ${property.toUpperCase()}`)
+        onCommit(`Make instance ${property} dynamic`, updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'symbol-instance' ? { ...current, [property]: { kind: 'number-binding', bindingId: created.binding.id, from: staticDisplayScalarValue(document, element[property]), to: staticDisplayScalarValue(document, element[property]) + 16, quantize: 'none' } } : current))
+      }} />)}</div>
+      {element.state.kind === 'literal' ? <label className="display-designer-field"><span>State</span><select value={element.state.variantId} onChange={(event) => updateInstance('Change instance state', (instance) => ({ ...instance, state: { kind: 'literal', variantId: event.currentTarget.value } }))}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label> : <fieldset className="display-designer-binding-map"><legend>Dynamic state</legend><label className="display-designer-field"><span>Choice binding</span><select value={element.state.bindingId} onChange={(event) => updateInstance('Change state binding', (instance) => ({ ...instance, state: { kind: 'choice-binding', bindingId: event.currentTarget.value, variantByChoiceId: instance.state.kind === 'choice-binding' ? instance.state.variantByChoiceId : {} } }))}>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>{binding?.kind === 'choice' && binding.choices.map((choice) => <label key={choice.id} className="display-designer-field"><span>{choice.name}</span><select value={element.state.kind === 'choice-binding' ? element.state.variantByChoiceId[choice.id] ?? '' : ''} onChange={(event) => updateInstance('Map instance state', (instance) => instance.state.kind === 'choice-binding' ? { ...instance, state: { ...instance.state, variantByChoiceId: { ...instance.state.variantByChoiceId, [choice.id]: event.currentTarget.value } } } : instance)}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>)}<button type="button" onClick={() => onCommit('Sync choices with states', syncDisplaySymbolChoiceMap(document, element.id))}>Sync choices with states</button><button type="button" onClick={() => {
+        const choice = binding?.kind === 'choice' ? binding.previewChoiceId : ''
+        updateInstance('Make instance state static', (instance) => ({ ...instance, state: { kind: 'literal', variantId: instance.state.kind === 'choice-binding' ? instance.state.variantByChoiceId[choice] ?? symbol.defaultVariantId : symbol.defaultVariantId } }))
+      }}>Make state static</button></fieldset>}
+      {element.state.kind === 'literal' && <><button type="button" onClick={() => { const dynamic = makeDisplaySymbolStateDynamic(document, element.id, idFactory); onCommit('Make instance state dynamic', dynamic.document) }}>Make state dynamic</button>{document.bindings.some(({ kind }) => kind === 'choice') && <label className="display-designer-field"><span>Attach choice binding</span><select value="" onChange={(event) => {
+        const choiceBinding = document.bindings.find((candidate) => candidate.id === event.currentTarget.value)
+        if (choiceBinding?.kind !== 'choice') return
+        const byValue = new Map(symbol.variants.map((variant) => [variant.luaValue, variant.id]))
+        updateInstance('Attach choice binding', (instance) => ({ ...instance, state: { kind: 'choice-binding', bindingId: choiceBinding.id, variantByChoiceId: Object.fromEntries(choiceBinding.choices.map((choice) => [choice.id, byValue.get(choice.luaValue) ?? symbol.defaultVariantId])) } }))
+      }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>}</>}
+      <div className="display-designer-symbol-actions"><button type="button" onClick={() => onEditSymbol?.(element)}>Edit symbol</button><button type="button" onClick={() => onDetachInstance?.(element)}>Detach instance…</button></div>
+    </section>
+  }
 
   const update = (label: string, change: (element: DisplayScenePrimitive) => DisplayScenePrimitive) => {
     onCommit(label, updateDisplayDesignElement(document, element.id, (current) => current.kind === 'symbol-instance' ? current : change(current)))
@@ -698,12 +820,14 @@ function DisplayDesignerStatePanel({
 }
 
 function DisplayDesignerReview({
+  document,
   compiled,
   generated,
   bindingCount,
   variantCount,
   onFocusFinding,
 }: {
+  document: DisplayDesignDocumentV1
   compiled: ReturnType<typeof compileDisplayDesign>
   generated: ReturnType<typeof generateDisplayDesignLua>
   bindingCount: number
@@ -711,6 +835,26 @@ function DisplayDesignerReview({
   onFocusFinding(elementId?: string): void
 }) {
   const findings = compiled.findings
+  const [activeSourceLine, setActiveSourceLine] = useState<number>()
+  const sourceLines = generated.ok ? generated.source.split('\n') : []
+  let instanceSearchIndex = sourceLines.findIndex((sourceLine) => sourceLine.includes('return function(self)')) + 1
+  const instanceSourceNavigation = document.elements.flatMap((element) => {
+    if (element.kind !== 'symbol-instance') return []
+    const symbol = document.symbols.find(({ id }) => id === element.symbolId)
+    if (!symbol) return []
+    const index = sourceLines.findIndex((sourceLine, lineIndex) => lineIndex >= instanceSearchIndex && sourceLine.includes(`${symbol.luaName}(`))
+    if (index < 0) return []
+    instanceSearchIndex = index + 1
+    return [{ label: `${element.name} call`, line: index + 1 }]
+  })
+  const sourceNavigation = generated.ok ? [
+    ...document.symbols.flatMap((symbol) => {
+      if (!document.elements.some((element) => element.kind === 'symbol-instance' && element.symbolId === symbol.id)) return []
+      const line = sourceLines.findIndex((sourceLine) => sourceLine.includes(`local function ${symbol.luaName}(`)) + 1
+      return line > 0 ? [{ label: `${symbol.name} helper`, line }] : []
+    }),
+    ...instanceSourceNavigation,
+  ] : []
   return (
     <section className="display-designer-review" aria-label="Design review">
       <section aria-labelledby="display-designer-findings-title">
@@ -722,6 +866,7 @@ function DisplayDesignerReview({
         <dl>
           <div><dt>Primitive elements</dt><dd>{compiled.metrics.elementCount}</dd></div>
           <div><dt>Visible draw calls</dt><dd>{compiled.metrics.drawCallCount}</dd></div>
+          <div><dt>Maximum variant draw calls</dt><dd>{compiled.metrics.maximumVariantDrawCallCount}</dd></div>
           <div><dt>Smooth calls</dt><dd>{compiled.metrics.smoothCallCount}</dd></div>
           <div><dt>Symbols / variants / instances</dt><dd>{compiled.metrics.symbolCount} / {variantCount} / {compiled.metrics.instanceCount}</dd></div>
           <div><dt>Bindings</dt><dd>{bindingCount}</dd></div>
@@ -731,7 +876,8 @@ function DisplayDesignerReview({
       </section>
       <details className="display-designer-source" open>
         <summary>Generated Lua</summary>
-        {generated.ok ? <LuaSourcePreview source={generated.source} /> : <p role="status">Generation is blocked until design errors are repaired.</p>}
+        {sourceNavigation.length > 0 && <nav className="display-designer-source-navigation" aria-label="Generated source navigation">{sourceNavigation.map((target) => <button key={`${target.label}-${target.line}`} type="button" onClick={() => setActiveSourceLine(target.line)}>{target.label} · line {target.line}</button>)}</nav>}
+        {generated.ok ? <LuaSourcePreview source={generated.source} activeLine={activeSourceLine} /> : <p role="status">Generation is blocked until design errors are repaired.</p>}
       </details>
     </section>
   )
@@ -751,6 +897,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   const [layersCollapsed, setLayersCollapsed] = useState(false)
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [pendingDetachId, setPendingDetachId] = useState<string>()
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
   const gestureRef = useRef<DisplayDesignerGesture | null>(null)
@@ -760,12 +907,22 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   const document = gesture?.document ?? history.present.document
   const selection = gesture?.selection ?? history.present.selection
   const selectedId = selection.elementIds[0]
-  const selectedElement = selection.elementIds.length === 1 ? document.elements.find(({ id }) => id === selectedId) : undefined
+  const activeSymbol = selection.symbolId ? document.symbols.find(({ id }) => id === selection.symbolId) : undefined
+  const activeVariant = activeSymbol?.variants.find(({ id }) => id === selection.variantId)
+  const selectedPrimitiveId = selection.primitiveIds[0]
+  const selectedElement = activeVariant && selection.primitiveIds.length === 1
+    ? activeVariant.elements.find(({ id }) => id === selectedPrimitiveId)
+    : selection.elementIds.length === 1 ? document.elements.find(({ id }) => id === selectedId) : undefined
   const compiled = useMemo(() => compileDisplayDesign(document), [document])
   const previewDocument = useMemo(() => ({
     ...document,
-    elements: document.elements.filter(({ groupId }) => !groupId || !hiddenGroupIds.has(groupId)),
-  }), [document, hiddenGroupIds])
+    displayMode: activeVariant ? 'full-screen' as const : document.displayMode,
+    elements: activeVariant
+      ? cloneDisplayDesign(activeVariant.elements)
+      : document.elements.filter(({ groupId }) => !groupId || !hiddenGroupIds.has(groupId)),
+    groups: activeVariant ? [] : document.groups,
+    symbols: activeVariant ? [] : document.symbols,
+  }), [activeVariant, document, hiddenGroupIds])
   const previewCompiled = useMemo(() => compileDisplayDesign(previewDocument), [previewDocument])
   const generated = useMemo(() => generateDisplayDesignLua(document), [document])
   const dirty = history.past.length > 0
@@ -824,12 +981,22 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   ))
 
   const addPrimitive = (preset: DisplayPrimitivePreset) => {
-    const primitive = createDefaultDisplayPrimitive(preset, idFactory)
+    const primitive = createDefaultDisplayPrimitive(preset, idFactory, activeVariant ? 'primitive' : 'element')
+    if (activeSymbol && activeVariant) {
+      const nextDocument = updateDisplaySymbolVariant(document, activeSymbol.id, activeVariant.id, (variant) => ({ ...variant, elements: [...variant.elements, primitive] }))
+      commit(`Add ${primitive.name} to state`, nextDocument, { ...selection, primitiveIds: [primitive.id] })
+      return
+    }
     const nextDocument = addDisplayDesignElement(document, primitive)
     commit(`Add ${primitive.name}`, nextDocument, { ...createEmptyDisplayDesignSelection(), elementIds: [primitive.id] })
   }
 
   const beginPointerGesture = ({ point, pointerId, elementId, handle, shiftKey }: { point: DisplayDesignPoint; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean }) => {
+    if (activeSymbol && activeVariant) {
+      if (activeTool !== 'select' || !elementId) return
+      setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: activeSymbol.id, variantId: activeVariant.id, primitiveIds: [elementId] })
+      return
+    }
     if (activeTool !== 'select') {
       const primitive = createDisplayPrimitiveFromGesture(activeTool, point, point, document.displayMode, idFactory)
       const nextDocument = addDisplayDesignElement(document, primitive)
@@ -1023,19 +1190,43 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
                 return next
               })}
             />}
+            {!layersCollapsed && <DisplayDesignerSymbols
+              document={document}
+              selection={selection}
+              onCreate={() => {
+                const created = createDisplaySymbolFromSelection(document, selection.elementIds, idFactory)
+                if (!created.symbol || !created.instance) return
+                commit('Create symbol from selection', created.document, { ...createEmptyDisplayDesignSelection(), elementIds: [created.instance.id] })
+              }}
+              onEdit={(symbolId, variantId) => setSelection({ ...createEmptyDisplayDesignSelection(), symbolId, variantId, primitiveIds: [] })}
+              onExit={() => setSelection(createEmptyDisplayDesignSelection())}
+              onSelectPrimitive={(primitiveId) => activeSymbol && activeVariant && setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: activeSymbol.id, variantId: activeVariant.id, primitiveIds: [primitiveId] })}
+              onAddVariant={(symbolId, sourceVariantId, blank) => {
+                const added = addDisplaySymbolVariant(document, symbolId, idFactory, { sourceVariantId, blank })
+                commit(blank ? 'Add blank symbol state' : 'Duplicate symbol state', added.document, { ...createEmptyDisplayDesignSelection(), symbolId, variantId: added.variantId, primitiveIds: [] })
+              }}
+              onRenameSymbol={(symbolId, name) => commit('Rename symbol', updateDisplayDesignSymbol(document, symbolId, (symbol) => ({ ...symbol, name })))}
+              onRenameVariant={(symbolId, variantId, name) => commit('Rename symbol state', updateDisplaySymbolVariant(document, symbolId, variantId, (variant) => ({ ...variant, name })))}
+              onChangeLuaValue={(symbolId, variantId, luaValue) => commit('Change stable state value', updateDisplaySymbolVariant(document, symbolId, variantId, (variant) => ({ ...variant, luaValue })))}
+              onSetDefault={(symbolId, variantId) => commit('Set default symbol state', setDefaultDisplaySymbolVariant(document, symbolId, variantId))}
+              onReorderVariant={(symbolId, fromIndex, toIndex) => commit('Reorder symbol state', reorderDisplaySymbolVariant(document, symbolId, fromIndex, toIndex))}
+              onDeleteVariant={(symbolId, variantId, replacementVariantId) => commit('Replace and delete symbol state', deleteDisplaySymbolVariant(document, symbolId, variantId, replacementVariantId), { ...createEmptyDisplayDesignSelection(), symbolId, variantId: replacementVariantId, primitiveIds: [] })}
+              onDeleteSymbol={(symbolId, choice) => commit(choice === 'detach-instances' ? 'Detach instances and delete symbol' : 'Delete instances and symbol', deleteUsedDisplaySymbol(document, symbolId, choice, idFactory), createEmptyDisplayDesignSelection())}
+            />}
           </aside>
 
           <DisplayDesignerArtboard
             document={previewDocument}
             commands={previewCompiled.commands}
-            displayMode={document.displayMode}
-            selectedElementIds={selection.elementIds}
+            displayMode={activeVariant ? 'full-screen' : document.displayMode}
+            selectedElementIds={activeVariant ? selection.primitiveIds : selection.elementIds}
             commandSources={previewCompiled.commandSources}
             activeTool={activeTool}
             zoom={zoom}
             showGrid={showGrid}
             showPixels={showPixels}
             showGeometry={showGeometry}
+            showOriginMarker={Boolean(activeVariant)}
             onPointerStart={beginPointerGesture}
             onPointerMove={movePointerGesture}
             onPointerEnd={finishPointerGesture}
@@ -1045,13 +1236,40 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
           <aside className="display-designer-sidebar display-designer-sidebar--inspector">
             <button type="button" className="display-designer-collapse" aria-expanded={!inspectorCollapsed} onClick={() => setInspectorCollapsed((value) => !value)}>{inspectorCollapsed ? 'Show properties' : 'Hide properties'}</button>
             {!inspectorCollapsed && <>
-              <DisplayDesignerInspector element={selectedElement} document={document} idFactory={idFactory} onCommit={commit} />
+              <DisplayDesignerInspector
+                element={selectedElement}
+                document={activeVariant ? previewDocument : document}
+                idFactory={idFactory}
+                onCommit={(label, nextDocument) => {
+                  if (!activeSymbol || !activeVariant) { commit(label, nextDocument); return }
+                  const merged = updateDisplaySymbolVariant(document, activeSymbol.id, activeVariant.id, (variant) => ({
+                    ...variant,
+                    elements: nextDocument.elements.filter((element): element is DisplayPrimitiveElement => element.kind !== 'symbol-instance'),
+                  }))
+                  commit(label, { ...merged, bindings: nextDocument.bindings }, selection)
+                }}
+                onEditSymbol={(instance) => {
+                  const symbol = document.symbols.find(({ id }) => id === instance.symbolId)
+                  if (!symbol) return
+                  let variantId = symbol.defaultVariantId
+                  const instanceState = instance.state
+                  if (instanceState.kind === 'literal') variantId = instanceState.variantId
+                  else {
+                    const binding = document.bindings.find(({ id }) => id === instanceState.bindingId)
+                    if (binding?.kind === 'choice') variantId = instanceState.variantByChoiceId[binding.previewChoiceId] ?? variantId
+                  }
+                  setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: symbol.id, variantId, primitiveIds: [] })
+                }}
+                onDetachInstance={(instance) => setPendingDetachId(instance.id)}
+              />
               <DisplayDesignerStatePanel document={document} idFactory={idFactory} onCommit={commit} onPreviewUpdate={updateBindingPreview} />
             </>}
           </aside>
         </main>
 
-        <DisplayDesignerReview compiled={compiled} generated={generated} bindingCount={document.bindings.length} variantCount={document.symbols.reduce((count, symbol) => count + symbol.variants.length, 0)} onFocusFinding={(elementId) => { if (elementId) selectElement(elementId) }} />
+        <DisplayDesignerReview document={document} compiled={compiled} generated={generated} bindingCount={document.bindings.length} variantCount={document.symbols.reduce((count, symbol) => count + symbol.variants.length, 0)} onFocusFinding={(elementId) => { if (elementId) selectElement(elementId) }} />
+
+        {pendingDetachId && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-detach-title"><h3 id="display-designer-detach-title">Detach symbol instance?</h3><p>Only the current preview state will remain as ordinary layers. Reuse and alternate states will be lost for this instance.</p><div><button type="button" onClick={() => setPendingDetachId(undefined)}>Cancel</button><button type="button" onClick={() => { const next = detachDisplaySymbolInstance(document, pendingDetachId, idFactory); setPendingDetachId(undefined); commit('Detach symbol instance', next, createEmptyDisplayDesignSelection()) }}>Detach instance</button></div></section></div>}
 
         {confirmDiscard && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-discard-title" aria-describedby="display-designer-discard-description"><h3 id="display-designer-discard-title">Discard display design?</h3><p id="display-designer-discard-description">Closing now removes the unsaved design from this session.</p><div><button type="button" onClick={() => setConfirmDiscard(false)}>Keep editing</button><button ref={discardRef} type="button" className="is-danger" onClick={discardAndClose}>Discard design</button></div></section></div>}
       </div>

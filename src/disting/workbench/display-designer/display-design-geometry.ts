@@ -11,7 +11,7 @@ import {
   type DisplayPrimitivePreset,
   type DisplayScalar,
 } from './display-design-model'
-import { createDisplayBindingMap, resolveDisplayScalar, resolveDisplayText } from './display-design-resolution'
+import { createDisplayBindingMap, resolveDisplayScalar, resolveDisplayText, resolveDisplayVisibility } from './display-design-resolution'
 
 export interface DisplayDesignPoint { x: number; y: number }
 export interface DisplayDesignBounds { left: number; top: number; right: number; bottom: number }
@@ -93,6 +93,25 @@ export function displayElementBounds(
   if (element.kind === 'symbol-instance') {
     const x = scalar(element.x)
     const y = scalar(element.y)
+    const bindings = createDisplayBindingMap(document?.bindings ?? [])
+    const symbol = document?.symbols.find(({ id }) => id === element.symbolId)
+    let variantId = symbol?.defaultVariantId
+    if (element.state.kind === 'literal') variantId = element.state.variantId
+    else {
+      const binding = bindings.get(element.state.bindingId)
+      if (binding?.kind === 'choice') variantId = element.state.variantByChoiceId[binding.previewChoiceId] ?? variantId
+    }
+    const variant = symbol?.variants.find(({ id }) => id === variantId)
+      ?? symbol?.variants.find(({ id }) => id === symbol.defaultVariantId)
+    const primitiveBounds = variant?.elements
+      .filter((primitive) => resolveDisplayVisibility(primitive.visible, bindings))
+      .map((primitive) => displayElementBounds(primitive, document)) ?? []
+    if (primitiveBounds.length > 0) return {
+      left: x + Math.min(...primitiveBounds.map(({ left }) => left)),
+      top: y + Math.min(...primitiveBounds.map(({ top }) => top)),
+      right: x + Math.max(...primitiveBounds.map(({ right }) => right)),
+      bottom: y + Math.max(...primitiveBounds.map(({ bottom }) => bottom)),
+    }
     return { left: x, top: y, right: x, bottom: y }
   }
   if (element.kind === 'line' || element.kind === 'box') {

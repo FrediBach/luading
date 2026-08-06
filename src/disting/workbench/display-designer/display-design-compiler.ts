@@ -4,6 +4,8 @@ import {
   type DisplayDesignDocumentV1,
   type DisplayDesignerFinding,
   type DisplayPrimitiveElement,
+  type DisplaySymbolInstance,
+  type DisplaySymbolVariant,
 } from './display-design-model'
 import {
   createDisplayBindingMap,
@@ -61,7 +63,7 @@ function shade(value: number): number {
 
 function translated(value: number, offset: number, integer: boolean): number {
   const result = value + offset
-  return integer ? Math.trunc(result) : result
+  return integer ? Math.round(result) : result
 }
 
 export function compileDisplayPrimitive(
@@ -147,11 +149,14 @@ function boundsFindings(
   command: DrawCommand,
   elementId: string,
   elementIndex: number,
+  source?: { symbolId: string; variantId: string; primitiveId: string },
 ): DisplayDesignerFinding[] {
   const bounds = commandBounds(command)
   if (!bounds) return []
-  const focus = { elementId }
-  const path = `elements[${elementIndex}]`
+  const focus = { elementId, ...source }
+  const path = source
+    ? `symbols[${document.symbols.findIndex(({ id }) => id === source.symbolId)}].variants[${document.symbols.find(({ id }) => id === source.symbolId)?.variants.findIndex(({ id }) => id === source.variantId) ?? -1}].elements`
+    : `elements[${elementIndex}]`
   const outside = bounds.right < 0
     || bounds.bottom < 0
     || bounds.left >= DISTING_DISPLAY.width
@@ -182,6 +187,23 @@ function boundsFindings(
     message: 'This element overlaps rows 0–9 reserved for the standard parameter line.', path, focus,
   })
   return findings
+}
+
+function resolveInstanceVariant(
+  instance: DisplaySymbolInstance,
+  document: DisplayDesignDocumentV1,
+  bindings: DisplayBindingMap,
+): DisplaySymbolVariant | undefined {
+  const symbol = document.symbols.find(({ id }) => id === instance.symbolId)
+  if (!symbol) return undefined
+  let variantId = symbol.defaultVariantId
+  if (instance.state.kind === 'literal') variantId = instance.state.variantId
+  else {
+    const binding = bindings.get(instance.state.bindingId)
+    if (binding?.kind === 'choice') variantId = instance.state.variantByChoiceId[binding.previewChoiceId] ?? variantId
+  }
+  return symbol.variants.find(({ id }) => id === variantId)
+    ?? symbol.variants.find(({ id }) => id === symbol.defaultVariantId)
 }
 
 function emptyMetrics(document?: DisplayDesignDocumentV1): CompiledDisplayDesignMetrics {
@@ -216,14 +238,49 @@ export function compileDisplayDesign(value: DisplayDesignDocumentV1): CompiledDi
   const commands: DrawCommand[] = []
   const commandSources: DisplayCommandSource[] = []
   const findings = [...initialFindings]
+  let maximumVariantDrawCallCount = 0
   for (const [elementIndex, element] of document.elements.entries()) {
-    if (element.kind === 'symbol-instance') continue
-    const command = compileDisplayPrimitive(element, bindings)
-    if (!command) continue
-    const firstCommand = commands.length
-    commands.push(command)
-    commandSources.push({ elementId: element.id, firstCommand, commandCount: 1 })
-    findings.push(...boundsFindings(document, command, element.id, elementIndex))
+    if (element.kind !== 'symbol-instance') {
+      const command = compileDisplayPrimitive(element, bindings)
+      if (!command) continue
+      const firstCommand = commands.length
+      commands.push(command)
+      commandSources.push({ elementId: element.id, firstCommand, commandCount: 1 })
+      maximumVariantDrawCallCount += 1
+      findings.push(...boundsFindings(document, command, element.id, elementIndex))
+      continue
+    }
+    if (!resolveDisplayVisibility(element.visible, bindings)) continue
+    const symbol = document.symbols.find(({ id }) => id === element.symbolId)
+    const variant = resolveInstanceVariant(element, document, bindings)
+    if (!symbol || !variant) continue
+    const translation = {
+      x: resolveDisplayScalar(element.x, bindings),
+      y: resolveDisplayScalar(element.y, bindings),
+    }
+    for (const primitive of variant.elements) {
+      const command = compileDisplayPrimitive(primitive, bindings, translation)
+      if (!command) continue
+      const primitiveFirstCommand = commands.length
+      commands.push(command)
+      commandSources.push({
+        elementId: element.id,
+        symbolId: symbol.id,
+        variantId: variant.id,
+        primitiveId: primitive.id,
+        firstCommand: primitiveFirstCommand,
+        commandCount: 1,
+      })
+      findings.push(...boundsFindings(document, command, element.id, elementIndex, {
+        symbolId: symbol.id,
+        variantId: variant.id,
+        primitiveId: primitive.id,
+      }))
+    }
+    const largestVariant = Math.max(0, ...symbol.variants.map((candidate) => candidate.elements.filter((primitive) => (
+      resolveDisplayVisibility(primitive.visible, bindings)
+    )).length))
+    maximumVariantDrawCallCount += largestVariant
   }
   const smoothCallCount = commands.filter((command) => (
     (command.kind === 'line' || command.kind === 'circle') && command.smooth
@@ -235,7 +292,7 @@ export function compileDisplayDesign(value: DisplayDesignDocumentV1): CompiledDi
     metrics: {
       ...emptyMetrics(document),
       drawCallCount: commands.length,
-      maximumVariantDrawCallCount: commands.length,
+      maximumVariantDrawCallCount,
       smoothCallCount,
       generatedUtf8Bytes: sourceBuild.generatedUtf8Bytes,
     },

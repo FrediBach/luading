@@ -91,6 +91,25 @@ describe('display design geometry', () => {
     expect(resizeDisplayElement(circle, 'radius', { x: 24.5, y: 23.5 })).toMatchObject({ radius: literal(5) })
   })
 
+  it('uses the current symbol state bounds for instance hit testing and movement', () => {
+    const ids = createSequentialDisplayDesignIdFactory('instance-bounds')
+    const primitive = createDefaultDisplayPrimitive('filled-box', ids, 'primitive')
+    primitive.x1 = literal(-2); primitive.y1 = literal(1); primitive.x2 = literal(6); primitive.y2 = literal(4)
+    const symbolId = ids('symbol'); const variantId = ids('variant')
+    const instance = {
+      kind: 'symbol-instance' as const, id: ids('element'), name: 'Instance', symbolId,
+      x: literal(20), y: literal(30), visible: { kind: 'visible' as const },
+      state: { kind: 'literal' as const, variantId },
+    }
+    const document = {
+      ...createEmptyDisplayDesign(),
+      symbols: [{ id: symbolId, name: 'Symbol', luaName: 'draw_symbol', defaultVariantId: variantId, variants: [{ id: variantId, name: 'Default', luaValue: 'default', elements: [primitive] }] }],
+      elements: [instance],
+    }
+    expect(displayElementBounds(instance, document)).toEqual({ left: 18, top: 31, right: 26, bottom: 34 })
+    expect(displayElementHitTest(instance, { x: 25, y: 33 }, 0.5, document)).toBe(true)
+  })
+
   it('aligns, distributes, and translates back-to-front selection ordering', () => {
     const ids = createSequentialDisplayDesignIdFactory('ops')
     const elements = [0, 1, 2].map((index) => ({

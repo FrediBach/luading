@@ -145,14 +145,14 @@ describe('display design compiler', () => {
     const bindings = createDisplayBindingMap([])
 
     expect(compileDisplayPrimitive(pixel, bindings, { x: 0.75, y: -0.75 })).toMatchObject({
-      x1: 8, y1: 15, x2: 32, y2: 15,
+      x1: 9, y1: 15, x2: 33, y2: 15,
     })
     expect(compileDisplayPrimitive(smooth, bindings, { x: 0.75, y: -0.75 })).toMatchObject({
       x1: 9.25, y1: 15.75, x2: 33.25, y2: 15.75,
     })
   })
 
-  it('blocks malformed documents and symbol instances instead of emitting partial commands or Lua', () => {
+  it('blocks malformed documents and expands valid symbol instances', () => {
     const invalid = staticPrimitiveDocument()
     invalid.name = ''
     expect(compileDisplayDesign(invalid)).toMatchObject({ commands: [], commandSources: [], metrics: { generatedUtf8Bytes: 0 } })
@@ -172,9 +172,12 @@ describe('display design compiler', () => {
       }],
     }
     const result = compileDisplayDesign(withSymbol)
-    expect(result.commands).toEqual([])
-    expect(result.metrics).toMatchObject({ elementCount: 1, symbolCount: 1, instanceCount: 1, generatedUtf8Bytes: 0 })
-    expect(result.findings.map(({ ruleId }) => ruleId)).toContain('symbol-expansion-unavailable')
+    expect(result.commands).toEqual([{ kind: 'circle', x: 20, y: 20, radius: 6, shade: 15, smooth: false }])
+    expect(result.commandSources).toEqual([{
+      elementId: withSymbol.elements[0]!.id, symbolId, variantId, primitiveId: primitive.id,
+      firstCommand: 0, commandCount: 1,
+    }])
+    expect(result.metrics).toMatchObject({ elementCount: 1, symbolCount: 1, instanceCount: 1, drawCallCount: 1, maximumVariantDrawCallCount: 1 })
   })
 
   it('warns about unused bindings and symbol definitions without treating descriptive metrics as hardware limits', () => {

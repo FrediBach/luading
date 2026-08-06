@@ -14,6 +14,12 @@ import {
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import { formatLuaNumber } from './display-design-resolution'
+import {
+  addDisplaySymbolVariant,
+  createDisplaySymbolFromSelection,
+  makeDisplaySymbolStateDynamic,
+  updateDisplaySymbolVariant,
+} from './display-design-symbols'
 
 const openEngines: Array<Awaited<ReturnType<typeof createDistingLuaTestEngine>>> = []
 
@@ -213,6 +219,87 @@ end,
     const runtime = await runGenerated(document)
     expect(runtime.commands).toEqual(compiler.commands)
     expect(runtime.commands).toHaveLength(3)
+  })
+
+  it('emits one shared helper outside draw and matches compiler expansion for literal and choice states', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('symbol-runtime')
+    const box = createDefaultDisplayPrimitive('outline-box', ids)
+    box.x1 = { kind: 'literal', value: 0 }
+    box.y1 = { kind: 'literal', value: 0 }
+    box.x2 = { kind: 'literal', value: 8 }
+    box.y2 = { kind: 'literal', value: 6 }
+    let document: DisplayDesignDocumentV1 = { ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [box] }
+    const created = createDisplaySymbolFromSelection(document, [box.id], ids, { name: 'Status', origin: { x: 0, y: 0 } })
+    const added = addDisplaySymbolVariant(created.document, created.symbol!.id, ids, { name: 'Active' })
+    document = updateDisplaySymbolVariant(added.document, created.symbol!.id, added.variantId!, (variant) => {
+      const fill = createDefaultDisplayPrimitive('filled-box', ids, 'primitive')
+      fill.x1 = { kind: 'literal', value: 1 }; fill.y1 = { kind: 'literal', value: 1 }
+      fill.x2 = { kind: 'literal', value: 7 }; fill.y2 = { kind: 'literal', value: 5 }
+      return { ...variant, elements: [...variant.elements, fill] }
+    })
+    const first = document.elements[0]!
+    if (first.kind !== 'symbol-instance') throw new Error('Expected instance')
+    first.x = { kind: 'literal', value: 10 }
+    first.y = { kind: 'literal', value: 12 }
+    const duplicated = duplicateDisplayDesignElements(document, [first.id], ids)
+    document = duplicated.document
+    const second = document.elements[1]!
+    if (second.kind !== 'symbol-instance') throw new Error('Expected duplicate instance')
+    second.x = { kind: 'literal', value: 40 }
+    second.y = { kind: 'literal', value: 20 }
+    second.state = { kind: 'literal', variantId: added.variantId! }
+    const dynamic = makeDisplaySymbolStateDynamic(document, first.id, ids)
+    document = dynamic.document
+
+    for (const choice of dynamic.binding!.choices) {
+      const selected = structuredClone(document)
+      const binding = selected.bindings.find(({ id }) => id === dynamic.binding!.id)
+      if (binding?.kind === 'choice') binding.previewChoiceId = choice.id
+      const compiled = compileDisplayDesign(selected)
+      const runtime = await runGenerated(selected)
+      expect(runtime.commands).toEqual(compiled.commands)
+      expect(compiled.metrics.maximumVariantDrawCallCount).toBe(4)
+    }
+
+    const generated = generateDisplayDesignLua(document)
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    expect(generated.source.match(/local function draw_status\(/g)).toHaveLength(1)
+    const helperIndex = generated.source.indexOf('local function draw_status')
+    const returnedDrawIndex = generated.source.indexOf('return function(self)')
+    expect(helperIndex).toBeGreaterThan(generated.source.indexOf('draw = (function()'))
+    expect(helperIndex).toBeLessThan(returnedDrawIndex)
+    expect(generated.source).toContain('else\n      -- Default state: Default')
+    expect(generated.source.match(/draw_status\(/g)).toHaveLength(3)
+  })
+
+  it('uses the declared default for unknown runtime state and keeps repeated draw callbacks stable', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('unknown-state')
+    const line = createDefaultDisplayPrimitive('pixel-line', ids)
+    line.x1 = { kind: 'literal', value: 0 }; line.y1 = { kind: 'literal', value: 0 }
+    line.x2 = { kind: 'literal', value: 4 }; line.y2 = { kind: 'literal', value: 0 }
+    const created = createDisplaySymbolFromSelection({ ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [line] }, [line.id], ids)
+    const added = addDisplaySymbolVariant(created.document, created.symbol!.id, ids, { blank: true, name: 'Active' })
+    const dynamic = makeDisplaySymbolStateDynamic(added.document, created.instance!.id, ids)
+    const generated = generateDisplayDesignLua(dynamic.document)
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    const previewValue = dynamic.binding!.choices[0]!.luaValue
+    const source = generated.source.replace(
+      `${dynamic.binding!.luaName} = ${JSON.stringify(previewValue)} -- TODO: choose this state from self or parameters.`,
+      `${dynamic.binding!.luaName} = "unknown" -- TODO: choose this state from self or parameters.`,
+    )
+    const lua = await createDistingLuaTestEngine(50)
+    openEngines.push(lua)
+    const display = new DistingDisplayApi()
+    display.register(lua.global)
+    const runtime = await loadLuaProgramRuntime(lua, `return {\n${source}}\n`)
+    display.reset(); runtime.draw?.()
+    const first = [...display.commands]
+    display.reset(); runtime.draw?.()
+    expect(display.commands).toEqual(first)
+    expect(first).toEqual([{ kind: 'line', x1: 0, y1: 0, x2: 4, y2: 0, shade: 15, smooth: false }])
+    runtime.close?.()
   })
 
   it('blocks invalid documents and symbol instances from producing partial source', () => {
