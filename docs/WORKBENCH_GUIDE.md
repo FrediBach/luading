@@ -745,17 +745,29 @@ browser-only 256×64 display design. Opening the full-size dialog does not pause
 the Lua runtime, change the active script, or replace the normal simulated
 display. The current increment supports static pixel and smooth lines, outlined
 and filled boxes, pixel and smooth outline circles, standard text, and tiny
-text. Choosing a primitive tool adds a valid default layer immediately; select
-that layer to enter exact coordinates, text, alignment, and one of the 16
+text. Choose a primitive tool and drag on the artboard to create repeatedly, or
+use its **Add default** action for a keyboard-only starting shape. The inspector
+remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
 
-Layers are shown front-to-back and can be selected, duplicated, moved forward
-or backward, and deleted without relying on artboard pointer gestures. The
-artboard always remains 256×64 logically while **Fit**, 2×, 3×, and 4× only
-change its CSS size. **Pixels** uses the same display renderer as the simulator;
-**Geometry** adds authoring guides, and **Grid** adds logical-pixel chrome.
-Smooth pixels remain an approximation of firmware antialiasing and appear with
-a finding whenever used.
+Layers are shown front-to-back. Select on the artboard or in Layers, and use
+Shift to build a multi-selection. Selected artwork can be dragged, nudged by
+one pixel with the arrow keys or five with Shift+arrow, resized through
+element-specific handles, aligned, distributed, duplicated, deleted, or moved
+through draw order. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo complete
+gestures; editable fields protect their normal arrow, delete, and undo keys.
+One-level groups provide atomic selection, movement, duplication, deletion, and
+an editor-only hide/show switch; hiding a group never changes generated Lua.
+
+The artboard always remains 256×64 logically while **Fit**, 2×, 3×, and 4×
+only change its CSS size. Pointer hit targets are enlarged in screen space while
+committed coordinates use integer snapping, or half-pixel snapping for smooth
+primitives. Pointer creation and manipulation stay below row 10 in parameter-
+line mode; exact fields may deliberately retain clipped or reserved-area
+coordinates, which produce findings. **Pixels** uses the same display renderer
+as the simulator; **Geometry** adds authoring guides and handles, and **Grid**
+adds logical-pixel chrome. Smooth pixels remain an approximation of firmware
+antialiasing and appear with a finding whenever used.
 
 **Keep standard parameter line** reserves rows 0–9 and previews the shared
 standard-line command layout. **Use full display** exposes all 64 rows and adds

@@ -251,6 +251,28 @@
 .display-designer-layer-actions { padding: 4px; display: flex; gap: 3px; border-top: 1px solid var(--nt-line); }
 .display-designer-layer-actions button { min-width: 27px; min-height: 25px; padding: 2px 5px; font-size: var(--font-micro); }
 
+.display-designer-selection-actions,
+.display-designer-alignment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--nt-line);
+  border-radius: 6px;
+}
+
+.display-designer-selection-actions span { flex-basis: 100%; color: var(--nt-muted); font-size: var(--font-micro); }
+.display-designer-layer-group { flex-basis: 100%; display: flex; align-items: center; gap: 5px; color: var(--nt-muted); font-size: var(--font-micro); }
+.display-designer-layer-group span { flex-basis: auto; }
+.display-designer-layer-group select { min-width: 0; flex: 1; }
+.display-designer-selection-actions button,
+.display-designer-alignment-actions button { min-height: 25px; padding: 2px 5px; font-size: var(--font-micro); }
+.display-designer-groups { margin: 0; padding: 0; display: grid; gap: 5px; list-style: none; }
+.display-designer-groups li { display: grid; gap: 3px; }
+.display-designer-groups li > button { justify-content: flex-start; }
+.display-designer-groups li > div { display: flex; flex-wrap: wrap; gap: 3px; }
+.display-designer-groups li > div button { min-height: 25px; padding: 2px 5px; font-size: var(--font-micro); }
+
 .display-designer-stage {
   min-width: 0;
   min-height: 0;
@@ -294,7 +316,12 @@
   border: 1px solid color-mix(in srgb, var(--nt-green) 60%, var(--nt-line));
   background: #000;
   box-shadow: 0 12px 38px var(--shadow-strong);
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
 }
+
+.display-designer-artboard[data-active-tool='select'] { cursor: default; }
 
 .display-designer-artboard canvas,
 .display-designer-artboard svg {
@@ -341,6 +368,22 @@
 }
 
 .display-designer-selection-geometry circle { fill: var(--nt-green); }
+.display-designer-selection-geometry .display-designer-handle-target {
+  pointer-events: all;
+  cursor: grab;
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 12px;
+  vector-effect: non-scaling-stroke;
+}
+
+.display-designer-selection-geometry .display-designer-handle {
+  pointer-events: none;
+  fill: var(--nt-green);
+  stroke: #fff;
+  stroke-width: 0.45;
+  vector-effect: non-scaling-stroke;
+}
 
 .display-designer-inspector {
   display: grid;

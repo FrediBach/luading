@@ -269,6 +269,16 @@ parameter-preset simulator disclosure, active/Custom selection, and control
 semantics. Pure tests cover layout reducers, viewport decisions,
 shortcuts, scope selection, editors, formatters, and interaction math.
 
+Display-designer geometry tests pin logical/client transforms at every offered
+zoom, fractional artboard bounds, integer and half-pixel snapping, reserved-row
+constraints, hit testing, reversed geometry, handles, off-canvas translation,
+multi-selection bounds, alignment, distribution, and draw-order translation.
+Its jsdom interaction tests dispatch pointer and keyboard events to pin pointer
+capture requests, gesture cancellation, one-transaction undo, multi-selection,
+groups, and protected shortcuts. They deliberately do not claim real pointer
+capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
+Canvas visual fidelity.
+
 These tests do not run browser effects, CSS layout, pointer capture, focus
 movement, Monaco's live UI, Web Audio activation, Web MIDI permissions, or a
 screen reader. User-interface changes need the applicable live browser checks
