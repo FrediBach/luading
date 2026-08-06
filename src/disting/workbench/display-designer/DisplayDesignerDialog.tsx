@@ -17,6 +17,12 @@ import { LuaSourcePreview } from '../LuaSourcePreview'
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import {
+  DISPLAY_DESIGN_FILE_SUFFIX,
+  parseDisplayDesignText,
+  serializeDisplayDesign,
+  validateDisplayDesignFileMetadata,
+} from './display-design-file'
+import {
   createDisplayBindingInDocument,
   deleteDisplayBindingAndConvertUses,
   listDisplayBindingUsages,
@@ -55,6 +61,7 @@ import {
   addDisplayDesignGroup,
   assignDisplayDesignGroup,
   cloneDisplayDesign,
+  createCollisionSafeDisplayDesignIdFactory,
   createDefaultDisplayGroup,
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
@@ -118,6 +125,25 @@ interface DisplayDesignerGesture {
   elementId?: string
   handle?: DisplayDesignHandle
   preset?: DisplayPrimitivePreset
+}
+
+function readBrowserFileText(file: File): Promise<string> {
+  if (typeof file.text === 'function') return file.text()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new Error('The file reader did not return text.')))
+    reader.addEventListener('error', () => reject(reader.error ?? new Error('The file could not be read.')))
+    reader.readAsText(file)
+  })
+}
+
+function isEmptyDisplayDesign(document: DisplayDesignDocumentV1): boolean {
+  return document.elements.length === 0
+    && document.groups.length === 0
+    && document.bindings.length === 0
+    && document.symbols.length === 0
 }
 
 const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
@@ -836,6 +862,9 @@ function DisplayDesignerReview({
 }) {
   const findings = compiled.findings
   const [activeSourceLine, setActiveSourceLine] = useState<number>()
+  const [copyStatus, setCopyStatus] = useState('')
+  const [showCopyFallback, setShowCopyFallback] = useState(false)
+  const copyFallbackRef = useRef<HTMLTextAreaElement>(null)
   const sourceLines = generated.ok ? generated.source.split('\n') : []
   let instanceSearchIndex = sourceLines.findIndex((sourceLine) => sourceLine.includes('return function(self)')) + 1
   const instanceSourceNavigation = document.elements.flatMap((element) => {
@@ -855,6 +884,24 @@ function DisplayDesignerReview({
     }),
     ...instanceSourceNavigation,
   ] : []
+
+  const copyDrawCallback = async () => {
+    if (!generated.ok) return
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard API unavailable')
+      await navigator.clipboard.writeText(generated.source)
+      setShowCopyFallback(false)
+      setCopyStatus('Draw callback copied.')
+    } catch {
+      setShowCopyFallback(true)
+      setCopyStatus('Copy failed. The generated draw callback is selected below; copy it manually.')
+      window.requestAnimationFrame(() => {
+        copyFallbackRef.current?.focus()
+        copyFallbackRef.current?.select()
+      })
+    }
+  }
+
   return (
     <section className="display-designer-review" aria-label="Design review">
       <section aria-labelledby="display-designer-findings-title">
@@ -876,6 +923,20 @@ function DisplayDesignerReview({
       </section>
       <details className="display-designer-source" open>
         <summary>Generated Lua</summary>
+        <div className="display-designer-source-actions">
+          <button type="button" disabled={!generated.ok} onClick={copyDrawCallback}>Copy draw callback</button>
+          {copyStatus && <p role="status">{copyStatus}</p>}
+        </div>
+        {showCopyFallback && generated.ok && <label className="display-designer-copy-fallback">
+          <span>Generated draw callback for manual copy</span>
+          <textarea
+            ref={copyFallbackRef}
+            aria-label="Generated draw callback for manual copy"
+            readOnly
+            value={generated.source}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+        </label>}
         {sourceNavigation.length > 0 && <nav className="display-designer-source-navigation" aria-label="Generated source navigation">{sourceNavigation.map((target) => <button key={`${target.label}-${target.line}`} type="button" onClick={() => setActiveSourceLine(target.line)}>{target.label} · line {target.line}</button>)}</nav>}
         {generated.ok ? <LuaSourcePreview source={generated.source} activeLine={activeSourceLine} /> : <p role="status">Generation is blocked until design errors are repaired.</p>}
       </details>
@@ -885,6 +946,11 @@ function DisplayDesignerReview({
 
 function initialHistory(): DisplayDesignHistory {
   return createDisplayDesignHistory(createEmptyDisplayDesign(), createEmptyDisplayDesignSelection())
+}
+
+function initialSavedDocumentText(): string {
+  const serialized = serializeDisplayDesign(createEmptyDisplayDesign())
+  return serialized.ok ? serialized.text : ''
 }
 
 export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) {
@@ -897,13 +963,18 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   const [layersCollapsed, setLayersCollapsed] = useState(false)
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [confirmReplace, setConfirmReplace] = useState(false)
   const [pendingDetachId, setPendingDetachId] = useState<string>()
+  const [fileStatus, setFileStatus] = useState('')
+  const [savedDocumentText, setSavedDocumentText] = useState(initialSavedDocumentText)
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
   const gestureRef = useRef<DisplayDesignerGesture | null>(null)
-  const [idFactory] = useState<DisplayDesignIdFactory>(() => createSequentialDisplayDesignIdFactory('designer'))
+  const [idFactory, setIdFactory] = useState<DisplayDesignIdFactory>(() => createSequentialDisplayDesignIdFactory('designer'))
   const dialogRef = useRef<HTMLDivElement>(null)
   const discardRef = useRef<HTMLButtonElement>(null)
+  const replaceRef = useRef<HTMLButtonElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const document = gesture?.document ?? history.present.document
   const selection = gesture?.selection ?? history.present.selection
   const selectedId = selection.elementIds[0]
@@ -925,7 +996,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   }), [activeVariant, document, hiddenGroupIds])
   const previewCompiled = useMemo(() => compileDisplayDesign(previewDocument), [previewDocument])
   const generated = useMemo(() => generateDisplayDesignLua(document), [document])
-  const dirty = history.past.length > 0
+  const serializedDocument = useMemo(() => serializeDisplayDesign(document), [document])
+  const dirty = !serializedDocument.ok || serializedDocument.text !== savedDocumentText
 
   useEffect(() => {
     if (!open) return
@@ -943,6 +1015,10 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   useEffect(() => {
     if (confirmDiscard) discardRef.current?.focus()
   }, [confirmDiscard])
+
+  useEffect(() => {
+    if (confirmReplace) replaceRef.current?.focus()
+  }, [confirmReplace])
 
   if (!open) return null
 
@@ -1060,16 +1136,88 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
   }
 
   const requestClose = () => {
-    if (dirty) setConfirmDiscard(true)
+    if (dirty && !isEmptyDisplayDesign(document)) setConfirmDiscard(true)
     else onClose()
   }
 
   const discardAndClose = () => {
     setHistory(initialHistory())
+    setSavedDocumentText(initialSavedDocumentText())
+    setIdFactory(() => createSequentialDisplayDesignIdFactory('designer'))
     setActiveTool('select')
     updateGesture(null)
     setConfirmDiscard(false)
     onClose()
+  }
+
+  const chooseDesignFile = () => fileInputRef.current?.click()
+
+  const requestOpenDesign = () => {
+    if (dirty && !isEmptyDisplayDesign(document)) setConfirmReplace(true)
+    else chooseDesignFile()
+  }
+
+  const openDesignFile = async (file: File) => {
+    const metadataFailure = validateDisplayDesignFileMetadata(file)
+    if (metadataFailure) {
+      setFileStatus(`Open failed: ${metadataFailure.message} The current design was kept.`)
+      return
+    }
+    setFileStatus(`Opening ${file.name}…`)
+    let text: string
+    try {
+      text = await readBrowserFileText(file)
+    } catch {
+      setFileStatus('Open failed: the selected file could not be read. The current design was kept.')
+      return
+    }
+    const parsed = parseDisplayDesignText(text)
+    if (!parsed.ok) {
+      setFileStatus(`Open failed: ${parsed.message} The current design was kept.`)
+      return
+    }
+    const canonical = serializeDisplayDesign(parsed.document)
+    if (!canonical.ok) {
+      setFileStatus(`Open failed: ${canonical.message} The current design was kept.`)
+      return
+    }
+    setHistory(createDisplayDesignHistory(parsed.document, createEmptyDisplayDesignSelection()))
+    setSavedDocumentText(canonical.text)
+    setIdFactory(() => createCollisionSafeDisplayDesignIdFactory(parsed.document, 'designer'))
+    setActiveTool('select')
+    setHiddenGroupIds(new Set())
+    setPendingDetachId(undefined)
+    updateGesture(null)
+    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.`)
+  }
+
+  const downloadDesign = () => {
+    const serialized = serializeDisplayDesign(document)
+    if (!serialized.ok) {
+      setFileStatus(`Download failed: ${serialized.message}`)
+      return
+    }
+    let objectUrl: string | undefined
+    let link: HTMLAnchorElement | undefined
+    try {
+      const blob = new Blob([serialized.text], { type: 'application/json;charset=utf-8' })
+      objectUrl = URL.createObjectURL(blob)
+      link = globalThis.document.createElement('a')
+      link.href = objectUrl
+      link.download = serialized.fileName
+      link.hidden = true
+      globalThis.document.body.append(link)
+      link.click()
+      setSavedDocumentText(serialized.text)
+      setFileStatus(`Download started: ${serialized.fileName}.`)
+    } catch {
+      setFileStatus('Download failed. The current design remains in memory.')
+    } finally {
+      link?.remove()
+      if (objectUrl) {
+        try { URL.revokeObjectURL(objectUrl) } catch { /* the download was already dispatched */ }
+      }
+    }
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -1078,6 +1226,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
     if (event.key === 'Escape') {
       event.preventDefault()
       if (confirmDiscard) setConfirmDiscard(false)
+      else if (confirmReplace) setConfirmReplace(false)
       else if (gestureRef.current) updateGesture(null)
       else if (activeTool !== 'select') setActiveTool('select')
       else requestClose()
@@ -1113,10 +1262,10 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
       return
     }
     if (event.key !== 'Tab') return
-    const focusRoot = confirmDiscard
+    const focusRoot = confirmDiscard || confirmReplace
       ? dialogRef.current?.querySelector<HTMLElement>('[role="alertdialog"]')
       : dialogRef.current
-    const focusable = [...(focusRoot?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])') ?? [])]
+    const focusable = [...(focusRoot?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([hidden]), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])') ?? [])]
     if (focusable.length === 0) return
     const first = focusable[0]
     const last = focusable.at(-1)!
@@ -1136,6 +1285,23 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
           <button type="button" aria-pressed={showGeometry} onClick={() => setShowGeometry((value) => !value)}>Geometry</button>
           <button type="button" disabled={history.past.length === 0} onClick={() => setHistory(undoDisplayDesign)}>Undo</button>
           <button type="button" disabled={history.future.length === 0} onClick={() => setHistory(redoDisplayDesign)}>Redo</button>
+          <div className="display-designer-file-actions">
+            <button type="button" onClick={requestOpenDesign}>Open design</button>
+            <button type="button" disabled={!serializedDocument.ok} onClick={downloadDesign}>Download design</button>
+            {fileStatus && <span className="display-designer-file-status" role="status">{fileStatus}</span>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              aria-label="Choose display design file"
+              accept={`${DISPLAY_DESIGN_FILE_SUFFIX},application/json`}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0]
+                event.currentTarget.value = ''
+                if (file) void openDesignFile(file)
+              }}
+            />
+          </div>
           <button type="button" aria-label="Close Display designer" onClick={requestClose}><ControlIcon name="close" size={16} /></button>
         </header>
 
@@ -1272,6 +1438,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose }: Props) 
         {pendingDetachId && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-detach-title"><h3 id="display-designer-detach-title">Detach symbol instance?</h3><p>Only the current preview state will remain as ordinary layers. Reuse and alternate states will be lost for this instance.</p><div><button type="button" onClick={() => setPendingDetachId(undefined)}>Cancel</button><button type="button" onClick={() => { const next = detachDisplaySymbolInstance(document, pendingDetachId, idFactory); setPendingDetachId(undefined); commit('Detach symbol instance', next, createEmptyDisplayDesignSelection()) }}>Detach instance</button></div></section></div>}
 
         {confirmDiscard && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-discard-title" aria-describedby="display-designer-discard-description"><h3 id="display-designer-discard-title">Discard display design?</h3><p id="display-designer-discard-description">Closing now removes the unsaved design from this session.</p><div><button type="button" onClick={() => setConfirmDiscard(false)}>Keep editing</button><button ref={discardRef} type="button" className="is-danger" onClick={discardAndClose}>Discard design</button></div></section></div>}
+
+        {confirmReplace && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-replace-title" aria-describedby="display-designer-replace-description"><h3 id="display-designer-replace-title">Replace changed display design?</h3><p id="display-designer-replace-description">Choose a file only after confirming that the current undownloaded changes may be replaced. A failed open will still keep them.</p><div><button type="button" onClick={() => setConfirmReplace(false)}>Keep current design</button><button ref={replaceRef} type="button" className="is-danger" onClick={() => { setConfirmReplace(false); chooseDesignFile() }}>Discard changes and choose file</button></div></section></div>}
       </div>
     </div>
   )

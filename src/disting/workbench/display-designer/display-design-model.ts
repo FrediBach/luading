@@ -13,6 +13,7 @@ export const DISPLAY_DESIGN_LIMITS = {
   minimumCoordinate: -4096,
   maximumCoordinate: 4096,
   maximumRadius: 4096,
+  maximumJsonBytes: 1024 * 1024,
   maximumHistoryTransactions: 100,
 } as const
 
@@ -246,6 +247,31 @@ const visible = (): DisplayVisibility => ({ kind: 'visible' })
 export function createSequentialDisplayDesignIdFactory(prefix = 'display'): DisplayDesignIdFactory {
   let nextId = 1
   return (scope) => `${prefix}-${scope}-${nextId++}`
+}
+
+export function createCollisionSafeDisplayDesignIdFactory(
+  document: DisplayDesignDocumentV1,
+  prefix = 'display',
+): DisplayDesignIdFactory {
+  const usedIds = new Set<string>([
+    ...document.elements.map(({ id }) => id),
+    ...document.groups.map(({ id }) => id),
+    ...document.bindings.flatMap((binding) => [
+      binding.id,
+      ...(binding.kind === 'choice' ? binding.choices.map(({ id }) => id) : []),
+    ]),
+    ...document.symbols.flatMap((symbol) => [
+      symbol.id,
+      ...symbol.variants.flatMap((variant) => [variant.id, ...variant.elements.map(({ id }) => id)]),
+    ]),
+  ])
+  const candidate = createSequentialDisplayDesignIdFactory(prefix)
+  return (scope) => {
+    let id = candidate(scope)
+    while (usedIds.has(id)) id = candidate(scope)
+    usedIds.add(id)
+    return id
+  }
 }
 
 export function createEmptyDisplayDesign(name = 'Untitled display'): DisplayDesignDocumentV1 {

@@ -8,6 +8,7 @@ import {
   createDefaultDisplayBinding,
   createDefaultDisplayGroup,
   createDefaultDisplayPrimitive,
+  createCollisionSafeDisplayDesignIdFactory,
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
   deleteDisplayDesignBinding,
@@ -54,6 +55,18 @@ function documentWithThreeElements(): DisplayDesignDocumentV1 {
 }
 
 describe('display design model', () => {
+  it('allocates collision-safe IDs after a portable design is opened', () => {
+    const document = createEmptyDisplayDesign()
+    document.elements = [{
+      ...createDefaultDisplayPrimitive('pixel-line', () => 'designer-element-1'),
+      id: 'designer-element-1',
+    }]
+    const ids = createCollisionSafeDisplayDesignIdFactory(document, 'designer')
+
+    expect(ids('element')).toBe('designer-element-2')
+    expect(ids('element')).toBe('designer-element-3')
+  })
+
   it('creates a browser-only empty v1 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({

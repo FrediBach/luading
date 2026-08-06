@@ -29,7 +29,8 @@
 
 .display-designer-dialog button,
 .display-designer-dialog input,
-.display-designer-dialog select {
+.display-designer-dialog select,
+.display-designer-dialog textarea {
   font: var(--font-label)/1.2 var(--mono);
 }
 
@@ -118,6 +119,19 @@
   border-radius: 5px;
   color: var(--nt-text);
   background: var(--surface-recessed);
+}
+
+.display-designer-file-actions {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+}
+
+.display-designer-file-status {
+  max-width: 250px;
+  color: var(--nt-muted);
+  font-size: var(--font-micro);
+  line-height: 1.25;
 }
 
 .display-designer-toolbar {
@@ -504,6 +518,10 @@
 .display-designer-review dl div { display: flex; justify-content: space-between; gap: 10px; }
 .display-designer-review dd { margin: 0; color: var(--nt-text); }
 .display-designer-source summary { color: var(--nt-text); cursor: pointer; }
+.display-designer-source-actions { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.display-designer-source-actions p { margin: 0; color: var(--nt-muted); }
+.display-designer-copy-fallback { margin-top: 8px; display: grid; gap: 4px; color: var(--nt-muted); font-size: var(--font-micro); }
+.display-designer-copy-fallback textarea { width: 100%; min-height: 90px; box-sizing: border-box; resize: vertical; color: var(--nt-text); background: var(--surface-recessed); border: 1px solid var(--nt-line); border-radius: 5px; }
 .display-designer-source pre { margin: 8px 0 0; color: var(--nt-text); white-space: pre; }
 .display-designer-source .lua-source-preview-code { display: block; color: inherit; background: transparent; font: inherit; }
 .display-designer-source-navigation { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }

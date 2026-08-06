@@ -3,10 +3,18 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { serializeDisplayDesign } from './display-design-file'
+import {
+  createDefaultDisplayPrimitive,
+  createEmptyDisplayDesign,
+  createSequentialDisplayDesignIdFactory,
+} from './display-design-model'
 import { DisplayDesignerLauncher } from './DisplayDesignerLauncher'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
+let createObjectUrlDescriptor: PropertyDescriptor | undefined
+let revokeObjectUrlDescriptor: PropertyDescriptor | undefined
 
 function button(label: string) {
   const match = [...document.querySelectorAll<HTMLButtonElement>('button')]
@@ -46,6 +54,16 @@ async function commitInput(element: HTMLInputElement, value: string) {
     element.dispatchEvent(new Event('change', { bubbles: true }))
   })
   await act(async () => { element.dispatchEvent(new FocusEvent('focusout', { bubbles: true })) })
+}
+
+async function chooseDesignFile(file: Pick<File, 'name' | 'type' | 'size' | 'text'>) {
+  const input = document.querySelector<HTMLInputElement>('[aria-label="Choose display design file"]')!
+  Object.defineProperty(input, 'files', { configurable: true, value: [file] })
+  await act(async () => {
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await Promise.resolve()
+    await Promise.resolve()
+  })
 }
 
 function source() {
@@ -106,11 +124,17 @@ beforeEach(() => {
   container.className = 'disting-app'
   document.body.append(container)
   root = createRoot(container)
+  createObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+  revokeObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
 })
 
 afterEach(async () => {
   await act(async () => { root.unmount() })
   container.remove()
+  if (createObjectUrlDescriptor) Object.defineProperty(URL, 'createObjectURL', createObjectUrlDescriptor)
+  else delete (URL as Partial<typeof URL>).createObjectURL
+  if (revokeObjectUrlDescriptor) Object.defineProperty(URL, 'revokeObjectURL', revokeObjectUrlDescriptor)
+  else delete (URL as Partial<typeof URL>).revokeObjectURL
   vi.restoreAllMocks()
 })
 
@@ -454,5 +478,122 @@ describe('Display designer dialog', () => {
     await click(button('Delete symbol Symbol'))
     await click(button('Delete instances and symbol'))
     expect(source()).not.toContain('local function draw_symbol')
+  })
+
+  it('opens files transactionally, preserves the current scene on read and validation failures, and confirms replacement', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Pixel line')
+
+    await click(button('Open design'))
+    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain('Replace changed display design')
+    await click(button('Discard changes and choose file'))
+    await chooseDesignFile({
+      name: 'unreadable.luading-display.json', type: 'application/json', size: 10,
+      text: vi.fn().mockRejectedValue(new Error('read failed')),
+    })
+    expect(document.body.textContent).toContain('could not be read. The current design was kept')
+    expect(source()).toContain('drawLine')
+
+    await click(button('Open design'))
+    await click(button('Discard changes and choose file'))
+    await chooseDesignFile({
+      name: 'malformed.luading-display.json', type: 'application/json', size: 1,
+      text: vi.fn().mockResolvedValue('{'),
+    })
+    expect(document.body.textContent).toContain('does not contain valid JSON. The current design was kept')
+    expect(source()).toContain('drawLine')
+
+    const ids = createSequentialDisplayDesignIdFactory('designer')
+    const openedDocument = {
+      ...createEmptyDisplayDesign('Opened panel'),
+      displayMode: 'full-screen' as const,
+      elements: [createDefaultDisplayPrimitive('filled-box', ids)],
+    }
+    const serialized = serializeDisplayDesign(openedDocument)
+    expect(serialized.ok).toBe(true)
+    if (!serialized.ok) return
+    await click(button('Open design'))
+    await click(button('Discard changes and choose file'))
+    await chooseDesignFile({
+      name: serialized.fileName, type: 'application/json', size: serialized.bytes,
+      text: vi.fn().mockResolvedValue(serialized.text),
+    })
+    expect(document.body.textContent).toContain(`Opened ${serialized.fileName}. The current Lua script was not changed.`)
+    expect(source()).toContain('drawRectangle')
+    expect(source()).not.toContain('drawLine')
+
+    await addDefault('Pixel line')
+    expect(document.body.textContent).not.toContain('ID “designer-element-1” is already used')
+  })
+
+  it('downloads deterministic JSON, marks only a dispatched revision clean, and uses download-start wording', async () => {
+    const downloads: Array<{ name: string; href: string }> = []
+    const createObjectURL = vi.fn(() => 'blob:display-design')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloads.push({ name: this.download, href: this.href })
+    })
+
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    const trigger = button('Open Display designer')
+    await click(trigger)
+    await addDefault('Pixel circle')
+    await click(button('Download design'))
+
+    expect(downloads).toEqual([{ name: 'Untitled display.luading-display.json', href: 'blob:display-design' }])
+    expect(createObjectURL).toHaveBeenCalledWith(expect.objectContaining({ type: 'application/json;charset=utf-8' }))
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:display-design')
+    expect(document.body.textContent).toContain('Download started: Untitled display.luading-display.json.')
+    expect(document.body.textContent).not.toContain('Saved to disk')
+
+    await click(button('Close Display designer'))
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+    await click(trigger)
+    expect(source()).toContain('drawCircle')
+    await addDefault('Filled box')
+    await click(button('Undo'))
+    await click(button('Close Display designer'))
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+
+    await click(trigger)
+    await addDefault('Filled box')
+    createObjectURL.mockImplementation(() => { throw new Error('download blocked') })
+    await click(button('Download design'))
+    expect(document.body.textContent).toContain('Download failed. The current design remains in memory.')
+    await click(button('Close Display designer'))
+    expect(document.querySelector('[role="alertdialog"]')).not.toBeNull()
+  })
+
+  it('copies the exact callback and exposes a selected source fallback when clipboard permission is denied', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Tiny text')
+    await click(button('Copy draw callback'))
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+
+    expect(writeText).toHaveBeenCalledOnce()
+    expect(writeText.mock.calls[0]?.[0]).toContain('drawTinyText')
+    expect(document.body.textContent).toContain('Copy failed. The generated draw callback is selected below; copy it manually.')
+    const fallback = document.querySelector<HTMLTextAreaElement>('[aria-label="Generated draw callback for manual copy"]')!
+    expect(fallback.value).toBe(writeText.mock.calls[0]?.[0])
+    expect(document.activeElement).toBe(fallback)
+    expect(fallback.selectionStart).toBe(0)
+    expect(fallback.selectionEnd).toBe(fallback.value.length)
+  })
+
+  it('announces successful callback copies without showing the manual fallback', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Copy draw callback'))
+
+    expect(document.body.textContent).toContain('Draw callback copied.')
+    expect(document.querySelector('[aria-label="Generated draw callback for manual copy"]')).toBeNull()
   })
 })
