@@ -82,6 +82,13 @@ and global API names used by the simulator. Many functions use controlled or
 no-op test adapters; this environment proves Lua-boundary compatibility, not
 every production worker adapter's behavior.
 
+`melody-range-quantizer.test.ts` loads the bundled pitch processor through the
+Wasmoon bridge. It pins the four-input/two-output contract, nearest-semitone
+quantization, minimum/maximum clamping, bipolar CV-depth behavior, gate
+passthrough, and bounded custom display. These tests establish script behavior
+at the documented 1 ms callback boundary; they do not measure oscillator
+tuning, converter accuracy, or electrical behavior on Disting NT hardware.
+
 `configurable-swing-sequence.test.ts` loads the bundled microtiming clock
 processor through the Wasmoon bridge. It pins its sixteen-position parameter
 surface, repeating two- and four-step delay patterns, reset/cancellation

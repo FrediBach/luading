@@ -93,6 +93,21 @@ routes, outputs, or workspace layout, and they are separate from **Save state**.
 Every bundled parameterized example includes several ready-to-use snapshots;
 parameterless examples do not show the selector.
 
+### Melody Range Quantizer
+
+The bundled **Melody Range Quantizer** rounds incoming V/oct pitch to the
+nearest semitone and clamps it between **Min Note** and **Max Note**. A note
+below the active range plays the minimum; a note above it plays the maximum.
+Pitch uses C4/MIDI note 60 as 0 V, and the Gate input is passed through to the
+second output.
+
+Dedicated **Min CV** and **Max CV** inputs move their boundaries by twelve
+semitones per volt at 100% amount. The default **Min CV Amt** is -100% while
+**Max CV Amt** is +100%, so sending the same positive envelope to both inputs
+opens the range downward and upward from the default C4 unison. Each boundary
+is rounded to a note and kept inside MIDI 0-127; if modulation crosses the two
+boundaries, the script orders them before applying the clamp.
+
 ### Probability Mixer
 
 The bundled **Probability Mixer** routes each input gate to complementary Pass
