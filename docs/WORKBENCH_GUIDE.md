@@ -501,6 +501,49 @@ firmware's 3 ms tolerance and shift-register special case; and the drum
 patterns are independently authored. Browser or Lua randomness does not model
 the original hardware entropy source.
 
+### Mutable Instruments Stages recreation
+
+The bundled **Mutable Instruments Stages** example is an independently written,
+single-envelope adaptation of the segment grammar documented in the
+[Stages manual](https://pichenettes.github.io/mutable-instruments-documentation/modules/stages/manual/)
+and informed by its
+[MIT-licensed firmware](https://github.com/pichenettes/eurorack/tree/master/stages).
+It provides one group of one to eight segments. Input 1 is the group Gate;
+inputs 2-9 are the TIME/LEVEL CV inputs for segments 1-8. Output 1 is the
+0-8 V envelope, and outputs 2-9 are 8-to-0 V activity ramps for the individual
+segments.
+
+Each stage has the original three types and primary/secondary control model.
+For a **Ramp**, Primary sets an exponential 1 ms-16 s time and its CV changes
+time at one octave per volt; Secondary moves from accelerating through linear
+to decelerating. When an interior Ramp is followed by another Ramp, Secondary
+sets the 0-8 V breakpoint instead, matching Stages' special target rule. The
+first Ramp rises to 8 V, the last falls to 0 V, and adjacent Hold or Step levels
+anchor Ramp targets. A single Ramp is the original Decay special case. For a
+**Hold**, Primary plus CV sets the level and Secondary sets its 1 ms-16 s
+duration. For a **Step**, Primary plus CV sets the sampled level and Secondary
+sets glide; the segment then waits for the next Gate rising edge.
+
+**Loop start** and **Loop end** replace the panel button gesture. A loop repeats
+while Gate is high and moves directly to the segment after the loop when Gate
+falls. A loop ending on the final active segment runs forever. As on Stages, a
+Step inside a loop traps the envelope there and subsequent rising edges advance
+it. Gate rising retriggers an ordinary running envelope, or advances one that
+is waiting at a Step.
+
+The Luading presets cover Decay, AD, AR, ASR, AHR, ADSR, delayed ADSR,
+rest-level ADSR, AHDSR, AD1D2SR, and AD1D2SR1R2, plus a trapezoid LFO and two
+Step sequences. The custom display draws the complete programmed contour,
+loop span, segment types, live stage, gate state, output voltage, and playhead.
+
+This is a 1 ms control-rate recreation, not a port of the 31.25 kHz firmware.
+It deliberately omits multiple jack-detected groups, isolated-segment utility
+modes, module chaining, tempo-synchronised LFOs, audio oscillators, and the
+firmware 1.2 extended sequencer. Exponential times, curve shapes, CV scaling,
+activity ramps, and retrigger transitions are musical approximations; Disting's
+`kLinear` interpolation remains subject to the limitation in
+[CONFORMANCE_STATUS.md](CONFORMANCE_STATUS.md#stepped-and-linear-outputs).
+
 ### Mutable Instruments Grids recreation
 
 The bundled **Mutable Instruments Grids** example ports the rhythm-generation

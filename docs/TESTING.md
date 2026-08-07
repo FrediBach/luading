@@ -145,6 +145,16 @@ the Lua adaptation described in the workbench guide; they do not compare its
 jitter, ratio clocks, distributions, quantizer, random source, or 1 ms timing
 with Mutable Instruments hardware or the sample-rate firmware.
 
+`mutable-instruments-stages.test.ts` loads the bundled single-envelope Stages
+recreation through the Wasmoon bridge. It pins the one-Gate/eight-CV and
+envelope/activity contract, Ramp progression, gate-held sustain and final-stage
+loops, Step sampling/advancement, CV level modulation, JSON-friendly active
+state restoration, the usual envelope-family presets, and bounded dynamic
+display commands. These tests establish the independently written 1 ms segment
+model described in the workbench guide. They do not compare the approximated
+time/curve/CV mappings, activity signals, retrigger transitions, OLED rendering,
+or CPU headroom with the 31.25 kHz Stages firmware or Disting NT hardware.
+
 `buchla-266-source-of-uncertainty.test.ts` loads the bundled control-rate 266
 adaptation through Wasmoon. It pins the six-input/six-output contract,
 rate-dependent fluctuating movement, same-step quantization and distribution

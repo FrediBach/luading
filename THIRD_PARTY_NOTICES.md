@@ -29,6 +29,18 @@ Copyright 2015 Emilie Gillet.
 
 Source: [pichenettes/eurorack/marbles](https://github.com/pichenettes/eurorack/tree/master/marbles)
 
+## Mutable Instruments Stages behavior
+
+`lua-scripts/fredi-bach/Mutable Instruments Stages.lua` is an independently
+written Disting NT adaptation whose segment rules and control model are
+informed by the Mutable Instruments Stages manual and firmware. The Lua file
+carries the upstream copyright and full MIT license notice. It does not copy
+Stages' DSP implementation or resource data.
+
+Copyright 2017 Emilie Gillet.
+
+Source: [pichenettes/eurorack/stages](https://github.com/pichenettes/eurorack/tree/master/stages)
+
 ## Ornament & Crime Automatonnetz and Tonnetz behavior
 
 `lua-scripts/fredi-bach/Automatonnetz.lua` adapts the grid sequencing and
