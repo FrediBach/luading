@@ -116,6 +116,26 @@ the nearest number of hits in that window. Preset state stores the shuffled
 bag, histories, random walk, and pseudorandom generator position so the mixed
 process continues exactly after restoration.
 
+### Traffic-inspired Trigger Scene Selector
+
+The bundled **Trigger Scene Selector** adapts the core patching idea described
+in the [Jasmine & Olive Trees Traffic manual](https://jasmineandolivetrees.com/pages/traffic-manual):
+three inputs select three rows of user-defined CV values, while a fourth output
+combines the selector gates. Each row exposes separate **CV A**, **CV B**, and
+**CV C** parameters with a bipolar -8 V to +8 V range and 0.01 V resolution.
+
+Inputs are declared as gates so the summed output can preserve the duration of
+short triggers or longer gates. When inputs overlap, Trig 1 has priority over
+Trig 2, which has priority over Trig 3. Releasing the higher-priority input
+reveals the next active scene; after every input returns low, the most recently
+selected scene remains latched while **Trigger Sum** returns to 0 V. Parameter
+edits update the latched scene without requiring another input edge.
+
+This independently authored example implements only that base selector/OR
+concept. It does not reproduce Traffic's panel, electrical behavior, alternate
+modes, random scene scrambling, sixteen-step Groove sequence, chaining, or
+firmware configuration, and it has not been compared with physical hardware.
+
 ### Simulator I/O defaults
 
 A script can seed Luading's browser-only input generators and output audio

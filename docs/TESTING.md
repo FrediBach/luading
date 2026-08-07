@@ -89,6 +89,14 @@ behavior, pulse timing, and bounded custom display. Timing assertions use the
 documented 1 ms callback cadence; they do not claim sub-millisecond scheduling
 or prediction of future external clock edges.
 
+`trigger-scene-selector.test.ts` loads the bundled Traffic-inspired scene
+selector through the Wasmoon bridge. It pins the three-gate/four-output
+contract, input 1-to-3 priority, next-active fallback, last-scene latching,
+summed gate voltage, live parameter refresh, and bounded custom display. These
+tests establish the independently authored selector behavior described in the
+workbench guide; they do not claim parity with Traffic's hardware, alternate
+modes, electrical response, or gate threshold.
+
 `micro-tracker.test.ts` loads the bundled four-track tracker through that same
 Wasmoon bridge. It pins the fixed three-input/eight-output contract, dense
 pattern and Song state normalization, JSON-friendly defensive serialization,
