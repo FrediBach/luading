@@ -604,6 +604,16 @@
   gap: 6px;
 }
 
+.display-designer-token-card > header strong {
+  font: 700 var(--font-label)/1.2 var(--mono);
+}
+
+.display-designer-token-card > header code,
+.display-designer-token-card > details > summary {
+  color: var(--nt-muted);
+  font: var(--font-micro)/1.3 var(--mono);
+}
+
 .display-designer-formula-field input,
 .display-designer-token-card code,
 .display-designer-token-chips code {

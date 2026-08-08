@@ -47,6 +47,8 @@ describe('Display designer rendering', () => {
     expect(designerCss).toMatch(/\.display-designer-title h2 \{[^}]*color: var\(--nt-text\);/s)
     expect(designerCss).toMatch(/\.display-designer-source pre \{[^}]*font: var\(--font-micro\)\/1\.45 var\(--mono\);/s)
     expect(designerCss).toMatch(/\.display-designer-copy-fallback textarea \{[^}]*font: var\(--font-micro\)\/1\.45 var\(--mono\);/s)
+    expect(designerCss).toMatch(/\.display-designer-token-card > header strong \{[^}]*font: 700 var\(--font-label\)\/1\.2 var\(--mono\);/s)
+    expect(designerCss).toMatch(/\.display-designer-token-card > header code,\s*\.display-designer-token-card > details > summary \{[^}]*font: var\(--font-micro\)\/1\.3 var\(--mono\);/s)
     expect(designerCss).toMatch(/\.display-designer-context-menu \{[^}]*position: fixed;[^}]*z-index: 260;/s)
     expect(designerCss).toContain('.display-designer-layers > h3:not(:first-child) { margin-top: 12px; }')
     expect(designerCss).toMatch(/\.display-designer-symbols \{[^}]*margin-top: 10px;[^}]*padding-top: 12px;/s)
