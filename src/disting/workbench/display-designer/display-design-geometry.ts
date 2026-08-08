@@ -81,6 +81,20 @@ export function createDisplayPrimitiveFromGesture(
     const height = Math.abs(end.y - start.y) + 1
     return { ...element, x: literal(x), y: literal(y), width, height, frames: [{ shades: Array(width * height).fill(15), duration: 1 }] }
   }
+  if (element.kind === 'animated-line') {
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    if (Math.abs(dx) >= Math.abs(dy)) return {
+      ...element,
+      x1: literal(start.x), y1: literal(start.y), x2: literal(end.x), y2: literal(start.y),
+      direction: dx < 0 ? 'left' : 'right',
+    }
+    return {
+      ...element,
+      x1: literal(start.x), y1: literal(start.y), x2: literal(start.x), y2: literal(end.y),
+      direction: dy < 0 ? 'up' : 'down',
+    }
+  }
   if (element.kind === 'line' || element.kind === 'box') {
     return { ...element, x1: literal(start.x), y1: literal(start.y), x2: literal(end.x), y2: literal(end.y) }
   }
@@ -147,7 +161,7 @@ export function displayElementBounds(
     right: scalar(element.x) + element.width - 1,
     bottom: scalar(element.y) + element.height - 1,
   }
-  if (element.kind === 'line' || element.kind === 'box') {
+  if (element.kind === 'line' || element.kind === 'animated-line' || element.kind === 'box') {
     const x1 = scalar(element.x1); const y1 = scalar(element.y1)
     const x2 = scalar(element.x2); const y2 = scalar(element.y2)
     return { left: Math.min(x1, x2), top: Math.min(y1, y2), right: Math.max(x1, x2), bottom: Math.max(y1, y2) }
@@ -213,7 +227,7 @@ export function displayElementsWithinArea(
 
 export function displayElementHandles(element: DisplayDesignElement, document?: DisplayDesignDocument): Array<{ id: DisplayDesignHandle; point: DisplayDesignPoint }> {
   const scalar = (value: DisplayScalar) => resolvedScalar(value, document)
-  if (element.kind === 'line') return [
+  if (element.kind === 'line' || element.kind === 'animated-line') return [
     { id: 'start', point: { x: scalar(element.x1), y: scalar(element.y1) } },
     { id: 'end', point: { x: scalar(element.x2), y: scalar(element.y2) } },
   ]
@@ -251,7 +265,7 @@ export function displayElementHitTest(
   tolerance: number,
   document?: DisplayDesignDocument,
 ): boolean {
-  if (element.kind === 'line') {
+  if (element.kind === 'line' || element.kind === 'animated-line') {
     const [start, end] = displayElementHandles(element, document)
     return distanceToSegment(point, start.point, end.point) <= tolerance
   }
@@ -301,7 +315,7 @@ export function translateDisplayElement(element: DisplayDesignElement, dx: numbe
     x: translateScalar(element.x, Math.round(dx)),
     y: translateScalar(element.y, Math.round(dy)),
   }
-  if (element.kind === 'line' || element.kind === 'box') return {
+  if (element.kind === 'line' || element.kind === 'animated-line' || element.kind === 'box') return {
     ...cloneDisplayDesign(element),
     x1: translateScalar(element.x1, dx), y1: translateScalar(element.y1, dy),
     x2: translateScalar(element.x2, dx), y2: translateScalar(element.y2, dy),
@@ -375,6 +389,19 @@ export function resizeDisplayElement(
       return { ...frame, shades }
     })
     return { ...cloneDisplayDesign(element), x: set(element.x, nextLeft), y: set(element.y, nextTop), width, height, frames }
+  }
+  if (element.kind === 'animated-line') {
+    const horizontal = element.direction === 'left' || element.direction === 'right'
+    if (handle === 'start') return {
+      ...cloneDisplayDesign(element),
+      x1: set(element.x1, horizontal ? x : resolvedScalar(element.x2, document)),
+      y1: set(element.y1, horizontal ? resolvedScalar(element.y2, document) : y),
+    }
+    if (handle === 'end') return {
+      ...cloneDisplayDesign(element),
+      x2: set(element.x2, horizontal ? x : resolvedScalar(element.x1, document)),
+      y2: set(element.y2, horizontal ? resolvedScalar(element.y1, document) : y),
+    }
   }
   if (element.kind === 'line') {
     if (handle === 'start') return { ...cloneDisplayDesign(element), x1: set(element.x1, x), y1: set(element.y1, y) }

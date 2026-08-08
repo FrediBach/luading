@@ -74,11 +74,11 @@ describe('display design model', () => {
     expect(ids('element')).toBe('designer-element-3')
   })
 
-  it('creates a browser-only empty v8 document and deterministic scoped IDs', () => {
+  it('creates a browser-only empty v9 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({
       kind: 'luading-display-design',
-      version: 8,
+      version: 9,
       name: 'Untitled display',
       displayMode: 'parameter-line',
       screens: [{ id: 'display-screen-1', name: 'Screen 1' }],
@@ -143,13 +143,14 @@ describe('display design model', () => {
   it('creates every supported primitive without impossible shape combinations', () => {
     const ids = createSequentialDisplayDesignIdFactory()
     const presets = [
-      'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
+      'pixel-line', 'smooth-line', 'animated-line', 'outline-box', 'filled-box',
       'pixel-box',
       'pixel-circle', 'smooth-circle', 'polygon', 'bezier', 'standard-text', 'tiny-text',
     ] as const
     const elements = presets.map((preset) => createDefaultDisplayPrimitive(preset, ids))
 
-    expect(elements.map(({ kind }) => kind)).toEqual(['line', 'line', 'box', 'box', 'pixel-box', 'circle', 'circle', 'polygon', 'bezier', 'text', 'text'])
+    expect(elements.map(({ kind }) => kind)).toEqual(['line', 'line', 'animated-line', 'box', 'box', 'pixel-box', 'circle', 'circle', 'polygon', 'bezier', 'text', 'text'])
+    expect(elements.find((element) => element.kind === 'animated-line')).toMatchObject({ direction: 'right', speed: 10, secondaryShade: { kind: 'literal', value: 0 } })
     expect(elements.filter((element) => element.kind === 'line').map(({ smooth }) => smooth)).toEqual([false, true])
     expect(elements.filter((element) => element.kind === 'box').map(({ fill }) => fill)).toEqual([false, true])
     expect(elements.filter((element) => element.kind === 'circle').map(({ smooth }) => smooth)).toEqual([false, true])
@@ -159,7 +160,7 @@ describe('display design model', () => {
     expect(elements.find((element) => element.kind === 'pixel-box')).toMatchObject({
       width: 8, height: 8, frameRate: null, frames: [{ shades: Array(64).fill(15), duration: 1 }],
     })
-    expect(new Set(elements.map(({ id }) => id)).size).toBe(11)
+    expect(new Set(elements.map(({ id }) => id)).size).toBe(12)
   })
 
   it('creates all binding kinds with valid stable defaults', () => {

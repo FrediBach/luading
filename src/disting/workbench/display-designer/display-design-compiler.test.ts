@@ -148,6 +148,51 @@ describe('display design compiler', () => {
     expect(compileDisplayDesign(document, 5).commands[0]).toEqual(expect.objectContaining({ shade: 9 }))
   })
 
+  it('moves two-shade animated-line runs in the selected axis direction and speed', () => {
+    const ids = createSequentialDisplayDesignIdFactory('animated-line')
+    const line = createDefaultDisplayPrimitive('animated-line', ids)
+    line.x1 = { kind: 'literal', value: 0 }
+    line.y1 = { kind: 'literal', value: 12 }
+    line.x2 = { kind: 'literal', value: 11 }
+    line.y2 = { kind: 'literal', value: 12 }
+    line.shade = { kind: 'literal', value: 15 }
+    line.secondaryShade = { kind: 'literal', value: 3 }
+    line.direction = 'right'
+    line.speed = 15
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [line] }
+
+    expect(compileDisplayDesign(document, 0).commands).toEqual<DrawCommand[]>([
+      { kind: 'line', x1: 0, y1: 12, x2: 3, y2: 12, shade: 15, smooth: false },
+      { kind: 'line', x1: 4, y1: 12, x2: 7, y2: 12, shade: 3, smooth: false },
+      { kind: 'line', x1: 8, y1: 12, x2: 11, y2: 12, shade: 15, smooth: false },
+    ])
+    expect(compileDisplayDesign(document, 2).commands).toEqual<DrawCommand[]>([
+      { kind: 'line', x1: 0, y1: 12, x2: 0, y2: 12, shade: 3, smooth: false },
+      { kind: 'line', x1: 1, y1: 12, x2: 4, y2: 12, shade: 15, smooth: false },
+      { kind: 'line', x1: 5, y1: 12, x2: 8, y2: 12, shade: 3, smooth: false },
+      { kind: 'line', x1: 9, y1: 12, x2: 11, y2: 12, shade: 15, smooth: false },
+    ])
+    expect(compileDisplayDesign(document, 1).commands).toEqual(compileDisplayDesign(document, 0).commands)
+    expect(compileDisplayDesign(document, 2).commandSources).toEqual([{ elementId: line.id, firstCommand: 0, commandCount: 4 }])
+
+    line.direction = 'left'
+    expect(compileDisplayDesign(document, 2).commands).toEqual<DrawCommand[]>([
+      { kind: 'line', x1: 0, y1: 12, x2: 2, y2: 12, shade: 15, smooth: false },
+      { kind: 'line', x1: 3, y1: 12, x2: 6, y2: 12, shade: 3, smooth: false },
+      { kind: 'line', x1: 7, y1: 12, x2: 10, y2: 12, shade: 15, smooth: false },
+      { kind: 'line', x1: 11, y1: 12, x2: 11, y2: 12, shade: 3, smooth: false },
+    ])
+
+    line.direction = 'down'
+    line.x1 = { kind: 'literal', value: 5 }
+    line.x2 = { kind: 'literal', value: 5 }
+    line.y1 = { kind: 'literal', value: 0 }
+    line.y2 = { kind: 'literal', value: 11 }
+    expect(compileDisplayDesign(document, 2).commands[1]).toEqual({
+      kind: 'line', x1: 5, y1: 1, x2: 5, y2: 4, shade: 15, smooth: false,
+    })
+  })
+
   it('expands polygon detail into exact integer line segments', () => {
     const ids = createSequentialDisplayDesignIdFactory('polygon')
     const polygon = createDefaultDisplayPrimitive('polygon', ids)

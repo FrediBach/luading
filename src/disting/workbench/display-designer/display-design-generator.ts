@@ -61,7 +61,8 @@ function collectPrimitiveBindingIds(primitive: DisplayPrimitiveElement, bindingI
   if (primitive.visible.kind === 'boolean-binding') bindingIds.add(primitive.visible.bindingId)
   if (primitive.kind === 'pixel-box') return
   collectScalar(primitive.shade)
-  if (primitive.kind === 'line' || primitive.kind === 'box') {
+  if (primitive.kind === 'animated-line') collectScalar(primitive.secondaryShade)
+  if (primitive.kind === 'line' || primitive.kind === 'animated-line' || primitive.kind === 'box') {
     collectScalar(primitive.x1)
     collectScalar(primitive.y1)
     collectScalar(primitive.x2)
@@ -102,7 +103,8 @@ function collectScalarTokenIds(scalar: DisplayScalar, tokenIds: Set<string>): nu
 function collectPrimitiveTokenIds(primitive: DisplayPrimitiveElement, tokenIds: Set<string>): number {
   if (primitive.kind === 'pixel-box') return 0
   let count = collectScalarTokenIds(primitive.shade, tokenIds)
-  if (primitive.kind === 'line' || primitive.kind === 'box') {
+  if (primitive.kind === 'animated-line') count += collectScalarTokenIds(primitive.secondaryShade, tokenIds)
+  if (primitive.kind === 'line' || primitive.kind === 'animated-line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
   } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y', 'radius'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
@@ -165,6 +167,7 @@ function primitiveCall(
 ): string {
   if (primitive.kind === 'pixel-box') return ''
   const shade = displayShadeLuaExpression(primitive.shade, bindings, tokens)
+  if (primitive.kind === 'animated-line') return ''
   if (primitive.kind === 'line') {
     const integer = !primitive.smooth
     const args = [
@@ -245,6 +248,7 @@ function primitiveSource(
   translation?: { x: string; y: string },
   polygonHelperName = 'drawPolygon',
   bezierHelperName = 'drawBezier',
+  animatedLineHelperName = 'drawAnimatedLine',
   animationFrameName?: string,
 ): string[] {
   const lines = [`${indent}-- ${oneLineComment(primitive.name)}`]
@@ -268,6 +272,18 @@ function primitiveSource(
   } else {
     const calls = primitive.kind === 'pixel-box'
       ? pixelBoxCalls(primitive, primitive.frames[0]!.shades, bindings, tokens, translation)
+      : primitive.kind === 'animated-line' && animationFrameName
+        ? [`${animatedLineHelperName}(${[
+            translatedScalarExpression(primitive.x1, bindings, true, tokens, translation?.x),
+            translatedScalarExpression(primitive.y1, bindings, true, tokens, translation?.y),
+            translatedScalarExpression(primitive.x2, bindings, true, tokens, translation?.x),
+            translatedScalarExpression(primitive.y2, bindings, true, tokens, translation?.y),
+            displayShadeLuaExpression(primitive.shade, bindings, tokens),
+            displayShadeLuaExpression(primitive.secondaryShade, bindings, tokens),
+            luaQuotedString(primitive.direction),
+            primitive.speed,
+            animationFrameName,
+          ].join(', ')})`]
       : [primitiveCall(primitive, bindings, tokens, translation, polygonHelperName, bezierHelperName)]
     for (const call of calls) lines.push(`${contentIndent}${call}`)
   }
@@ -288,6 +304,7 @@ function symbolHelperSource(
   tokens: DisplayTokenMap,
   polygonHelperName: string,
   bezierHelperName: string,
+  animatedLineHelperName: string,
   animationFrameName?: string,
 ): string[] {
   const symbol = document.symbols.find(({ id }) => id === symbolId)
@@ -298,11 +315,11 @@ function symbolHelperSource(
   const lines = [`  local function ${symbol.luaName}(x, y, state)`]
   for (const [index, variant] of branches.entries()) {
     lines.push(`    ${index === 0 ? 'if' : 'elseif'} state == ${luaQuotedString(variant.luaValue)} then`)
-    for (const primitive of variant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName, bezierHelperName, animationFrameName))
+    for (const primitive of variant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName, bezierHelperName, animatedLineHelperName, animationFrameName))
   }
   if (branches.length > 0) lines.push('    else')
   lines.push(`      -- Default state: ${oneLineComment(defaultVariant.name)}`)
-  for (const primitive of defaultVariant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName, bezierHelperName, animationFrameName))
+  for (const primitive of defaultVariant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName, bezierHelperName, animatedLineHelperName, animationFrameName))
   if (branches.length > 0) lines.push('    end')
   lines.push('  end')
   return lines
@@ -384,6 +401,49 @@ function bezierHelperSource(name: string): string[] {
   ]
 }
 
+function displayAnimatedLineHelperName(document: DisplayDesignDocument): string {
+  const used = new Set([
+    ...document.tokens.map(({ luaName }) => luaName),
+    ...document.bindings.map(({ luaName }) => luaName),
+    ...document.symbols.map(({ luaName }) => luaName),
+  ])
+  const base = 'drawAnimatedLine'
+  let name = base
+  let suffix = 2
+  while (used.has(name)) name = `${base}_${suffix++}`
+  return name
+}
+
+function animatedLineHelperSource(name: string): string[] {
+  return [
+    `  local function ${name}(x1, y1, x2, y2, primaryShade, secondaryShade, direction, speed, frame)`,
+    '    local horizontal = direction == "left" or direction == "right"',
+    '    local start = math.min(math.floor((horizontal and x1 or y1) + 0.5), math.floor((horizontal and x2 or y2) + 0.5))',
+    '    local finish = math.max(math.floor((horizontal and x1 or y1) + 0.5), math.floor((horizontal and x2 or y2) + 0.5))',
+    '    local fixed = math.floor((horizontal and y1 or x1) + 0.5)',
+    '    local phase = math.floor(frame / (30 / speed))',
+    '    if direction == "right" or direction == "down" then phase = -phase end',
+    '    local function shadeAt(position)',
+    '      return (position - start + phase) % 8 < 4 and primaryShade or secondaryShade',
+    '    end',
+    '    local runStart = start',
+    '    local runShade = shadeAt(start)',
+    '    for position = start + 1, finish + 1 do',
+    '      local nextShade = position <= finish and shadeAt(position) or nil',
+    '      if nextShade ~= runShade then',
+    '        if horizontal then',
+    '          drawLine(runStart, fixed, position - 1, fixed, runShade)',
+    '        else',
+    '          drawLine(fixed, runStart, fixed, position - 1, runShade)',
+    '        end',
+    '        runStart = position',
+    '        runShade = nextShade',
+    '      end',
+    '    end',
+    '  end',
+  ]
+}
+
 function instanceSource(
   document: DisplayDesignDocument,
   instance: DisplaySymbolInstance,
@@ -444,6 +504,10 @@ function isAnimatedPixelBox(primitive: DisplayPrimitiveElement): boolean {
   return primitive.kind === 'pixel-box' && primitive.frameRate !== null && primitive.frames.length > 1
 }
 
+function isAnimatedLine(primitive: DisplayPrimitiveElement): boolean {
+  return primitive.kind === 'animated-line'
+}
+
 export function buildDisplayDesignSource(document: DisplayDesignDocument): DisplayDesignSourceBuild {
   const findings: DisplayDesignerFinding[] = []
   const usedBindingIds = new Set<string>()
@@ -496,7 +560,11 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   const usesBezier = document.elements.some((element) => element.kind === 'bezier')
     || document.symbols.some((symbol) => usedSymbolIds.has(symbol.id) && symbol.variants.some((variant) => variant.elements.some((primitive) => primitive.kind === 'bezier')))
   const bezierHelperName = displayBezierHelperName(document)
-  const usesAnimation = document.elements.some((element) => element.kind !== 'symbol-instance' && isAnimatedPixelBox(element))
+  const usesAnimatedLine = document.elements.some((element) => element.kind === 'animated-line')
+    || document.symbols.some((symbol) => usedSymbolIds.has(symbol.id) && symbol.variants.some((variant) => variant.elements.some(isAnimatedLine)))
+  const animatedLineHelperName = displayAnimatedLineHelperName(document)
+  const usesAnimation = usesAnimatedLine
+    || document.elements.some((element) => element.kind !== 'symbol-instance' && isAnimatedPixelBox(element))
     || document.symbols.some((symbol) => usedSymbolIds.has(symbol.id) && symbol.variants.some((variant) => variant.elements.some(isAnimatedPixelBox)))
   const animationFrameName = usesAnimation ? displayAnimationFrameName(document) : undefined
   if (document.screens.length === 1 && usedSymbolIds.size === 0 && usedTokens.length === 0 && !usesPolygon && !usesBezier && !usesAnimation) {
@@ -541,9 +609,10 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   if (animationFrameName) lines.push(`  local ${animationFrameName} = 0`, '')
   if (usesPolygon) lines.push(...polygonHelperSource(polygonHelperName), '')
   if (usesBezier) lines.push(...bezierHelperSource(bezierHelperName), '')
+  if (usesAnimatedLine) lines.push(...animatedLineHelperSource(animatedLineHelperName), '')
   for (const symbol of document.symbols) {
     if (!usedSymbolIds.has(symbol.id)) continue
-    lines.push(...symbolHelperSource(document, symbol.id, bindings, tokens, polygonHelperName, bezierHelperName, animationFrameName), '')
+    lines.push(...symbolHelperSource(document, symbol.id, bindings, tokens, polygonHelperName, bezierHelperName, animatedLineHelperName, animationFrameName), '')
   }
   lines.push('  return function(self)', '    -- Generated by Luading Display designer; edit freely after copying.')
   if (usedBindings.length > 0) {
@@ -559,7 +628,7 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
       const screenElements = document.elements.filter((element) => element.screenId === screen.id)
       for (const [elementIndex, element] of screenElements.entries()) {
         if (element.kind === 'symbol-instance') lines.push(...instanceSource(document, element, bindings, tokens, '      '))
-        else lines.push(...primitiveSource(element, bindings, tokens, '      ', undefined, polygonHelperName, bezierHelperName, animationFrameName))
+        else lines.push(...primitiveSource(element, bindings, tokens, '      ', undefined, polygonHelperName, bezierHelperName, animatedLineHelperName, animationFrameName))
         if (elementIndex < screenElements.length - 1) lines.push('')
       }
     }
@@ -567,7 +636,7 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   } else {
     for (const [index, element] of document.elements.entries()) {
       if (element.kind === 'symbol-instance') lines.push(...instanceSource(document, element, bindings, tokens))
-      else lines.push(...primitiveSource(element, bindings, tokens, '    ', undefined, polygonHelperName, bezierHelperName, animationFrameName))
+      else lines.push(...primitiveSource(element, bindings, tokens, '    ', undefined, polygonHelperName, bezierHelperName, animatedLineHelperName, animationFrameName))
       if (index < document.elements.length - 1) lines.push('')
     }
   }

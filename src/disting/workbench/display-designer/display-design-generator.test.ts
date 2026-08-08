@@ -171,6 +171,36 @@ end,
     expect(shades).toEqual([3, 3, 3, 3, 11, 11, 3])
   })
 
+  it('runs animated lines through one custom helper at the real Lua/display boundary', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('animated-line')
+    const line = createDefaultDisplayPrimitive('animated-line', ids)
+    line.x1 = { kind: 'literal', value: 0 }
+    line.y1 = { kind: 'literal', value: 12 }
+    line.x2 = { kind: 'literal', value: 11 }
+    line.y2 = { kind: 'literal', value: 12 }
+    line.secondaryShade = { kind: 'literal', value: 3 }
+    line.speed = 15
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [line] }
+    const generated = generateDisplayDesignLua(document)
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    expect(generated.source).toContain('local function drawAnimatedLine(x1, y1, x2, y2, primaryShade, secondaryShade, direction, speed, frame)')
+    expect(generated.source).toContain('drawAnimatedLine(0, 12, 11, 12, 15, 3, "right", 15, displayFrame)')
+    expect(generated.source.match(/local function drawAnimatedLine/g)).toHaveLength(1)
+
+    const lua = await createDistingLuaTestEngine(50)
+    openEngines.push(lua)
+    const display = new DistingDisplayApi()
+    display.register(lua.global)
+    const runtime = await loadLuaProgramRuntime(lua, `return {\n${generated.source}}\n`)
+    for (const frame of [0, 1, 2]) {
+      display.reset()
+      runtime.draw?.()
+      expect(display.commands).toEqual(compileDisplayDesign(document, frame).commands)
+    }
+    runtime.close?.()
+  })
+
   it('runs polygons through one minimal reusable Lua helper at the real display boundary', async () => {
     const ids = createSequentialDisplayDesignIdFactory('polygon')
     const polygon = createDefaultDisplayPrimitive('polygon', ids)

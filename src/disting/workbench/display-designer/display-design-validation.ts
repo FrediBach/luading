@@ -9,6 +9,8 @@ import {
   DISPLAY_DESIGN_VERSION_V5,
   DISPLAY_DESIGN_VERSION_V6,
   DISPLAY_DESIGN_VERSION_V7,
+  DISPLAY_DESIGN_VERSION_V8,
+  DISPLAY_ANIMATED_LINE_SPEEDS,
   DISPLAY_PIXEL_BOX_FRAME_RATES,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
@@ -23,6 +25,7 @@ import {
   type DisplayDesignToken,
   type DisplayPrimitiveElement,
   type DisplayPixelBoxFrameRate,
+  type DisplayAnimatedLineSpeed,
   type DisplayScalar,
   type DisplayScalarQuantization,
   type DisplayStaticScalar,
@@ -103,9 +106,9 @@ class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
 
-  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
-  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
+  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9) {
     this.sourceVersion = sourceVersion
   }
 
@@ -394,7 +397,7 @@ class Validator {
       : []
     if (allowGroup && value.groupId !== undefined && typeof value.groupId !== 'string') this.finding('invalid-group-reference', 'A group ID string is required.', `${path}.groupId`, baseFocus)
     if (value.kind === 'pixel-box') {
-      this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION
+      this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION_V8
         ? ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'frameRate', 'frames', ...groupKey]
         : ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'shades', ...groupKey], path, baseFocus)
       if (this.sourceVersion < DISPLAY_DESIGN_VERSION_V4) {
@@ -409,7 +412,7 @@ class Validator {
       const y = this.scalar(value.y, `${path}.y`, { integer: true, focus: { ...baseFocus, property: 'y' } })
       const width = integer(value.width, 'width', 1, 1, 256)
       const height = integer(value.height, 'height', 1, 1, 64)
-      const rawFrames = this.sourceVersion >= DISPLAY_DESIGN_VERSION
+      const rawFrames = this.sourceVersion >= DISPLAY_DESIGN_VERSION_V8
         ? this.array(value.frames, `${path}.frames`)
         : [{ shades: value.shades, duration: 1 }]
       if (rawFrames.length === 0) this.finding('empty-pixel-box-frames', 'A pixel box needs at least one frame.', `${path}.frames`, baseFocus)
@@ -420,7 +423,7 @@ class Validator {
           this.finding('invalid-pixel-box-frame', 'Each pixel-box frame must be an object.', framePath, baseFocus)
           return { shades: Array(width * height).fill(0), duration: 1 }
         }
-        if (this.sourceVersion >= DISPLAY_DESIGN_VERSION) this.keys(candidate, ['shades', 'duration'], framePath, baseFocus)
+        if (this.sourceVersion >= DISPLAY_DESIGN_VERSION_V8) this.keys(candidate, ['shades', 'duration'], framePath, baseFocus)
         const rawShades = this.array(candidate.shades, `${framePath}.shades`)
         if (rawShades.length !== width * height) this.finding('pixel-box-size-mismatch', `Each pixel-box frame must contain exactly ${width * height} shades.`, `${framePath}.shades`, baseFocus)
         if (rawShades.length > DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels) this.finding('pixel-box-pixel-limit', `A pixel-box frame may contain at most ${DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels} pixels.`, `${framePath}.shades`, baseFocus)
@@ -432,7 +435,7 @@ class Validator {
         const duration = integer(candidate.duration, `frames[${frameIndex}].duration`, 1, 1, DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrameDuration)
         return { shades, duration }
       })
-      const requestedFrameRate = this.sourceVersion >= DISPLAY_DESIGN_VERSION ? value.frameRate : null
+      const requestedFrameRate = this.sourceVersion >= DISPLAY_DESIGN_VERSION_V8 ? value.frameRate : null
       const validFrameRate = typeof requestedFrameRate === 'number'
         && (DISPLAY_PIXEL_BOX_FRAME_RATES as readonly number[]).includes(requestedFrameRate)
       if (requestedFrameRate !== null && !validFrameRate) this.finding('invalid-pixel-box-frame-rate', `Pixel-box frame rate must be one of ${DISPLAY_PIXEL_BOX_FRAME_RATES.join(', ')} Hz or null.`, `${path}.frameRate`, baseFocus)
@@ -444,6 +447,30 @@ class Validator {
     const shade = this.scalar(value.shade, `${path}.shade`, { integer: true, minimum: 0, maximum: 15, focus: { ...baseFocus, property: 'shade' } })
     if (shade.kind === 'literal' && shade.value === 0) this.finding('shade-zero', 'Shade zero erases earlier pixels in draw order.', `${path}.shade`, { ...baseFocus, property: 'shade' }, 'warning')
     const shared = { id, name, shade, visible, ...(groupId ? { groupId } : {}) }
+    if (value.kind === 'animated-line') {
+      this.keys(value, ['kind', 'id', 'name', 'shade', 'secondaryShade', 'visible', 'x1', 'y1', 'x2', 'y2', 'direction', 'speed', ...groupKey], path, baseFocus)
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+        this.finding('unsupported-element-version', 'Animated lines require display design version 9.', `${path}.kind`, baseFocus)
+      }
+      const direction = value.direction === 'left' || value.direction === 'right' || value.direction === 'up' || value.direction === 'down'
+        ? value.direction
+        : 'right'
+      if (direction !== value.direction) this.finding('invalid-animated-line-direction', 'Animated-line direction must be “left”, “right”, “up”, or “down”.', `${path}.direction`, { ...baseFocus, property: 'direction' })
+      const validSpeed = typeof value.speed === 'number' && (DISPLAY_ANIMATED_LINE_SPEEDS as readonly number[]).includes(value.speed)
+      if (!validSpeed) this.finding('invalid-animated-line-speed', `Animated-line speed must be one of ${DISPLAY_ANIMATED_LINE_SPEEDS.join(', ')} Hz.`, `${path}.speed`, { ...baseFocus, property: 'speed' })
+      const secondaryShade = this.scalar(value.secondaryShade, `${path}.secondaryShade`, { integer: true, minimum: 0, maximum: 15, focus: { ...baseFocus, property: 'secondaryShade' } })
+      return {
+        ...shared,
+        kind: 'animated-line',
+        secondaryShade,
+        x1: this.scalar(value.x1, `${path}.x1`, { integer: true, focus: { ...baseFocus, property: 'x1' } }),
+        y1: this.scalar(value.y1, `${path}.y1`, { integer: true, focus: { ...baseFocus, property: 'y1' } }),
+        x2: this.scalar(value.x2, `${path}.x2`, { integer: true, focus: { ...baseFocus, property: 'x2' } }),
+        y2: this.scalar(value.y2, `${path}.y2`, { integer: true, focus: { ...baseFocus, property: 'y2' } }),
+        direction,
+        speed: validSpeed ? value.speed as DisplayAnimatedLineSpeed : 10,
+      }
+    }
     if (value.kind === 'line') {
       this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'smooth', 'x1', 'y1', 'x2', 'y2', ...groupKey], path, baseFocus)
       const smooth = this.boolean(value.smooth, `${path}.smooth`, false, baseFocus)
@@ -553,7 +580,7 @@ class Validator {
       }
     }
     this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', ...groupKey], path, baseFocus)
-    this.finding('invalid-element-kind', 'Element kind must be line, box, pixel-box, circle, polygon, bezier, or text.', `${path}.kind`, baseFocus)
+    this.finding('invalid-element-kind', 'Element kind must be line, animated-line, box, pixel-box, circle, polygon, bezier, or text.', `${path}.kind`, baseFocus)
     return undefined
   }
 
@@ -851,7 +878,24 @@ function checkPrimitiveReferences(
     return
   }
   checkScalarReference(validator, primitive.shade, `${path}.shade`, bindings, tokens, { ...focus, property: 'shade' })
-  if (primitive.kind === 'line' || primitive.kind === 'box') {
+  if (primitive.kind === 'animated-line') {
+    checkScalarReference(validator, primitive.secondaryShade, `${path}.secondaryShade`, bindings, tokens, { ...focus, property: 'secondaryShade' })
+    for (const property of ['x1', 'y1', 'x2', 'y2'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
+    try {
+      const resolved = (property: 'x1' | 'y1' | 'x2' | 'y2') => resolveDisplayScalar(primitive[property], createDisplayBindingMap([...bindings.values()]), createDisplayTokenMap([...tokens.values()]))
+      const aligned = primitive.direction === 'left' || primitive.direction === 'right'
+        ? resolved('y1') === resolved('y2')
+        : resolved('x1') === resolved('x2')
+      if (!aligned) validator.finding(
+        'animated-line-axis-alignment',
+        `A ${primitive.direction === 'left' || primitive.direction === 'right' ? 'horizontal' : 'vertical'} animated line cannot be drawn at an angle.`,
+        path,
+        focus,
+      )
+    } catch {
+      // Scalar-reference findings above retain the more precise invalid reference.
+    }
+  } else if (primitive.kind === 'line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
   } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
@@ -956,7 +1000,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION_V7 || value.version === DISPLAY_DESIGN_VERSION)
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION_V7 || value.version === DISPLAY_DESIGN_VERSION_V8 || value.version === DISPLAY_DESIGN_VERSION)
     ? value.version
     : DISPLAY_DESIGN_VERSION
   const validator = new Validator(sourceVersion)
@@ -969,7 +1013,7 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION_V6 && value.version !== DISPLAY_DESIGN_VERSION_V7 && value.version !== DISPLAY_DESIGN_VERSION) {
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION_V6 && value.version !== DISPLAY_DESIGN_VERSION_V7 && value.version !== DISPLAY_DESIGN_VERSION_V8 && value.version !== DISPLAY_DESIGN_VERSION) {
       validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} through ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }

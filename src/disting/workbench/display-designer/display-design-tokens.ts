@@ -96,6 +96,9 @@ function scalarReferences(scalar: DisplayStaticScalar): Set<string> {
 function primitiveScalars(primitive: DisplayPrimitiveElement): Array<[string, DisplayScalar]> {
   if (primitive.kind === 'pixel-box') return [['x', primitive.x], ['y', primitive.y]]
   const common: Array<[string, DisplayScalar]> = [['shade', primitive.shade]]
+  if (primitive.kind === 'animated-line') {
+    return [...common, ['secondaryShade', primitive.secondaryShade], ['x1', primitive.x1], ['y1', primitive.y1], ['x2', primitive.x2], ['y2', primitive.y2]]
+  }
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     return [...common, ['x1', primitive.x1], ['y1', primitive.y1], ['x2', primitive.x2], ['y2', primitive.y2]]
   }
@@ -181,7 +184,13 @@ function substitutePrimitive(primitive: DisplayPrimitiveElement, tokenId: string
     return next
   }
   next.shade = substituteScalar(next.shade, tokenId, value)
-  if (next.kind === 'line' || next.kind === 'box') {
+  if (next.kind === 'animated-line') {
+    next.secondaryShade = substituteScalar(next.secondaryShade, tokenId, value)
+    next.x1 = substituteScalar(next.x1, tokenId, value)
+    next.y1 = substituteScalar(next.y1, tokenId, value)
+    next.x2 = substituteScalar(next.x2, tokenId, value)
+    next.y2 = substituteScalar(next.y2, tokenId, value)
+  } else if (next.kind === 'line' || next.kind === 'box') {
     next.x1 = substituteScalar(next.x1, tokenId, value)
     next.y1 = substituteScalar(next.y1, tokenId, value)
     next.x2 = substituteScalar(next.x2, tokenId, value)

@@ -490,6 +490,24 @@ describe('Display designer dialog', () => {
     expect(source()).toContain('elseif displayFrame % 30 < 30 then')
   })
 
+  it('authors axis-aligned two-shade animated lines with direction and speed controls', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Animated line')
+
+    expect(document.body.textContent).toContain('Four pixels of each shade alternate')
+    expect(source()).toContain('local function drawAnimatedLine(x1, y1, x2, y2, primaryShade, secondaryShade, direction, speed, frame)')
+    expect(source()).toContain('drawAnimatedLine(8, 16, 32, 16, 15, 0, "right", 10, displayFrame)')
+
+    await click(button('Primary shade 12'))
+    await click(button('Secondary shade 3'))
+    await choose(field('Animation speed') as HTMLSelectElement, '15')
+    await choose(field('Direction') as HTMLSelectElement, 'down')
+
+    expect(field('X2')).toHaveProperty('value', '8')
+    expect(source()).toContain('drawAnimatedLine(8, 16, 8, 40, 12, 3, "down", 15, displayFrame)')
+  })
+
   it('supports layer selection, duplication, ordering, deletion, undo, and collapsed panels', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))

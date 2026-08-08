@@ -344,9 +344,9 @@ tests compare token formulas, tokenized binding endpoints, shared symbol helpers
 renames, integer/smooth boundaries, and repeated callbacks with commands emitted
 through the production Wasmoon/display bridge.
 
-Display-design file tests pin canonical version-8 root, screen ownership, token, animated pixel-box, polygon, Bézier,
+Display-design file tests pin canonical version-9 root, screen ownership, token, animated pixel-box, animated-line, polygon, Bézier,
 and AST key ordering and bytes, the trailing newline, strict
-version-1/version-2/version-3/version-4/version-5/version-6/version-7 migration,
+version-1/version-2/version-3/version-4/version-5/version-6/version-7/version-8 migration,
 layout-grid validation and round trips, future-version/size/type rejection,
 unsafe file-name repair, generated-Lua invariance, and defensive parsing without
 partial documents. jsdom covers read and parse
@@ -371,6 +371,15 @@ jsdom, and real Wasmoon/display-boundary tests also pin the exact 30 Hz divisor
 rates, first-frame duplication when animation is enabled, last-frame duplication
 on add, per-frame hold multipliers, preview selection, and repeated-callback Lua
 frame progression.
+
+Animated-line compiler tests pin the alternating four-pixel two-shade runs,
+cardinal phase movement, exact 30 Hz divisor speeds, source ranges, and draw-call
+metrics. Generator tests execute the custom endpoint/shades/direction/speed/frame
+helper through the production Wasmoon/display boundary and compare consecutive
+callbacks with the pure preview compiler. Geometry, validation, and jsdom tests
+cover dominant-axis gesture creation, axis-preserving handles and inspector
+edits, direction changes, both shade controls, speed selection, version gating,
+and generated-source updates.
 
 Polygon compiler tests pin clockwise top-oriented integer vertices, side-count
 draw metrics, and one source range per polygon. Generator tests run the single

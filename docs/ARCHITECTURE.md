@@ -178,7 +178,9 @@ version 5 added regular polygons with bounded side detail; version 6 added
 general-degree Bézier curves with bounded control-point and segment detail; version 7 adds
 ordered named screens with screen-owned scene layers and groups; version 8 replaces each
 pixel box's single shade matrix with one or more duration-bearing frames and an optional
-exact divisor of the 30 Hz display rate. Tokens, bindings, symbols,
+exact divisor of the 30 Hz display rate; version 9 adds axis-aligned two-shade
+animated lines with four-pixel runs, cardinal direction, and an exact display-rate
+divisor. Tokens, bindings, symbols,
 display mode, and the layout grid remain document-wide and reusable across screens. These remain in the
 main-thread document. The singleton uniform layout-grid definition is
 document-owned; grid visibility and pointer-snapping preferences remain view
@@ -192,17 +194,20 @@ preview line commands while generation emits one closure-local helper accepting
 only centre, radius, side count, and shade. Bézier compilation uses de Casteljau
 interpolation to emit the selected number of preview line segments; generated
 Lua emits one closure-local helper accepting only the ordered points, segment
-count, and shade. The existing
+count, and shade. Animated-line compilation expands the current pattern phase
+into ordinary line runs, while generation emits one closure-local helper taking
+the endpoints, two shades, cardinal direction, speed, and shared display-frame
+counter. The existing
 main-thread display renderer rasterizes the compiled commands; neither the
 designer document nor its UI state crosses the simulation-worker protocol.
-Animated pixel boxes select their preview frame from a main-thread 30 Hz display-frame
+Animated pixel boxes and animated lines select their preview state from a main-thread 30 Hz display-frame
 counter. Generated Lua keeps an equivalent closure-local counter that advances once per
 draw callback; frame rates and hold durations therefore remain integer multiples of the
 documented display cadence rather than browser wall-clock timing.
 
 Opening a design first validates browser file metadata, reads and defensively
-parses strict version-1 through version-8 JSON, migrates older versions
-to the canonical version-8 shape (including one default screen for versions 1–6,
+parses strict version-1 through version-9 JSON, migrates older versions
+to the canonical version-9 shape (including one default screen for versions 1–6,
 one static pixel-box frame for versions 4–7, and static-scalar wrappers around old
 number-binding endpoints), and produces canonical serialized bytes. Only a
 fully accepted document replaces the current draft and receives a fresh

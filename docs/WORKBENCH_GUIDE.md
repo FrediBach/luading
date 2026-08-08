@@ -823,7 +823,7 @@ authority.
 Open **Display designer** from the workbench utilities to author a separate,
 browser-only 256×64 display design. Opening the full-size dialog does not pause
 the Lua runtime, change the active script, or replace the normal simulated
-display. The current implementation supports pixel and smooth lines, outlined
+display. The current implementation supports pixel, smooth, and animated flow lines, outlined
 and filled boxes, pixel boxes, pixel and smooth outline circles, regular outline
 polygons, multi-point Bézier curves, standard text, and tiny text. Choose a primitive tool and drag on the artboard to create repeatedly, or
 use its **Add default** action for a keyboard-only starting shape. The inspector
@@ -861,6 +861,22 @@ curve call passes only those three drawing inputs, and the helper uses de
 Casteljau interpolation before issuing ordinary integer `drawLine()` calls.
 The compiler uses the same interpolation, sampling, and rounding, so Bézier
 detail contributes exactly one descriptive draw call per segment.
+
+An **Animated line** is an axis-aligned flow indicator for data, sound, or CV.
+It alternates four pixels of a primary shade with four pixels of a secondary
+shade and moves that pattern Left, Right, Up, or Down. Set the secondary shade
+to 0 for a conventional moving dashed line, or choose any of the 16 shades for
+a two-colour flow. The speed choices—30, 15, 10, 6, 5, 3, 2, or 1 Hz—divide the
+30 fps display rate exactly and move the pattern one pixel per speed interval.
+Pointer creation and resize handles keep the line horizontal or vertical;
+changing direction also selects the corresponding axis.
+
+Generated Lua emits one closure-local
+`drawAnimatedLine(x1, y1, x2, y2, primaryShade, secondaryShade, direction, speed, frame)`
+helper only when an animated line is used. The preview compiler and helper use
+the same four-plus-four pattern, integer rounding, direction phase, and shared
+draw-callback frame counter before expanding the result into ordinary
+`drawLine()` calls.
 
 A **Pixel box** stores one of those 16 shades for every pixel in its rectangular
 area. Select a paint shade and choose individual cells in the Properties grid,
@@ -1045,7 +1061,8 @@ their grid; both migrate numeric binding endpoints into static-scalar literal
 wrappers. Version-3 files retain their tokens and grid, version-4 files retain
 pixel boxes, version-5 files retain polygons, version-6 files retain
 multi-point Bézier curves, and version-7 files retain named screens and screen
-ownership. Downloads always use strict version 8, which stores every pixel box
+ownership. Version-8 files retain animated pixel-box frames. Downloads always
+use strict version 9, which adds axis-aligned animated lines and stores every pixel box
 as one or more frames with an optional animation rate, with
 ordered `tokens` and a
 `layoutGrid` that is either the uniform-grid definition or `null`. Use

@@ -21,6 +21,7 @@ import { buildDisplayDesignSource } from './display-design-generator'
 import { optimizeDisplayPixelBox } from './display-design-pixel-box'
 import { compileDisplayPolygonLines } from './display-design-polygon'
 import { compileDisplayBezierLines } from './display-design-bezier'
+import { compileDisplayAnimatedLine } from './display-design-animated-line'
 import { validateDisplayDesign } from './display-design-validation'
 
 export interface DisplayCommandSource {
@@ -99,6 +100,7 @@ export function compileDisplayPrimitive(
   if (!resolveDisplayVisibility(primitive.visible, bindings)) return undefined
   if (primitive.kind === 'pixel-box') return compileDisplayPrimitiveCommands(primitive, bindings, translation, tokens)[0]
   const resolvedShade = shade(resolveDisplayScalar(primitive.shade, bindings, tokens))
+  if (primitive.kind === 'animated-line') return compileDisplayPrimitiveCommands(primitive, bindings, translation, tokens)[0]
   if (primitive.kind === 'line') {
     return {
       kind: 'line',
@@ -170,6 +172,19 @@ export function compileDisplayPrimitiveCommands(
   displayFrame = 0,
 ): DrawCommand[] {
   if (!resolveDisplayVisibility(primitive.visible, bindings)) return []
+  if (primitive.kind === 'animated-line') {
+    return compileDisplayAnimatedLine(
+      translated(resolveDisplayScalar(primitive.x1, bindings, tokens), translation.x, true),
+      translated(resolveDisplayScalar(primitive.y1, bindings, tokens), translation.y, true),
+      translated(resolveDisplayScalar(primitive.x2, bindings, tokens), translation.x, true),
+      translated(resolveDisplayScalar(primitive.y2, bindings, tokens), translation.y, true),
+      shade(resolveDisplayScalar(primitive.shade, bindings, tokens)),
+      shade(resolveDisplayScalar(primitive.secondaryShade, bindings, tokens)),
+      primitive.direction,
+      primitive.speed,
+      displayFrame,
+    )
+  }
   if (primitive.kind === 'polygon') {
     return compileDisplayPolygonLines(
       translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
@@ -348,6 +363,13 @@ export function compileDisplayDesign(value: DisplayDesignDocument, displayFrame 
             y2: resolveDisplayScalar(element.y, bindings, tokens) + element.height - 1,
             shade: 15, fill: true, smooth: false,
           }
+        : element.kind === 'animated-line'
+          ? {
+              kind: 'line',
+              x1: resolveDisplayScalar(element.x1, bindings, tokens), y1: resolveDisplayScalar(element.y1, bindings, tokens),
+              x2: resolveDisplayScalar(element.x2, bindings, tokens), y2: resolveDisplayScalar(element.y2, bindings, tokens),
+              shade: 15, smooth: false,
+            }
         : element.kind === 'polygon'
           ? {
               kind: 'circle',
@@ -399,6 +421,15 @@ export function compileDisplayDesign(value: DisplayDesignDocument, displayFrame 
             y2: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true) + primitive.height - 1,
             shade: 15, fill: true, smooth: false,
           }
+        : primitive.kind === 'animated-line'
+          ? {
+              kind: 'line',
+              x1: translated(resolveDisplayScalar(primitive.x1, bindings, tokens), translation.x, true),
+              y1: translated(resolveDisplayScalar(primitive.y1, bindings, tokens), translation.y, true),
+              x2: translated(resolveDisplayScalar(primitive.x2, bindings, tokens), translation.x, true),
+              y2: translated(resolveDisplayScalar(primitive.y2, bindings, tokens), translation.y, true),
+              shade: 15, smooth: false,
+            }
         : primitive.kind === 'polygon'
           ? {
               kind: 'circle',

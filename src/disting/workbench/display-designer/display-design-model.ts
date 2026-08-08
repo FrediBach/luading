@@ -6,10 +6,14 @@ export const DISPLAY_DESIGN_VERSION_V4 = 4 as const
 export const DISPLAY_DESIGN_VERSION_V5 = 5 as const
 export const DISPLAY_DESIGN_VERSION_V6 = 6 as const
 export const DISPLAY_DESIGN_VERSION_V7 = 7 as const
-export const DISPLAY_DESIGN_VERSION = 8 as const
+export const DISPLAY_DESIGN_VERSION_V8 = 8 as const
+export const DISPLAY_DESIGN_VERSION = 9 as const
 
 export const DISPLAY_PIXEL_BOX_FRAME_RATES = [30, 15, 10, 6, 5, 3, 2, 1] as const
 export type DisplayPixelBoxFrameRate = typeof DISPLAY_PIXEL_BOX_FRAME_RATES[number]
+export const DISPLAY_ANIMATED_LINE_SPEEDS = DISPLAY_PIXEL_BOX_FRAME_RATES
+export type DisplayAnimatedLineSpeed = typeof DISPLAY_ANIMATED_LINE_SPEEDS[number]
+export type DisplayAnimatedLineDirection = 'left' | 'right' | 'up' | 'down'
 
 export const DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID = {
   kind: 'uniform',
@@ -113,6 +117,17 @@ export interface DisplayLineElement extends DisplayPrimitiveBase {
   y2: DisplayScalar
 }
 
+export interface DisplayAnimatedLineElement extends DisplayPrimitiveBase {
+  kind: 'animated-line'
+  secondaryShade: DisplayScalar
+  x1: DisplayScalar
+  y1: DisplayScalar
+  x2: DisplayScalar
+  y2: DisplayScalar
+  direction: DisplayAnimatedLineDirection
+  speed: DisplayAnimatedLineSpeed
+}
+
 export interface DisplayBoxElement extends DisplayPrimitiveBase {
   kind: 'box'
   fill: boolean
@@ -178,6 +193,7 @@ export interface DisplayPixelBoxFrame {
 
 export type DisplayPrimitiveElement =
   | DisplayLineElement
+  | DisplayAnimatedLineElement
   | DisplayBoxElement
   | DisplayCircleElement
   | DisplayPolygonElement
@@ -347,6 +363,14 @@ export interface DisplayDesignDocumentV7 extends DisplayDesignDocumentFields {
 }
 
 export interface DisplayDesignDocumentV8 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION_V8
+  tokens: DisplayDesignToken[]
+  layoutGrid: DisplayDesignLayoutGrid | null
+  screens: DisplayDesignScreen[]
+  activeScreenId: string
+}
+
+export interface DisplayDesignDocumentV9 extends DisplayDesignDocumentFields {
   version: typeof DISPLAY_DESIGN_VERSION
   tokens: DisplayDesignToken[]
   layoutGrid: DisplayDesignLayoutGrid | null
@@ -354,7 +378,7 @@ export interface DisplayDesignDocumentV8 extends DisplayDesignDocumentFields {
   activeScreenId: string
 }
 
-export type DisplayDesignDocument = DisplayDesignDocumentV8
+export type DisplayDesignDocument = DisplayDesignDocumentV9
 
 export interface DisplayDesignSelection {
   elementIds: string[]
@@ -388,6 +412,7 @@ export interface DisplayDesignerFinding {
 export type DisplayPrimitivePreset =
   | 'pixel-line'
   | 'smooth-line'
+  | 'animated-line'
   | 'outline-box'
   | 'filled-box'
   | 'pixel-box'
@@ -635,6 +660,11 @@ export function createDefaultDisplayPrimitive(
   scope?: 'element' | 'primitive',
 ): DisplayLineElement
 export function createDefaultDisplayPrimitive(
+  preset: 'animated-line',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayAnimatedLineElement
+export function createDefaultDisplayPrimitive(
   preset: 'outline-box' | 'filled-box',
   idFactory: DisplayDesignIdFactory,
   scope?: 'element' | 'primitive',
@@ -681,6 +711,19 @@ export function createDefaultDisplayPrimitive(
       return { ...base, kind: 'line', name: 'Pixel line', smooth: false, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(16) }
     case 'smooth-line':
       return { ...base, kind: 'line', name: 'Smooth line', smooth: true, x1: literal(8.5), y1: literal(16.5), x2: literal(32.5), y2: literal(16.5) }
+    case 'animated-line':
+      return {
+        ...base,
+        kind: 'animated-line',
+        name: 'Animated line',
+        secondaryShade: literal(0),
+        x1: literal(8),
+        y1: literal(16),
+        x2: literal(32),
+        y2: literal(16),
+        direction: 'right',
+        speed: 10,
+      }
     case 'outline-box':
       return { ...base, kind: 'box', name: 'Outline box', fill: false, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(24) }
     case 'filled-box':

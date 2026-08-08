@@ -14,7 +14,7 @@ import {
   createSequentialDisplayDesignIdFactory,
 } from './display-design-model'
 
-function legacyDocument(document: object, version: 1 | 2 | 3 | 4 | 5 | 6 | 7): Record<string, unknown> {
+function legacyDocument(document: object, version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8): Record<string, unknown> {
   const legacy = structuredClone(document) as unknown as Record<string, unknown>
   if (version < 7) {
     delete legacy.screens
@@ -24,7 +24,7 @@ function legacyDocument(document: object, version: 1 | 2 | 3 | 4 | 5 | 6 | 7): R
   legacy.elements = (legacy.elements as Array<Record<string, unknown>>).map((element) => {
     const copy = { ...element }
     if (version < 7) delete copy.screenId
-    if (copy.kind === 'pixel-box') {
+    if (copy.kind === 'pixel-box' && version < 8) {
       copy.shades = (copy.frames as Array<{ shades: number[] }>)[0]?.shades ?? []
       delete copy.frames
       delete copy.frameRate
@@ -53,7 +53,7 @@ describe('display design files', () => {
     expect(result.fileName).toBe(`Envelope UI${DISPLAY_DESIGN_FILE_SUFFIX}`)
     expect(result.text).toBe(`{
   "kind": "luading-display-design",
-  "version": 8,
+  "version": 9,
   "name": "Envelope UI",
   "displayMode": "full-screen",
   "screens": [
@@ -105,7 +105,7 @@ describe('display design files', () => {
     expect(result.bytes).toBe(new TextEncoder().encode(result.text).byteLength)
   })
 
-  it('migrates version-1 files without making them invalid and always serializes version 8', () => {
+  it('migrates version-1 files without making them invalid and always serializes version 9', () => {
     const current = createEmptyDisplayDesign('Legacy')
     const legacy = legacyDocument(current, 1)
     delete legacy.layoutGrid
@@ -120,7 +120,7 @@ describe('display design files', () => {
     const serialized = serializeDisplayDesign(parsed.document)
     expect(serialized.ok).toBe(true)
     if (!serialized.ok) return
-    expect(JSON.parse(serialized.text)).toMatchObject({ version: 8, tokens: [], layoutGrid: null, screens: [{ name: 'Screen 1' }] })
+    expect(JSON.parse(serialized.text)).toMatchObject({ version: 9, tokens: [], layoutGrid: null, screens: [{ name: 'Screen 1' }] })
   })
 
   it('migrates version-2 numeric binding endpoints into current static scalars', () => {
@@ -137,13 +137,13 @@ describe('display design files', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.migratedFromVersion).toBe(2)
-    expect(parsed.document.version).toBe(8)
+    expect(parsed.document.version).toBe(9)
     expect(parsed.document.elements[0]).toMatchObject({
       x1: { kind: 'number-binding', from: { kind: 'literal', value: 4 }, to: { kind: 'literal', value: 20 } },
     })
   })
 
-  it('migrates version-4 pixel boxes and writes canonical version-8 polygons', () => {
+  it('migrates version-4 pixel boxes and writes canonical version-9 polygons', () => {
     const ids = createSequentialDisplayDesignIdFactory('v4')
     const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
     const legacy = legacyDocument({ ...createEmptyDisplayDesign('Version 4'), elements: [pixelBox] }, 4)
@@ -151,7 +151,7 @@ describe('display design files', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.migratedFromVersion).toBe(4)
-    expect(parsed.document.version).toBe(8)
+    expect(parsed.document.version).toBe(9)
     expect(parsed.document.elements[0]).toEqual({ ...pixelBox, screenId: 'display-screen-1' })
 
     const polygon = createDefaultDisplayPrimitive('polygon', ids)
@@ -164,7 +164,7 @@ describe('display design files', () => {
     ])
   })
 
-  it('migrates version-5 polygons and writes canonical version-8 Bézier curves', () => {
+  it('migrates version-5 polygons and writes canonical version-9 Bézier curves', () => {
     const ids = createSequentialDisplayDesignIdFactory('v5')
     const polygon = createDefaultDisplayPrimitive('polygon', ids)
     const legacy = legacyDocument({ ...createEmptyDisplayDesign('Version 5'), elements: [polygon] }, 5)
@@ -172,7 +172,7 @@ describe('display design files', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.migratedFromVersion).toBe(5)
-    expect(parsed.document.version).toBe(8)
+    expect(parsed.document.version).toBe(9)
     expect(parsed.document.elements[0]).toEqual({ ...polygon, screenId: 'display-screen-1' })
 
     const bezier = createDefaultDisplayPrimitive('bezier', ids)
@@ -195,14 +195,14 @@ describe('display design files', () => {
     if (!parsed.ok) return
     expect(parsed.migratedFromVersion).toBe(6)
     expect(parsed.document).toMatchObject({
-      version: 8,
+      version: 9,
       screens: [{ id: 'display-screen-1', name: 'Screen 1' }],
       activeScreenId: 'display-screen-1',
       elements: [{ kind: 'bezier', screenId: 'display-screen-1' }],
     })
   })
 
-  it('migrates version-7 static pixel boxes into one-frame version-8 boxes', () => {
+  it('migrates version-7 static pixel boxes into one-frame version-9 boxes', () => {
     const ids = createSequentialDisplayDesignIdFactory('v7')
     const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
     const legacy = legacyDocument({ ...createEmptyDisplayDesign('Version 7'), elements: [{ ...pixelBox, screenId: 'display-screen-1' }] }, 7)
@@ -211,8 +211,23 @@ describe('display design files', () => {
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.migratedFromVersion).toBe(7)
-    expect(parsed.document.version).toBe(8)
+    expect(parsed.document.version).toBe(9)
     expect(parsed.document.elements[0]).toMatchObject({ kind: 'pixel-box', frameRate: null, frames: [{ duration: 1 }] })
+  })
+
+  it('migrates version-8 animated pixel boxes without losing frames', () => {
+    const ids = createSequentialDisplayDesignIdFactory('v8')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    pixelBox.frameRate = 15
+    pixelBox.frames = [pixelBox.frames[0]!, { ...structuredClone(pixelBox.frames[0]!), duration: 2 }]
+    const legacy = legacyDocument({ ...createEmptyDisplayDesign('Version 8'), elements: [{ ...pixelBox, screenId: 'display-screen-1' }] }, 8)
+    const parsed = parseDisplayDesignText(JSON.stringify(legacy))
+
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.migratedFromVersion).toBe(8)
+    expect(parsed.document.version).toBe(9)
+    expect(parsed.document.elements[0]).toMatchObject({ kind: 'pixel-box', frameRate: 15, frames: [{ duration: 1 }, { duration: 2 }] })
   })
 
   it('round trips rich documents into defensive normalized values', () => {
@@ -233,7 +248,7 @@ describe('display design files', () => {
     expect(parsed.findings.map(({ ruleId }) => ruleId)).toContain('approximate-smoothing')
   })
 
-  it('pins canonical version-8 root, token, and AST key order', () => {
+  it('pins canonical version-9 root, token, and AST key order', () => {
     const ids = createSequentialDisplayDesignIdFactory('canonical-token')
     const token = { id: ids('token'), name: 'Bar width', luaName: 'bar_width', value: 12 }
     const box = createDefaultDisplayPrimitive('filled-box', ids)
@@ -254,7 +269,7 @@ describe('display design files', () => {
   it('rejects malformed, oversized, unknown-version, and invalid documents without throwing', () => {
     expect(parseDisplayDesignText('{')).toMatchObject({ ok: false, code: 'invalid-json' })
     expect(parseDisplayDesignText('x'.repeat(DISPLAY_DESIGN_LIMITS.maximumJsonBytes + 1))).toMatchObject({ ok: false, code: 'file-too-large' })
-    expect(parseDisplayDesignText(JSON.stringify({ ...createEmptyDisplayDesign(), version: 9 }))).toMatchObject({
+    expect(parseDisplayDesignText(JSON.stringify({ ...createEmptyDisplayDesign(), version: 10 }))).toMatchObject({
       ok: false,
       code: 'invalid-document',
       findings: [{ ruleId: 'unsupported-version' }],

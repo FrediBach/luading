@@ -40,7 +40,7 @@ export function translateDisplayPrimitive(
   dy: number,
 ): DisplayPrimitiveElement {
   const next = cloneDisplayDesign(primitive)
-  if (next.kind === 'line' || next.kind === 'box') {
+  if (next.kind === 'line' || next.kind === 'animated-line' || next.kind === 'box') {
     next.x1 = translatedScalar(next.x1, dx)
     next.y1 = translatedScalar(next.y1, dy)
     next.x2 = translatedScalar(next.x2, dx)
@@ -60,7 +60,7 @@ function translateDisplayPrimitiveByStaticScalars(
   y: DisplayStaticScalar,
 ): DisplayPrimitiveElement {
   const next = cloneDisplayDesign(primitive)
-  if (next.kind === 'line' || next.kind === 'box') {
+  if (next.kind === 'line' || next.kind === 'animated-line' || next.kind === 'box') {
     next.x1 = addDisplayScalarStatic(next.x1, x)
     next.y1 = addDisplayScalarStatic(next.y1, y)
     next.x2 = addDisplayScalarStatic(next.x2, x)

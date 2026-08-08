@@ -32,7 +32,7 @@ function validRichDocument(): DisplayDesignDocument {
   const lowPrimitive = createDefaultDisplayPrimitive('pixel-circle', ids, 'primitive')
   const highPrimitive = createDefaultDisplayPrimitive('smooth-circle', ids, 'primitive')
   const presets = [
-    'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
+    'pixel-line', 'smooth-line', 'animated-line', 'outline-box', 'filled-box',
     'pixel-circle', 'smooth-circle', 'polygon', 'bezier', 'standard-text', 'tiny-text',
   ] as const
   const primitives: DisplayDesignElement[] = presets.map((preset) => ({ ...createDefaultDisplayPrimitive(preset, ids), screenId: 'display-screen-1' }))
@@ -42,7 +42,7 @@ function validRichDocument(): DisplayDesignDocument {
     line.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 255 }, quantize: 'integer' }
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: false }
   }
-  const text = primitives[8]
+  const text = primitives[9]
   if (text?.kind === 'text') text.text = { kind: 'text-binding', bindingId: textId }
   const instance: DisplayDesignElement = {
     kind: 'symbol-instance',
@@ -104,7 +104,7 @@ describe('display design validation', () => {
     expect(result.document).not.toBe(input)
     expect(result.document?.elements).not.toBe(input.elements)
     expect(result.document?.elements.map(({ kind }) => kind)).toEqual([
-      'line', 'line', 'box', 'box', 'circle', 'circle', 'polygon', 'bezier', 'text', 'text', 'symbol-instance',
+      'line', 'line', 'animated-line', 'box', 'box', 'circle', 'circle', 'polygon', 'bezier', 'text', 'text', 'symbol-instance',
     ])
     expect(result.document?.bindings.map(({ kind }) => kind)).toEqual(['number', 'boolean', 'text', 'choice'])
     expect(result.findings.filter(({ severity }) => severity === 'warning').map(({ ruleId }) => ruleId)).toEqual([
@@ -122,7 +122,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 9 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 10 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -182,6 +182,18 @@ describe('display design validation', () => {
     expect(oneAnimatedFrame.findings.map(({ ruleId }) => ruleId)).toContain('animated-pixel-box-frame-count')
     const badDuration = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...animated, frames: [{ ...animated.frames[0]!, duration: 0 }, animated.frames[1]!] }] })
     expect(badDuration.findings.map(({ ruleId }) => ruleId)).toContain('invalid-number')
+  })
+
+  it('validates animated-line direction, speed, shades, alignment, and version', () => {
+    const ids = createSequentialDisplayDesignIdFactory('animated-line-validation')
+    const line = createDefaultDisplayPrimitive('animated-line', ids)
+    expect(validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [line] }).ok).toBe(true)
+
+    expect(errorRuleIds({ ...createEmptyDisplayDesign(), elements: [{ ...line, direction: 'diagonal' }] })).toContain('invalid-animated-line-direction')
+    expect(errorRuleIds({ ...createEmptyDisplayDesign(), elements: [{ ...line, speed: 7 }] })).toContain('invalid-animated-line-speed')
+    expect(errorRuleIds({ ...createEmptyDisplayDesign(), elements: [{ ...line, secondaryShade: { kind: 'literal', value: 16 } }] })).toContain('invalid-number')
+    expect(errorRuleIds({ ...createEmptyDisplayDesign(), elements: [{ ...line, y2: { kind: 'literal', value: 17 } }] })).toContain('animated-line-axis-alignment')
+    expect(errorRuleIds({ ...createEmptyDisplayDesign(), version: 8, elements: [line] })).toContain('unsupported-element-version')
   })
 
   it('validates polygon detail and keeps it exclusive to version 5', () => {

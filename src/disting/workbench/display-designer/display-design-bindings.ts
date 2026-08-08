@@ -53,8 +53,9 @@ function collectPrimitiveUsages(
     return
   }
   collectScalarUsage(primitive.shade, usages, owner, 'shade')
+  if (primitive.kind === 'animated-line') collectScalarUsage(primitive.secondaryShade, usages, owner, 'secondaryShade')
   if (primitive.visible.kind === 'boolean-binding') usages.push({ ...owner, bindingId: primitive.visible.bindingId, kind: 'boolean', property: 'visibility' })
-  if (primitive.kind === 'line' || primitive.kind === 'box') {
+  if (primitive.kind === 'line' || primitive.kind === 'animated-line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) collectScalarUsage(primitive[property], usages, owner, property)
   } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y', 'radius'] as const) collectScalarUsage(primitive[property], usages, owner, property)
@@ -136,6 +137,13 @@ function mapPrimitive(
     visible: primitive.visible.kind === 'boolean-binding' && primitive.visible.bindingId === bindingId
       ? visibility
       : cloneDisplayDesign(primitive.visible),
+  }
+  if (primitive.kind === 'animated-line') return {
+    ...common,
+    kind: 'animated-line',
+    secondaryShade: scalar(primitive.secondaryShade),
+    x1: scalar(primitive.x1), y1: scalar(primitive.y1), x2: scalar(primitive.x2), y2: scalar(primitive.y2),
+    direction: primitive.direction, speed: primitive.speed,
   }
   if (primitive.kind === 'line' || primitive.kind === 'box') return {
     ...common,

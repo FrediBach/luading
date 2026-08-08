@@ -99,6 +99,7 @@ import {
   removeDisplayDesignLayoutGrid,
   DISPLAY_DESIGN_VERSION,
   DISPLAY_DESIGN_LIMITS,
+  DISPLAY_ANIMATED_LINE_SPEEDS,
   DISPLAY_PIXEL_BOX_FRAME_RATES,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
@@ -143,7 +144,7 @@ import {
   reorderDisplayToken,
   updateDisplayToken,
 } from './display-design-tokens'
-import { offsetDisplayStaticScalar } from './display-design-resolution'
+import { offsetDisplayScalar, offsetDisplayStaticScalar } from './display-design-resolution'
 import { validateDisplayDesign } from './display-design-validation'
 import {
   addDisplaySymbolVariant,
@@ -170,14 +171,14 @@ interface Props {
 
 type DesignerTool = 'select' | DisplayPrimitivePreset
 type DesignerZoom = 'fit' | 1 | 2 | 3 | 4
-type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
+type DisplayScalarProperty = 'shade' | 'secondaryShade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
 type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
 type DisplayScenePixelBox = Extract<DisplayDesignElement, { kind: 'pixel-box' }>
 
-function hasDisplayPixelBoxAnimation(document: DisplayDesignDocument): boolean {
+function hasDisplayAnimation(document: DisplayDesignDocument): boolean {
   const animated = (primitive: DisplayPrimitiveElement) => primitive.kind === 'pixel-box' && primitive.frameRate !== null && primitive.frames.length > 1
-  return document.elements.some((element) => element.kind !== 'symbol-instance' && animated(element))
-    || document.symbols.some((symbol) => symbol.variants.some((variant) => variant.elements.some(animated)))
+  return document.elements.some((element) => element.kind === 'animated-line' || element.kind !== 'symbol-instance' && animated(element))
+    || document.symbols.some((symbol) => symbol.variants.some((variant) => variant.elements.some((primitive) => primitive.kind === 'animated-line' || animated(primitive))))
 }
 
 interface DisplayDesignerViewPreferences {
@@ -465,6 +466,7 @@ const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
   { id: 'select', label: 'Select', shortLabel: 'Select' },
   { id: 'pixel-line', label: 'Pixel line', shortLabel: 'Line' },
   { id: 'smooth-line', label: 'Smooth line', shortLabel: 'Smooth line' },
+  { id: 'animated-line', label: 'Animated line', shortLabel: 'Flow line' },
   { id: 'outline-box', label: 'Outline box', shortLabel: 'Box' },
   { id: 'filled-box', label: 'Filled box', shortLabel: 'Fill' },
   { id: 'pixel-box', label: 'Pixel box', shortLabel: 'Pixels' },
@@ -479,6 +481,7 @@ const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
 function elementTypeName(element: DisplayDesignElement): string {
   if (element.kind === 'symbol-instance') return 'Symbol instance'
   if (element.kind === 'line') return element.smooth ? 'Smooth line' : 'Pixel line'
+  if (element.kind === 'animated-line') return 'Animated line'
   if (element.kind === 'box') return element.fill ? 'Filled box' : 'Outline box'
   if (element.kind === 'pixel-box') return 'Pixel box'
   if (element.kind === 'circle') return element.smooth ? 'Smooth circle' : 'Pixel circle'
@@ -550,6 +553,11 @@ function GeometryOverlay({ command, expandedCommands = [], element, document }: 
     return <g>{expandedCommands.flatMap((edge, index) => edge.kind === 'line'
       ? [<line key={index} x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2} />]
       : [])}<circle cx={staticDisplayScalarValue(document, element.x)} cy={staticDisplayScalarValue(document, element.y)} r="1.5" /></g>
+  }
+  if (element.kind === 'animated-line') {
+    return <g>{expandedCommands.flatMap((segment, index) => segment.kind === 'line'
+      ? [<line key={index} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} />]
+      : [])}</g>
   }
   if (element.kind === 'bezier') {
     const points = element.points.map((point) => ({ x: staticDisplayScalarValue(document, point.x), y: staticDisplayScalarValue(document, point.y) }))
@@ -756,7 +764,7 @@ function DisplayDesignerArtboard({
             {showGeometry && selectedElements.map((element) => {
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
-              const expandedCommands = source && (element.kind === 'polygon' || element.kind === 'bezier')
+              const expandedCommands = source && (element.kind === 'polygon' || element.kind === 'bezier' || element.kind === 'animated-line')
                 ? commands.slice(source.firstCommand, source.firstCommand + source.commandCount)
                 : []
               return <g key={element.id} className="display-designer-selection-geometry">
@@ -1427,17 +1435,31 @@ function DisplayDesignerInspector({
 
   const scalar = (property: DisplayScalarProperty) => (element as unknown as Record<DisplayScalarProperty, DisplayScalar>)[property]
   const setScalar = (property: DisplayScalarProperty, value: DisplayScalar, label: string, baseDocument = document) => {
-    onCommit(label, updateDisplayDesignElement(baseDocument, element.id, (current) => current.kind === 'symbol-instance' ? current : ({ ...current, [property]: value } as DisplayPrimitiveElement)))
+    onCommit(label, updateDisplayDesignElement(baseDocument, element.id, (current) => {
+      if (current.kind === 'symbol-instance') return current
+      const next = { ...current, [property]: value } as DisplayPrimitiveElement
+      if (next.kind !== 'animated-line') return next
+      const horizontal = next.direction === 'left' || next.direction === 'right'
+      if (horizontal && (property === 'y1' || property === 'y2')) return { ...next, y1: value, y2: value }
+      if (!horizontal && (property === 'x1' || property === 'x2')) return { ...next, x1: value, x2: value }
+      return next
+    }))
   }
   const createScalarBinding = (property: DisplayScalarProperty, label: string) => {
     const currentScalar = scalar(property)
     bindWithNewDocument('number', label, (current, id) => {
-      return { ...current, [property]: {
+      const nextScalar: DisplayScalar = {
         kind: 'number-binding', bindingId: id,
         from: currentScalar.kind === 'number-binding' ? currentScalar.from : currentScalar,
         to: currentScalar.kind === 'number-binding' ? currentScalar.to : offsetDisplayStaticScalar(currentScalar, label.toLowerCase().includes('shade') ? 0 : 16),
         quantize: label.toLowerCase().includes('shade') || !((element.kind === 'line' || element.kind === 'circle') && element.smooth) ? 'integer' : 'none',
-      } } as DisplayScenePrimitive
+      }
+      const next = { ...current, [property]: nextScalar } as DisplayScenePrimitive
+      if (next.kind !== 'animated-line') return next
+      const horizontal = next.direction === 'left' || next.direction === 'right'
+      if (horizontal && (property === 'y1' || property === 'y2')) return { ...next, y1: nextScalar, y2: nextScalar }
+      if (!horizontal && (property === 'x1' || property === 'x2')) return { ...next, x1: nextScalar, x2: nextScalar }
+      return next
     })
   }
   const coordinateStep = (element.kind === 'line' || element.kind === 'circle') && element.smooth ? 'any' : 1
@@ -1482,8 +1504,33 @@ function DisplayDesignerInspector({
           return next
         })
       }}><option value="">No group</option>{document.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
-      {(element.kind === 'line' || element.kind === 'box') && <div className="display-designer-field-grid">
+      {(element.kind === 'line' || element.kind === 'animated-line' || element.kind === 'box') && <div className="display-designer-field-grid">
         {(['x1', 'y1', 'x2', 'y2'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer={coordinateStep === 1} idFactory={idFactory} onChange={(value, label, baseDocument) => setScalar(property, value, label, baseDocument)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
+      </div>}
+      {element.kind === 'animated-line' && <div className="display-designer-computed">
+        <label className="display-designer-field"><span>Direction</span><select value={element.direction} onChange={(event) => {
+          const direction = event.currentTarget.value as typeof element.direction
+          update('Change animated-line direction', (current) => {
+            if (current.kind !== 'animated-line') return current
+            const horizontal = direction === 'left' || direction === 'right'
+            const wasHorizontal = current.direction === 'left' || current.direction === 'right'
+            if (horizontal === wasHorizontal) return { ...current, direction }
+            const length = wasHorizontal
+              ? Math.abs(staticDisplayScalarValue(document, current.x2) - staticDisplayScalarValue(document, current.x1))
+              : Math.abs(staticDisplayScalarValue(document, current.y2) - staticDisplayScalarValue(document, current.y1))
+            return {
+              ...current,
+              direction,
+              x2: horizontal ? offsetDisplayScalar(current.x1, direction === 'right' ? length : -length) : current.x1,
+              y2: horizontal ? current.y1 : offsetDisplayScalar(current.y1, direction === 'down' ? length : -length),
+            }
+          })
+        }}><option value="right">Right</option><option value="left">Left</option><option value="down">Down</option><option value="up">Up</option></select></label>
+        <label className="display-designer-field"><span>Animation speed</span><select value={element.speed} onChange={(event) => {
+          const speed = Number(event.currentTarget.value) as typeof element.speed
+          update('Change animated-line speed', (current) => current.kind === 'animated-line' ? { ...current, speed } : current)
+        }}>{DISPLAY_ANIMATED_LINE_SPEEDS.map((speed) => <option key={speed} value={speed}>{speed} Hz</option>)}</select></label>
+        <p>Four pixels of each shade alternate and move one pixel at the selected rate.</p>
       </div>}
       {element.kind === 'box' && <div className="display-designer-computed"><p>Inclusive size: {Math.abs(staticDisplayScalarValue(document, scalar('x2')) - staticDisplayScalarValue(document, scalar('x1'))) + 1} × {Math.abs(staticDisplayScalarValue(document, scalar('y2')) - staticDisplayScalarValue(document, scalar('y1'))) + 1}</p><div className="display-designer-dynamic-actions">
         <select aria-label="Drive width with token/formula" value="" disabled={element.x1.kind === 'number-binding' || document.tokens.length === 0} title={element.x1.kind === 'number-binding' ? 'Width formulas require a static start coordinate.' : undefined} onChange={(event) => { if (event.currentTarget.value) driveBoxSizeWithToken('x', event.currentTarget.value) }}><option value="">Drive width with token/formula…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>
@@ -1579,8 +1626,12 @@ function DisplayDesignerInspector({
         }}><option value="left">Left</option><option value="centre">Centre</option><option value="right">Right</option></select></label>
       </>}
 
-      <fieldset className="display-designer-shades"><legend>Shade: {staticDisplayScalarValue(document, scalar('shade'))}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Shade ${shade}`} aria-pressed={staticDisplayScalarValue(document, scalar('shade')) === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setScalar('shade', { kind: 'literal', value: shade }, 'Change shade')}>{shade}</button>)}</div></fieldset>
-      <DisplayScalarEditor document={document} scalar={scalar('shade')} label="Exact shade" integer idFactory={idFactory} minimum={0} maximum={15} onChange={(value, action, baseDocument) => setScalar('shade', value, action, baseDocument)} onMakeDynamic={() => createScalarBinding('shade', 'Shade')} />
+      <fieldset className="display-designer-shades"><legend>{element.kind === 'animated-line' ? 'Primary shade' : 'Shade'}: {staticDisplayScalarValue(document, scalar('shade'))}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`${element.kind === 'animated-line' ? 'Primary shade' : 'Shade'} ${shade}`} aria-pressed={staticDisplayScalarValue(document, scalar('shade')) === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setScalar('shade', { kind: 'literal', value: shade }, 'Change shade')}>{shade}</button>)}</div></fieldset>
+      <DisplayScalarEditor document={document} scalar={scalar('shade')} label={element.kind === 'animated-line' ? 'Exact primary shade' : 'Exact shade'} integer idFactory={idFactory} minimum={0} maximum={15} onChange={(value, action, baseDocument) => setScalar('shade', value, action, baseDocument)} onMakeDynamic={() => createScalarBinding('shade', element.kind === 'animated-line' ? 'Primary shade' : 'Shade')} />
+      {element.kind === 'animated-line' && <>
+        <fieldset className="display-designer-shades"><legend>Secondary shade: {staticDisplayScalarValue(document, scalar('secondaryShade'))}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Secondary shade ${shade}`} aria-pressed={staticDisplayScalarValue(document, scalar('secondaryShade')) === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setScalar('secondaryShade', { kind: 'literal', value: shade }, 'Change secondary shade')}>{shade}</button>)}</div></fieldset>
+        <DisplayScalarEditor document={document} scalar={scalar('secondaryShade')} label="Exact secondary shade" integer idFactory={idFactory} minimum={0} maximum={15} onChange={(value, action, baseDocument) => setScalar('secondaryShade', value, action, baseDocument)} onMakeDynamic={() => createScalarBinding('secondaryShade', 'Secondary shade')} />
+      </>}
       {element.visible.kind === 'visible' ? <div className="display-designer-dynamic-property"><p>Visibility · Always visible</p><div className="display-designer-dynamic-actions"><button type="button" onClick={() => bindWithNewDocument('boolean', 'Visibility', (current, bindingId) => ({ ...current, visible: { kind: 'boolean-binding', bindingId, invert: false } }))}>Make visibility dynamic</button>{document.bindings.some(({ kind }) => kind === 'boolean') && <select aria-label="Attach visibility binding" value="" onChange={(event) => { if (event.currentTarget.value) update('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: false } })) }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}</div></div> : <fieldset className="display-designer-binding-map"><legend>Visibility</legend><label className="display-designer-field"><span>Binding</span><select value={element.visible.bindingId} onChange={(event) => update('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: current.visible.kind === 'boolean-binding' ? current.visible.invert : false } }))}>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label><label className="display-designer-check"><input type="checkbox" checked={element.visible.invert} onChange={(event) => update('Invert visibility', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: element.visible.kind === 'boolean-binding' ? element.visible.bindingId : '', invert: event.currentTarget.checked } }))} />Invert binding</label><button type="button" onClick={() => update('Make visibility static', (current) => ({ ...current, visible: { kind: 'visible' } }))}>Make visibility static</button></fieldset>}
     </section>
   )
@@ -1963,7 +2014,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     groups: activeVariant ? [] : activeDocument.groups,
     symbols: activeVariant ? [] : activeDocument.symbols,
   }), [activeDocument, activeVariant, hiddenGroupIds])
-  const previewHasAnimation = useMemo(() => hasDisplayPixelBoxAnimation(previewDocument), [previewDocument])
+  const previewHasAnimation = useMemo(() => hasDisplayAnimation(previewDocument), [previewDocument])
   const previewCompiled = useMemo(
     () => compileDisplayDesign(previewDocument, animationDisplayFrame),
     [animationDisplayFrame, previewDocument],
@@ -2517,7 +2568,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
           {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
             setActiveTool(tool.id)
-          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'bezier' ? '∿' : tool.id === 'pixel-box' ? '▦' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
+          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'bezier' ? '∿' : tool.id === 'pixel-box' ? '▦' : tool.id === 'animated-line' ? '»' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
           {activeTool !== 'select' && <button type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
         </div>
 
