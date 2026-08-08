@@ -107,8 +107,8 @@ end,
     const booleanId = ids('binding')
     const textId = ids('binding')
     const line = createDefaultDisplayPrimitive('pixel-line', ids)
-    line.x1 = { kind: 'number-binding', bindingId: numberId, from: 10, to: 30, quantize: 'integer' }
-    line.shade = { kind: 'number-binding', bindingId: numberId, from: 0, to: 15, quantize: 'integer' }
+    line.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 10 }, to: { kind: 'literal', value: 30 }, quantize: 'integer' }
+    line.shade = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 15 }, quantize: 'integer' }
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: true }
     const text = createDefaultDisplayPrimitive('tiny-text', ids)
     text.text = { kind: 'text-binding', bindingId: textId }
@@ -132,6 +132,64 @@ end,
     expect(result.source).toContain('if not muted then')
     expect(result.source).toContain('drawLine(math.floor((10 + 20 * level) + 0.5), 16, 32, 16, math.max(0, math.min(15, math.floor((15 * level) + 0.5))))')
     expect(result.source.match(/local level/g)).toHaveLength(1)
+  })
+
+  it('emits reachable token locals in document order and matches compiler arithmetic through Wasmoon', async () => {
+    for (const previewValue of [0, 0.5, 1]) {
+      const ids = createSequentialDisplayDesignIdFactory(`tokens-${previewValue}`)
+      const tokens = [
+        { id: ids('token'), name: 'Start X', luaName: 'start_x', value: 8 },
+        { id: ids('token'), name: 'Bar width', luaName: 'bar_width', value: 12 },
+        { id: ids('token'), name: 'Bars Y', luaName: 'bars_y', value: 18 },
+        { id: ids('token'), name: 'Unused', luaName: 'unused_token', value: 99 },
+      ]
+      const numberId = ids('binding')
+      const box = createDefaultDisplayPrimitive('filled-box', ids)
+      box.x1 = { kind: 'token-expression', expression: { kind: 'token', tokenId: tokens[0]!.id } }
+      box.x2 = { kind: 'token-expression', expression: {
+        kind: 'binary', operator: 'subtract',
+        left: { kind: 'binary', operator: 'add', left: { kind: 'token', tokenId: tokens[0]!.id }, right: { kind: 'token', tokenId: tokens[1]!.id } },
+        right: { kind: 'number', value: 1 },
+      } }
+      box.y1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'token-expression', expression: { kind: 'token', tokenId: tokens[2]!.id } }, to: { kind: 'token-expression', expression: { kind: 'binary', operator: 'add', left: { kind: 'token', tokenId: tokens[2]!.id }, right: { kind: 'number', value: 6 } } }, quantize: 'integer' }
+      const document: DisplayDesignDocument = {
+        ...createEmptyDisplayDesign(), displayMode: 'full-screen', tokens, elements: [box],
+        bindings: [{ kind: 'number', id: numberId, name: 'Height', luaName: 'height', previewValue }],
+      }
+      const compiled = compileDisplayDesign(document)
+      const runtime = await runGenerated(document)
+      expect(runtime.commands).toEqual(compiled.commands)
+      expect(runtime.generated.source).toContain('-- Design tokens: change these values to fine-tune the layout.')
+      expect(runtime.generated.source.indexOf('local start_x = 8')).toBeLessThan(runtime.generated.source.indexOf('local bar_width = 12'))
+      expect(runtime.generated.source).not.toContain('local unused_token')
+      expect(runtime.generated.findings.map(({ ruleId }) => ruleId)).toContain('unused-token')
+      expect(runtime.generated.tokenLocations[tokens[0]!.id]?.line).toBe(3)
+    }
+  })
+
+  it('keeps tokenized symbol helpers shared and token renames source-only', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('token-symbol')
+    const primitive = createDefaultDisplayPrimitive('filled-box', ids)
+    let document: DisplayDesignDocument = { ...createEmptyDisplayDesign(), elements: [primitive] }
+    const created = createDisplaySymbolFromSelection(document, [primitive.id], ids, { name: 'Bar' })
+    document = created.document
+    const token = { id: ids('token'), name: 'Offset', luaName: 'bar_offset', value: 4 }
+    document.tokens = [token]
+    const symbol = document.symbols[0]!
+    const stored = symbol.variants[0]!.elements[0]!
+    if (stored.kind !== 'box') throw new Error('Expected box')
+    stored.x1 = { kind: 'token-expression', expression: { kind: 'token', tokenId: token.id } }
+    document.elements.push(structuredClone(created.instance!))
+    document.elements[1]!.id = ids('element')
+    const before = await runGenerated(document)
+    const renamed = structuredClone(document)
+    renamed.tokens[0] = { ...token, name: 'Inset', luaName: 'bar_inset' }
+    const after = await runGenerated(renamed)
+    expect(before.commands).toEqual(after.commands)
+    expect(before.generated.source).toContain('local bar_offset = 4')
+    expect(after.generated.source).toContain('local bar_inset = 4')
+    expect(after.generated.source.match(/local function draw_bar\(/g)).toHaveLength(1)
+    expect(after.generated.source.match(/draw_bar\(/g)).toHaveLength(3)
   })
 
   it('omits unused bindings with warnings and formats finite numbers without locale or binary-tail noise', () => {
@@ -192,7 +250,7 @@ end,
       const booleanId = ids('binding')
       const textId = ids('binding')
       const smooth = createDefaultDisplayPrimitive('smooth-line', ids)
-      smooth.x1 = { kind: 'number-binding', bindingId: numberId, from: -2.5, to: 10.75, quantize: 'none' }
+      smooth.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: -2.5 }, to: { kind: 'literal', value: 10.75 }, quantize: 'none' }
       const text = createDefaultDisplayPrimitive('standard-text', ids)
       text.text = { kind: 'text-binding', bindingId: textId }
       text.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: false }

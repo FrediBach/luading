@@ -13,6 +13,7 @@ import {
 import { allocateDisplayLuaIdentifier } from './display-design-lua-identifiers'
 import {
   createDisplayBindingMap,
+  createDisplayTokenMap,
   resolveDisplayScalar,
   resolveDisplayText,
 } from './display-design-resolution'
@@ -93,7 +94,11 @@ export function createDisplayBindingInDocument(
   if (name) binding.name = name
   binding.luaName = allocateDisplayLuaIdentifier(
     binding.name,
-    [...document.bindings.map(({ luaName }) => luaName), ...document.symbols.map(({ luaName }) => luaName)],
+    [
+      ...document.tokens.map(({ luaName }) => luaName),
+      ...document.bindings.map(({ luaName }) => luaName),
+      ...document.symbols.map(({ luaName }) => luaName),
+    ],
     kind === 'choice' ? 'state' : 'value',
   )
   return { document: addDisplayDesignBinding(document, binding), binding }
@@ -137,8 +142,9 @@ export function convertDisplayBindingUsesToStatic(
   bindingId: string,
 ): DisplayDesignDocument {
   const bindings = createDisplayBindingMap(document.bindings)
+  const tokens = createDisplayTokenMap(document.tokens)
   const scalar = (value: DisplayScalar): DisplayScalar => value.kind === 'number-binding' && value.bindingId === bindingId
-    ? { kind: 'literal', value: resolveDisplayScalar(value, bindings) }
+    ? { kind: 'literal', value: resolveDisplayScalar(value, bindings, tokens) }
     : cloneDisplayDesign(value)
   const binding = bindings.get(bindingId)
   const visibility = { kind: 'visible' } as const
@@ -173,7 +179,7 @@ export function deleteDisplayBindingAndConvertUses(
 }
 
 export function staticDisplayScalarValue(document: DisplayDesignDocument, scalar: DisplayScalar): number {
-  return resolveDisplayScalar(scalar, createDisplayBindingMap(document.bindings))
+  return resolveDisplayScalar(scalar, createDisplayBindingMap(document.bindings), createDisplayTokenMap(document.tokens))
 }
 
 export function staticDisplayTextValue(document: DisplayDesignDocument, element: Extract<DisplayPrimitiveElement, { kind: 'text' }>): string {

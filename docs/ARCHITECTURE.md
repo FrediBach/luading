@@ -172,17 +172,21 @@ source when possible; the UI does not label that state as saved locally.
 The display designer is an independent main-thread authoring flow. Its React
 dialog owns the normalized design document, semantic undo history, selection,
 pointer gesture preview, responsive panel state, preview binding values, and
-downloaded-revision marker. The singleton uniform layout-grid definition is
+downloaded-revision marker. Version 3 adds ordered document-wide numeric tokens
+and bounded token-expression ASTs to that main-thread document. The singleton uniform layout-grid definition is
 document-owned; grid visibility and pointer-snapping preferences remain view
-state. Pure modules below the dialog validate the
-document, transform geometry, expand symbols, compile ordinary draw commands,
-calculate descriptive metrics, and generate deterministic Lua. The existing
+state. Pure modules below the dialog parse and print the closed arithmetic
+grammar, validate imported ASTs and token references, resolve scalar previews,
+transform geometry without discarding formulas, expand symbols, compile
+ordinary draw commands, calculate descriptive metrics, and generate
+deterministic Lua. The existing
 main-thread display renderer rasterizes the compiled commands; neither the
 designer document nor its UI state crosses the simulation-worker protocol.
 
 Opening a design first validates browser file metadata, reads and defensively
-parses strict version-1 or version-2 JSON, migrates version 1 to the canonical
-version-2 shape, and produces canonical serialized bytes. Only a
+parses strict version-1, version-2, or version-3 JSON, migrates older versions
+to the canonical version-3 shape (including static-scalar wrappers around old
+number-binding endpoints), and produces canonical serialized bytes. Only a
 fully accepted document replaces the current draft and receives a fresh
 history/ID allocator. Download creates an explicit browser Blob and marks only
 the dispatched canonical revision as downloaded. These files do not enter the
@@ -198,7 +202,11 @@ and suppresses guides whose target was not actually reached. Exact inspector,
 keyboard nudge, alignment, distribution, import, and generator paths do not
 pass through this snapping layer.
 
-Generated Lua is a one-way clipboard handoff. A successful copy contains the
+Generated Lua is a one-way clipboard handoff. Reachable token declarations live
+at the top of the same immediately evaluated closure as reusable symbol helpers,
+before those helpers; runtime-binding placeholders remain inside the returned
+draw callback. The expression AST disappears into ordinary safe Lua arithmetic
+and never crosses the worker protocol. A successful copy contains the
 exact source preview; clipboard denial exposes the same source in a selected
 manual-copy field. Copying never edits or runs the active script. Responsive
 layout is presentation-only: wide mode exposes stable side columns, medium and

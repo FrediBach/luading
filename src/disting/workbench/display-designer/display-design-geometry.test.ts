@@ -24,6 +24,8 @@ import {
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
 } from './display-design-model'
+import { collectDisplayTokenExpressionReferences } from './display-design-token-expressions'
+import { staticDisplayScalarValue } from './display-design-bindings'
 
 const literal = (value: number) => ({ kind: 'literal' as const, value })
 
@@ -101,9 +103,53 @@ describe('display design geometry', () => {
     document = translateDisplayElements(document, [line.id, box.id], -50, 80)
     expect(displaySelectionBounds(document, [line.id, box.id])).toEqual({ left: -42, top: 95, right: -18, bottom: 105 })
     expect(resizeDisplayElement(line, 'end', { x: 22.6, y: 18.4 })).toMatchObject({ x2: literal(23), y2: literal(18) })
-    expect(resizeDisplayElement(box, 'top-left', { x: 4.4, y: 5.6 })).toMatchObject({ x1: literal(4), y1: literal(6), x2: literal(30), y2: literal(25) })
+    expect(resizeDisplayElement(box, 'top-left', { x: 4.4, y: 5.6 })).toMatchObject({ x1: literal(30), y1: literal(25), x2: literal(4), y2: literal(6) })
     const circle = createDefaultDisplayPrimitive('smooth-circle', ids)
     expect(resizeDisplayElement(circle, 'radius', { x: 24.5, y: 23.5 })).toMatchObject({ radius: literal(5) })
+  })
+
+  it('preserves token formulas and runtime spans through move, align, distribute, and every resize handle', () => {
+    const ids = createSequentialDisplayDesignIdFactory('formula-geometry')
+    const token = { id: ids('token'), name: 'Origin', luaName: 'origin', value: 8 }
+    const formula = () => ({ kind: 'token-expression' as const, expression: { kind: 'token' as const, tokenId: token.id } })
+    const bindingId = ids('binding')
+    const line = createDefaultDisplayPrimitive('pixel-line', ids)
+    line.x1 = formula()
+    line.x2 = { kind: 'number-binding', bindingId, from: formula(), to: { kind: 'token-expression', expression: { kind: 'binary', operator: 'add', left: { kind: 'token', tokenId: token.id }, right: { kind: 'number', value: 10 } } }, quantize: 'integer' }
+    const box = createDefaultDisplayPrimitive('outline-box', ids)
+    box.x1 = formula(); box.y1 = formula(); box.x2 = formula(); box.y2 = formula()
+    const circle = createDefaultDisplayPrimitive('pixel-circle', ids)
+    circle.x = formula(); circle.y = formula(); circle.radius = formula()
+    const text = createDefaultDisplayPrimitive('tiny-text', ids)
+    text.x = formula(); text.y = formula()
+    const document = {
+      ...createEmptyDisplayDesign(), tokens: [token], elements: [line, box, circle, text],
+      bindings: [{ kind: 'number' as const, id: bindingId, name: 'Position', luaName: 'position', previewValue: 0.5 }],
+    }
+    const moved = translateDisplayElements(document, document.elements.map(({ id }) => id), 5, -2)
+    const movedLine = moved.elements[0]!
+    if (movedLine.kind !== 'line') throw new Error('Expected line')
+    expect(staticDisplayScalarValue(moved, movedLine.x1)).toBe(13)
+    expect(movedLine.x1.kind === 'token-expression' ? collectDisplayTokenExpressionReferences(movedLine.x1.expression) : new Set()).toEqual(new Set([token.id]))
+    expect(movedLine.x2).toMatchObject({ kind: 'number-binding', from: { kind: 'token-expression' }, to: { kind: 'token-expression' } })
+
+    for (const handle of ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const) {
+      const resized = resizeDisplayElement(box, handle, { x: 20, y: 30 }, document)
+      if (resized.kind !== 'box') throw new Error('Expected box')
+      for (const property of ['x1', 'y1', 'x2', 'y2'] as const) {
+        expect(resized[property].kind).toBe('token-expression')
+      }
+    }
+    expect(resizeDisplayElement(line, 'start', { x: 20, y: 30 }, document)).toMatchObject({ x1: { kind: 'token-expression' } })
+    expect(resizeDisplayElement(line, 'end', { x: 20, y: 30 }, document)).toMatchObject({ x2: { kind: 'number-binding', from: { kind: 'token-expression' }, to: { kind: 'token-expression' } } })
+    expect(resizeDisplayElement(circle, 'centre', { x: 20, y: 30 }, document)).toMatchObject({ x: { kind: 'token-expression' }, y: { kind: 'token-expression' } })
+    expect(resizeDisplayElement(circle, 'radius', { x: 20, y: 8 }, document)).toMatchObject({ radius: { kind: 'token-expression' } })
+    expect(resizeDisplayElement(text, 'anchor', { x: 20, y: 30 }, document)).toMatchObject({ x: { kind: 'token-expression' }, y: { kind: 'token-expression' } })
+
+    const aligned = alignDisplayElements(document, [line.id, box.id], 'left')
+    const distributed = distributeDisplayElements({ ...document, elements: [line, box, circle] }, [line.id, box.id, circle.id], 'horizontal')
+    expect(JSON.stringify(aligned)).toContain('"tokenId":"' + token.id + '"')
+    expect(JSON.stringify(distributed)).toContain('"tokenId":"' + token.id + '"')
   })
 
   it('uses the current symbol state bounds for instance hit testing and movement', () => {

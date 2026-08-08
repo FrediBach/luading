@@ -307,7 +307,7 @@ describe('Display designer dialog', () => {
     expect(document.querySelector('dl')?.getAttribute('aria-describedby')).toBe('display-designer-metrics-note')
     expect(document.querySelector('.display-designer-stage-status')?.getAttribute('aria-live')).toBe('polite')
 
-    await click(button('Make X1 dynamic'))
+    await click(button('Make X1 runtime dynamic'))
     const slider = document.querySelector<HTMLInputElement>('[type="range"]')!
     expect(slider.getAttribute('aria-label')).toBe('X1 preview value')
     expect(slider.getAttribute('aria-valuetext')).toBe('0')
@@ -642,20 +642,20 @@ describe('Display designer dialog', () => {
     await click(button('Open Display designer'))
     await addDefault('Pixel line')
 
-    await click(button('Make X1 dynamic'))
+    await click(button('Make X1 runtime dynamic'))
     expect(source()).toContain('local x1 = 0')
     expect(source()).toContain('math.floor((8 + 16 * x1) + 0.5)')
     expect(bindingCard('X1').textContent).toContain('1 use')
     expect(document.body.textContent).toContain('Preview 8')
-    const attachY1 = document.querySelector<HTMLSelectElement>('[aria-label="Attach Y1 binding"]')!
+    const attachY1 = document.querySelector<HTMLSelectElement>('[aria-label="Attach Y1 runtime binding"]')!
     expect(attachY1.parentElement?.classList.contains('display-designer-dynamic-actions')).toBe(true)
     await choose(attachY1, attachY1.options[1]!.value)
     expect(bindingCard('X1').textContent).toContain('2 uses')
-    await click(button('Make Y1 static'))
+    await click(button('Make Y1 static from preview'))
     expect(bindingCard('X1').textContent).toContain('1 use')
 
-    await commitInput(field('From') as HTMLInputElement, '20')
-    await commitInput(field('To') as HTMLInputElement, '40')
+    await commitInput(field('From formula') as HTMLInputElement, '20')
+    await commitInput(field('To formula') as HTMLInputElement, '40')
     expect(source()).toContain('math.floor((20 + 20 * x1) + 0.5)')
     const preview = document.querySelector<HTMLInputElement>('[aria-label="X1 preview value"]')!
     await act(async () => {
@@ -666,7 +666,7 @@ describe('Display designer dialog', () => {
     expect(source()).toContain('local x1 = 1')
     expect(document.body.textContent).toContain('Preview 40')
 
-    await click(button('Make X1 static'))
+    await click(button('Make X1 static from preview'))
     expect(source()).toContain('drawLine(40, 16, 32, 16, 15)')
     expect(bindingCard('X1').textContent).toContain('0 uses')
 
@@ -679,6 +679,48 @@ describe('Display designer dialog', () => {
     await click(button('Convert uses and delete'))
     expect(document.body.textContent).toContain('Visible draw calls1')
     expect(document.body.textContent).not.toContain('Visibilityboolean')
+  })
+
+  it('creates, renames, formulas, navigates, substitutes, and undoes design tokens', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Filled box')
+
+    await click(button('Create X1 token from value'))
+    expect(document.body.textContent).toContain('Tokens')
+    expect(document.body.textContent).toContain('1 use')
+    expect(source()).toContain('-- Design tokens: change these values to fine-tune the layout.')
+    expect(source()).toContain('local x1 = 8')
+
+    await click(button('Use X2 token/formula'))
+    await commitInput(field('X2 formula') as HTMLInputElement, 'x1 + 11')
+    expect(source()).toContain('x1 + 11')
+    expect(document.body.textContent).toContain('2 uses')
+
+    await commitInput(field('Token name') as HTMLInputElement, 'Start X')
+    expect(source()).toContain('local start_x = 8')
+    expect(source()).toContain('start_x + 11')
+    expect(source()).not.toContain('local x1 = 8')
+
+    await click(button('Show in Lua'))
+    expect(document.body.textContent).toContain('Start X token · line 3')
+
+    const formula = field('X2 formula') as HTMLInputElement
+    await commitInput(formula, 'missing + 1')
+    expect(formula.getAttribute('aria-invalid')).toBe('true')
+    expect(document.body.textContent).toContain('Unknown design token')
+    expect(source()).toContain('start_x + 11')
+    await act(async () => { formula.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+
+    await click(button('Delete token'))
+    await click(button('Replace references with current value and delete'))
+    expect(source()).not.toContain('Design tokens:')
+    expect(source()).toContain('drawRectangle(8, 16, 19, 24, 15)')
+
+    const dialog = document.querySelector<HTMLElement>('.display-designer-dialog')!
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true })) })
+    expect(source()).toContain('local start_x = 8')
+    expect(source()).toContain('start_x + 11')
   })
 
   it('attaches shared text bindings, renames locals without breaking uses, and previews choice definitions in order', async () => {

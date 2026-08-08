@@ -108,11 +108,31 @@ import {
   type DisplayDesignIdFactory,
   type DisplayDesignSelection,
   type DisplayScalar,
+  type DisplayStaticScalar,
   type DisplayPrimitiveElement,
   type DisplayPrimitivePreset,
   type DisplayTextElement,
   type DisplaySymbolInstance,
 } from './display-design-model'
+import {
+  collectDisplayTokenExpressionReferences,
+  createDisplayTokenMap,
+  displayStaticScalarToTokenExpression,
+  displayTokenExpressionToStaticScalar,
+  formatDisplayDesignNumber,
+  parseDisplayStaticScalarFormula,
+  printDisplayTokenExpression,
+} from './display-design-token-expressions'
+import {
+  createDisplayTokenInDocument,
+  deleteDisplayTokenWithSubstitution,
+  deleteUnusedDisplayToken,
+  listDisplayTokenUsages,
+  reorderDisplayToken,
+  updateDisplayToken,
+} from './display-design-tokens'
+import { offsetDisplayStaticScalar } from './display-design-resolution'
+import { validateDisplayDesign } from './display-design-validation'
 import {
   addDisplaySymbolVariant,
   createDisplaySymbolFromSelection,
@@ -415,6 +435,7 @@ function readBrowserFileText(file: File): Promise<string> {
 function isEmptyDisplayDesign(document: DisplayDesignDocument): boolean {
   return document.elements.length === 0
     && document.groups.length === 0
+    && document.tokens.length === 0
     && document.bindings.length === 0
     && document.symbols.length === 0
     && document.layoutGrid === null
@@ -907,11 +928,81 @@ function DisplayDesignerSymbols({
   </section>
 }
 
+function DisplayFormulaInput({
+  document,
+  label,
+  scalar,
+  minimum,
+  maximum,
+  onCommit,
+}: {
+  document: DisplayDesignDocument
+  label: string
+  scalar: DisplayStaticScalar
+  minimum: number
+  maximum: number
+  onCommit(value: DisplayStaticScalar): void
+}) {
+  const errorId = useId()
+  const tokens = createDisplayTokenMap(document.tokens)
+  const committed = scalar.kind === 'literal'
+    ? formatDisplayDesignNumber(scalar.value)
+    : printDisplayTokenExpression(scalar.expression, tokens)
+  const [draft, setDraft] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const displayed = draft ?? committed
+  const commit = (): boolean => {
+    const result = parseDisplayStaticScalarFormula(displayed, document.tokens)
+    if (!result.ok) {
+      setError(result.message)
+      return false
+    }
+    try {
+      const preview = staticDisplayScalarValue(document, result.scalar)
+      if (preview < minimum || preview > maximum) {
+        setError(`Resolved value must be from ${minimum} through ${maximum}.`)
+        return false
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Formula could not be resolved.')
+      return false
+    }
+    setError('')
+    setDraft(null)
+    onCommit(result.scalar)
+    return true
+  }
+  return <label className="display-designer-field display-designer-formula-field">
+    <span>{label}</span>
+    <input
+      value={displayed}
+      aria-invalid={Boolean(error) || undefined}
+      aria-describedby={error ? errorId : undefined}
+      onChange={(event) => { setDraft(event.currentTarget.value); setError('') }}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          if (commit()) event.currentTarget.blur()
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          event.stopPropagation()
+          setDraft(null)
+          setError('')
+          event.currentTarget.blur()
+        }
+      }}
+    />
+    {error && <small id={errorId} role="alert">{error}</small>}
+  </label>
+}
+
 function DisplayScalarEditor({
   document,
   scalar,
   label,
   integer,
+  idFactory,
   minimum = DISPLAY_DESIGN_LIMITS.minimumCoordinate,
   maximum = DISPLAY_DESIGN_LIMITS.maximumCoordinate,
   onChange,
@@ -921,11 +1012,13 @@ function DisplayScalarEditor({
   scalar: DisplayScalar
   label: string
   integer: boolean
+  idFactory: DisplayDesignIdFactory
   minimum?: number
   maximum?: number
-  onChange(value: DisplayScalar, action: string): void
+  onChange(value: DisplayScalar, action: string, baseDocument?: DisplayDesignDocument): void
   onMakeDynamic(): void
 }) {
+  const [editFormula, setEditFormula] = useState(false)
   const bindings = document.bindings.filter((binding) => binding.kind === 'number')
   const preview = staticDisplayScalarValue(document, scalar)
   const commitLiteral = (draft: string) => {
@@ -934,39 +1027,59 @@ function DisplayScalarEditor({
     onChange({ kind: 'literal', value }, `Change ${label}`)
     return true
   }
-  const attach = (bindingId: string) => onChange({
+  const attachBinding = (bindingId: string) => onChange({
     kind: 'number-binding',
     bindingId,
-    from: scalar.kind === 'number-binding' ? scalar.from : scalar.value,
-    to: scalar.kind === 'number-binding' ? scalar.to : Math.min(maximum, scalar.value + (label.toLowerCase().includes('shade') ? 0 : 16)),
+    from: scalar.kind === 'number-binding' ? scalar.from : scalar,
+    to: scalar.kind === 'number-binding' ? scalar.to : offsetDisplayStaticScalar(scalar, label.toLowerCase().includes('shade') ? 0 : Math.min(16, maximum - preview)),
     quantize: integer ? 'integer' : 'none',
   }, `Attach ${label} binding`)
 
-  if (scalar.kind === 'literal') return <div className="display-designer-dynamic-property">
+  const attachToken = (tokenId: string) => onChange({
+    kind: 'token-expression',
+    expression: { kind: 'token', tokenId },
+  }, `Attach ${label} token`)
+
+  const createToken = () => {
+    const created = createDisplayTokenInDocument(document, idFactory, label, preview)
+    onChange({ kind: 'token-expression', expression: { kind: 'token', tokenId: created.token.id } }, `Create and attach ${label} token`, created.document)
+  }
+
+  if (scalar.kind === 'literal' && !editFormula) return <div className="display-designer-dynamic-property">
     <CommitInput label={label} type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.value} onCommit={commitLiteral} />
     <div className="display-designer-dynamic-actions">
-      <button type="button" onClick={onMakeDynamic}>Make {label} dynamic</button>
-      {bindings.length > 0 && <select aria-label={`Attach ${label} binding`} value="" onChange={(event) => { if (event.currentTarget.value) attach(event.currentTarget.value) }}><option value="">Attach existing…</option>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}
+      <button type="button" onClick={() => setEditFormula(true)}>Use {label} token/formula</button>
+      <button type="button" disabled={document.tokens.length >= DISPLAY_DESIGN_LIMITS.maximumTokens} onClick={createToken}>Create {label} token from value</button>
+      {document.tokens.length > 0 && <select aria-label={`Attach ${label} token`} value="" onChange={(event) => { if (event.currentTarget.value) attachToken(event.currentTarget.value) }}><option value="">Attach token…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>}
+      <button type="button" onClick={onMakeDynamic}>Make {label} runtime dynamic</button>
+      {bindings.length > 0 && <select aria-label={`Attach ${label} runtime binding`} value="" onChange={(event) => { if (event.currentTarget.value) attachBinding(event.currentTarget.value) }}><option value="">Attach runtime binding…</option>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}
     </div>
   </div>
 
+  if (scalar.kind !== 'number-binding') {
+    const references = scalar.kind === 'token-expression'
+      ? [...collectDisplayTokenExpressionReferences(scalar.expression)]
+      : []
+    return <fieldset className="display-designer-binding-map display-designer-token-formula"><legend>{label} token/formula · Preview {preview}</legend>
+      <DisplayFormulaInput document={document} label={`${label} formula`} scalar={scalar} minimum={minimum} maximum={maximum} onCommit={(value) => { setEditFormula(false); onChange(value, `Change ${label} formula`) }} />
+      {references.length > 0 && <div className="display-designer-token-chips" aria-label={`${label} referenced tokens`}>{references.map((tokenId) => {
+        const token = document.tokens.find(({ id }) => id === tokenId)
+        return token ? <code key={token.id}>{token.luaName}</code> : null
+      })}</div>}
+      <div className="display-designer-dynamic-actions">
+        <button type="button" onClick={() => { setEditFormula(false); onChange({ kind: 'literal', value: preview }, `Make ${label} literal from preview`) }}>Make literal from preview</button>
+        <button type="button" onClick={onMakeDynamic}>Make {label} runtime dynamic</button>
+      </div>
+    </fieldset>
+  }
+
   return <fieldset className="display-designer-binding-map"><legend>{label} · Preview {preview}</legend>
-    <label className="display-designer-field"><span>Binding</span><select value={scalar.bindingId} onChange={(event) => attach(event.currentTarget.value)}>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label>
+    <label className="display-designer-field"><span>Runtime binding</span><select value={scalar.bindingId} onChange={(event) => attachBinding(event.currentTarget.value)}>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label>
     <div className="display-designer-field-grid">
-      <CommitInput label="From" type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.from} onCommit={(draft) => {
-        const value = Number(draft)
-        if (!Number.isFinite(value) || value < minimum || value > maximum || (integer && !Number.isInteger(value))) return false
-        onChange({ ...scalar, from: value }, `Change ${label} mapping`)
-        return true
-      }} />
-      <CommitInput label="To" type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.to} onCommit={(draft) => {
-        const value = Number(draft)
-        if (!Number.isFinite(value) || value < minimum || value > maximum || (integer && !Number.isInteger(value))) return false
-        onChange({ ...scalar, to: value }, `Change ${label} mapping`)
-        return true
-      }} />
+      <DisplayFormulaInput document={document} label="From formula" scalar={scalar.from} minimum={minimum} maximum={maximum} onCommit={(value) => onChange({ ...scalar, from: value }, `Change ${label} mapping`)} />
+      <DisplayFormulaInput document={document} label="To formula" scalar={scalar.to} minimum={minimum} maximum={maximum} onCommit={(value) => onChange({ ...scalar, to: value }, `Change ${label} mapping`)} />
     </div>
-    <button type="button" onClick={() => onChange({ kind: 'literal', value: preview }, `Make ${label} static`)}>Make {label} static</button>
+    <button type="button" onClick={() => onChange({ kind: 'literal', value: preview }, `Make ${label} static from preview`)}>Make {label} static from preview</button>
   </fieldset>
 }
 
@@ -1058,9 +1171,12 @@ function DisplayDesignerInspector({
       <h3 id="display-designer-properties-title">Properties</h3>
       <p className="display-designer-element-kind">Symbol instance · {symbol.name}</p>
       <CommitInput label="Layer name" value={element.name} onCommit={(value) => { const name = value.trim(); if (!name) return false; updateInstance('Rename instance', (instance) => ({ ...instance, name })); return true }} />
-      <div className="display-designer-field-grid">{(['x', 'y'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={element[property]} label={property.toUpperCase()} integer={false} onChange={(value, label) => updateInstance(label, (instance) => ({ ...instance, [property]: value }))} onMakeDynamic={() => {
+      <div className="display-designer-field-grid">{(['x', 'y'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={element[property]} label={property.toUpperCase()} integer={false} idFactory={idFactory} onChange={(value, label, baseDocument = document) => onCommit(label, updateDisplayDesignElement(baseDocument, element.id, (current) => current.kind === 'symbol-instance' ? { ...current, [property]: value } : current))} onMakeDynamic={() => {
         const created = createDisplayBindingInDocument(document, 'number', idFactory, `${symbol.name} ${property.toUpperCase()}`)
-        onCommit(`Make instance ${property} dynamic`, updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'symbol-instance' ? { ...current, [property]: { kind: 'number-binding', bindingId: created.binding.id, from: staticDisplayScalarValue(document, element[property]), to: staticDisplayScalarValue(document, element[property]) + 16, quantize: 'none' } } : current))
+        const staticScalar: DisplayStaticScalar = element[property].kind === 'number-binding'
+          ? { kind: 'literal', value: staticDisplayScalarValue(document, element[property]) }
+          : element[property]
+        onCommit(`Make instance ${property} runtime dynamic`, updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'symbol-instance' ? { ...current, [property]: { kind: 'number-binding', bindingId: created.binding.id, from: staticScalar, to: offsetDisplayStaticScalar(staticScalar, 16), quantize: 'none' } } : current))
       }} />)}</div>
       {element.state.kind === 'literal' ? <label className="display-designer-field"><span>State</span><select value={element.state.variantId} onChange={(event) => updateInstance('Change instance state', (instance) => ({ ...instance, state: { kind: 'literal', variantId: event.currentTarget.value } }))}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label> : <fieldset className="display-designer-binding-map"><legend>Dynamic state</legend><label className="display-designer-field"><span>Choice binding</span><select value={element.state.bindingId} onChange={(event) => updateInstance('Change state binding', (instance) => ({ ...instance, state: { kind: 'choice-binding', bindingId: event.currentTarget.value, variantByChoiceId: instance.state.kind === 'choice-binding' ? instance.state.variantByChoiceId : {} } }))}>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>{binding?.kind === 'choice' && binding.choices.map((choice) => <label key={choice.id} className="display-designer-field"><span>{choice.name}</span><select value={element.state.kind === 'choice-binding' ? element.state.variantByChoiceId[choice.id] ?? '' : ''} onChange={(event) => updateInstance('Map instance state', (instance) => instance.state.kind === 'choice-binding' ? { ...instance, state: { ...instance.state, variantByChoiceId: { ...instance.state.variantByChoiceId, [choice.id]: event.currentTarget.value } } } : instance)}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>)}<button type="button" onClick={() => onCommit('Sync choices with states', syncDisplaySymbolChoiceMap(document, element.id))}>Sync choices with states</button><button type="button" onClick={() => {
         const choice = binding?.kind === 'choice' ? binding.previewChoiceId : ''
@@ -1097,19 +1213,42 @@ function DisplayDesignerInspector({
   }
 
   const scalar = (property: DisplayScalarProperty) => (element as unknown as Record<DisplayScalarProperty, DisplayScalar>)[property]
-  const setScalar = (property: DisplayScalarProperty, value: DisplayScalar, label: string) => update(label, (current) => ({ ...current, [property]: value } as DisplayPrimitiveElement))
+  const setScalar = (property: DisplayScalarProperty, value: DisplayScalar, label: string, baseDocument = document) => {
+    onCommit(label, updateDisplayDesignElement(baseDocument, element.id, (current) => current.kind === 'symbol-instance' ? current : ({ ...current, [property]: value } as DisplayPrimitiveElement)))
+  }
   const createScalarBinding = (property: DisplayScalarProperty, label: string) => {
     const currentScalar = scalar(property)
     bindWithNewDocument('number', label, (current, id) => {
       return { ...current, [property]: {
         kind: 'number-binding', bindingId: id,
-        from: currentScalar.kind === 'literal' ? currentScalar.value : currentScalar.from,
-        to: currentScalar.kind === 'literal' ? currentScalar.value + (label.toLowerCase().includes('shade') ? 0 : 16) : currentScalar.to,
+        from: currentScalar.kind === 'number-binding' ? currentScalar.from : currentScalar,
+        to: currentScalar.kind === 'number-binding' ? currentScalar.to : offsetDisplayStaticScalar(currentScalar, label.toLowerCase().includes('shade') ? 0 : 16),
         quantize: label.toLowerCase().includes('shade') || !((element.kind === 'line' || element.kind === 'circle') && element.smooth) ? 'integer' : 'none',
       } } as DisplayScenePrimitive
     })
   }
   const coordinateStep = (element.kind === 'line' || element.kind === 'circle') && element.smooth ? 'any' : 1
+  const driveBoxSizeWithToken = (axis: 'x' | 'y', tokenId: string) => {
+    if (element.kind !== 'box') return
+    const startProperty = axis === 'x' ? 'x1' : 'y1'
+    const endProperty = axis === 'x' ? 'x2' : 'y2'
+    const start = element[startProperty]
+    if (start.kind === 'number-binding') return
+    const forward = staticDisplayScalarValue(document, element[endProperty]) >= staticDisplayScalarValue(document, start)
+    const sizeMinusOne = {
+      kind: 'binary' as const,
+      operator: 'subtract' as const,
+      left: { kind: 'token' as const, tokenId },
+      right: { kind: 'number' as const, value: 1 },
+    }
+    const next = displayTokenExpressionToStaticScalar({
+      kind: 'binary',
+      operator: forward ? 'add' : 'subtract',
+      left: displayStaticScalarToTokenExpression(start),
+      right: sizeMinusOne,
+    })
+    setScalar(endProperty, next, `Drive ${axis === 'x' ? 'width' : 'height'} with token/formula`)
+  }
 
   return (
     <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
@@ -1131,18 +1270,21 @@ function DisplayDesignerInspector({
         })
       }}><option value="">No group</option>{document.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
       {(element.kind === 'line' || element.kind === 'box') && <div className="display-designer-field-grid">
-        {(['x1', 'y1', 'x2', 'y2'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer={coordinateStep === 1} onChange={(value, label) => setScalar(property, value, label)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
+        {(['x1', 'y1', 'x2', 'y2'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer={coordinateStep === 1} idFactory={idFactory} onChange={(value, label, baseDocument) => setScalar(property, value, label, baseDocument)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
       </div>}
-      {element.kind === 'box' && <p className="display-designer-computed">Inclusive size: {Math.abs(staticDisplayScalarValue(document, scalar('x2')) - staticDisplayScalarValue(document, scalar('x1'))) + 1} × {Math.abs(staticDisplayScalarValue(document, scalar('y2')) - staticDisplayScalarValue(document, scalar('y1'))) + 1}</p>}
+      {element.kind === 'box' && <div className="display-designer-computed"><p>Inclusive size: {Math.abs(staticDisplayScalarValue(document, scalar('x2')) - staticDisplayScalarValue(document, scalar('x1'))) + 1} × {Math.abs(staticDisplayScalarValue(document, scalar('y2')) - staticDisplayScalarValue(document, scalar('y1'))) + 1}</p><div className="display-designer-dynamic-actions">
+        <select aria-label="Drive width with token/formula" value="" disabled={element.x1.kind === 'number-binding' || document.tokens.length === 0} title={element.x1.kind === 'number-binding' ? 'Width formulas require a static start coordinate.' : undefined} onChange={(event) => { if (event.currentTarget.value) driveBoxSizeWithToken('x', event.currentTarget.value) }}><option value="">Drive width with token/formula…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>
+        <select aria-label="Drive height with token/formula" value="" disabled={element.y1.kind === 'number-binding' || document.tokens.length === 0} title={element.y1.kind === 'number-binding' ? 'Height formulas require a static start coordinate.' : undefined} onChange={(event) => { if (event.currentTarget.value) driveBoxSizeWithToken('y', event.currentTarget.value) }}><option value="">Drive height with token/formula…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>
+      </div></div>}
       {element.kind === 'circle' && <div className="display-designer-field-grid">
         {(['x', 'y', 'radius'] as const).map((property) => {
           const label = property === 'radius' ? 'Radius' : property.toUpperCase()
-          return <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={label} integer={coordinateStep === 1} minimum={property === 'radius' ? 0 : undefined} maximum={property === 'radius' ? DISPLAY_DESIGN_LIMITS.maximumRadius : undefined} onChange={(value, action) => setScalar(property, value, action)} onMakeDynamic={() => createScalarBinding(property, label)} />
+          return <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={label} integer={coordinateStep === 1} idFactory={idFactory} minimum={property === 'radius' ? 0 : undefined} maximum={property === 'radius' ? DISPLAY_DESIGN_LIMITS.maximumRadius : undefined} onChange={(value, action, baseDocument) => setScalar(property, value, action, baseDocument)} onMakeDynamic={() => createScalarBinding(property, label)} />
         })}
       </div>}
       {element.kind === 'text' && <>
         <div className="display-designer-field-grid">
-          {(['x', 'y'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer onChange={(value, action) => setScalar(property, value, action)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
+          {(['x', 'y'] as const).map((property) => <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={property.toUpperCase()} integer idFactory={idFactory} onChange={(value, action, baseDocument) => setScalar(property, value, action, baseDocument)} onMakeDynamic={() => createScalarBinding(property, property.toUpperCase())} />)}
         </div>
         {element.text.kind === 'literal' ? <div className="display-designer-dynamic-property"><CommitInput label="Text" value={element.text.value} onCommit={(text) => {
           if ([...text].length > DISPLAY_DESIGN_LIMITS.maximumTextCodePoints) return false
@@ -1156,7 +1298,7 @@ function DisplayDesignerInspector({
       </>}
 
       <fieldset className="display-designer-shades"><legend>Shade: {staticDisplayScalarValue(document, scalar('shade'))}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Shade ${shade}`} aria-pressed={staticDisplayScalarValue(document, scalar('shade')) === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setScalar('shade', { kind: 'literal', value: shade }, 'Change shade')}>{shade}</button>)}</div></fieldset>
-      <DisplayScalarEditor document={document} scalar={scalar('shade')} label="Exact shade" integer minimum={0} maximum={15} onChange={(value, action) => setScalar('shade', value, action)} onMakeDynamic={() => createScalarBinding('shade', 'Shade')} />
+      <DisplayScalarEditor document={document} scalar={scalar('shade')} label="Exact shade" integer idFactory={idFactory} minimum={0} maximum={15} onChange={(value, action, baseDocument) => setScalar('shade', value, action, baseDocument)} onMakeDynamic={() => createScalarBinding('shade', 'Shade')} />
       {element.visible.kind === 'visible' ? <div className="display-designer-dynamic-property"><p>Visibility · Always visible</p><div className="display-designer-dynamic-actions"><button type="button" onClick={() => bindWithNewDocument('boolean', 'Visibility', (current, bindingId) => ({ ...current, visible: { kind: 'boolean-binding', bindingId, invert: false } }))}>Make visibility dynamic</button>{document.bindings.some(({ kind }) => kind === 'boolean') && <select aria-label="Attach visibility binding" value="" onChange={(event) => { if (event.currentTarget.value) update('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: false } })) }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}</div></div> : <fieldset className="display-designer-binding-map"><legend>Visibility</legend><label className="display-designer-field"><span>Binding</span><select value={element.visible.bindingId} onChange={(event) => update('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: current.visible.kind === 'boolean-binding' ? current.visible.invert : false } }))}>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label><label className="display-designer-check"><input type="checkbox" checked={element.visible.invert} onChange={(event) => update('Invert visibility', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: element.visible.kind === 'boolean-binding' ? element.visible.bindingId : '', invert: event.currentTarget.checked } }))} />Invert binding</label><button type="button" onClick={() => update('Make visibility static', (current) => ({ ...current, visible: { kind: 'visible' } }))}>Make visibility static</button></fieldset>}
     </section>
   )
@@ -1187,6 +1329,7 @@ function DisplayDesignerStatePanel({
     const luaName = allocateDisplayLuaIdentifier(
       trimmed,
       [
+        ...document.tokens.map((token) => token.luaName),
         ...document.bindings.filter(({ id }) => id !== binding.id).map((other) => other.luaName),
         ...document.symbols.map((symbol) => symbol.luaName),
       ],
@@ -1270,6 +1413,60 @@ function DisplayDesignerStatePanel({
   </section>
 }
 
+function DisplayDesignerTokensPanel({
+  document,
+  idFactory,
+  generated,
+  onCommit,
+  onShowInLua,
+}: {
+  document: DisplayDesignDocument
+  idFactory: DisplayDesignIdFactory
+  generated: ReturnType<typeof generateDisplayDesignLua>
+  onCommit(label: string, document: DisplayDesignDocument): void
+  onShowInLua(tokenId: string): void
+}) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string>()
+  const usages = listDisplayTokenUsages(document)
+  const addToken = () => {
+    const created = createDisplayTokenInDocument(document, idFactory)
+    onCommit('Create design token', created.document)
+  }
+  return <section className="display-designer-panel display-designer-tokens" aria-labelledby="display-designer-tokens-title">
+    <h3 id="display-designer-tokens-title">Tokens</h3>
+    <p className="display-designer-empty">Design tokens are authored layout/style numbers. They are not runtime bindings or Disting state.</p>
+    <button type="button" disabled={document.tokens.length >= DISPLAY_DESIGN_LIMITS.maximumTokens} onClick={addToken}>Add number token</button>
+    {document.tokens.length === 0 ? <p className="display-designer-empty">Create a token, then attach it to numeric properties or use it in a safe formula.</p> : <ol>{document.tokens.map((token, index) => {
+      const tokenUsages = usages.filter(({ tokenId }) => tokenId === token.id)
+      return <li key={token.id} className="display-designer-token-card">
+        <header><strong>{token.name}</strong><code>{token.luaName}</code></header>
+        <CommitInput label="Token name" value={token.name} onCommit={(name) => {
+          const trimmed = name.trim()
+          if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
+          onCommit('Rename design token', updateDisplayToken(document, token.id, { name: trimmed }))
+          return true
+        }} />
+        <CommitInput label="Exact value" type="number" min={DISPLAY_DESIGN_LIMITS.minimumCoordinate} max={DISPLAY_DESIGN_LIMITS.maximumCoordinate} step="any" value={token.value} onCommit={(draft) => {
+          const value = Number(draft)
+          if (!Number.isFinite(value) || value < DISPLAY_DESIGN_LIMITS.minimumCoordinate || value > DISPLAY_DESIGN_LIMITS.maximumCoordinate) return false
+          const next = updateDisplayToken(document, token.id, { value })
+          if (!validateDisplayDesign(next).ok) return false
+          onCommit('Change design token value', next)
+          return true
+        }} />
+        <div className="display-designer-compact-row"><button type="button" disabled={index === 0} onClick={() => onCommit('Move design token earlier', reorderDisplayToken(document, index, index - 1))}>Earlier</button><button type="button" disabled={index === document.tokens.length - 1} onClick={() => onCommit('Move design token later', reorderDisplayToken(document, index, index + 1))}>Later</button></div>
+        <details><summary>{tokenUsages.length} {tokenUsages.length === 1 ? 'use' : 'uses'}</summary>{tokenUsages.length === 0 ? <p>Not attached.</p> : <ul>{tokenUsages.map((usage, usageIndex) => <li key={`${usage.ownerId}-${usage.property}-${usage.endpoint ?? ''}-${usageIndex}`}>{usage.ownerName} · {usage.property}{usage.endpoint ? ` · ${usage.endpoint === 'from' ? 'From' : 'To'}` : ''}</li>)}</ul>}</details>
+        {generated.ok && generated.tokenLocations[token.id] && <button type="button" onClick={() => onShowInLua(token.id)}>Show in Lua</button>}
+        <button type="button" className="is-danger" onClick={() => {
+          if (tokenUsages.length === 0) onCommit('Delete unused design token', deleteUnusedDisplayToken(document, token.id))
+          else setPendingDeleteId(token.id)
+        }}>Delete token</button>
+        {pendingDeleteId === token.id && <div className="display-designer-binding-delete" role="alert"><p>{tokenUsages.length} attached {tokenUsages.length === 1 ? 'property' : 'properties'} will keep the token’s current value. Other token links in each formula remain attached.</p><div><button type="button" onClick={() => setPendingDeleteId(undefined)}>Cancel</button><button type="button" className="is-danger" onClick={() => { onCommit('Replace token references and delete', deleteDisplayTokenWithSubstitution(document, token.id)); setPendingDeleteId(undefined) }}>Replace references with current value and delete</button></div></div>}
+      </li>
+    })}</ol>}
+  </section>
+}
+
 function DisplayDesignerReview({
   document,
   compiled,
@@ -1279,15 +1476,17 @@ function DisplayDesignerReview({
   onFocusFinding,
   responsive,
   activePanel,
+  focusTokenId,
 }: {
   document: DisplayDesignDocument
   compiled: ReturnType<typeof compileDisplayDesign>
   generated: ReturnType<typeof generateDisplayDesignLua>
   bindingCount: number
   variantCount: number
-  onFocusFinding(elementId?: string): void
+  onFocusFinding(elementId?: string, tokenId?: string): void
   responsive: boolean
   activePanel: DisplayDesignerPanel
+  focusTokenId?: string
 }) {
   const findings = compiled.findings
   const errorFindings = findings.filter(({ severity }) => severity === 'error')
@@ -1297,6 +1496,10 @@ function DisplayDesignerReview({
   const [showCopyFallback, setShowCopyFallback] = useState(false)
   const copyFallbackRef = useRef<HTMLTextAreaElement>(null)
   const sourceLines = generated.ok ? generated.source.split('\n') : []
+  useEffect(() => {
+    if (!focusTokenId || !generated.ok) return
+    setActiveSourceLine(generated.tokenLocations[focusTokenId]?.line)
+  }, [focusTokenId, generated])
   let instanceSearchIndex = sourceLines.findIndex((sourceLine) => sourceLine.includes('return function(self)')) + 1
   const instanceSourceNavigation = document.elements.flatMap((element) => {
     if (element.kind !== 'symbol-instance') return []
@@ -1308,6 +1511,10 @@ function DisplayDesignerReview({
     return [{ label: `${element.name} call`, line: index + 1 }]
   })
   const sourceNavigation = generated.ok ? [
+    ...document.tokens.flatMap((token) => {
+      const line = generated.tokenLocations[token.id]?.line
+      return line ? [{ label: `${token.name} token`, line }] : []
+    }),
     ...document.symbols.flatMap((symbol) => {
       if (!document.elements.some((element) => element.kind === 'symbol-instance' && element.symbolId === symbol.id)) return []
       const line = sourceLines.findIndex((sourceLine) => sourceLine.includes(`local function ${symbol.luaName}(`)) + 1
@@ -1344,8 +1551,8 @@ function DisplayDesignerReview({
       >
         <h3 id="display-designer-findings-title">Findings <span>{findings.length}</span></h3>
         {findings.length === 0 ? <p role="status">No design findings.</p> : <>
-          {errorFindings.length > 0 && <section aria-labelledby="display-designer-errors-title"><h4 id="display-designer-errors-title">Errors ({errorFindings.length})</h4><ul>{errorFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId)}>{finding.message}</button></li>)}</ul></section>}
-          {warningFindings.length > 0 && <section aria-labelledby="display-designer-warnings-title"><h4 id="display-designer-warnings-title">Warnings ({warningFindings.length})</h4><ul>{warningFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId)}>{finding.message}</button></li>)}</ul></section>}
+          {errorFindings.length > 0 && <section aria-labelledby="display-designer-errors-title"><h4 id="display-designer-errors-title">Errors ({errorFindings.length})</h4><ul>{errorFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId, finding.focus?.tokenId)}>{finding.message}</button></li>)}</ul></section>}
+          {warningFindings.length > 0 && <section aria-labelledby="display-designer-warnings-title"><h4 id="display-designer-warnings-title">Warnings ({warningFindings.length})</h4><ul>{warningFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId, finding.focus?.tokenId)}>{finding.message}</button></li>)}</ul></section>}
         </>}
       </section>
       <section
@@ -1363,6 +1570,7 @@ function DisplayDesignerReview({
           <div><dt>Smooth calls</dt><dd>{compiled.metrics.smoothCallCount}</dd></div>
           <div><dt>Symbols / variants / instances</dt><dd>{compiled.metrics.symbolCount} / {variantCount} / {compiled.metrics.instanceCount}</dd></div>
           <div><dt>Bindings</dt><dd>{bindingCount}</dd></div>
+          <div><dt>Tokens / references</dt><dd>{compiled.metrics.tokenCount} / {compiled.metrics.tokenReferenceCount}</dd></div>
           <div><dt>Generated UTF-8</dt><dd>{compiled.metrics.generatedUtf8Bytes} bytes</dd></div>
         </dl>
         <p id="display-designer-metrics-note">Descriptive only; measure actual performance on Disting NT hardware.</p>
@@ -1437,6 +1645,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const [confirmReplace, setConfirmReplace] = useState(false)
   const [pendingDetachId, setPendingDetachId] = useState<string>()
   const [fileStatus, setFileStatus] = useState('')
+  const [focusTokenId, setFocusTokenId] = useState<string>()
   const [responsivePanel, setResponsivePanel] = useState<DisplayDesignerPanel>('layers')
   const [savedDocumentText, setSavedDocumentText] = useState(initialSavedDocumentText)
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
@@ -1709,7 +1918,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       }
       snapState = snapped.state
       snapGuides = snapped.guides
-      nextDocument = updateDisplayDesignElement(current.baseDocument, current.elementId, (currentElement) => resizeDisplayElement(currentElement, current.handle!, snapped.point))
+      nextDocument = updateDisplayDesignElement(current.baseDocument, current.elementId, (currentElement) => resizeDisplayElement(currentElement, current.handle!, snapped.point, current.baseDocument))
     } else if (current.kind === 'marquee' && current.baseSelection && current.selectionMode) {
       const elementIds = displayElementsWithinArea(previewDocument, current.start, point)
       const nextSelection = activeSymbol && activeVariant
@@ -2078,7 +2287,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                     ...variant,
                     elements: nextDocument.elements.filter((element): element is DisplayPrimitiveElement => element.kind !== 'symbol-instance'),
                   }))
-                  commit(label, { ...merged, bindings: nextDocument.bindings }, selection)
+                  commit(label, { ...merged, tokens: nextDocument.tokens, bindings: nextDocument.bindings }, selection)
                 }}
                 onEditSymbol={(instance) => {
                   const symbol = document.symbols.find(({ id }) => id === instance.symbolId)
@@ -2093,6 +2302,22 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                   setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: symbol.id, variantId, primitiveIds: [] })
                 }}
                 onDetachInstance={(instance) => setPendingDetachId(instance.id)}
+              /></div>
+              <div
+                className="display-designer-responsive-panel"
+                role={responsive ? 'tabpanel' : undefined}
+                id={responsive ? 'display-designer-panel-tokens' : undefined}
+                aria-labelledby={responsive ? 'display-designer-tab-tokens' : undefined}
+                hidden={responsive && responsivePanel !== 'tokens'}
+              ><DisplayDesignerTokensPanel
+                document={document}
+                idFactory={idFactory}
+                generated={generated}
+                onCommit={commit}
+                onShowInLua={(tokenId) => {
+                  setFocusTokenId(tokenId)
+                  if (responsive) setResponsivePanel('lua')
+                }}
               /></div>
               <div
                 className="display-designer-responsive-panel"
@@ -2135,7 +2360,13 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
           variantCount={document.symbols.reduce((count, symbol) => count + symbol.variants.length, 0)}
           responsive={responsive}
           activePanel={responsivePanel}
-          onFocusFinding={(elementId) => {
+          focusTokenId={focusTokenId}
+          onFocusFinding={(elementId, tokenId) => {
+            if (tokenId) {
+              setFocusTokenId(tokenId)
+              if (responsive) setResponsivePanel('tokens')
+              return
+            }
             if (elementId) {
               selectElement(elementId)
               if (responsive) setResponsivePanel('properties')

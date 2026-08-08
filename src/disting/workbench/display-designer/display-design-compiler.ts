@@ -9,11 +9,13 @@ import {
 } from './display-design-model'
 import {
   createDisplayBindingMap,
+  createDisplayTokenMap,
   resolveDisplayScalar,
   resolveDisplayText,
   resolveDisplayVisibility,
   type DisplayBindingMap,
 } from './display-design-resolution'
+import type { DisplayTokenMap } from './display-design-token-expressions'
 import { buildDisplayDesignSource } from './display-design-generator'
 import { validateDisplayDesign } from './display-design-validation'
 
@@ -34,6 +36,8 @@ export interface CompiledDisplayDesignMetrics {
   maximumVariantDrawCallCount: number
   smoothCallCount: number
   generatedUtf8Bytes: number
+  tokenCount: number
+  tokenReferenceCount: number
 }
 
 export interface CompiledDisplayDesign {
@@ -70,16 +74,17 @@ export function compileDisplayPrimitive(
   primitive: DisplayPrimitiveElement,
   bindings: DisplayBindingMap,
   translation: DisplayPrimitiveTranslation = NO_TRANSLATION,
+  tokens: DisplayTokenMap = createDisplayTokenMap([]),
 ): DrawCommand | undefined {
   if (!resolveDisplayVisibility(primitive.visible, bindings)) return undefined
-  const resolvedShade = shade(resolveDisplayScalar(primitive.shade, bindings))
+  const resolvedShade = shade(resolveDisplayScalar(primitive.shade, bindings, tokens))
   if (primitive.kind === 'line') {
     return {
       kind: 'line',
-      x1: translated(resolveDisplayScalar(primitive.x1, bindings), translation.x, !primitive.smooth),
-      y1: translated(resolveDisplayScalar(primitive.y1, bindings), translation.y, !primitive.smooth),
-      x2: translated(resolveDisplayScalar(primitive.x2, bindings), translation.x, !primitive.smooth),
-      y2: translated(resolveDisplayScalar(primitive.y2, bindings), translation.y, !primitive.smooth),
+      x1: translated(resolveDisplayScalar(primitive.x1, bindings, tokens), translation.x, !primitive.smooth),
+      y1: translated(resolveDisplayScalar(primitive.y1, bindings, tokens), translation.y, !primitive.smooth),
+      x2: translated(resolveDisplayScalar(primitive.x2, bindings, tokens), translation.x, !primitive.smooth),
+      y2: translated(resolveDisplayScalar(primitive.y2, bindings, tokens), translation.y, !primitive.smooth),
       shade: resolvedShade,
       smooth: primitive.smooth,
     }
@@ -87,10 +92,10 @@ export function compileDisplayPrimitive(
   if (primitive.kind === 'box') {
     return {
       kind: 'box',
-      x1: translated(resolveDisplayScalar(primitive.x1, bindings), translation.x, true),
-      y1: translated(resolveDisplayScalar(primitive.y1, bindings), translation.y, true),
-      x2: translated(resolveDisplayScalar(primitive.x2, bindings), translation.x, true),
-      y2: translated(resolveDisplayScalar(primitive.y2, bindings), translation.y, true),
+      x1: translated(resolveDisplayScalar(primitive.x1, bindings, tokens), translation.x, true),
+      y1: translated(resolveDisplayScalar(primitive.y1, bindings, tokens), translation.y, true),
+      x2: translated(resolveDisplayScalar(primitive.x2, bindings, tokens), translation.x, true),
+      y2: translated(resolveDisplayScalar(primitive.y2, bindings, tokens), translation.y, true),
       shade: resolvedShade,
       fill: primitive.fill,
       smooth: false,
@@ -99,17 +104,17 @@ export function compileDisplayPrimitive(
   if (primitive.kind === 'circle') {
     return {
       kind: 'circle',
-      x: translated(resolveDisplayScalar(primitive.x, bindings), translation.x, !primitive.smooth),
-      y: translated(resolveDisplayScalar(primitive.y, bindings), translation.y, !primitive.smooth),
-      radius: resolveDisplayScalar(primitive.radius, bindings),
+      x: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, !primitive.smooth),
+      y: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, !primitive.smooth),
+      radius: resolveDisplayScalar(primitive.radius, bindings, tokens),
       shade: resolvedShade,
       smooth: primitive.smooth,
     }
   }
   return {
     kind: 'text',
-    x: translated(resolveDisplayScalar(primitive.x, bindings), translation.x, true),
-    y: translated(resolveDisplayScalar(primitive.y, bindings), translation.y, true),
+    x: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
+    y: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
     text: resolveDisplayText(primitive.text, bindings),
     shade: resolvedShade,
     tiny: primitive.tiny,
@@ -219,6 +224,8 @@ function emptyMetrics(document?: DisplayDesignDocument): CompiledDisplayDesignMe
     maximumVariantDrawCallCount: 0,
     smoothCallCount: 0,
     generatedUtf8Bytes: 0,
+    tokenCount: document?.tokens.length ?? 0,
+    tokenReferenceCount: 0,
   }
 }
 
@@ -235,13 +242,14 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
   }
 
   const bindings = createDisplayBindingMap(document.bindings)
+  const tokens = createDisplayTokenMap(document.tokens)
   const commands: DrawCommand[] = []
   const commandSources: DisplayCommandSource[] = []
   const findings = [...initialFindings]
   let maximumVariantDrawCallCount = 0
   for (const [elementIndex, element] of document.elements.entries()) {
     if (element.kind !== 'symbol-instance') {
-      const command = compileDisplayPrimitive(element, bindings)
+      const command = compileDisplayPrimitive(element, bindings, NO_TRANSLATION, tokens)
       if (!command) continue
       const firstCommand = commands.length
       commands.push(command)
@@ -255,11 +263,11 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
     const variant = resolveInstanceVariant(element, document, bindings)
     if (!symbol || !variant) continue
     const translation = {
-      x: resolveDisplayScalar(element.x, bindings),
-      y: resolveDisplayScalar(element.y, bindings),
+      x: resolveDisplayScalar(element.x, bindings, tokens),
+      y: resolveDisplayScalar(element.y, bindings, tokens),
     }
     for (const primitive of variant.elements) {
-      const command = compileDisplayPrimitive(primitive, bindings, translation)
+      const command = compileDisplayPrimitive(primitive, bindings, translation, tokens)
       if (!command) continue
       const primitiveFirstCommand = commands.length
       commands.push(command)
@@ -295,6 +303,7 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
       maximumVariantDrawCallCount,
       smoothCallCount,
       generatedUtf8Bytes: sourceBuild.generatedUtf8Bytes,
+      tokenReferenceCount: sourceBuild.tokenReferenceCount,
     },
   }
 }

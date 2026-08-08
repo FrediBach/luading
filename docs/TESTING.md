@@ -336,10 +336,19 @@ context, state editing, literal/dynamic instance controls, explicit detach,
 destructive confirmation, and undo across scene/symbol contexts; it does not
 prove live Canvas layout, pointer capture, or assistive-technology behavior.
 
-Display-design file tests pin canonical version-2 key ordering and bytes, the
-trailing newline, strict version-1 migration, layout-grid validation and round
-trips, future-version/size/type rejection, unsafe file-name repair, generated-
-Lua invariance, and defensive parsing without partial documents. jsdom covers read and parse
+Display-design expression and token tests pin the bounded arithmetic grammar,
+precedence-aware printing, token-ID rename safety, evaluation and division
+failures, immutable usage/substitution operations, collision-safe names, and
+formula-preserving geometry and symbol transformations. Compiler/generator
+tests compare token formulas, tokenized binding endpoints, shared symbol helpers,
+renames, integer/smooth boundaries, and repeated callbacks with commands emitted
+through the production Wasmoon/display bridge.
+
+Display-design file tests pin canonical version-3 root, token, and AST key
+ordering and bytes, the trailing newline, strict version-1/version-2 migration,
+layout-grid validation and round trips, future-version/size/type rejection,
+unsafe file-name repair, generated-Lua invariance, and defensive parsing without
+partial documents. jsdom covers read and parse
 failure without scene replacement, discard-before-open confirmation,
 collision-safe editing after open, Blob download dispatch and failure, exact
 clipboard writes, clipboard rejection, and the selected manual-copy fallback.
@@ -349,12 +358,13 @@ browser handoffs rather than project persistence.
 
 The pure display-designer layout model pins the 900/720 CSS-pixel boundaries,
 stable lower-panel order, and wrapping Home/End/arrow tab navigation. Server
-rendering covers wide, medium, and narrow branches, linked roving tabs and
+rendering covers wide, medium, and narrow branches, the Tokens panel, linked roving tabs and
 panels, narrow Fit zoom, persistent browser-extension/smoothing disclosure,
 non-colour pressed/finding states, live status semantics, coarse-pointer target
 rules, and reduced-motion CSS. jsdom operates responsive and symbol-state tab
-keyboards and checks accessible labels/states for sliders, switches, shade
-swatches, findings, metrics, and announcements.
+keyboards and checks formula commit/cancel/error behavior, token creation,
+rename/source navigation/delete/undo, and accessible labels/states for sliders,
+switches, shade swatches, findings, metrics, and announcements.
 
 CSS assertions and jsdom do not prove actual reflow, hit-target dimensions,
 horizontal overflow, browser zoom, text enlargement, virtual-keyboard effects,

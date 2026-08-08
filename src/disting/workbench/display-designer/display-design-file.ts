@@ -40,7 +40,7 @@ export interface ParsedDisplayDesign {
   document: DisplayDesignDocument
   findings: DisplayDesignerFinding[]
   bytes: number
-  migratedFromVersion?: 1
+  migratedFromVersion?: 1 | 2
 }
 
 export type SerializeDisplayDesignResult = SerializedDisplayDesign | DisplayDesignFileFailure
@@ -146,8 +146,8 @@ export function parseDisplayDesignText(text: string): ParseDisplayDesignResult {
       return { ok: false, code: 'invalid-json', message: 'The selected file does not contain valid JSON.' }
     }
     const migratedFromVersion = typeof value === 'object' && value !== null
-      && 'version' in value && value.version === 1
-      ? 1
+      && 'version' in value && (value.version === 1 || value.version === 2)
+      ? value.version
       : undefined
     const validation = validateDisplayDesign(value)
     if (!validation.ok || !validation.document) {

@@ -123,20 +123,20 @@ describe('display design layout-grid snapping', () => {
     expect(result.delta.y % 0.5).toBe(0)
   })
 
-  it('does not emit a guide when a dynamic outer bound cannot actually move', () => {
+  it('snaps dynamic outer bounds by shifting their complete mapping span', () => {
     const ids = createSequentialDisplayDesignIdFactory('dynamic')
     const binding = createDefaultDisplayBinding('number', ids)
     const line = createDefaultDisplayPrimitive('pixel-line', ids)
     if (binding.kind !== 'number') throw new Error('Expected number binding')
-    line.x1 = { kind: 'number-binding', bindingId: binding.id, from: 8, to: 8, quantize: 'integer' }
-    line.x2 = { kind: 'number-binding', bindingId: binding.id, from: 8, to: 8, quantize: 'integer' }
+    line.x1 = { kind: 'number-binding', bindingId: binding.id, from: { kind: 'literal', value: 8 }, to: { kind: 'literal', value: 8 }, quantize: 'integer' }
+    line.x2 = { kind: 'number-binding', bindingId: binding.id, from: { kind: 'literal', value: 8 }, to: { kind: 'literal', value: 8 }, quantize: 'integer' }
     const document = addDisplayDesignElement(addDisplayDesignBinding(createEmptyDisplayDesign(), binding), line)
     const result = snapDisplaySelectionTranslation({
       document, elementIds: [line.id], requested: { x: 1, y: 0 },
       gridSize: 8, rect: fourXRect,
     })
-    expect(result.state.x).toBeUndefined()
-    expect(result.guides).not.toContainEqual(expect.objectContaining({ axis: 'x' }))
+    expect(result.state.x?.coordinate).toBe(8)
+    expect(result.guides).toContainEqual(expect.objectContaining({ axis: 'x', coordinate: 8 }))
   })
 
   it('snaps while grid rendering is hidden because visibility is not an engine input', () => {

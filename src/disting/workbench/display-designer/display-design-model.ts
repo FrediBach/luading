@@ -1,6 +1,7 @@
 export const DISPLAY_DESIGN_KIND = 'luading-display-design' as const
 export const DISPLAY_DESIGN_VERSION_V1 = 1 as const
-export const DISPLAY_DESIGN_VERSION = 2 as const
+export const DISPLAY_DESIGN_VERSION_V2 = 2 as const
+export const DISPLAY_DESIGN_VERSION = 3 as const
 
 export const DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID = {
   kind: 'uniform',
@@ -16,6 +17,10 @@ export const DISPLAY_DESIGN_LIMITS = {
   maximumVariantsPerSymbol: 16,
   maximumGroups: 64,
   maximumBindings: 64,
+  maximumTokens: 64,
+  maximumExpressionNodes: 64,
+  maximumExpressionDepth: 16,
+  maximumFormulaCodePoints: 256,
   maximumTextCodePoints: 512,
   maximumNameCodePoints: 80,
   minimumCoordinate: -4096,
@@ -38,15 +43,33 @@ export interface DisplayLiteralScalar {
   value: number
 }
 
+export type DisplayTokenExpression =
+  | { kind: 'number'; value: number }
+  | { kind: 'token'; tokenId: string }
+  | { kind: 'negate'; operand: DisplayTokenExpression }
+  | {
+      kind: 'binary'
+      operator: 'add' | 'subtract' | 'multiply' | 'divide'
+      left: DisplayTokenExpression
+      right: DisplayTokenExpression
+    }
+
+export interface DisplayTokenExpressionScalar {
+  kind: 'token-expression'
+  expression: DisplayTokenExpression
+}
+
+export type DisplayStaticScalar = DisplayLiteralScalar | DisplayTokenExpressionScalar
+
 export interface DisplayNumberBindingScalar {
   kind: 'number-binding'
   bindingId: string
-  from: number
-  to: number
+  from: DisplayStaticScalar
+  to: DisplayStaticScalar
   quantize: DisplayScalarQuantization
 }
 
-export type DisplayScalar = DisplayLiteralScalar | DisplayNumberBindingScalar
+export type DisplayScalar = DisplayStaticScalar | DisplayNumberBindingScalar
 
 export type DisplayVisibility =
   | { kind: 'visible' }
@@ -133,6 +156,13 @@ export interface DisplayDesignGroup {
   name: string
 }
 
+export interface DisplayDesignToken {
+  id: string
+  name: string
+  luaName: string
+  value: number
+}
+
 export interface DisplaySymbolVariant {
   id: string
   name: string
@@ -215,11 +245,17 @@ export interface DisplayDesignDocumentV1 extends DisplayDesignDocumentFields {
 }
 
 export interface DisplayDesignDocumentV2 extends DisplayDesignDocumentFields {
-  version: typeof DISPLAY_DESIGN_VERSION
+  version: typeof DISPLAY_DESIGN_VERSION_V2
   layoutGrid: DisplayDesignLayoutGrid | null
 }
 
-export type DisplayDesignDocument = DisplayDesignDocumentV2
+export interface DisplayDesignDocumentV3 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION
+  tokens: DisplayDesignToken[]
+  layoutGrid: DisplayDesignLayoutGrid | null
+}
+
+export type DisplayDesignDocument = DisplayDesignDocumentV3
 
 export interface DisplayDesignSelection {
   elementIds: string[]
@@ -235,6 +271,7 @@ export interface DisplayDesignerFindingFocus {
   elementId?: string
   groupId?: string
   bindingId?: string
+  tokenId?: string
   symbolId?: string
   variantId?: string
   primitiveId?: string
@@ -263,6 +300,7 @@ export type DisplayDesignIdScope =
   | 'element'
   | 'group'
   | 'binding'
+  | 'token'
   | 'choice'
   | 'symbol'
   | 'variant'
@@ -285,6 +323,7 @@ export function createCollisionSafeDisplayDesignIdFactory(
   const usedIds = new Set<string>([
     ...document.elements.map(({ id }) => id),
     ...document.groups.map(({ id }) => id),
+    ...document.tokens.map(({ id }) => id),
     ...document.bindings.flatMap((binding) => [
       binding.id,
       ...(binding.kind === 'choice' ? binding.choices.map(({ id }) => id) : []),
@@ -311,6 +350,7 @@ export function createEmptyDisplayDesign(name = 'Untitled display'): DisplayDesi
     displayMode: 'parameter-line',
     elements: [],
     groups: [],
+    tokens: [],
     bindings: [],
     symbols: [],
     layoutGrid: null,
@@ -671,7 +711,11 @@ export function duplicateDisplayDesignSymbol(
     ...cloneDisplayDesign(source),
     id: idFactory('symbol'),
     name: copiedName(source.name),
-    luaName: allocateCopiedLuaName(source.luaName, new Set(document.symbols.map(({ luaName }) => luaName))),
+    luaName: allocateCopiedLuaName(source.luaName, new Set([
+      ...document.tokens.map(({ luaName }) => luaName),
+      ...document.bindings.map(({ luaName }) => luaName),
+      ...document.symbols.map(({ luaName }) => luaName),
+    ])),
     defaultVariantId: variantIds.get(source.defaultVariantId) ?? variants[0]?.id ?? '',
     variants,
   }

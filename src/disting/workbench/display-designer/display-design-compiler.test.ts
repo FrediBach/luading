@@ -74,11 +74,11 @@ describe('display design compiler', () => {
       { kind: 'text', id: textId, name: 'Label', luaName: 'label', previewValue: 'Bound label' },
     ]
     const line = createDefaultDisplayPrimitive('pixel-line', ids)
-    line.x1 = { kind: 'number-binding', bindingId: numberId, from: -10, to: 0, quantize: 'integer' }
-    line.shade = { kind: 'number-binding', bindingId: numberId, from: 0, to: 15, quantize: 'integer' }
+    line.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: -10 }, to: { kind: 'literal', value: 0 }, quantize: 'integer' }
+    line.shade = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 15 }, quantize: 'integer' }
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: true }
     const smooth = createDefaultDisplayPrimitive('smooth-line', ids)
-    smooth.x1 = { kind: 'number-binding', bindingId: numberId, from: 0, to: 1, quantize: 'none' }
+    smooth.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 1 }, quantize: 'none' }
     const text = createDefaultDisplayPrimitive('standard-text', ids)
     text.text = { kind: 'text-binding', bindingId: textId }
     const hidden = createDefaultDisplayPrimitive('filled-box', ids)

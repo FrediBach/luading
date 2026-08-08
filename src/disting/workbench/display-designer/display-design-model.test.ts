@@ -70,15 +70,16 @@ describe('display design model', () => {
     expect(ids('element')).toBe('designer-element-3')
   })
 
-  it('creates a browser-only empty v2 document and deterministic scoped IDs', () => {
+  it('creates a browser-only empty v3 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({
       kind: 'luading-display-design',
-      version: 2,
+      version: 3,
       name: 'Untitled display',
       displayMode: 'parameter-line',
       elements: [],
       groups: [],
+      tokens: [],
       bindings: [],
       symbols: [],
       layoutGrid: null,

@@ -10,10 +10,11 @@ import {
   type DisplayDesignSymbol,
   type DisplayPrimitiveElement,
   type DisplayScalar,
+  type DisplayStaticScalar,
   type DisplaySymbolInstance,
   type DisplaySymbolVariant,
 } from './display-design-model'
-import { createDisplayBindingMap, resolveDisplayScalar } from './display-design-resolution'
+import { addDisplayScalarStatic, createDisplayBindingMap, createDisplayTokenMap, offsetDisplayScalar, resolveDisplayScalar } from './display-design-resolution'
 
 export interface CreateDisplaySymbolOptions {
   name?: string
@@ -26,12 +27,10 @@ export interface DisplaySymbolUsage {
   unused: boolean
 }
 
-const literal = (value: number): DisplayScalar => ({ kind: 'literal', value })
+const literal = (value: number): DisplayStaticScalar => ({ kind: 'literal', value })
 
 function translatedScalar(value: DisplayScalar, delta: number): DisplayScalar {
-  return value.kind === 'literal'
-    ? literal(value.value + delta)
-    : { ...cloneDisplayDesign(value), from: value.from + delta, to: value.to + delta }
+  return offsetDisplayScalar(value, delta)
 }
 
 export function translateDisplayPrimitive(
@@ -48,6 +47,24 @@ export function translateDisplayPrimitive(
   } else {
     next.x = translatedScalar(next.x, dx)
     next.y = translatedScalar(next.y, dy)
+  }
+  return next
+}
+
+function translateDisplayPrimitiveByStaticScalars(
+  primitive: DisplayPrimitiveElement,
+  x: DisplayStaticScalar,
+  y: DisplayStaticScalar,
+): DisplayPrimitiveElement {
+  const next = cloneDisplayDesign(primitive)
+  if (next.kind === 'line' || next.kind === 'box') {
+    next.x1 = addDisplayScalarStatic(next.x1, x)
+    next.y1 = addDisplayScalarStatic(next.y1, y)
+    next.x2 = addDisplayScalarStatic(next.x2, x)
+    next.y2 = addDisplayScalarStatic(next.y2, y)
+  } else {
+    next.x = addDisplayScalarStatic(next.x, x)
+    next.y = addDisplayScalarStatic(next.y, y)
   }
   return next
 }
@@ -85,7 +102,11 @@ export function createDisplaySymbolFromSelection(
     name,
     luaName: allocateDisplayLuaIdentifier(
       `draw_${name}`,
-      [...document.bindings.map(({ luaName }) => luaName), ...document.symbols.map(({ luaName }) => luaName)],
+      [
+        ...document.tokens.map(({ luaName }) => luaName),
+        ...document.bindings.map(({ luaName }) => luaName),
+        ...document.symbols.map(({ luaName }) => luaName),
+      ],
       'draw_symbol',
     ),
     defaultVariantId: variantId,
@@ -303,10 +324,15 @@ export function detachDisplaySymbolInstance(
   }
   const variant = symbol.variants.find(({ id }) => id === variantId) ?? symbol.variants.find(({ id }) => id === symbol.defaultVariantId)
   if (!variant) return cloneDisplayDesign(document)
-  const x = resolveDisplayScalar(instance.x, bindings)
-  const y = resolveDisplayScalar(instance.y, bindings)
+  const tokens = createDisplayTokenMap(document.tokens)
+  const x: DisplayStaticScalar = instance.x.kind === 'number-binding'
+    ? literal(resolveDisplayScalar(instance.x, bindings, tokens))
+    : instance.x
+  const y: DisplayStaticScalar = instance.y.kind === 'number-binding'
+    ? literal(resolveDisplayScalar(instance.y, bindings, tokens))
+    : instance.y
   const detached: DisplayDesignElement[] = variant.elements.map((primitive) => {
-    const next = translateDisplayPrimitive(primitive, x, y) as DisplayPrimitiveElement & { groupId?: string }
+    const next = translateDisplayPrimitiveByStaticScalars(primitive, x, y) as DisplayPrimitiveElement & { groupId?: string }
     next.id = idFactory('element')
     if (instance.groupId) next.groupId = instance.groupId
     return next

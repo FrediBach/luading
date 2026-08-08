@@ -7,6 +7,7 @@ export type DisplayDesignerPanel =
   | 'layers'
   | 'symbols'
   | 'properties'
+  | 'tokens'
   | 'state'
   | 'findings'
   | 'metrics'
@@ -19,6 +20,7 @@ export const DISPLAY_DESIGNER_PANELS: ReadonlyArray<{
   { id: 'layers', label: 'Layers' },
   { id: 'symbols', label: 'Symbols' },
   { id: 'properties', label: 'Properties' },
+  { id: 'tokens', label: 'Tokens' },
   { id: 'state', label: 'State' },
   { id: 'findings', label: 'Findings' },
   { id: 'metrics', label: 'Metrics' },

@@ -19,6 +19,7 @@ import {
   syncDisplaySymbolChoiceMap,
   updateDisplaySymbolVariant,
 } from './display-design-symbols'
+import { collectDisplayTokenExpressionReferences } from './display-design-token-expressions'
 
 function symbolDocument(): { document: DisplayDesignDocument; ids: ReturnType<typeof createSequentialDisplayDesignIdFactory> } {
   const ids = createSequentialDisplayDesignIdFactory('symbols')
@@ -46,6 +47,28 @@ describe('display design symbols', () => {
       kind: 'box', x1: { value: 24 }, y1: { value: -40 }, x2: { value: 14 }, y2: { value: -52 },
     })
     expect(document.symbols).toEqual([])
+  })
+
+  it('preserves token formulas while creating and detaching symbols with static origins', () => {
+    const ids = createSequentialDisplayDesignIdFactory('symbol-formula')
+    const token = { id: ids('token'), name: 'Origin', luaName: 'origin', value: 20 }
+    const line = createDefaultDisplayPrimitive('pixel-line', ids)
+    line.x1 = { kind: 'token-expression', expression: { kind: 'token', tokenId: token.id } }
+    const document = { ...createEmptyDisplayDesign(), tokens: [token], elements: [line] }
+    const created = createDisplaySymbolFromSelection(document, [line.id], ids)
+    const stored = created.symbol!.variants[0]!.elements[0]!
+    expect(stored.kind === 'line' && stored.x1.kind === 'token-expression'
+      ? collectDisplayTokenExpressionReferences(stored.x1.expression)
+      : new Set()).toEqual(new Set([token.id]))
+    const withFormulaOrigin = structuredClone(created.document)
+    const instance = withFormulaOrigin.elements[0]!
+    if (instance.kind !== 'symbol-instance') throw new Error('Expected instance')
+    instance.x = { kind: 'token-expression', expression: { kind: 'token', tokenId: token.id } }
+    const detached = detachDisplaySymbolInstance(withFormulaOrigin, instance.id, ids)
+    const detachedLine = detached.elements[0]!
+    expect(detachedLine.kind === 'line' && detachedLine.x1.kind === 'token-expression'
+      ? collectDisplayTokenExpressionReferences(detachedLine.x1.expression)
+      : new Set()).toEqual(new Set([token.id]))
   })
 
   it('keeps instances shared while definition edits propagate and duplicated instances retain the symbol reference', () => {

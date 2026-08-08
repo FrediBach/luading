@@ -39,7 +39,7 @@ function validRichDocument(): DisplayDesignDocument {
   primitives[0]!.groupId = groupId
   const line = primitives[0]
   if (line?.kind === 'line') {
-    line.x1 = { kind: 'number-binding', bindingId: numberId, from: 0, to: 255, quantize: 'integer' }
+    line.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 255 }, quantize: 'integer' }
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: false }
   }
   const text = primitives[6]
@@ -121,7 +121,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 3 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 4 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -138,11 +138,12 @@ describe('display design validation', () => {
     const current = createEmptyDisplayDesign('Legacy')
     const legacy = structuredClone(current) as unknown as Record<string, unknown>
     delete legacy.layoutGrid
+    delete legacy.tokens
     legacy.version = 1
     const migrated = validateDisplayDesign(legacy)
 
     expect(migrated.ok).toBe(true)
-    expect(migrated.document).toEqual({ ...current, version: 2, layoutGrid: null })
+    expect(migrated.document).toEqual(current)
 
     const valid = validateDisplayDesign({
       ...current,
@@ -190,6 +191,40 @@ describe('display design validation', () => {
     ]))
   })
 
+  it('strictly validates token definitions, ASTs, references, shared Lua names, and resolved domains', () => {
+    const ids = createSequentialDisplayDesignIdFactory('token-validation')
+    const line = createDefaultDisplayPrimitive('pixel-line', ids)
+    const token = { id: ids('token'), name: 'Width', luaName: 'width', value: 0 }
+    line.x1 = { kind: 'token-expression', expression: {
+      kind: 'binary', operator: 'divide', left: { kind: 'number', value: 10 }, right: { kind: 'token', tokenId: token.id },
+    } }
+    const document = {
+      ...createEmptyDisplayDesign(),
+      tokens: [token],
+      bindings: [{ kind: 'number' as const, id: ids('binding'), name: 'Width binding', luaName: 'width', previewValue: 0.5 }],
+      elements: [line],
+    }
+    expect(validateDisplayDesign(document).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'duplicate-lua-name' }),
+      expect.objectContaining({ ruleId: 'invalid-token-result' }),
+    ]))
+
+    const dangling = structuredClone(document)
+    dangling.bindings = []
+    if (dangling.elements[0]?.kind === 'line') dangling.elements[0].x1 = { kind: 'token-expression', expression: { kind: 'token', tokenId: 'missing' } }
+    expect(validateDisplayDesign(dangling).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'dangling-token', focus: expect.objectContaining({ tokenId: 'missing' }) }),
+    ]))
+
+    const malformed = structuredClone(document) as unknown as Record<string, unknown>
+    const elements = malformed.elements as Array<Record<string, unknown>>
+    elements[0]!.x1 = { kind: 'token-expression', expression: { kind: 'binary', operator: 'power', left: { kind: 'number', value: 2 }, right: { kind: 'number', value: 3 }, extra: true } }
+    expect(validateDisplayDesign(malformed).findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ruleId: 'unknown-key' }),
+      expect.objectContaining({ ruleId: 'invalid-expression-operator' }),
+    ]))
+  })
+
   it('rejects identifiers that would shadow generated callback dependencies', () => {
     const input = validRichDocument()
     const numberBinding = input.bindings.find((binding) => binding.kind === 'number')
@@ -208,7 +243,7 @@ describe('display design validation', () => {
     const line = input.elements[0]
     if (line?.kind === 'line') {
       line.groupId = 'missing-group'
-      line.x1 = { kind: 'number-binding', bindingId: booleanBinding.id, from: 0, to: 20, quantize: 'integer' }
+      line.x1 = { kind: 'number-binding', bindingId: booleanBinding.id, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 20 }, quantize: 'integer' }
       line.visible = { kind: 'boolean-binding', bindingId: numberBinding.id, invert: false }
     }
     const text = input.elements.find((element) => element.kind === 'text')

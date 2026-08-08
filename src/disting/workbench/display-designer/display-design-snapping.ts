@@ -190,14 +190,6 @@ export function snapDisplaySelectionTranslation(input: {
   const bounds = displaySelectionBounds(input.document, ids)
   if (!bounds) return { delta: input.requested, state: {}, guides: [] }
   const selected = input.document.elements.filter(({ id }) => ids.includes(id))
-  const hasLiteralAxis = (axis: DisplayDesignSnapAxis) => selected.some((element) => {
-    if (element.kind === 'line' || element.kind === 'box') {
-      return axis === 'x'
-        ? element.x1.kind === 'literal' || element.x2.kind === 'literal'
-        : element.y1.kind === 'literal' || element.y2.kind === 'literal'
-    }
-    return (axis === 'x' ? element.x : element.y).kind === 'literal'
-  })
   const smoothOnly = selected.length > 0
     && selected.every((element) => (element.kind === 'line' || element.kind === 'circle') && element.smooth)
   const precision = smoothOnly ? 0.5 : 1
@@ -208,11 +200,11 @@ export function snapDisplaySelectionTranslation(input: {
     bottom: bounds.bottom + input.requested.y,
   }
   const x = snapDisplayAxisToLayoutGrid({
-    axis: 'x', candidates: hasLiteralAxis('x') ? boundsCandidates(movedBounds, 'x') : [], gridSize: input.gridSize,
+    axis: 'x', candidates: boundsCandidates(movedBounds, 'x'), gridSize: input.gridSize,
     rect: input.rect, precision, active: input.active?.x, disabled: input.disabled,
   })
   const y = snapDisplayAxisToLayoutGrid({
-    axis: 'y', candidates: hasLiteralAxis('y') ? boundsCandidates(movedBounds, 'y') : [], gridSize: input.gridSize,
+    axis: 'y', candidates: boundsCandidates(movedBounds, 'y'), gridSize: input.gridSize,
     rect: input.rect, precision, active: input.active?.y, disabled: input.disabled,
   })
   const delta = constrainDisplayPointerTranslation(input.document, ids, {

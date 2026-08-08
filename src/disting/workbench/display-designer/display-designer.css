@@ -583,6 +583,49 @@
   background: var(--surface-recessed);
 }
 
+.display-designer-token-formula,
+.display-designer-token-card {
+  border: 1px solid var(--nt-line);
+  border-radius: 6px;
+  background: var(--surface-recessed);
+}
+
+.display-designer-token-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.display-designer-token-card > header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.display-designer-formula-field input,
+.display-designer-token-card code,
+.display-designer-token-chips code {
+  font-family: var(--mono);
+}
+
+.display-designer-formula-field small[role="alert"] {
+  color: var(--signal-error);
+}
+
+.display-designer-token-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.display-designer-token-chips code {
+  padding: 2px 5px;
+  border: 1px solid var(--nt-line);
+  border-radius: 999px;
+}
+
 .display-designer-binding-map {
   margin: 0;
   padding: 7px;

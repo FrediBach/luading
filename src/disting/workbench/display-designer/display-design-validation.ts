@@ -3,6 +3,7 @@ import {
   DISPLAY_DESIGN_LIMITS,
   DISPLAY_DESIGN_VERSION,
   DISPLAY_DESIGN_VERSION_V1,
+  DISPLAY_DESIGN_VERSION_V2,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
   type DisplayDesignDocument,
@@ -12,15 +13,21 @@ import {
   type DisplayDesignElement,
   type DisplayDesignGroup,
   type DisplayDesignSymbol,
+  type DisplayDesignToken,
   type DisplayPrimitiveElement,
   type DisplayScalar,
   type DisplayScalarQuantization,
+  type DisplayStaticScalar,
+  type DisplayTokenExpression,
   type DisplaySymbolState,
   type DisplaySymbolVariant,
   type DisplayText,
   type DisplayVisibility,
 } from './display-design-model'
 import { isSafeDisplayLuaIdentifier } from './display-design-lua-identifiers'
+import { collectDisplayTokenExpressionReferences, createDisplayTokenMap } from './display-design-token-expressions'
+import { listDisplayTokenUsages } from './display-design-tokens'
+import { createDisplayBindingMap, resolveDisplayScalar } from './display-design-resolution'
 
 export interface DisplayDesignValidationResult {
   ok: boolean
@@ -87,6 +94,12 @@ function validateLayoutGrid(
 class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
+
+  readonly sourceVersion: 1 | 2 | 3
+
+  constructor(sourceVersion: 1 | 2 | 3) {
+    this.sourceVersion = sourceVersion
+  }
 
   finding(
     ruleId: string,
@@ -188,6 +201,84 @@ class Validator {
     return Object.is(value, -0) ? 0 : value
   }
 
+  tokenExpression(
+    value: unknown,
+    path: string,
+    focus?: DisplayDesignerFindingFocus,
+    state = { nodes: 0 },
+    depth = 1,
+  ): DisplayTokenExpression {
+    state.nodes += 1
+    if (state.nodes > DISPLAY_DESIGN_LIMITS.maximumExpressionNodes) {
+      this.finding('expression-node-limit', `A formula may contain at most ${DISPLAY_DESIGN_LIMITS.maximumExpressionNodes} expression nodes.`, path, focus)
+    }
+    if (depth > DISPLAY_DESIGN_LIMITS.maximumExpressionDepth) {
+      this.finding('expression-depth-limit', `A formula may be at most ${DISPLAY_DESIGN_LIMITS.maximumExpressionDepth} levels deep.`, path, focus)
+    }
+    if (!isRecord(value)) {
+      this.finding('invalid-token-expression', 'A token expression object is required.', path, focus)
+      return { kind: 'number', value: 0 }
+    }
+    if (value.kind === 'number') {
+      this.keys(value, ['kind', 'value'], path, focus)
+      return { kind: 'number', value: this.finiteNumber(value.value, `${path}.value`, 0) }
+    }
+    if (value.kind === 'token') {
+      this.keys(value, ['kind', 'tokenId'], path, focus)
+      const tokenId = typeof value.tokenId === 'string' && value.tokenId.length > 0 ? value.tokenId : ''
+      if (!tokenId) this.finding('invalid-token-reference', 'A token ID is required.', `${path}.tokenId`, focus)
+      return { kind: 'token', tokenId }
+    }
+    if (value.kind === 'negate') {
+      this.keys(value, ['kind', 'operand'], path, focus)
+      return { kind: 'negate', operand: this.tokenExpression(value.operand, `${path}.operand`, focus, state, depth + 1) }
+    }
+    if (value.kind === 'binary') {
+      this.keys(value, ['kind', 'operator', 'left', 'right'], path, focus)
+      const operator = value.operator === 'add' || value.operator === 'subtract' || value.operator === 'multiply' || value.operator === 'divide'
+        ? value.operator
+        : 'add'
+      if (operator !== value.operator) this.finding('invalid-expression-operator', 'Formula operator must be add, subtract, multiply, or divide.', `${path}.operator`, focus)
+      return {
+        kind: 'binary',
+        operator,
+        left: this.tokenExpression(value.left, `${path}.left`, focus, state, depth + 1),
+        right: this.tokenExpression(value.right, `${path}.right`, focus, state, depth + 1),
+      }
+    }
+    this.keys(value, ['kind'], path, focus)
+    this.finding('invalid-token-expression-kind', 'Formula node kind must be number, token, negate, or binary.', `${path}.kind`, focus)
+    return { kind: 'number', value: 0 }
+  }
+
+  staticScalar(
+    value: unknown,
+    path: string,
+    options: { minimum?: number; maximum?: number; focus?: DisplayDesignerFindingFocus; integerLiteral?: boolean },
+  ): DisplayStaticScalar {
+    const minimum = options.minimum ?? DISPLAY_DESIGN_LIMITS.minimumCoordinate
+    const maximum = options.maximum ?? DISPLAY_DESIGN_LIMITS.maximumCoordinate
+    if (!isRecord(value)) {
+      this.finding('invalid-static-scalar', 'A literal or token-expression scalar is required.', path, options.focus)
+      return { kind: 'literal', value: Math.max(0, minimum) }
+    }
+    if (value.kind === 'literal') {
+      this.keys(value, ['kind', 'value'], path, options.focus)
+      const number = this.finiteNumber(value.value, `${path}.value`, Math.max(0, minimum), minimum, maximum, options.focus)
+      if (options.integerLiteral && !Number.isInteger(number)) {
+        this.finding('integer-required', 'This literal property requires a whole number.', `${path}.value`, options.focus)
+      }
+      return { kind: 'literal', value: options.integerLiteral ? Math.round(number) : number }
+    }
+    if (value.kind === 'token-expression' && this.sourceVersion === DISPLAY_DESIGN_VERSION) {
+      this.keys(value, ['kind', 'expression'], path, options.focus)
+      return { kind: 'token-expression', expression: this.tokenExpression(value.expression, `${path}.expression`, options.focus) }
+    }
+    this.keys(value, ['kind'], path, options.focus)
+    this.finding('invalid-static-scalar-kind', 'Static scalar kind must be “literal” or “token-expression”.', `${path}.kind`, options.focus)
+    return { kind: 'literal', value: Math.max(0, minimum) }
+  }
+
   scalar(
     value: unknown,
     path: string,
@@ -196,24 +287,25 @@ class Validator {
     const minimum = options.minimum ?? DISPLAY_DESIGN_LIMITS.minimumCoordinate
     const maximum = options.maximum ?? DISPLAY_DESIGN_LIMITS.maximumCoordinate
     if (!isRecord(value)) {
-      this.finding('invalid-scalar', 'A literal or number-binding scalar is required.', path, options.focus)
+      this.finding('invalid-scalar', 'A literal, token-expression, or number-binding scalar is required.', path, options.focus)
       return { kind: 'literal', value: Math.max(0, minimum) }
     }
     if (value.kind === 'literal') {
-      this.keys(value, ['kind', 'value'], path, options.focus)
-      const number = this.finiteNumber(value.value, `${path}.value`, Math.max(0, minimum), minimum, maximum, { ...options.focus, property: options.focus?.property })
-      if (options.integer && !Number.isInteger(number)) {
-        this.finding('integer-required', 'This property requires a whole number.', `${path}.value`, options.focus)
-        return { kind: 'literal', value: Math.round(number) }
-      }
-      return { kind: 'literal', value: number }
+      return this.staticScalar(value, path, { minimum, maximum, focus: options.focus, integerLiteral: options.integer })
+    }
+    if (value.kind === 'token-expression') {
+      return this.staticScalar(value, path, { minimum, maximum, focus: options.focus })
     }
     if (value.kind === 'number-binding') {
       this.keys(value, ['kind', 'bindingId', 'from', 'to', 'quantize'], path, options.focus)
       const bindingId = typeof value.bindingId === 'string' ? value.bindingId : ''
       if (!bindingId) this.finding('invalid-binding-reference', 'A binding ID is required.', `${path}.bindingId`, options.focus)
-      const from = this.finiteNumber(value.from, `${path}.from`, Math.max(0, minimum), minimum, maximum, options.focus)
-      const to = this.finiteNumber(value.to, `${path}.to`, Math.max(0, minimum), minimum, maximum, options.focus)
+      const from = this.sourceVersion === DISPLAY_DESIGN_VERSION
+        ? this.staticScalar(value.from, `${path}.from`, { focus: options.focus })
+        : { kind: 'literal' as const, value: this.finiteNumber(value.from, `${path}.from`, Math.max(0, minimum), minimum, maximum, options.focus) }
+      const to = this.sourceVersion === DISPLAY_DESIGN_VERSION
+        ? this.staticScalar(value.to, `${path}.to`, { focus: options.focus })
+        : { kind: 'literal' as const, value: this.finiteNumber(value.to, `${path}.to`, Math.max(0, minimum), minimum, maximum, options.focus) }
       let quantize: DisplayScalarQuantization = value.quantize === 'none' || value.quantize === 'integer' ? value.quantize : 'integer'
       if (value.quantize !== 'none' && value.quantize !== 'integer') this.finding('invalid-quantization', 'Quantization must be “none” or “integer”.', `${path}.quantize`, options.focus)
       if (options.integer && quantize !== 'integer') {
@@ -223,7 +315,7 @@ class Validator {
       return { kind: 'number-binding', bindingId, from, to, quantize }
     }
     this.keys(value, ['kind'], path, options.focus)
-    this.finding('invalid-scalar-kind', 'Scalar kind must be “literal” or “number-binding”.', `${path}.kind`, options.focus)
+    this.finding('invalid-scalar-kind', 'Scalar kind must be “literal”, “token-expression”, or “number-binding”.', `${path}.kind`, options.focus)
     return { kind: 'literal', value: Math.max(0, minimum) }
   }
 
@@ -353,6 +445,22 @@ class Validator {
     this.keys(value, ['id', 'name'], path)
     const id = this.id(value.id, `${path}.id`)
     return { id, name: this.name(value.name, `${path}.name`, 'Untitled group', { groupId: id }) }
+  }
+
+  token(value: unknown, path: string): DisplayDesignToken | undefined {
+    if (!isRecord(value)) {
+      this.finding('invalid-token', 'A design token object is required.', path)
+      return undefined
+    }
+    this.keys(value, ['id', 'name', 'luaName', 'value'], path)
+    const id = this.id(value.id, `${path}.id`)
+    const focus = { tokenId: id }
+    return {
+      id,
+      name: this.name(value.name, `${path}.name`, 'Number token', focus),
+      luaName: this.luaIdentifier(value.luaName, `${path}.luaName`, 'token', focus),
+      value: this.finiteNumber(value.value, `${path}.value`, 0, DISPLAY_DESIGN_LIMITS.minimumCoordinate, DISPLAY_DESIGN_LIMITS.maximumCoordinate, focus),
+    }
   }
 
   choice(value: unknown, path: string, bindingId: string): DisplayChoiceBindingChoice | undefined {
@@ -540,11 +648,32 @@ function checkScalarReference(
   scalar: DisplayScalar,
   path: string,
   bindings: Map<string, DisplayDesignBinding>,
+  tokens: Map<string, DisplayDesignToken>,
   focus: DisplayDesignerFindingFocus,
+  options: { minimum?: number; maximum?: number } = {},
 ): void {
-  if (scalar.kind !== 'number-binding') return
-  if (bindings.get(scalar.bindingId)?.kind !== 'number') {
+  const staticScalars = scalar.kind === 'number-binding' ? [scalar.from, scalar.to] : [scalar]
+  for (const [index, staticScalar] of staticScalars.entries()) {
+    if (staticScalar.kind !== 'token-expression') continue
+    for (const tokenId of collectDisplayTokenExpressionReferences(staticScalar.expression)) {
+      if (!tokens.has(tokenId)) {
+        const endpoint = scalar.kind === 'number-binding' ? (index === 0 ? '.from' : '.to') : ''
+        validator.finding('dangling-token', 'This formula references a missing design token.', `${path}${endpoint}.expression`, { ...focus, tokenId })
+      }
+    }
+  }
+  if (scalar.kind === 'number-binding' && bindings.get(scalar.bindingId)?.kind !== 'number') {
     validator.finding('dangling-number-binding', 'This property must reference an existing number binding.', `${path}.bindingId`, focus)
+  }
+  try {
+    const resolved = resolveDisplayScalar(scalar, createDisplayBindingMap([...bindings.values()]), createDisplayTokenMap([...tokens.values()]))
+    const minimum = options.minimum ?? DISPLAY_DESIGN_LIMITS.minimumCoordinate
+    const maximum = options.maximum ?? DISPLAY_DESIGN_LIMITS.maximumCoordinate
+    if (!Number.isFinite(resolved) || resolved < minimum || resolved > maximum) {
+      validator.finding('resolved-scalar-domain', `The resolved property must be finite and from ${minimum} through ${maximum}.`, path, focus)
+    }
+  } catch (error) {
+    validator.finding('invalid-token-result', error instanceof Error ? error.message : 'The formula could not be resolved.', path, focus)
   }
 }
 
@@ -566,17 +695,19 @@ function checkPrimitiveReferences(
   primitive: DisplayPrimitiveElement,
   path: string,
   bindings: Map<string, DisplayDesignBinding>,
+  tokens: Map<string, DisplayDesignToken>,
   focus: DisplayDesignerFindingFocus,
 ): void {
-  checkScalarReference(validator, primitive.shade, `${path}.shade`, bindings, { ...focus, property: 'shade' })
+  checkScalarReference(validator, primitive.shade, `${path}.shade`, bindings, tokens, { ...focus, property: 'shade' })
   checkVisibilityReference(validator, primitive.visible, `${path}.visible`, bindings, { ...focus, property: 'visible' })
   if (primitive.kind === 'line' || primitive.kind === 'box') {
-    for (const property of ['x1', 'y1', 'x2', 'y2'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, { ...focus, property })
+    for (const property of ['x1', 'y1', 'x2', 'y2'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
   } else if (primitive.kind === 'circle') {
-    for (const property of ['x', 'y', 'radius'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, { ...focus, property })
+    for (const property of ['x', 'y'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
+    checkScalarReference(validator, primitive.radius, `${path}.radius`, bindings, tokens, { ...focus, property: 'radius' }, { minimum: 0, maximum: DISPLAY_DESIGN_LIMITS.maximumRadius })
   } else {
-    checkScalarReference(validator, primitive.x, `${path}.x`, bindings, { ...focus, property: 'x' })
-    checkScalarReference(validator, primitive.y, `${path}.y`, bindings, { ...focus, property: 'y' })
+    checkScalarReference(validator, primitive.x, `${path}.x`, bindings, tokens, { ...focus, property: 'x' })
+    checkScalarReference(validator, primitive.y, `${path}.y`, bindings, tokens, { ...focus, property: 'y' })
     if (primitive.text.kind === 'text-binding' && bindings.get(primitive.text.bindingId)?.kind !== 'text') {
       validator.finding('dangling-text-binding', 'Text must reference an existing text binding.', `${path}.text.bindingId`, { ...focus, property: 'text' })
     }
@@ -586,9 +717,11 @@ function checkPrimitiveReferences(
 function crossValidate(validator: Validator, document: DisplayDesignDocument): void {
   const groups = new Set(document.groups.map(({ id }) => id))
   const bindings = new Map(document.bindings.map((binding) => [binding.id, binding]))
+  const tokens = new Map(document.tokens.map((token) => [token.id, token]))
   const symbols = new Map(document.symbols.map((symbol) => [symbol.id, symbol]))
 
   addDuplicateValues(validator, [
+    ...document.tokens.map((token, index) => ({ value: token.luaName, path: `tokens[${index}].luaName`, focus: { tokenId: token.id } })),
     ...document.bindings.map((binding, index) => ({ value: binding.luaName, path: `bindings[${index}].luaName`, focus: { bindingId: binding.id } })),
     ...document.symbols.map((symbol, index) => ({ value: symbol.luaName, path: `symbols[${index}].luaName`, focus: { symbolId: symbol.id } })),
   ], 'duplicate-lua-name', 'Generated Lua name')
@@ -605,7 +738,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
     addDuplicateValues(validator, symbol.variants.map((variant, variantIndex) => ({ value: variant.luaValue, path: `symbols[${symbolIndex}].variants[${variantIndex}].luaValue`, focus: { symbolId: symbol.id, variantId: variant.id } })), 'duplicate-variant-lua-value', 'State Lua value')
     for (const [variantIndex, variant] of symbol.variants.entries()) {
       for (const [primitiveIndex, primitive] of variant.elements.entries()) {
-        checkPrimitiveReferences(validator, primitive, `symbols[${symbolIndex}].variants[${variantIndex}].elements[${primitiveIndex}]`, bindings, { symbolId: symbol.id, variantId: variant.id, primitiveId: primitive.id })
+        checkPrimitiveReferences(validator, primitive, `symbols[${symbolIndex}].variants[${variantIndex}].elements[${primitiveIndex}]`, bindings, tokens, { symbolId: symbol.id, variantId: variant.id, primitiveId: primitive.id })
       }
     }
   }
@@ -614,11 +747,11 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
     const path = `elements[${elementIndex}]`
     if (element.groupId && !groups.has(element.groupId)) validator.finding('dangling-group', 'The element references a missing group.', `${path}.groupId`, { elementId: element.id, property: 'groupId' })
     if (element.kind !== 'symbol-instance') {
-      checkPrimitiveReferences(validator, element, path, bindings, { elementId: element.id })
+      checkPrimitiveReferences(validator, element, path, bindings, tokens, { elementId: element.id })
       continue
     }
-    checkScalarReference(validator, element.x, `${path}.x`, bindings, { elementId: element.id, property: 'x' })
-    checkScalarReference(validator, element.y, `${path}.y`, bindings, { elementId: element.id, property: 'y' })
+    checkScalarReference(validator, element.x, `${path}.x`, bindings, tokens, { elementId: element.id, property: 'x' })
+    checkScalarReference(validator, element.y, `${path}.y`, bindings, tokens, { elementId: element.id, property: 'y' })
     checkVisibilityReference(validator, element.visible, `${path}.visible`, bindings, { elementId: element.id, property: 'visible' })
     const symbol = symbols.get(element.symbolId)
     if (!symbol) {
@@ -644,10 +777,20 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
       if (!choiceIds.has(choiceId)) validator.finding('unknown-choice-map-entry', `The state map contains unknown choice ID “${choiceId}”.`, `${path}.state.variantByChoiceId.${choiceId}`, { elementId: element.id, property: 'state' })
     }
   }
+
+  const usedTokenIds = new Set(listDisplayTokenUsages(document).map(({ tokenId }) => tokenId))
+  for (const [index, token] of document.tokens.entries()) {
+    if (!usedTokenIds.has(token.id)) {
+      validator.finding('unused-token', `Design token “${token.name}” is not used.`, `tokens[${index}]`, { tokenId: token.id }, 'warning')
+    }
+  }
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const validator = new Validator()
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION)
+    ? value.version
+    : DISPLAY_DESIGN_VERSION
+  const validator = new Validator(sourceVersion)
   try {
     if (!isRecord(value)) {
       validator.finding('invalid-document', 'A display design object is required.', '$')
@@ -657,30 +800,39 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION) {
-      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} and ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION) {
+      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1}, ${DISPLAY_DESIGN_VERSION_V2}, and ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
     const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
+    const isVersion3 = value.version === DISPLAY_DESIGN_VERSION
     validator.keys(
       value,
       isVersion1
         ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols']
-        : ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols', 'layoutGrid'],
+        : isVersion3
+          ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'tokens', 'bindings', 'symbols', 'layoutGrid']
+          : ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols', 'layoutGrid'],
       '$',
     )
     const layoutGrid = isVersion1 ? null : validateLayoutGrid(validator, value.layoutGrid)
 
     const rawGroups = validator.array(value.groups, 'groups')
+    const rawTokens = isVersion3 ? validator.array(value.tokens, 'tokens') : []
     const rawBindings = validator.array(value.bindings, 'bindings')
     const rawSymbols = validator.array(value.symbols, 'symbols')
     const rawElements = validator.array(value.elements, 'elements')
     if (rawGroups.length > DISPLAY_DESIGN_LIMITS.maximumGroups) validator.finding('group-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumGroups} groups.`, 'groups')
+    if (rawTokens.length > DISPLAY_DESIGN_LIMITS.maximumTokens) validator.finding('token-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumTokens} tokens.`, 'tokens')
     if (rawBindings.length > DISPLAY_DESIGN_LIMITS.maximumBindings) validator.finding('binding-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumBindings} bindings.`, 'bindings')
     if (rawSymbols.length > DISPLAY_DESIGN_LIMITS.maximumSymbols) validator.finding('symbol-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumSymbols} symbols.`, 'symbols')
 
     const groups = rawGroups.flatMap((group, index) => {
       const normalized = validator.group(group, `groups[${index}]`)
+      return normalized ? [normalized] : []
+    })
+    const tokens = rawTokens.flatMap((token, index) => {
+      const normalized = validator.token(token, `tokens[${index}]`)
       return normalized ? [normalized] : []
     })
     const bindings = rawBindings.flatMap((binding, index) => {
@@ -713,6 +865,7 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       displayMode,
       elements,
       groups,
+      tokens,
       bindings,
       symbols,
       layoutGrid,

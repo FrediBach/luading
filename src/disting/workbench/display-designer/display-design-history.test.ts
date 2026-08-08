@@ -16,6 +16,7 @@ import {
   redoDisplayDesign,
   undoDisplayDesign,
 } from './display-design-history'
+import { createDisplayTokenInDocument, updateDisplayToken } from './display-design-tokens'
 
 function named(document: DisplayDesignDocument, name: string): DisplayDesignDocument {
   return { ...structuredClone(document), name }
@@ -70,6 +71,22 @@ describe('display design history', () => {
     expect(added.past).toHaveLength(1)
     expect(undoDisplayDesign(added).present.document.layoutGrid).toBeNull()
     expect(redoDisplayDesign(undoDisplayDesign(added)).present.document.layoutGrid?.size).toBe(8)
+  })
+
+  it('records create-and-attach or token value changes as one semantic transaction', () => {
+    const original = createEmptyDisplayDesign()
+    const ids = createSequentialDisplayDesignIdFactory('history-token')
+    const created = createDisplayTokenInDocument(original, ids, 'Width', 12)
+    let history = commitDisplayDesignTransaction(createDisplayDesignHistory(original), {
+      label: 'Create token',
+      document: created.document,
+    })
+    history = commitDisplayDesignTransaction(history, {
+      label: 'Change token value',
+      document: updateDisplayToken(history.present.document, created.token.id, { value: 16 }),
+    })
+    expect(history.past.map(({ label }) => label)).toEqual(['Create token', 'Change token value'])
+    expect(undoDisplayDesign(history).present.document.tokens[0]?.value).toBe(12)
   })
 
   it('runs operations against a defensive snapshot', () => {

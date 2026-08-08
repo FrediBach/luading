@@ -849,17 +849,40 @@ alignment and distribution only when enough layers are selected. Group menus
 provide select, rename, visibility, duplicate, ungroup, and delete-artwork
 actions without permanently expanding every row.
 
-Every coordinate, radius, and shade can be made dynamic through a normalized
-number binding with editable **From** and **To** endpoints. Integer primitives
-quantize mapped values, smooth geometry may retain fractions, and shades are
-rounded and clamped to 0–15. Text can use a text binding and visibility can use
-a boolean binding with optional inversion. A property can create a new binding,
-attach a compatible existing binding, edit its mapping, or become static at its
-current preview value.
+Every coordinate, radius, and shade supports a literal, a design-token formula,
+or a normalized runtime number binding. Design-token formulas use only finite
+numbers, token Lua names, parentheses, unary minus, and `+`, `-`, `*`, and `/`;
+they cannot call Lua, read `self`, or refer to another property. Runtime number
+bindings retain editable **From** and **To** formulas and interpolate with their
+normalized 0–1 preview. Integer primitives round at the final draw boundary,
+smooth geometry may retain fractions, and shades are rounded and clamped to
+0–15. Text can use a text binding and visibility can use a boolean binding with
+optional inversion.
 
-The **State** panel lists number, boolean, text, and choice bindings in document
-order. Its slider, switch, text, and choice controls update every attached
-preview immediately without adding undo entries. Binding names are converted
+The separate **Tokens** panel owns ordered document-wide numeric design tokens.
+Each token has a display name, collision-safe Lua name, exact value, usage list,
+and generated-source location. **Create token from value** creates and attaches
+one in a single undo step; a property can also attach an existing token or open
+the formula editor. Formula edits remain local until Enter or blur accepts a
+valid expression, while Escape restores the committed expression. Renaming a
+token is reference-safe because formulas persist its opaque ID and reprint the
+new Lua name. An unused token deletes directly. Deleting a used token requires
+**Replace references with current value and delete**; only that token's leaves
+become numbers, while other token links remain intact.
+
+Boxes keep the firmware's inclusive `x1`, `y1`, `x2`, `y2` representation.
+Beside the computed inclusive size, **Drive width with token/formula** and
+**Drive height with token/formula** attach a size token while preserving normal
+or reversed orientation and accounting for the inclusive `- 1`. These actions
+require a static start coordinate; a runtime-bound start must be mapped through
+the endpoint editors instead. Drag, nudge, align, distribute, resize, grid snap,
+symbol creation, and static-origin detach add offsets to formulas and to both
+runtime-binding endpoints instead of silently materializing preview numbers.
+
+The **State** panel is reserved for runtime number, boolean, text, and choice
+bindings; token edits are persisted authoring changes, not preview state. Its
+slider, switch, text, and choice controls update every attached preview
+immediately without adding undo entries. Binding names are converted
 to deterministic safe Lua locals; keywords, generated dependencies, and name
 collisions receive safe alternatives. The usage list shows every attached
 property before rename or deletion. An unused binding deletes directly, while
@@ -887,12 +910,15 @@ Detaching keeps only the current preview state as ordinary scene layers after a
 warning. Deleting a used state requires a replacement, and deleting a used
 symbol requires either detaching all instances or deleting its instances.
 
-Generated source emits each used symbol helper once inside an immediately
-evaluated closure and outside the returned 30 fps `draw` callback. Instances
-pass origin and state arguments, unknown values select the declared default,
-and every helper branch expands to ordinary documented draw calls. Unused
-definitions are omitted with a finding. Current and largest-state draw-call
-metrics remain descriptive authoring counts.
+Generated source emits only used tokens, once in document order under a design-
+token comment at the top of an immediately evaluated closure. Token locals
+precede each used symbol helper so formulas in shared helpers see the same
+values; runtime-binding placeholders remain inside the returned 30 fps `draw`
+callback. Designs with neither tokens nor symbols retain the simple callback
+shape. Instances pass origin and state arguments, unknown values select the
+declared default, and every helper branch expands to ordinary documented draw
+calls. Unused definitions and tokens are omitted with findings. Token/reference
+and draw-call metrics remain descriptive authoring counts.
 
 The artboard always remains 256×64 logically while **Fit**, 1×, 2×, 3×, and 4×
 only change its CSS size. Pointer hit targets are enlarged in screen space while
@@ -927,10 +953,10 @@ just because snapping is enabled. Command/Ctrl+`'` toggles the Pixel grid,
 Command/Ctrl+Shift+`'` toggles snapping, and Control+G or Control+Shift+4 toggles
 Layout-grid visibility when focus is not in an editable control.
 
-Above 900 CSS pixels, Layers/Symbols and Properties/State remain in independent
+Above 900 CSS pixels, Layers/Symbols and Properties/Tokens/State remain in independent
 side columns. From 721 through 900 pixels, and at 720 pixels or below, the
 artboard stays visible while a lower tab strip provides Layers, Symbols,
-Properties, State, Findings, Metrics, and Lua one panel at a time. Narrow mode
+Properties, Tokens, State, Findings, Metrics, and Lua one panel at a time. Narrow mode
 fills the viewport and locks the artboard to **Fit**; the underlying design is
 still exactly 256×64. The primitive toolbar and lower tabs scroll horizontally
 when needed. Their active states use text/borders as well as colour, arrow keys
@@ -949,9 +975,11 @@ only extension: Disting NT receives only the generated ordinary draw calls.
 Use **Open design** to choose a versioned `.luading-display.json` authoring
 file. Type, size, version, and document validation complete before the current
 draft is replaced; a failed read or invalid file keeps the draft unchanged.
-Version-1 files open through a non-destructive migration with no layout grid;
-downloads always use the strict version-2 format, where `layoutGrid` is either
-the uniform-grid definition or `null`. Use **Download design** for a
+Version-1 files open with no layout grid or tokens, while version-2 files retain
+their grid; both migrate numeric binding endpoints into version-3 literal
+wrappers. Downloads always use strict version 3 with ordered `tokens` and a
+`layoutGrid` that is either the uniform-grid definition or `null`. Use
+**Download design** for a
 deterministic JSON file with a safe name. A
 dispatched download marks that exact revision as downloaded, while later edits
 become changed again. Open/download never changes the active script, local

@@ -11,7 +11,7 @@ import {
   type DisplayPrimitivePreset,
   type DisplayScalar,
 } from './display-design-model'
-import { createDisplayBindingMap, resolveDisplayScalar, resolveDisplayText, resolveDisplayVisibility } from './display-design-resolution'
+import { createDisplayBindingMap, createDisplayTokenMap, offsetDisplayScalar, resolveDisplayScalar, resolveDisplayText, resolveDisplayVisibility, setDisplayScalarPreviewValue } from './display-design-resolution'
 
 export interface DisplayDesignPoint { x: number; y: number }
 export interface DisplayDesignBounds { left: number; top: number; right: number; bottom: number }
@@ -82,7 +82,11 @@ export function createDisplayPrimitiveFromGesture(
 
 function resolvedScalar(value: DisplayScalar, document?: DisplayDesignDocument): number {
   if (value.kind === 'literal') return value.value
-  return resolveDisplayScalar(value, createDisplayBindingMap(document?.bindings ?? []))
+  return resolveDisplayScalar(
+    value,
+    createDisplayBindingMap(document?.bindings ?? []),
+    createDisplayTokenMap(document?.tokens ?? []),
+  )
 }
 
 export function displayElementBounds(
@@ -236,7 +240,7 @@ export function hitTestDisplayElements(
 }
 
 function translateScalar(value: DisplayScalar, delta: number): DisplayScalar {
-  return value.kind === 'literal' ? literal(value.value + delta) : cloneDisplayDesign(value)
+  return offsetDisplayScalar(value, delta)
 }
 
 export function translateDisplayElement(element: DisplayDesignElement, dx: number, dy: number): DisplayDesignElement {
@@ -279,29 +283,40 @@ export function resizeDisplayElement(
   element: DisplayDesignElement,
   handle: DisplayDesignHandle,
   point: DisplayDesignPoint,
+  document?: DisplayDesignDocument,
 ): DisplayDesignElement {
   if (element.kind === 'symbol-instance') return cloneDisplayDesign(element)
   const smooth = (element.kind === 'line' || element.kind === 'circle') && element.smooth
   const x = snapDisplayCoordinate(point.x, smooth); const y = snapDisplayCoordinate(point.y, smooth)
+  const bindings = createDisplayBindingMap(document?.bindings ?? [])
+  const tokens = createDisplayTokenMap(document?.tokens ?? [])
+  const set = (scalar: DisplayScalar, value: number) => setDisplayScalarPreviewValue(scalar, value, bindings, tokens)
   if (element.kind === 'line') {
-    if (handle === 'start') return { ...cloneDisplayDesign(element), x1: literal(x), y1: literal(y) }
-    if (handle === 'end') return { ...cloneDisplayDesign(element), x2: literal(x), y2: literal(y) }
+    if (handle === 'start') return { ...cloneDisplayDesign(element), x1: set(element.x1, x), y1: set(element.y1, y) }
+    if (handle === 'end') return { ...cloneDisplayDesign(element), x2: set(element.x2, x), y2: set(element.y2, y) }
   }
   if (element.kind === 'box') {
-    const bounds = displayElementBounds(element)
-    if (handle === 'top-left') return { ...cloneDisplayDesign(element), x1: literal(x), y1: literal(y), x2: literal(bounds.right), y2: literal(bounds.bottom) }
-    if (handle === 'top-right') return { ...cloneDisplayDesign(element), x1: literal(bounds.left), y1: literal(y), x2: literal(x), y2: literal(bounds.bottom) }
-    if (handle === 'bottom-left') return { ...cloneDisplayDesign(element), x1: literal(x), y1: literal(bounds.top), x2: literal(bounds.right), y2: literal(y) }
-    if (handle === 'bottom-right') return { ...cloneDisplayDesign(element), x1: literal(bounds.left), y1: literal(bounds.top), x2: literal(x), y2: literal(y) }
+    const x1 = resolveDisplayScalar(element.x1, bindings, tokens)
+    const x2 = resolveDisplayScalar(element.x2, bindings, tokens)
+    const y1 = resolveDisplayScalar(element.y1, bindings, tokens)
+    const y2 = resolveDisplayScalar(element.y2, bindings, tokens)
+    const leftProperty = x1 <= x2 ? 'x1' : 'x2'; const rightProperty = x1 <= x2 ? 'x2' : 'x1'
+    const topProperty = y1 <= y2 ? 'y1' : 'y2'; const bottomProperty = y1 <= y2 ? 'y2' : 'y1'
+    const next = cloneDisplayDesign(element)
+    const xProperty = handle.endsWith('left') ? leftProperty : rightProperty
+    const yProperty = handle.startsWith('top') ? topProperty : bottomProperty
+    next[xProperty] = set(next[xProperty], x)
+    next[yProperty] = set(next[yProperty], y)
+    return next
   }
   if (element.kind === 'circle') {
-    if (handle === 'centre') return { ...cloneDisplayDesign(element), x: literal(x), y: literal(y) }
+    if (handle === 'centre') return { ...cloneDisplayDesign(element), x: set(element.x, x), y: set(element.y, y) }
     if (handle === 'radius') {
-      const radius = snapDisplayCoordinate(Math.hypot(x - resolvedScalar(element.x), y - resolvedScalar(element.y)), element.smooth)
-      return { ...cloneDisplayDesign(element), radius: literal(radius) }
+      const radius = snapDisplayCoordinate(Math.hypot(x - resolvedScalar(element.x, document), y - resolvedScalar(element.y, document)), element.smooth)
+      return { ...cloneDisplayDesign(element), radius: set(element.radius, radius) }
     }
   }
-  if (element.kind === 'text' && handle === 'anchor') return { ...cloneDisplayDesign(element), x: literal(x), y: literal(y) }
+  if (element.kind === 'text' && handle === 'anchor') return { ...cloneDisplayDesign(element), x: set(element.x, x), y: set(element.y, y) }
   return cloneDisplayDesign(element)
 }
 

@@ -28,7 +28,7 @@ describe('display design files', () => {
     expect(result.fileName).toBe(`Envelope UI${DISPLAY_DESIGN_FILE_SUFFIX}`)
     expect(result.text).toBe(`{
   "kind": "luading-display-design",
-  "version": 2,
+  "version": 3,
   "name": "Envelope UI",
   "displayMode": "full-screen",
   "elements": [
@@ -63,6 +63,7 @@ describe('display design files', () => {
     }
   ],
   "groups": [],
+  "tokens": [],
   "bindings": [],
   "symbols": [],
   "layoutGrid": null
@@ -71,10 +72,11 @@ describe('display design files', () => {
     expect(result.bytes).toBe(new TextEncoder().encode(result.text).byteLength)
   })
 
-  it('migrates version-1 files without making them invalid and always serializes version 2', () => {
+  it('migrates version-1 files without making them invalid and always serializes version 3', () => {
     const current = createEmptyDisplayDesign('Legacy')
     const legacy = structuredClone(current) as unknown as Record<string, unknown>
     delete legacy.layoutGrid
+    delete legacy.tokens
     legacy.version = 1
     const parsed = parseDisplayDesignText(JSON.stringify(legacy))
 
@@ -86,7 +88,28 @@ describe('display design files', () => {
     const serialized = serializeDisplayDesign(parsed.document)
     expect(serialized.ok).toBe(true)
     if (!serialized.ok) return
-    expect(JSON.parse(serialized.text)).toMatchObject({ version: 2, layoutGrid: null })
+    expect(JSON.parse(serialized.text)).toMatchObject({ version: 3, tokens: [], layoutGrid: null })
+  })
+
+  it('migrates version-2 numeric binding endpoints into version-3 static scalars', () => {
+    const ids = createSequentialDisplayDesignIdFactory('v2')
+    const line = createDefaultDisplayPrimitive('pixel-line', ids)
+    const bindingId = ids('binding')
+    const legacy = {
+      ...createEmptyDisplayDesign('Version 2'),
+      version: 2,
+      elements: [{ ...line, x1: { kind: 'number-binding', bindingId, from: 4, to: 20, quantize: 'integer' } }],
+      bindings: [{ kind: 'number', id: bindingId, name: 'Position', luaName: 'position', previewValue: 0.5 }],
+    } as unknown as Record<string, unknown>
+    delete legacy.tokens
+    const parsed = parseDisplayDesignText(JSON.stringify(legacy))
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.migratedFromVersion).toBe(2)
+    expect(parsed.document.version).toBe(3)
+    expect(parsed.document.elements[0]).toMatchObject({
+      x1: { kind: 'number-binding', from: { kind: 'literal', value: 4 }, to: { kind: 'literal', value: 20 } },
+    })
   })
 
   it('round trips rich documents into defensive normalized values', () => {
@@ -107,10 +130,28 @@ describe('display design files', () => {
     expect(parsed.findings.map(({ ruleId }) => ruleId)).toContain('approximate-smoothing')
   })
 
+  it('pins canonical version-3 root, token, and AST key order', () => {
+    const ids = createSequentialDisplayDesignIdFactory('canonical-token')
+    const token = { id: ids('token'), name: 'Bar width', luaName: 'bar_width', value: 12 }
+    const box = createDefaultDisplayPrimitive('filled-box', ids)
+    box.x2 = { kind: 'token-expression', expression: {
+      kind: 'binary', operator: 'subtract', left: { kind: 'token', tokenId: token.id }, right: { kind: 'number', value: 1 },
+    } }
+    const result = serializeDisplayDesign({ ...createEmptyDisplayDesign(), tokens: [token], elements: [box] })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const parsed = JSON.parse(result.text) as Record<string, unknown>
+    expect(Object.keys(parsed)).toEqual(['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'tokens', 'bindings', 'symbols', 'layoutGrid'])
+    expect(Object.keys((parsed.tokens as Array<Record<string, unknown>>)[0]!)).toEqual(['id', 'name', 'luaName', 'value'])
+    const expression = (((parsed.elements as Array<Record<string, unknown>>)[0]!.x2 as Record<string, unknown>).expression as Record<string, unknown>)
+    expect(Object.keys(expression)).toEqual(['kind', 'operator', 'left', 'right'])
+    expect(Object.keys(expression.left as Record<string, unknown>)).toEqual(['kind', 'tokenId'])
+  })
+
   it('rejects malformed, oversized, unknown-version, and invalid documents without throwing', () => {
     expect(parseDisplayDesignText('{')).toMatchObject({ ok: false, code: 'invalid-json' })
     expect(parseDisplayDesignText('x'.repeat(DISPLAY_DESIGN_LIMITS.maximumJsonBytes + 1))).toMatchObject({ ok: false, code: 'file-too-large' })
-    expect(parseDisplayDesignText(JSON.stringify({ ...createEmptyDisplayDesign(), version: 3 }))).toMatchObject({
+    expect(parseDisplayDesignText(JSON.stringify({ ...createEmptyDisplayDesign(), version: 4 }))).toMatchObject({
       ok: false,
       code: 'invalid-document',
       findings: [{ ruleId: 'unsupported-version' }],

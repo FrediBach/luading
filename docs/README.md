@@ -101,6 +101,12 @@ generation, hardware/simulator provenance rules, project-library integration,
 and final verification.
 
 The completed
+[Display designer design-token plan](archive/implementation-plans/DISPLAY_DESIGN_TOKENS_IMPLEMENTATION_PLAN.md)
+records the version-3 file model, bounded formulas, token-aware compiler and
+generator, authoring workflow, symbolic manipulation rules, and final
+verification with the unavailable live-browser and hardware matrix.
+
+The completed
 [Micro Tracker example plan](archive/implementation-plans/MICRO_TRACKER_EXAMPLE_IMPLEMENTATION_PLAN.md)
 records the hardware-portable four-track tracker, its custom-control grammar,
 deterministic scheduler and saved state, display architecture, and final
