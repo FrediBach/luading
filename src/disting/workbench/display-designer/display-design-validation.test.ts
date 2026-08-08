@@ -121,7 +121,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 4 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 5 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -132,6 +132,23 @@ describe('display design validation', () => {
     circular.elements = [circular]
     expect(() => validateDisplayDesign(circular)).not.toThrow()
     expect(validateDisplayDesign(circular).ok).toBe(false)
+  })
+
+  it('validates pixel-box dimensions and every stored shade', () => {
+    const ids = createSequentialDisplayDesignIdFactory('pixel-validation')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    pixelBox.width = 2
+    pixelBox.height = 2
+    pixelBox.shades = [0, 5, 10, 15]
+    expect(validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [pixelBox] }).ok).toBe(true)
+
+    const mismatch = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...pixelBox, shades: [0, 1] }] })
+    expect(mismatch.findings.map(({ ruleId }) => ruleId)).toContain('pixel-box-size-mismatch')
+    const invalidShade = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...pixelBox, shades: [0, 1, 2, 16] }] })
+    expect(invalidShade.findings.map(({ ruleId }) => ruleId)).toContain('invalid-pixel-shade')
+
+    const version3 = { ...createEmptyDisplayDesign(), version: 3, elements: [pixelBox] }
+    expect(validateDisplayDesign(version3).findings.map(({ ruleId }) => ruleId)).toContain('unsupported-element-version')
   })
 
   it('migrates strict version-1 documents and validates version-2 layout grids', () => {

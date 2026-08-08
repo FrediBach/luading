@@ -20,7 +20,7 @@ describe('Display designer rendering', () => {
     expect(markup).toContain('aria-labelledby="display-designer-title"')
     expect(markup).toContain('Browser-only authoring for the 256 × 64 Disting NT display.')
     expect(markup).toContain('role="toolbar"')
-    for (const label of ['Select', 'Pixel line', 'Smooth line', 'Outline box', 'Filled box', 'Pixel circle', 'Smooth circle', 'Standard text', 'Tiny text']) {
+    for (const label of ['Select', 'Pixel line', 'Smooth line', 'Outline box', 'Filled box', 'Pixel box', 'Pixel circle', 'Smooth circle', 'Standard text', 'Tiny text']) {
       expect(markup).toContain(`aria-label="${label}"`)
     }
     expect(markup).toContain('Keep standard parameter line')

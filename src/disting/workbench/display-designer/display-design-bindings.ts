@@ -46,6 +46,12 @@ function collectPrimitiveUsages(
   context: Omit<DisplayBindingUsage, 'bindingId' | 'kind' | 'property' | 'ownerName'>,
 ): void {
   const owner = { ...context, ownerName: primitive.name }
+  if (primitive.kind === 'pixel-box') {
+    collectScalarUsage(primitive.x, usages, owner, 'x')
+    collectScalarUsage(primitive.y, usages, owner, 'y')
+    if (primitive.visible.kind === 'boolean-binding') usages.push({ ...owner, bindingId: primitive.visible.bindingId, kind: 'boolean', property: 'visibility' })
+    return
+  }
   collectScalarUsage(primitive.shade, usages, owner, 'shade')
   if (primitive.visible.kind === 'boolean-binding') usages.push({ ...owner, bindingId: primitive.visible.bindingId, kind: 'boolean', property: 'visibility' })
   if (primitive.kind === 'line' || primitive.kind === 'box') {
@@ -111,6 +117,14 @@ function mapPrimitive(
   visibility: DisplayPrimitiveElement['visible'],
   text: string,
 ): DisplayPrimitiveElement {
+  if (primitive.kind === 'pixel-box') return {
+    ...cloneDisplayDesign(primitive),
+    x: scalar(primitive.x),
+    y: scalar(primitive.y),
+    visible: primitive.visible.kind === 'boolean-binding' && primitive.visible.bindingId === bindingId
+      ? visibility
+      : cloneDisplayDesign(primitive.visible),
+  }
   const common = {
     ...cloneDisplayDesign(primitive),
     shade: scalar(primitive.shade),

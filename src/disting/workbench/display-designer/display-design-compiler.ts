@@ -17,6 +17,7 @@ import {
 } from './display-design-resolution'
 import type { DisplayTokenMap } from './display-design-token-expressions'
 import { buildDisplayDesignSource } from './display-design-generator'
+import { optimizeDisplayPixelBox } from './display-design-pixel-box'
 import { validateDisplayDesign } from './display-design-validation'
 
 export interface DisplayCommandSource {
@@ -77,6 +78,7 @@ export function compileDisplayPrimitive(
   tokens: DisplayTokenMap = createDisplayTokenMap([]),
 ): DrawCommand | undefined {
   if (!resolveDisplayVisibility(primitive.visible, bindings)) return undefined
+  if (primitive.kind === 'pixel-box') return compileDisplayPrimitiveCommands(primitive, bindings, translation, tokens)[0]
   const resolvedShade = shade(resolveDisplayScalar(primitive.shade, bindings, tokens))
   if (primitive.kind === 'line') {
     return {
@@ -120,6 +122,29 @@ export function compileDisplayPrimitive(
     tiny: primitive.tiny,
     align: primitive.align,
   }
+}
+
+export function compileDisplayPrimitiveCommands(
+  primitive: DisplayPrimitiveElement,
+  bindings: DisplayBindingMap,
+  translation: DisplayPrimitiveTranslation = NO_TRANSLATION,
+  tokens: DisplayTokenMap = createDisplayTokenMap([]),
+): DrawCommand[] {
+  if (!resolveDisplayVisibility(primitive.visible, bindings)) return []
+  if (primitive.kind !== 'pixel-box') {
+    const command = compileDisplayPrimitive(primitive, bindings, translation, tokens)
+    return command ? [command] : []
+  }
+  const originX = translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true)
+  const originY = translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true)
+  return optimizeDisplayPixelBox(primitive.width, primitive.height, primitive.shades).map((region): DrawCommand => {
+    const x1 = originX + region.x1
+    const y1 = originY + region.y1
+    const x2 = originX + region.x2
+    const y2 = originY + region.y2
+    if (x1 === x2 || y1 === y2) return { kind: 'line', x1, y1, x2, y2, shade: region.shade, smooth: false }
+    return { kind: 'box', x1, y1, x2, y2, shade: region.shade, fill: true, smooth: false }
+  })
 }
 
 function commandBounds(command: DrawCommand): CommandBounds | undefined {
@@ -249,13 +274,22 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
   let maximumVariantDrawCallCount = 0
   for (const [elementIndex, element] of document.elements.entries()) {
     if (element.kind !== 'symbol-instance') {
-      const command = compileDisplayPrimitive(element, bindings, NO_TRANSLATION, tokens)
-      if (!command) continue
+      const elementCommands = compileDisplayPrimitiveCommands(element, bindings, NO_TRANSLATION, tokens)
+      if (elementCommands.length === 0) continue
       const firstCommand = commands.length
-      commands.push(command)
-      commandSources.push({ elementId: element.id, firstCommand, commandCount: 1 })
-      maximumVariantDrawCallCount += 1
-      findings.push(...boundsFindings(document, command, element.id, elementIndex))
+      commands.push(...elementCommands)
+      commandSources.push({ elementId: element.id, firstCommand, commandCount: elementCommands.length })
+      maximumVariantDrawCallCount += elementCommands.length
+      const boundsCommand: DrawCommand = element.kind === 'pixel-box'
+        ? {
+            kind: 'box',
+            x1: resolveDisplayScalar(element.x, bindings, tokens), y1: resolveDisplayScalar(element.y, bindings, tokens),
+            x2: resolveDisplayScalar(element.x, bindings, tokens) + element.width - 1,
+            y2: resolveDisplayScalar(element.y, bindings, tokens) + element.height - 1,
+            shade: 15, fill: true, smooth: false,
+          }
+        : elementCommands[0]!
+      findings.push(...boundsFindings(document, boundsCommand, element.id, elementIndex))
       continue
     }
     if (!resolveDisplayVisibility(element.visible, bindings)) continue
@@ -267,27 +301,37 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
       y: resolveDisplayScalar(element.y, bindings, tokens),
     }
     for (const primitive of variant.elements) {
-      const command = compileDisplayPrimitive(primitive, bindings, translation, tokens)
-      if (!command) continue
+      const primitiveCommands = compileDisplayPrimitiveCommands(primitive, bindings, translation, tokens)
+      if (primitiveCommands.length === 0) continue
       const primitiveFirstCommand = commands.length
-      commands.push(command)
+      commands.push(...primitiveCommands)
       commandSources.push({
         elementId: element.id,
         symbolId: symbol.id,
         variantId: variant.id,
         primitiveId: primitive.id,
         firstCommand: primitiveFirstCommand,
-        commandCount: 1,
+        commandCount: primitiveCommands.length,
       })
-      findings.push(...boundsFindings(document, command, element.id, elementIndex, {
+      const boundsCommand: DrawCommand = primitive.kind === 'pixel-box'
+        ? {
+            kind: 'box',
+            x1: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
+            y1: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
+            x2: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true) + primitive.width - 1,
+            y2: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true) + primitive.height - 1,
+            shade: 15, fill: true, smooth: false,
+          }
+        : primitiveCommands[0]!
+      findings.push(...boundsFindings(document, boundsCommand, element.id, elementIndex, {
         symbolId: symbol.id,
         variantId: variant.id,
         primitiveId: primitive.id,
       }))
     }
-    const largestVariant = Math.max(0, ...symbol.variants.map((candidate) => candidate.elements.filter((primitive) => (
-      resolveDisplayVisibility(primitive.visible, bindings)
-    )).length))
+    const largestVariant = Math.max(0, ...symbol.variants.map((candidate) => candidate.elements.reduce((count, primitive) => (
+      count + compileDisplayPrimitiveCommands(primitive, bindings, NO_TRANSLATION, tokens).length
+    ), 0)))
     maximumVariantDrawCallCount += largestVariant
   }
   const smoothCallCount = commands.filter((command) => (

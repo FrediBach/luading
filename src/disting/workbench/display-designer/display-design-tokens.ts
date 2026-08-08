@@ -94,6 +94,7 @@ function scalarReferences(scalar: DisplayStaticScalar): Set<string> {
 }
 
 function primitiveScalars(primitive: DisplayPrimitiveElement): Array<[string, DisplayScalar]> {
+  if (primitive.kind === 'pixel-box') return [['x', primitive.x], ['y', primitive.y]]
   const common: Array<[string, DisplayScalar]> = [['shade', primitive.shade]]
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     return [...common, ['x1', primitive.x1], ['y1', primitive.y1], ['x2', primitive.x2], ['y2', primitive.y2]]
@@ -167,6 +168,11 @@ function substituteScalar(scalar: DisplayScalar, tokenId: string, value: number)
 
 function substitutePrimitive(primitive: DisplayPrimitiveElement, tokenId: string, value: number): DisplayPrimitiveElement {
   const next = cloneDisplayDesign(primitive)
+  if (next.kind === 'pixel-box') {
+    next.x = substituteScalar(next.x, tokenId, value)
+    next.y = substituteScalar(next.y, tokenId, value)
+    return next
+  }
   next.shade = substituteScalar(next.shade, tokenId, value)
   if (next.kind === 'line' || next.kind === 'box') {
     next.x1 = substituteScalar(next.x1, tokenId, value)

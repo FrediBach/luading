@@ -690,6 +690,33 @@
 .display-designer-shades button { min-width: 0; min-height: 24px; padding: 0; overflow: hidden; color: transparent; background: rgb(calc(2 * var(--shade) / 15) calc(241 * var(--shade) / 15) calc(239 * var(--shade) / 15)); }
 .display-designer-shades button[aria-pressed='true'] { outline: 2px solid white; outline-offset: -3px; }
 
+.display-designer-pixel-box-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.display-designer-pixel-box-editor {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  max-height: 320px;
+  overflow: auto;
+  gap: 1px;
+  padding: 4px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  background: var(--surface-recessed);
+}
+.display-designer-pixel-box-editor button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--nt-line);
+  border-radius: 2px;
+  color: white;
+  background: rgb(calc(2 * var(--shade) / 15) calc(241 * var(--shade) / 15) calc(239 * var(--shade) / 15));
+  font: var(--font-micro)/1 var(--mono);
+  text-shadow: 0 1px 2px black;
+}
+.display-designer-pixel-box-editor button:focus-visible { outline: 2px solid var(--nt-green); outline-offset: 0; }
+
 .display-designer-review {
   min-width: 0;
   min-height: 0;

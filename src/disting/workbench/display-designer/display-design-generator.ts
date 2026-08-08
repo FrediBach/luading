@@ -18,6 +18,7 @@ import {
 } from './display-design-resolution'
 import { collectDisplayTokenExpressionReferences, type DisplayTokenMap } from './display-design-token-expressions'
 import { validateDisplayDesign } from './display-design-validation'
+import { optimizeDisplayPixelBox } from './display-design-pixel-box'
 
 export type DisplayDesignGenerationResult =
   | {
@@ -54,11 +55,12 @@ function finding(
 }
 
 function collectPrimitiveBindingIds(primitive: DisplayPrimitiveElement, bindingIds: Set<string>): void {
-  const collectScalar = (scalar: DisplayPrimitiveElement['shade']) => {
+  const collectScalar = (scalar: DisplayScalar) => {
     if (scalar.kind === 'number-binding') bindingIds.add(scalar.bindingId)
   }
-  collectScalar(primitive.shade)
   if (primitive.visible.kind === 'boolean-binding') bindingIds.add(primitive.visible.bindingId)
+  if (primitive.kind === 'pixel-box') return
+  collectScalar(primitive.shade)
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     collectScalar(primitive.x1)
     collectScalar(primitive.y1)
@@ -93,6 +95,7 @@ function collectScalarTokenIds(scalar: DisplayScalar, tokenIds: Set<string>): nu
 }
 
 function collectPrimitiveTokenIds(primitive: DisplayPrimitiveElement, tokenIds: Set<string>): number {
+  if (primitive.kind === 'pixel-box') return 0
   let count = collectScalarTokenIds(primitive.shade, tokenIds)
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
@@ -149,6 +152,7 @@ function primitiveCall(
   tokens: DisplayTokenMap,
   translation?: { x: string; y: string },
 ): string {
+  if (primitive.kind === 'pixel-box') return ''
   const shade = displayShadeLuaExpression(primitive.shade, bindings, tokens)
   if (primitive.kind === 'line') {
     const integer = !primitive.smooth
@@ -184,6 +188,29 @@ function primitiveCall(
   return `${primitive.tiny ? 'drawTinyText' : 'drawText'}(${translatedScalarExpression(primitive.x, bindings, true, tokens, translation?.x)}, ${translatedScalarExpression(primitive.y, bindings, true, tokens, translation?.y)}, ${text}, ${shade}, ${luaQuotedString(primitive.align)})`
 }
 
+function offsetPixelCoordinate(value: string, offset: number): string {
+  if (offset === 0) return value
+  return `${value} + ${formatLuaNumber(offset)}`
+}
+
+function pixelBoxCalls(
+  primitive: Extract<DisplayPrimitiveElement, { kind: 'pixel-box' }>,
+  bindings: DisplayBindingMap,
+  tokens: DisplayTokenMap,
+  translation?: { x: string; y: string },
+): string[] {
+  const originX = translatedScalarExpression(primitive.x, bindings, true, tokens, translation?.x)
+  const originY = translatedScalarExpression(primitive.y, bindings, true, tokens, translation?.y)
+  return optimizeDisplayPixelBox(primitive.width, primitive.height, primitive.shades).map((region) => {
+    const x1 = offsetPixelCoordinate(originX, region.x1)
+    const y1 = offsetPixelCoordinate(originY, region.y1)
+    const x2 = offsetPixelCoordinate(originX, region.x2)
+    const y2 = offsetPixelCoordinate(originY, region.y2)
+    const functionName = region.x1 === region.x2 || region.y1 === region.y2 ? 'drawLine' : 'drawRectangle'
+    return `${functionName}(${x1}, ${y1}, ${x2}, ${y2}, ${region.shade})`
+  })
+}
+
 function primitiveSource(
   primitive: DisplayPrimitiveElement,
   bindings: DisplayBindingMap,
@@ -192,14 +219,18 @@ function primitiveSource(
   translation?: { x: string; y: string },
 ): string[] {
   const lines = [`${indent}-- ${oneLineComment(primitive.name)}`]
-  const call = primitiveCall(primitive, bindings, tokens, translation)
+  const calls = primitive.kind === 'pixel-box'
+    ? pixelBoxCalls(primitive, bindings, tokens, translation)
+    : [primitiveCall(primitive, bindings, tokens, translation)]
   if (primitive.visible.kind === 'visible') {
-    lines.push(`${indent}${call}`)
+    for (const call of calls) lines.push(`${indent}${call}`)
     return lines
   }
   const binding = bindings.get(primitive.visible.bindingId)
   const luaName = binding?.kind === 'boolean' ? binding.luaName : 'false'
-  lines.push(`${indent}if ${primitive.visible.invert ? `not ${luaName}` : luaName} then`, `${indent}  ${call}`, `${indent}end`)
+  lines.push(`${indent}if ${primitive.visible.invert ? `not ${luaName}` : luaName} then`)
+  for (const call of calls) lines.push(`${indent}  ${call}`)
+  lines.push(`${indent}end`)
   return lines
 }
 

@@ -824,11 +824,27 @@ Open **Display designer** from the workbench utilities to author a separate,
 browser-only 256×64 display design. Opening the full-size dialog does not pause
 the Lua runtime, change the active script, or replace the normal simulated
 display. The current implementation supports pixel and smooth lines, outlined
-and filled boxes, pixel and smooth outline circles, standard text, and tiny
-text. Choose a primitive tool and drag on the artboard to create repeatedly, or
+and filled boxes, pixel boxes, pixel and smooth outline circles, standard text,
+and tiny text. Choose a primitive tool and drag on the artboard to create repeatedly, or
 use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
+
+A **Pixel box** stores one of those 16 shades for every pixel in its rectangular
+area. Select a paint shade and choose individual cells in the Properties grid,
+or use **Fill all** and **Clear to shade 0** for bulk edits. Width/height edits
+and artboard resize handles retain pixels that remain inside the overlapping
+top-left area; newly exposed pixels start at shade 0. The grid scrolls for
+larger boxes, and every cell is a labelled keyboard button as well as a visual
+shade swatch.
+
+Pixel boxes compile to ordinary non-antialiased `drawLine()` and
+`drawRectangle()` calls. The optimizer compares horizontal, vertical, and
+area-first same-shade rectangle partitions, and also tries a full-box shade
+followed by exact overdraw. It chooses the candidate with the fewest calls,
+including shade 0 where erasing is required. The Properties summary, preview,
+metrics, generated Lua, and pixel boxes inside symbols all use that same
+deterministic result.
 
 Layers are shown front-to-back. Select on the artboard or in Layers, and use
 Shift to build a multi-selection. With the Select tool, drag from empty
@@ -976,8 +992,9 @@ Use **Open design** to choose a versioned `.luading-display.json` authoring
 file. Type, size, version, and document validation complete before the current
 draft is replaced; a failed read or invalid file keeps the draft unchanged.
 Version-1 files open with no layout grid or tokens, while version-2 files retain
-their grid; both migrate numeric binding endpoints into version-3 literal
-wrappers. Downloads always use strict version 3 with ordered `tokens` and a
+their grid; both migrate numeric binding endpoints into static-scalar literal
+wrappers. Version-3 files retain their tokens and grid. Downloads always use
+strict version 4, which adds pixel boxes, with ordered `tokens` and a
 `layoutGrid` that is either the uniform-grid definition or `null`. Use
 **Download design** for a
 deterministic JSON file with a safe name. A

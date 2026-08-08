@@ -95,6 +95,22 @@ describe('display design compiler', () => {
     expect(result.findings.map(({ ruleId }) => ruleId)).not.toContain('unused-binding')
   })
 
+  it('compiles one pixel box to optimized lines and filled rectangles with one source range', () => {
+    const ids = createSequentialDisplayDesignIdFactory('pixels')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    pixelBox.width = 3
+    pixelBox.height = 3
+    pixelBox.shades = [3, 3, 3, 3, 8, 3, 3, 3, 3]
+    const result = compileDisplayDesign({ ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [pixelBox] })
+
+    expect(result.commands).toEqual<DrawCommand[]>([
+      { kind: 'box', x1: 8, y1: 16, x2: 10, y2: 18, shade: 3, fill: true, smooth: false },
+      { kind: 'line', x1: 9, y1: 17, x2: 9, y2: 17, shade: 8, smooth: false },
+    ])
+    expect(result.commandSources).toEqual([{ elementId: pixelBox.id, firstCommand: 0, commandCount: 2 }])
+    expect(result.metrics).toMatchObject({ elementCount: 1, drawCallCount: 2, maximumVariantDrawCallCount: 2 })
+  })
+
   it('reports clipping, complete overflow, and parameter-line overlap with stable focus targets', () => {
     const ids = createSequentialDisplayDesignIdFactory('bounds')
     const clipped = createDefaultDisplayPrimitive('outline-box', ids)

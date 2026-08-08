@@ -70,6 +70,13 @@ export function createDisplayPrimitiveFromGesture(
   const start = constrainDisplayCreationPoint(startPoint, displayMode, smooth)
   const end = constrainDisplayCreationPoint(endPoint, displayMode, smooth)
   const element = createDefaultDisplayPrimitive(preset, idFactory)
+  if (element.kind === 'pixel-box') {
+    const x = Math.min(start.x, end.x)
+    const y = Math.min(start.y, end.y)
+    const width = Math.abs(end.x - start.x) + 1
+    const height = Math.abs(end.y - start.y) + 1
+    return { ...element, x: literal(x), y: literal(y), width, height, shades: Array(width * height).fill(15) }
+  }
   if (element.kind === 'line' || element.kind === 'box') {
     return { ...element, x1: literal(start.x), y1: literal(start.y), x2: literal(end.x), y2: literal(end.y) }
   }
@@ -117,6 +124,12 @@ export function displayElementBounds(
       bottom: y + Math.max(...primitiveBounds.map(({ bottom }) => bottom)),
     }
     return { left: x, top: y, right: x, bottom: y }
+  }
+  if (element.kind === 'pixel-box') return {
+    left: scalar(element.x),
+    top: scalar(element.y),
+    right: scalar(element.x) + element.width - 1,
+    bottom: scalar(element.y) + element.height - 1,
   }
   if (element.kind === 'line' || element.kind === 'box') {
     const x1 = scalar(element.x1); const y1 = scalar(element.y1)
@@ -183,7 +196,7 @@ export function displayElementHandles(element: DisplayDesignElement, document?: 
     { id: 'start', point: { x: scalar(element.x1), y: scalar(element.y1) } },
     { id: 'end', point: { x: scalar(element.x2), y: scalar(element.y2) } },
   ]
-  if (element.kind === 'box') {
+  if (element.kind === 'box' || element.kind === 'pixel-box') {
     const bounds = displayElementBounds(element, document)
     return [
       { id: 'top-left', point: { x: bounds.left, y: bounds.top } },
@@ -244,6 +257,11 @@ function translateScalar(value: DisplayScalar, delta: number): DisplayScalar {
 }
 
 export function translateDisplayElement(element: DisplayDesignElement, dx: number, dy: number): DisplayDesignElement {
+  if (element.kind === 'pixel-box') return {
+    ...cloneDisplayDesign(element),
+    x: translateScalar(element.x, Math.round(dx)),
+    y: translateScalar(element.y, Math.round(dy)),
+  }
   if (element.kind === 'line' || element.kind === 'box') return {
     ...cloneDisplayDesign(element),
     x1: translateScalar(element.x1, dx), y1: translateScalar(element.y1, dy),
@@ -291,6 +309,27 @@ export function resizeDisplayElement(
   const bindings = createDisplayBindingMap(document?.bindings ?? [])
   const tokens = createDisplayTokenMap(document?.tokens ?? [])
   const set = (scalar: DisplayScalar, value: number) => setDisplayScalarPreviewValue(scalar, value, bindings, tokens)
+  if (element.kind === 'pixel-box') {
+    const bounds = displayElementBounds(element)
+    const left = handle.endsWith('left') ? x : bounds.left
+    const right = handle.endsWith('right') ? x : bounds.right
+    const top = handle.startsWith('top') ? y : bounds.top
+    const bottom = handle.startsWith('bottom') ? y : bounds.bottom
+    const nextLeft = Math.min(left, right)
+    const nextRight = Math.max(left, right)
+    const nextTop = Math.min(top, bottom)
+    const nextBottom = Math.max(top, bottom)
+    const width = nextRight - nextLeft + 1
+    const height = nextBottom - nextTop + 1
+    const shades = Array<number>(width * height).fill(0)
+    for (let targetY = nextTop; targetY <= nextBottom; targetY += 1) {
+      for (let targetX = nextLeft; targetX <= nextRight; targetX += 1) {
+        if (targetX < bounds.left || targetX > bounds.right || targetY < bounds.top || targetY > bounds.bottom) continue
+        shades[(targetY - nextTop) * width + targetX - nextLeft] = element.shades[(targetY - bounds.top) * element.width + targetX - bounds.left] ?? 0
+      }
+    }
+    return { ...cloneDisplayDesign(element), x: set(element.x, nextLeft), y: set(element.y, nextTop), width, height, shades }
+  }
   if (element.kind === 'line') {
     if (handle === 'start') return { ...cloneDisplayDesign(element), x1: set(element.x1, x), y1: set(element.y1, y) }
     if (handle === 'end') return { ...cloneDisplayDesign(element), x2: set(element.x2, x), y2: set(element.y2, y) }

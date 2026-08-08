@@ -344,8 +344,8 @@ tests compare token formulas, tokenized binding endpoints, shared symbol helpers
 renames, integer/smooth boundaries, and repeated callbacks with commands emitted
 through the production Wasmoon/display bridge.
 
-Display-design file tests pin canonical version-3 root, token, and AST key
-ordering and bytes, the trailing newline, strict version-1/version-2 migration,
+Display-design file tests pin canonical version-4 root, token, pixel-box, and AST
+key ordering and bytes, the trailing newline, strict version-1/version-2/version-3 migration,
 layout-grid validation and round trips, future-version/size/type rejection,
 unsafe file-name repair, generated-Lua invariance, and defensive parsing without
 partial documents. jsdom covers read and parse
@@ -355,6 +355,14 @@ clipboard writes, clipboard rejection, and the selected manual-copy fallback.
 These tests do not exercise a native file picker, download shelf, clipboard
 permission prompt, or durable storage because design files are explicit
 browser handoffs rather than project persistence.
+
+Pixel-box optimizer tests rasterize every emitted region back into the source
+shade matrix, cover solid, striped, framed-overdraw, and all-16-shade inputs,
+and reject inconsistent dimensions. Compiler and real Wasmoon/display-boundary
+tests verify that one logical pixel-box source maps to the same optimized
+`drawLine`/`drawRectangle` sequence in preview and generated Lua. Geometry and
+jsdom coverage verify gesture creation, shade-preserving resize/move behavior,
+per-cell painting, accessibility labels, and live draw-call counts.
 
 The pure display-designer layout model pins the 900/720 CSS-pixel boundaries,
 stable lower-panel order, and wrapping Home/End/arrow tab navigation. Server

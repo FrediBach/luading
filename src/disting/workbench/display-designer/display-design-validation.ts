@@ -4,6 +4,7 @@ import {
   DISPLAY_DESIGN_VERSION,
   DISPLAY_DESIGN_VERSION_V1,
   DISPLAY_DESIGN_VERSION_V2,
+  DISPLAY_DESIGN_VERSION_V3,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
   type DisplayDesignDocument,
@@ -95,9 +96,9 @@ class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
 
-  readonly sourceVersion: 1 | 2 | 3
+  readonly sourceVersion: 1 | 2 | 3 | 4
 
-  constructor(sourceVersion: 1 | 2 | 3) {
+  constructor(sourceVersion: 1 | 2 | 3 | 4) {
     this.sourceVersion = sourceVersion
   }
 
@@ -270,7 +271,7 @@ class Validator {
       }
       return { kind: 'literal', value: options.integerLiteral ? Math.round(number) : number }
     }
-    if (value.kind === 'token-expression' && this.sourceVersion === DISPLAY_DESIGN_VERSION) {
+    if (value.kind === 'token-expression' && this.sourceVersion >= DISPLAY_DESIGN_VERSION_V3) {
       this.keys(value, ['kind', 'expression'], path, options.focus)
       return { kind: 'token-expression', expression: this.tokenExpression(value.expression, `${path}.expression`, options.focus) }
     }
@@ -300,10 +301,10 @@ class Validator {
       this.keys(value, ['kind', 'bindingId', 'from', 'to', 'quantize'], path, options.focus)
       const bindingId = typeof value.bindingId === 'string' ? value.bindingId : ''
       if (!bindingId) this.finding('invalid-binding-reference', 'A binding ID is required.', `${path}.bindingId`, options.focus)
-      const from = this.sourceVersion === DISPLAY_DESIGN_VERSION
+      const from = this.sourceVersion >= DISPLAY_DESIGN_VERSION_V3
         ? this.staticScalar(value.from, `${path}.from`, { focus: options.focus })
         : { kind: 'literal' as const, value: this.finiteNumber(value.from, `${path}.from`, Math.max(0, minimum), minimum, maximum, options.focus) }
-      const to = this.sourceVersion === DISPLAY_DESIGN_VERSION
+      const to = this.sourceVersion >= DISPLAY_DESIGN_VERSION_V3
         ? this.staticScalar(value.to, `${path}.to`, { focus: options.focus })
         : { kind: 'literal' as const, value: this.finiteNumber(value.to, `${path}.to`, Math.max(0, minimum), minimum, maximum, options.focus) }
       let quantize: DisplayScalarQuantization = value.quantize === 'none' || value.quantize === 'integer' ? value.quantize : 'integer'
@@ -379,11 +380,35 @@ class Validator {
       : ownerFocus
     const baseFocus = { ...focus, ...(allowGroup ? { elementId: id } : { primitiveId: id }) }
     const name = this.name(value.name, `${path}.name`, 'Untitled element', baseFocus)
-    const shade = this.scalar(value.shade, `${path}.shade`, { integer: true, minimum: 0, maximum: 15, focus: { ...baseFocus, property: 'shade' } })
     const visible = this.visibility(value.visible, `${path}.visible`, { ...baseFocus, property: 'visible' })
     const groupId = allowGroup && typeof value.groupId === 'string' ? value.groupId : undefined
     const groupKey = allowGroup ? ['groupId'] : []
     if (allowGroup && value.groupId !== undefined && typeof value.groupId !== 'string') this.finding('invalid-group-reference', 'A group ID string is required.', `${path}.groupId`, baseFocus)
+    if (value.kind === 'pixel-box') {
+      this.keys(value, ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'shades', ...groupKey], path, baseFocus)
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+        this.finding('unsupported-element-version', 'Pixel boxes require display design version 4.', `${path}.kind`, baseFocus)
+      }
+      const integer = (candidate: unknown, property: string, fallback: number, minimum: number, maximum: number) => {
+        const result = this.finiteNumber(candidate, `${path}.${property}`, fallback, minimum, maximum, { ...baseFocus, property })
+        if (!Number.isInteger(result)) this.finding('integer-required', 'This property requires a whole number.', `${path}.${property}`, { ...baseFocus, property })
+        return Math.round(result)
+      }
+      const x = this.scalar(value.x, `${path}.x`, { integer: true, focus: { ...baseFocus, property: 'x' } })
+      const y = this.scalar(value.y, `${path}.y`, { integer: true, focus: { ...baseFocus, property: 'y' } })
+      const width = integer(value.width, 'width', 1, 1, 256)
+      const height = integer(value.height, 'height', 1, 1, 64)
+      const rawShades = this.array(value.shades, `${path}.shades`)
+      if (rawShades.length !== width * height) this.finding('pixel-box-size-mismatch', `Pixel box shades must contain exactly ${width * height} entries.`, `${path}.shades`, baseFocus)
+      if (rawShades.length > DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels) this.finding('pixel-box-pixel-limit', `A pixel box may contain at most ${DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels} pixels.`, `${path}.shades`, baseFocus)
+      const shades = rawShades.slice(0, DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels).map((candidate, index) => {
+        if (typeof candidate === 'number' && Number.isInteger(candidate) && candidate >= 0 && candidate <= 15) return candidate
+        this.finding('invalid-pixel-shade', 'Each pixel shade must be a whole number from 0 through 15.', `${path}.shades[${index}]`, { ...baseFocus, property: 'shades' })
+        return 0
+      })
+      return { id, name, visible, ...(groupId ? { groupId } : {}), kind: 'pixel-box', x, y, width, height, shades }
+    }
+    const shade = this.scalar(value.shade, `${path}.shade`, { integer: true, minimum: 0, maximum: 15, focus: { ...baseFocus, property: 'shade' } })
     if (shade.kind === 'literal' && shade.value === 0) this.finding('shade-zero', 'Shade zero erases earlier pixels in draw order.', `${path}.shade`, { ...baseFocus, property: 'shade' }, 'warning')
     const shared = { id, name, shade, visible, ...(groupId ? { groupId } : {}) }
     if (value.kind === 'line') {
@@ -433,7 +458,7 @@ class Validator {
       }
     }
     this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', ...groupKey], path, baseFocus)
-    this.finding('invalid-element-kind', 'Element kind must be line, box, circle, or text.', `${path}.kind`, baseFocus)
+    this.finding('invalid-element-kind', 'Element kind must be line, box, pixel-box, circle, or text.', `${path}.kind`, baseFocus)
     return undefined
   }
 
@@ -698,8 +723,13 @@ function checkPrimitiveReferences(
   tokens: Map<string, DisplayDesignToken>,
   focus: DisplayDesignerFindingFocus,
 ): void {
-  checkScalarReference(validator, primitive.shade, `${path}.shade`, bindings, tokens, { ...focus, property: 'shade' })
   checkVisibilityReference(validator, primitive.visible, `${path}.visible`, bindings, { ...focus, property: 'visible' })
+  if (primitive.kind === 'pixel-box') {
+    checkScalarReference(validator, primitive.x, `${path}.x`, bindings, tokens, { ...focus, property: 'x' })
+    checkScalarReference(validator, primitive.y, `${path}.y`, bindings, tokens, { ...focus, property: 'y' })
+    return
+  }
+  checkScalarReference(validator, primitive.shade, `${path}.shade`, bindings, tokens, { ...focus, property: 'shade' })
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
   } else if (primitive.kind === 'circle') {
@@ -787,7 +817,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION)
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION)
     ? value.version
     : DISPLAY_DESIGN_VERSION
   const validator = new Validator(sourceVersion)
@@ -800,17 +830,17 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION) {
-      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1}, ${DISPLAY_DESIGN_VERSION_V2}, and ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION) {
+      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1}, ${DISPLAY_DESIGN_VERSION_V2}, ${DISPLAY_DESIGN_VERSION_V3}, and ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
     const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
-    const isVersion3 = value.version === DISPLAY_DESIGN_VERSION
+    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION
     validator.keys(
       value,
       isVersion1
         ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols']
-        : isVersion3
+        : hasTokens
           ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'tokens', 'bindings', 'symbols', 'layoutGrid']
           : ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols', 'layoutGrid'],
       '$',
@@ -818,7 +848,7 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
     const layoutGrid = isVersion1 ? null : validateLayoutGrid(validator, value.layoutGrid)
 
     const rawGroups = validator.array(value.groups, 'groups')
-    const rawTokens = isVersion3 ? validator.array(value.tokens, 'tokens') : []
+    const rawTokens = hasTokens ? validator.array(value.tokens, 'tokens') : []
     const rawBindings = validator.array(value.bindings, 'bindings')
     const rawSymbols = validator.array(value.symbols, 'symbols')
     const rawElements = validator.array(value.elements, 'elements')

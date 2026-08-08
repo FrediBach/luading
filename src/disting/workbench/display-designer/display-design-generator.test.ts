@@ -101,6 +101,20 @@ end,
     expect(withGrid).toEqual(withoutGrid)
   })
 
+  it('runs optimized pixel-box Lua through the real Lua/display boundary', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('pixel-box')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    pixelBox.width = 3
+    pixelBox.height = 3
+    pixelBox.shades = [3, 3, 3, 3, 8, 3, 3, 3, 3]
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [pixelBox] }
+    const { commands, generated } = await runGenerated(document)
+
+    expect(generated.source).toContain('drawRectangle(8, 16, 8 + 2, 16 + 2, 3)')
+    expect(generated.source).toContain('drawLine(8 + 1, 16 + 1, 8 + 1, 16 + 1, 8)')
+    expect(commands).toEqual(compileDisplayDesign(document).commands)
+  })
+
   it('emits binding locals once in document order with ordinary mapping and visibility expressions', () => {
     const ids = createSequentialDisplayDesignIdFactory('binding')
     const numberId = ids('binding')

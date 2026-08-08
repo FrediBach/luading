@@ -45,6 +45,7 @@ import {
   constrainDisplayPointerTranslation,
   createDisplayPrimitiveFromGesture,
   displayAreaBounds,
+  displayElementBounds,
   displayElementHandles,
   displayElementsWithinArea,
   distributeDisplayElements,
@@ -146,6 +147,7 @@ import {
   syncDisplaySymbolChoiceMap,
   updateDisplaySymbolVariant,
 } from './display-design-symbols'
+import { optimizeDisplayPixelBox } from './display-design-pixel-box'
 import './display-designer.css'
 
 interface Props {
@@ -159,6 +161,7 @@ type DesignerTool = 'select' | DisplayPrimitivePreset
 type DesignerZoom = 'fit' | 1 | 2 | 3 | 4
 type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
 type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
+type DisplayScenePixelBox = Extract<DisplayDesignElement, { kind: 'pixel-box' }>
 
 interface DisplayDesignerViewPreferences {
   showPixelGrid: boolean
@@ -447,6 +450,7 @@ const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
   { id: 'smooth-line', label: 'Smooth line', shortLabel: 'Smooth line' },
   { id: 'outline-box', label: 'Outline box', shortLabel: 'Box' },
   { id: 'filled-box', label: 'Filled box', shortLabel: 'Fill' },
+  { id: 'pixel-box', label: 'Pixel box', shortLabel: 'Pixels' },
   { id: 'pixel-circle', label: 'Pixel circle', shortLabel: 'Circle' },
   { id: 'smooth-circle', label: 'Smooth circle', shortLabel: 'Smooth circle' },
   { id: 'standard-text', label: 'Standard text', shortLabel: 'Text' },
@@ -457,6 +461,7 @@ function elementTypeName(element: DisplayDesignElement): string {
   if (element.kind === 'symbol-instance') return 'Symbol instance'
   if (element.kind === 'line') return element.smooth ? 'Smooth line' : 'Pixel line'
   if (element.kind === 'box') return element.fill ? 'Filled box' : 'Outline box'
+  if (element.kind === 'pixel-box') return 'Pixel box'
   if (element.kind === 'circle') return element.smooth ? 'Smooth circle' : 'Pixel circle'
   return element.tiny ? 'Tiny text' : 'Standard text'
 }
@@ -515,7 +520,11 @@ function CommitInput({
   )
 }
 
-function GeometryOverlay({ command }: { command?: DrawCommand }) {
+function GeometryOverlay({ command, element, document }: { command?: DrawCommand; element: DisplayDesignElement; document: DisplayDesignDocument }) {
+  if (element.kind === 'pixel-box') {
+    const bounds = displayElementBounds(element, document)
+    return <rect x={bounds.left} y={bounds.top} width={element.width} height={element.height} />
+  }
   if (!command) return null
   if (command.kind === 'line') {
     return (
@@ -713,7 +722,7 @@ function DisplayDesignerArtboard({
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
               return <g key={element.id} className="display-designer-selection-geometry">
-                <GeometryOverlay command={command} />
+                <GeometryOverlay command={command} element={element} document={document} />
                 {displayElementHandles(element, document).map(({ id, point }) => <g key={id}>
                   <circle
                     className="display-designer-handle-target"
@@ -1106,6 +1115,7 @@ function DisplayDesignerInspector({
   onEditSymbol?(instance: DisplaySymbolInstance): void
   onDetachInstance?(instance: DisplaySymbolInstance): void
 }) {
+  const [pixelPaintShade, setPixelPaintShade] = useState(15)
   if (!element) return (
     <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
       <h3 id="display-designer-properties-title">Properties</h3>
@@ -1189,6 +1199,115 @@ function DisplayDesignerInspector({
         updateInstance('Attach choice binding', (instance) => ({ ...instance, state: { kind: 'choice-binding', bindingId: choiceBinding.id, variantByChoiceId: Object.fromEntries(choiceBinding.choices.map((choice) => [choice.id, byValue.get(choice.luaValue) ?? symbol.defaultVariantId])) } }))
       }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>}</>}
       <div className="display-designer-symbol-actions"><button type="button" onClick={() => onEditSymbol?.(element)}>Edit symbol</button><button type="button" onClick={() => onDetachInstance?.(element)}>Detach instance…</button></div>
+    </section>
+  }
+
+  if (element.kind === 'pixel-box') {
+    const updatePixelBox = (
+      label: string,
+      change: (current: DisplayScenePixelBox) => DisplayScenePixelBox,
+      baseDocument = document,
+    ) => onCommit(label, updateDisplayDesignElement(baseDocument, element.id, (current) => current.kind === 'pixel-box' ? change(current) : current))
+    const setCoordinate = (property: 'x' | 'y', value: DisplayScalar, label: string, baseDocument = document) => {
+      updatePixelBox(label, (current) => ({ ...current, [property]: value }), baseDocument)
+    }
+    const makeCoordinateDynamic = (property: 'x' | 'y') => {
+      const currentScalar = element[property]
+      const created = createDisplayBindingInDocument(document, 'number', idFactory, `Pixel box ${property.toUpperCase()}`)
+      const staticScalar: DisplayStaticScalar = currentScalar.kind === 'number-binding'
+        ? { kind: 'literal', value: staticDisplayScalarValue(document, currentScalar) }
+        : currentScalar
+      const nextDocument = updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'pixel-box' ? {
+        ...current,
+        [property]: {
+          kind: 'number-binding', bindingId: created.binding.id,
+          from: staticScalar, to: offsetDisplayStaticScalar(staticScalar, 16), quantize: 'integer',
+        },
+      } : current)
+      onCommit(`Make pixel box ${property.toUpperCase()} dynamic`, nextDocument)
+    }
+    const resize = (width: number, height: number) => {
+      const shades = Array<number>(width * height).fill(0)
+      const copyWidth = Math.min(width, element.width)
+      const copyHeight = Math.min(height, element.height)
+      for (let y = 0; y < copyHeight; y += 1) {
+        for (let x = 0; x < copyWidth; x += 1) shades[y * width + x] = element.shades[y * element.width + x] ?? 0
+      }
+      updatePixelBox('Resize pixel box', (current) => ({ ...current, width, height, shades }))
+    }
+    const setPixelShade = (index: number, shade: number) => updatePixelBox('Paint pixel box pixel', (current) => {
+      const shades = [...current.shades]
+      shades[index] = shade
+      return { ...current, shades }
+    })
+    const optimizedCalls = optimizeDisplayPixelBox(element.width, element.height, element.shades).length
+    return <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
+      <h3 id="display-designer-properties-title">Properties</h3>
+      <p className="display-designer-element-kind">Pixel box</p>
+      <CommitInput label="Layer name" value={element.name} onCommit={(name) => {
+        const trimmed = name.trim()
+        if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
+        updatePixelBox('Rename layer', (current) => ({ ...current, name: trimmed }))
+        return true
+      }} />
+      <label className="display-designer-field"><span>Group</span><select value={element.groupId ?? ''} onChange={(event) => {
+        const groupId = event.currentTarget.value || undefined
+        updatePixelBox('Assign group', (current) => {
+          const next = { ...current }
+          if (groupId) next.groupId = groupId
+          else delete next.groupId
+          return next
+        })
+      }}><option value="">No group</option>{document.groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
+      <div className="display-designer-field-grid">{(['x', 'y'] as const).map((property) => <DisplayScalarEditor
+        key={property}
+        document={document}
+        scalar={element[property]}
+        label={property.toUpperCase()}
+        integer
+        idFactory={idFactory}
+        onChange={(value, label, baseDocument) => setCoordinate(property, value, label, baseDocument)}
+        onMakeDynamic={() => makeCoordinateDynamic(property)}
+      />)}</div>
+      <div className="display-designer-field-grid">
+        <CommitInput label="Width" type="number" min={1} max={256} step={1} value={element.width} onCommit={(draft) => {
+          const width = Number(draft)
+          if (!Number.isInteger(width) || width < 1 || width > 256) return false
+          resize(width, element.height)
+          return true
+        }} />
+        <CommitInput label="Height" type="number" min={1} max={64} step={1} value={element.height} onCommit={(draft) => {
+          const height = Number(draft)
+          if (!Number.isInteger(height) || height < 1 || height > 64) return false
+          resize(element.width, height)
+          return true
+        }} />
+      </div>
+      <p className="display-designer-computed">{element.width * element.height} pixels · {optimizedCalls} optimized draw {optimizedCalls === 1 ? 'call' : 'calls'}</p>
+      <fieldset className="display-designer-shades"><legend>Paint shade: {pixelPaintShade}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Paint shade ${shade}`} aria-pressed={pixelPaintShade === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setPixelPaintShade(shade)}>{shade}</button>)}</div></fieldset>
+      <div className="display-designer-pixel-box-actions">
+        <button type="button" onClick={() => updatePixelBox('Fill pixel box', (current) => ({ ...current, shades: Array(current.width * current.height).fill(pixelPaintShade) }))}>Fill all</button>
+        <button type="button" onClick={() => updatePixelBox('Clear pixel box', (current) => ({ ...current, shades: Array(current.width * current.height).fill(0) }))}>Clear to shade 0</button>
+      </div>
+      <div className="display-designer-pixel-box-editor" role="grid" aria-label={`${element.name} pixel shades`} style={{ gridTemplateColumns: `repeat(${element.width}, 24px)` }}>
+        {element.shades.map((shade, index) => {
+          const x = index % element.width
+          const y = Math.floor(index / element.width)
+          return <button
+            key={index}
+            type="button"
+            role="gridcell"
+            aria-label={`Pixel ${x + 1}, ${y + 1}: shade ${shade}`}
+            title={`Pixel ${x + 1}, ${y + 1} · shade ${shade}`}
+            style={{ '--shade': shade } as CSSProperties}
+            onClick={() => setPixelShade(index, pixelPaintShade)}
+          ><span>{shade}</span></button>
+        })}
+      </div>
+      {element.visible.kind === 'visible' ? <div className="display-designer-dynamic-property"><p>Visibility · Always visible</p><div className="display-designer-dynamic-actions"><button type="button" onClick={() => {
+        const created = createDisplayBindingInDocument(document, 'boolean', idFactory, 'Visibility')
+        onCommit('Make visibility dynamic', updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'pixel-box' ? { ...current, visible: { kind: 'boolean-binding', bindingId: created.binding.id, invert: false } } : current))
+      }}>Make visibility dynamic</button>{document.bindings.some(({ kind }) => kind === 'boolean') && <select aria-label="Attach visibility binding" value="" onChange={(event) => { if (event.currentTarget.value) updatePixelBox('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: false } })) }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}</div></div> : <fieldset className="display-designer-binding-map"><legend>Visibility</legend><label className="display-designer-field"><span>Binding</span><select value={element.visible.bindingId} onChange={(event) => updatePixelBox('Attach visibility binding', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: event.currentTarget.value, invert: current.visible.kind === 'boolean-binding' ? current.visible.invert : false } }))}>{document.bindings.filter(({ kind }) => kind === 'boolean').map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label><label className="display-designer-check"><input type="checkbox" checked={element.visible.invert} onChange={(event) => updatePixelBox('Invert visibility', (current) => ({ ...current, visible: { kind: 'boolean-binding', bindingId: element.visible.kind === 'boolean-binding' ? element.visible.bindingId : '', invert: event.currentTarget.checked } }))} />Invert binding</label><button type="button" onClick={() => updatePixelBox('Make visibility static', (current) => ({ ...current, visible: { kind: 'visible' } }))}>Make visibility static</button></fieldset>}
     </section>
   }
 
@@ -2015,7 +2134,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     setHiddenGroupIds(new Set())
     setPendingDetachId(undefined)
     updateGesture(null)
-    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.${parsed.migratedFromVersion ? ' Version 1 was migrated in memory; downloading saves version 2.' : ''}`)
+    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.${parsed.migratedFromVersion ? ` Version ${parsed.migratedFromVersion} was migrated in memory; downloading saves version 4.` : ''}`)
   }
 
   const downloadDesign = () => {
@@ -2156,7 +2275,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
           {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
             setActiveTool(tool.id)
-          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
+          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'pixel-box' ? '▦' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
           {activeTool !== 'select' && <button type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
         </div>
 

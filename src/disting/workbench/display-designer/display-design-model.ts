@@ -1,7 +1,8 @@
 export const DISPLAY_DESIGN_KIND = 'luading-display-design' as const
 export const DISPLAY_DESIGN_VERSION_V1 = 1 as const
 export const DISPLAY_DESIGN_VERSION_V2 = 2 as const
-export const DISPLAY_DESIGN_VERSION = 3 as const
+export const DISPLAY_DESIGN_VERSION_V3 = 3 as const
+export const DISPLAY_DESIGN_VERSION = 4 as const
 
 export const DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID = {
   kind: 'uniform',
@@ -22,6 +23,7 @@ export const DISPLAY_DESIGN_LIMITS = {
   maximumExpressionDepth: 16,
   maximumFormulaCodePoints: 256,
   maximumTextCodePoints: 512,
+  maximumPixelBoxPixels: 256 * 64,
   maximumNameCodePoints: 80,
   minimumCoordinate: -4096,
   maximumCoordinate: 4096,
@@ -121,11 +123,24 @@ export interface DisplayTextElement extends DisplayPrimitiveBase {
   align: DisplayTextAlignment
 }
 
+export interface DisplayPixelBoxElement {
+  kind: 'pixel-box'
+  id: string
+  name: string
+  visible: DisplayVisibility
+  x: DisplayScalar
+  y: DisplayScalar
+  width: number
+  height: number
+  shades: number[]
+}
+
 export type DisplayPrimitiveElement =
   | DisplayLineElement
   | DisplayBoxElement
   | DisplayCircleElement
   | DisplayTextElement
+  | DisplayPixelBoxElement
 
 export type DisplaySymbolState =
   | { kind: 'literal'; variantId: string }
@@ -250,12 +265,18 @@ export interface DisplayDesignDocumentV2 extends DisplayDesignDocumentFields {
 }
 
 export interface DisplayDesignDocumentV3 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION_V3
+  tokens: DisplayDesignToken[]
+  layoutGrid: DisplayDesignLayoutGrid | null
+}
+
+export interface DisplayDesignDocumentV4 extends DisplayDesignDocumentFields {
   version: typeof DISPLAY_DESIGN_VERSION
   tokens: DisplayDesignToken[]
   layoutGrid: DisplayDesignLayoutGrid | null
 }
 
-export type DisplayDesignDocument = DisplayDesignDocumentV3
+export type DisplayDesignDocument = DisplayDesignDocumentV4
 
 export interface DisplayDesignSelection {
   elementIds: string[]
@@ -291,6 +312,7 @@ export type DisplayPrimitivePreset =
   | 'smooth-line'
   | 'outline-box'
   | 'filled-box'
+  | 'pixel-box'
   | 'pixel-circle'
   | 'smooth-circle'
   | 'standard-text'
@@ -396,6 +418,11 @@ export function createDefaultDisplayPrimitive(
   scope?: 'element' | 'primitive',
 ): DisplayBoxElement
 export function createDefaultDisplayPrimitive(
+  preset: 'pixel-box',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayPixelBoxElement
+export function createDefaultDisplayPrimitive(
   preset: 'pixel-circle' | 'smooth-circle',
   idFactory: DisplayDesignIdFactory,
   scope?: 'element' | 'primitive',
@@ -426,6 +453,8 @@ export function createDefaultDisplayPrimitive(
       return { ...base, kind: 'box', name: 'Outline box', fill: false, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(24) }
     case 'filled-box':
       return { ...base, kind: 'box', name: 'Filled box', fill: true, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(24) }
+    case 'pixel-box':
+      return { id, kind: 'pixel-box', name: 'Pixel box', visible: visible(), x: literal(8), y: literal(16), width: 8, height: 8, shades: Array(64).fill(15) }
     case 'pixel-circle':
       return { ...base, kind: 'circle', name: 'Pixel circle', smooth: false, x: literal(20), y: literal(20), radius: literal(6) }
     case 'smooth-circle':
