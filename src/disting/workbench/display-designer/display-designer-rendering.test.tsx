@@ -57,6 +57,7 @@ describe('Display designer rendering', () => {
     expect(designerCss).toMatch(/\.display-designer-layout-grid \{[^}]*vector-effect: non-scaling-stroke;/s)
     expect(designerCss).toMatch(/\.display-designer-snap-guides \{[^}]*stroke-width: 1\.5px;[^}]*vector-effect: non-scaling-stroke;/s)
     expect(designerCss).toMatch(/\.display-designer-view-menu \{[^}]*z-index: 250;/s)
+    expect(designerCss).toMatch(/\.display-designer-dynamic-actions > select \{[^}]*min-height: 30px;[^}]*border: 1px solid var\(--nt-line\);[^}]*background: var\(--surface-recessed\);/s)
     expect(designerCss).toMatch(/@media \(max-width: 720px\)/)
     expect(designerCss).toMatch(/height: 100dvh/)
   })

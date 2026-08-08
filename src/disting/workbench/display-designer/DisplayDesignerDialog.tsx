@@ -946,7 +946,7 @@ function DisplayScalarEditor({
     <CommitInput label={label} type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.value} onCommit={commitLiteral} />
     <div className="display-designer-dynamic-actions">
       <button type="button" onClick={onMakeDynamic}>Make {label} dynamic</button>
-      {bindings.length > 0 && <label><span className="sr-only">Attach {label} binding</span><select aria-label={`Attach ${label} binding`} value="" onChange={(event) => { if (event.currentTarget.value) attach(event.currentTarget.value) }}><option value="">Attach existing…</option>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select></label>}
+      {bindings.length > 0 && <select aria-label={`Attach ${label} binding`} value="" onChange={(event) => { if (event.currentTarget.value) attach(event.currentTarget.value) }}><option value="">Attach existing…</option>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}
     </div>
   </div>
 

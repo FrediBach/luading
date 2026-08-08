@@ -648,6 +648,7 @@ describe('Display designer dialog', () => {
     expect(bindingCard('X1').textContent).toContain('1 use')
     expect(document.body.textContent).toContain('Preview 8')
     const attachY1 = document.querySelector<HTMLSelectElement>('[aria-label="Attach Y1 binding"]')!
+    expect(attachY1.parentElement?.classList.contains('display-designer-dynamic-actions')).toBe(true)
     await choose(attachY1, attachY1.options[1]!.value)
     expect(bindingCard('X1').textContent).toContain('2 uses')
     await click(button('Make Y1 static'))

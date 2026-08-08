@@ -571,9 +571,17 @@
 
 .display-designer-dynamic-property p { margin: 0; color: var(--nt-muted); font-size: var(--font-micro); }
 .display-designer-dynamic-actions { display: flex; flex-wrap: wrap; gap: 4px; }
-.display-designer-dynamic-actions button,
-.display-designer-dynamic-actions label,
-.display-designer-dynamic-actions select { min-width: 0; flex: 1 1 100px; }
+.display-designer-dynamic-actions > button,
+.display-designer-dynamic-actions > select { min-width: 0; flex: 1 1 100px; }
+.display-designer-dynamic-actions > select {
+  min-height: 30px;
+  box-sizing: border-box;
+  padding: 4px 7px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  color: var(--nt-text);
+  background: var(--surface-recessed);
+}
 
 .display-designer-binding-map {
   margin: 0;
