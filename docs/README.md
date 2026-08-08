@@ -59,6 +59,10 @@ results separately from claims about the Disting hardware contract.
   previewing static and dynamic states, reusing multi-state symbols/components,
   and generating readable ordinary Lua draw callbacks without changing the
   active source or worker contract.
+- [Disting NT pixel UI library](plans/DISTING_PIXEL_UI_LIBRARY_IMPLEMENTATION_PLAN.md)
+  plans a built-in catalog of editable, stateful Eurorack display components
+  and screen recipes on top of the Display designer, including patching,
+  controls, signal processing, sequencing, and original drum-machine graphics.
 
 An active plan describes intended work and is not evidence that the behavior
 exists. Update its status as work lands. Once it is complete, move it to the

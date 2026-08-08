@@ -254,8 +254,10 @@ size but keeps every state inspectable and avoids a subtle override system.
 Symbols cannot contain symbol instances in version one. Prohibiting nesting
 avoids reference cycles, recursive draw expansion, ambiguous state propagation,
 and harder hardware-cost estimates while retaining the main reuse benefit.
-A future starter-component gallery may create ordinary local symbols, but it
-must not make symbols opaque or add simulator globals.
+A starter-component gallery may create ordinary local symbols, but it must not
+make symbols opaque or add simulator globals. Its catalog, state contracts, and
+insertion behavior are planned separately in the
+[Disting NT pixel UI library plan](DISTING_PIXEL_UI_LIBRARY_IMPLEMENTATION_PLAN.md).
 
 ## Version-one document model
 
