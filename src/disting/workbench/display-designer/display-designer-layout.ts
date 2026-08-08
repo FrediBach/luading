@@ -5,6 +5,7 @@ export type DisplayDesignerLayoutMode = 'wide' | 'medium' | 'narrow'
 
 export type DisplayDesignerPanel =
   | 'layers'
+  | 'components'
   | 'symbols'
   | 'properties'
   | 'tokens'
@@ -18,6 +19,7 @@ export const DISPLAY_DESIGNER_PANELS: ReadonlyArray<{
   label: string
 }> = [
   { id: 'layers', label: 'Layers' },
+  { id: 'components', label: 'Components' },
   { id: 'symbols', label: 'Symbols' },
   { id: 'properties', label: 'Properties' },
   { id: 'tokens', label: 'Tokens' },

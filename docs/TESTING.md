@@ -312,6 +312,19 @@ shortcuts. They deliberately do not claim real pointer
 capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
 Canvas visual fidelity.
 
+Display-component-library tests pin the nine stable categories, two starter
+recipes per category, recipe/state/scenario validation, search aliases,
+collision-safe names, independent fresh bindings, active-area placement,
+resource-limit rejection without document mutation, and successful
+materialization of every starter scenario as ordinary version-9 symbols and
+instances. Representative numeric and choice-bound components execute through
+the production Wasmoon/display boundary and must emit the same commands as the
+preview compiler. Server-rendering and jsdom tests cover catalog labels,
+pixel-preview canvases, category/search filtering, scenario selection,
+single-transaction insertion/undo, State-panel bindings, generated source, and
+the responsive Components tab. Exact canvas pixels, scrolling through the full
+catalog, and physical 1x legibility still require live browser/device review.
+
 Display-designer binding tests pin safe Lua-local allocation, keywords and
 collisions, stable usage discovery across scene and symbol primitives,
 number/boolean/text/choice binding creation, reverse mappings, integer and

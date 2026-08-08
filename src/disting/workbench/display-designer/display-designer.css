@@ -431,6 +431,26 @@
 .display-designer-context-menu button:disabled { opacity: 0.4; cursor: default; }
 .display-designer-context-menu button.is-danger { color: var(--signal-error); }
 
+.display-component-library { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--nt-line); }
+.display-component-library > .display-designer-empty { margin: 5px 0 8px; }
+.display-component-library-filters { display: grid; gap: 6px; }
+.display-component-library-count,
+.display-component-library-status { margin: 7px 0 0; color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
+.display-component-library-list { margin: 7px 0 0; padding: 0; display: grid; gap: 7px; list-style: none; }
+.display-component-card { min-width: 0; padding: 7px; display: grid; gap: 6px; border: 1px solid var(--nt-line); border-radius: 6px; background: var(--surface-recessed); }
+.display-component-card > header { min-width: 0; display: flex; justify-content: space-between; gap: 7px; align-items: start; }
+.display-component-card > header > span { min-width: 0; display: grid; gap: 2px; }
+.display-component-card > header strong,
+.display-component-card > header small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.display-component-card > header small,
+.display-component-card > p,
+.display-component-card details { color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
+.display-component-card > p { margin: 0; }
+.display-component-card canvas { display: block; width: 100%; aspect-ratio: 4 / 1; border: 1px solid color-mix(in srgb, var(--nt-green) 35%, var(--nt-line)); background: #000; image-rendering: pixelated; }
+.display-component-card details summary { color: var(--nt-text); cursor: pointer; }
+.display-component-card details ul { margin: 5px 0 0; padding-left: 18px; }
+.display-component-card > button { width: 100%; }
+
 .display-designer-symbols { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--nt-line); }
 .display-designer-breadcrumb,
 .display-designer-symbol-actions,

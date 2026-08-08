@@ -184,7 +184,18 @@ divisor. Tokens, bindings, symbols,
 display mode, and the layout grid remain document-wide and reusable across screens. These remain in the
 main-thread document. The singleton uniform layout-grid definition is
 document-owned; grid visibility and pointer-snapping preferences remain view
-state. Pure modules below the dialog parse and print the closed arithmetic
+state. The built-in Disting UI kit is also main-thread authoring data. Typed
+catalog recipes declare categories, footprints, named states, normalized
+number/boolean/text inputs, preview scenarios, and pure primitive factories.
+The materializer assigns collision-safe IDs and Lua names, creates a local
+symbol plus namespaced bindings and a selected instance, validates the complete
+candidate document, and commits it as one history transaction. The inserted
+result is ordinary version-9 content with no persisted catalog provenance or
+linked-update behavior. Gallery thumbnails materialize temporary full-screen
+documents and pass their compiled commands through the production display
+renderer.
+
+Pure modules below the dialog parse and print the closed arithmetic
 grammar, validate imported ASTs and token references, resolve scalar previews,
 transform geometry without discarding formulas, expand symbols, compile
 ordinary draw commands, optimize pixel boxes into exact line/filled-rectangle

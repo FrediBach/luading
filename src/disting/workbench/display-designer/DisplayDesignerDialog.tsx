@@ -15,6 +15,8 @@ import { buildParameterLineCommands } from '../../emulation/display-api'
 import { renderDistingDisplay } from '../../emulation/display-renderer'
 import { DISTING_DISPLAY, type DrawCommand } from '../../types'
 import { LuaSourcePreview } from '../LuaSourcePreview'
+import { DisplayComponentLibrary } from './DisplayComponentLibrary'
+import { materializeDisplayComponent } from './display-component-library'
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import {
@@ -2624,6 +2626,32 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                 return next
               })}
             /></div>}
+            {(!layersCollapsed || responsive) && <div
+              className="display-designer-responsive-panel"
+              role={responsive ? 'tabpanel' : undefined}
+              id={responsive ? 'display-designer-panel-components' : undefined}
+              aria-labelledby={responsive ? 'display-designer-tab-components' : undefined}
+              hidden={responsive && responsivePanel !== 'components'}
+            ><DisplayComponentLibrary onInsert={(recipe, scenarioId) => {
+              if (activeSymbol) return {
+                ok: false,
+                message: 'Return to the scene before inserting a component; symbols cannot contain component instances.',
+              }
+              const inserted = materializeDisplayComponent(document, recipe, idFactory, { scenarioId })
+              if (!inserted.ok) return {
+                ok: false,
+                message: `${inserted.message} ${inserted.findings[0] ?? ''}`.trim(),
+              }
+              setActiveTool('select')
+              commit(`Insert ${recipe.name} component`, inserted.document, {
+                ...createEmptyDisplayDesignSelection(),
+                elementIds: [inserted.instance.id],
+              })
+              return {
+                ok: true,
+                message: `Inserted ${inserted.symbol.name} with ${inserted.bindingIds.length} state binding${inserted.bindingIds.length === 1 ? '' : 's'}.`,
+              }
+            }} /></div>}
             {(!layersCollapsed || responsive) && <div
               className="display-designer-responsive-panel"
               role={responsive ? 'tabpanel' : undefined}

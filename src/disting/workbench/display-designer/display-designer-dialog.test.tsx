@@ -145,6 +145,46 @@ afterEach(async () => {
 })
 
 describe('Display designer dialog', () => {
+  it('searches starter components, previews scenarios, inserts editable stateful symbols, and undoes atomically', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(18)
+    await commitInput(field('Search components') as HTMLInputElement, '808-like')
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(1)
+    expect(document.querySelector('.display-component-card strong')?.textContent).toBe('Drum voice glyph')
+
+    await commitInput(field('Search components') as HTMLInputElement, '')
+    await choose(field('Component category') as HTMLSelectElement, 'patching')
+    expect([...document.querySelectorAll('.display-component-card > header strong')].map((element) => element.textContent)).toEqual([
+      'Input jack',
+      'Output jack',
+    ])
+
+    const scenario = document.querySelector<HTMLSelectElement>('[aria-label="Input jack preview scenario"]')!
+    await choose(scenario, 'active')
+    await click(button('Insert Input jack'))
+
+    expect(layer('Input jack instance')).toBeTruthy()
+    expect(bindingCard('Input jack · State')).toBeTruthy()
+    expect(bindingCard('Input jack · Activity')).toBeTruthy()
+    expect(bindingCard('Input jack · Level')).toBeTruthy()
+    expect(source()).toContain('input_jack_state = "patched"')
+    expect(document.querySelector('.display-component-library-status')?.textContent).toBe('Inserted Input jack with 3 state bindings.')
+
+    await click(button('Edit symbol'))
+    await click(button('Insert Output jack'))
+    expect(document.querySelector('.display-component-library-status')?.textContent).toBe(
+      'Return to the scene before inserting a component; symbols cannot contain component instances.',
+    )
+    expect([...document.querySelectorAll('.display-designer-layer-select')]
+      .some((candidate) => candidate.textContent?.includes('Output jack instance'))).toBe(false)
+
+    await click(button('Undo'))
+    expect(document.body.textContent).not.toContain('Input jack instance')
+    expect(document.body.textContent).not.toContain('Input jack · Activity')
+  })
+
   it('adds, names, duplicates, switches, and removes isolated screens with generated selector branches', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))
@@ -320,6 +360,15 @@ describe('Display designer dialog', () => {
     await act(async () => {
       layersTab.focus()
       layersTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    const componentsTab = document.querySelector<HTMLButtonElement>('#display-designer-tab-components')!
+    expect(componentsTab.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(componentsTab)
+    expect(document.querySelector('#display-designer-panel-components')?.hasAttribute('hidden')).toBe(false)
+
+    await act(async () => {
+      componentsTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
       await new Promise((resolve) => requestAnimationFrame(resolve))
     })
     const symbolsTab = document.querySelector<HTMLButtonElement>('#display-designer-tab-symbols')!

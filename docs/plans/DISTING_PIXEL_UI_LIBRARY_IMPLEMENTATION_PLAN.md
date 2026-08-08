@@ -2,8 +2,15 @@
 
 ## Status
 
-Proposed on 2026-08-08. No component library behavior described here is
-implemented unless a later status update says otherwise.
+Proposed on 2026-08-08. Implementation began on 2026-08-08. The first
+integration phase now provides the typed catalog/materializer, searchable
+Components panel, scenario previews, and two starter components in each of the
+nine atomic component categories. Screen recipes, independent-copy workflow,
+the remaining catalog artwork, and later increments remain proposed.
+
+| Increment | Status | Verification/evidence |
+| --- | --- | --- |
+| Integration foundation and starter catalog | Implemented (2026-08-08); live browser and hardware review pending | Typed recipe validation/search/materialization, production-renderer gallery previews, scenario selection, responsive Components panel, atomic insertion/undo, and 18 starter components (two in each atomic category). `npx vitest run src/disting/workbench/display-designer src/disting/emulation/display-api.test.ts src/documentation.test.ts` passed 19 files/184 tests. An initial `npm test` run hit one isolated timeout in the unchanged official-script corpus; its focused rerun passed, then `npm test` passed 138 files/851 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Live review was attempted after starting the local Vite server, but the browser runtime reported no registered in-app or Chrome backends; real canvas pixels, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 
 This is the next authoring layer above the existing
 [Display designer](DISPLAY_UI_DESIGNER_IMPLEMENTATION_PLAN.md). The designer

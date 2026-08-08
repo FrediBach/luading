@@ -18,6 +18,7 @@ describe('Display designer responsive layout', () => {
   it('keeps every responsive authoring region in stable tab order', () => {
     expect(DISPLAY_DESIGNER_PANELS).toEqual([
       { id: 'layers', label: 'Layers' },
+      { id: 'components', label: 'Components' },
       { id: 'symbols', label: 'Symbols' },
       { id: 'properties', label: 'Properties' },
       { id: 'tokens', label: 'Tokens' },

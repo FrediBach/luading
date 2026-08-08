@@ -830,6 +830,27 @@ use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
 
+The **Components** panel is the first integration release of the built-in
+**Disting UI kit**. Search the catalog, filter by category, and switch each
+card among its three preview scenarios before inserting it. The preview is
+rasterized by the same display compiler and renderer as the artboard. The
+starter catalog contains two choices in each of nine categories: panel frame
+and section header; input and output jacks; momentary button and toggle; signal
+type and waveform glyphs; attenuator and mixer; unipolar and bipolar meters;
+step and value-step cells; drum voice glyph and tile; and clock-source and MIDI
+status badges.
+
+**Insert** adds one local symbol, a choice binding for its named visual states,
+any number/boolean/text bindings used by the artwork, and one selected instance
+at the centre of the active drawing area. The selected preview scenario becomes
+the inserted bindings' initial preview. Every fresh insertion receives
+collision-safe names and independent bindings. The result is ordinary editable
+version-9 designer content: inspect its bindings in **State**, edit its artwork
+and variants in **Symbols**, move or duplicate its instance like another layer,
+and generate the same ordinary Lua/TODO placeholders. The catalog is not stored
+as an opaque dependency, so reopening the design does not require the component
+recipe that created it.
+
 The screen strip keeps one or more named screens in the same design. **Add
 screen** creates a blank screen, **Duplicate screen** copies the active screen's
 layers and groups with independent IDs, and **Remove screen** deletes the active
