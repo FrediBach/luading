@@ -8,6 +8,8 @@ import {
   DISPLAY_DESIGN_VERSION_V4,
   DISPLAY_DESIGN_VERSION_V5,
   DISPLAY_DESIGN_VERSION_V6,
+  DISPLAY_DESIGN_VERSION_V7,
+  DISPLAY_PIXEL_BOX_FRAME_RATES,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
   type DisplayDesignDocument,
@@ -20,6 +22,7 @@ import {
   type DisplayDesignSymbol,
   type DisplayDesignToken,
   type DisplayPrimitiveElement,
+  type DisplayPixelBoxFrameRate,
   type DisplayScalar,
   type DisplayScalarQuantization,
   type DisplayStaticScalar,
@@ -100,9 +103,9 @@ class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
 
-  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7
+  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
-  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7) {
+  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) {
     this.sourceVersion = sourceVersion
   }
 
@@ -387,11 +390,13 @@ class Validator {
     const visible = this.visibility(value.visible, `${path}.visible`, { ...baseFocus, property: 'visible' })
     const groupId = allowGroup && typeof value.groupId === 'string' ? value.groupId : undefined
     const groupKey = allowGroup
-      ? this.sourceVersion >= DISPLAY_DESIGN_VERSION ? ['groupId', 'screenId'] : ['groupId']
+      ? this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7 ? ['groupId', 'screenId'] : ['groupId']
       : []
     if (allowGroup && value.groupId !== undefined && typeof value.groupId !== 'string') this.finding('invalid-group-reference', 'A group ID string is required.', `${path}.groupId`, baseFocus)
     if (value.kind === 'pixel-box') {
-      this.keys(value, ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'shades', ...groupKey], path, baseFocus)
+      this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION
+        ? ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'frameRate', 'frames', ...groupKey]
+        : ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'shades', ...groupKey], path, baseFocus)
       if (this.sourceVersion < DISPLAY_DESIGN_VERSION_V4) {
         this.finding('unsupported-element-version', 'Pixel boxes require display design version 4.', `${path}.kind`, baseFocus)
       }
@@ -404,15 +409,37 @@ class Validator {
       const y = this.scalar(value.y, `${path}.y`, { integer: true, focus: { ...baseFocus, property: 'y' } })
       const width = integer(value.width, 'width', 1, 1, 256)
       const height = integer(value.height, 'height', 1, 1, 64)
-      const rawShades = this.array(value.shades, `${path}.shades`)
-      if (rawShades.length !== width * height) this.finding('pixel-box-size-mismatch', `Pixel box shades must contain exactly ${width * height} entries.`, `${path}.shades`, baseFocus)
-      if (rawShades.length > DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels) this.finding('pixel-box-pixel-limit', `A pixel box may contain at most ${DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels} pixels.`, `${path}.shades`, baseFocus)
-      const shades = rawShades.slice(0, DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels).map((candidate, index) => {
-        if (typeof candidate === 'number' && Number.isInteger(candidate) && candidate >= 0 && candidate <= 15) return candidate
-        this.finding('invalid-pixel-shade', 'Each pixel shade must be a whole number from 0 through 15.', `${path}.shades[${index}]`, { ...baseFocus, property: 'shades' })
-        return 0
+      const rawFrames = this.sourceVersion >= DISPLAY_DESIGN_VERSION
+        ? this.array(value.frames, `${path}.frames`)
+        : [{ shades: value.shades, duration: 1 }]
+      if (rawFrames.length === 0) this.finding('empty-pixel-box-frames', 'A pixel box needs at least one frame.', `${path}.frames`, baseFocus)
+      if (rawFrames.length > DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrames) this.finding('pixel-box-frame-limit', `A pixel box may contain at most ${DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrames} frames.`, `${path}.frames`, baseFocus)
+      const frames = rawFrames.slice(0, DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrames).map((candidate, frameIndex) => {
+        const framePath = `${path}.frames[${frameIndex}]`
+        if (!isRecord(candidate)) {
+          this.finding('invalid-pixel-box-frame', 'Each pixel-box frame must be an object.', framePath, baseFocus)
+          return { shades: Array(width * height).fill(0), duration: 1 }
+        }
+        if (this.sourceVersion >= DISPLAY_DESIGN_VERSION) this.keys(candidate, ['shades', 'duration'], framePath, baseFocus)
+        const rawShades = this.array(candidate.shades, `${framePath}.shades`)
+        if (rawShades.length !== width * height) this.finding('pixel-box-size-mismatch', `Each pixel-box frame must contain exactly ${width * height} shades.`, `${framePath}.shades`, baseFocus)
+        if (rawShades.length > DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels) this.finding('pixel-box-pixel-limit', `A pixel-box frame may contain at most ${DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels} pixels.`, `${framePath}.shades`, baseFocus)
+        const shades = rawShades.slice(0, DISPLAY_DESIGN_LIMITS.maximumPixelBoxPixels).map((shade, index) => {
+          if (typeof shade === 'number' && Number.isInteger(shade) && shade >= 0 && shade <= 15) return shade
+          this.finding('invalid-pixel-shade', 'Each pixel shade must be a whole number from 0 through 15.', `${framePath}.shades[${index}]`, { ...baseFocus, property: `frames[${frameIndex}].shades` })
+          return 0
+        })
+        const duration = integer(candidate.duration, `frames[${frameIndex}].duration`, 1, 1, DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrameDuration)
+        return { shades, duration }
       })
-      return { id, name, visible, ...(groupId ? { groupId } : {}), kind: 'pixel-box', x, y, width, height, shades }
+      const requestedFrameRate = this.sourceVersion >= DISPLAY_DESIGN_VERSION ? value.frameRate : null
+      const validFrameRate = typeof requestedFrameRate === 'number'
+        && (DISPLAY_PIXEL_BOX_FRAME_RATES as readonly number[]).includes(requestedFrameRate)
+      if (requestedFrameRate !== null && !validFrameRate) this.finding('invalid-pixel-box-frame-rate', `Pixel-box frame rate must be one of ${DISPLAY_PIXEL_BOX_FRAME_RATES.join(', ')} Hz or null.`, `${path}.frameRate`, baseFocus)
+      if (requestedFrameRate === null && frames.length > 1) this.finding('static-pixel-box-frame-count', 'A static pixel box must contain exactly one frame.', `${path}.frames`, baseFocus)
+      if (validFrameRate && frames.length < 2) this.finding('animated-pixel-box-frame-count', 'An animated pixel box needs at least two frames.', `${path}.frames`, baseFocus)
+      const frameRate = validFrameRate ? requestedFrameRate as DisplayPixelBoxFrameRate : null
+      return { id, name, visible, ...(groupId ? { groupId } : {}), kind: 'pixel-box', x, y, width, height, frameRate, frames }
     }
     const shade = this.scalar(value.shade, `${path}.shade`, { integer: true, minimum: 0, maximum: 15, focus: { ...baseFocus, property: 'shade' } })
     if (shade.kind === 'literal' && shade.value === 0) this.finding('shade-zero', 'Shade zero erases earlier pixels in draw order.', `${path}.shade`, { ...baseFocus, property: 'shade' }, 'warning')
@@ -535,12 +562,12 @@ class Validator {
       this.finding('invalid-group', 'A group object is required.', path)
       return undefined
     }
-    this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION ? ['id', 'name', 'screenId'] : ['id', 'name'], path)
+    this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7 ? ['id', 'name', 'screenId'] : ['id', 'name'], path)
     const id = this.id(value.id, `${path}.id`)
-    const screenId = this.sourceVersion >= DISPLAY_DESIGN_VERSION && typeof value.screenId === 'string'
+    const screenId = this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7 && typeof value.screenId === 'string'
       ? value.screenId
       : 'display-screen-1'
-    if (this.sourceVersion >= DISPLAY_DESIGN_VERSION && !screenId) {
+    if (this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7 && !screenId) {
       this.finding('invalid-screen-reference', 'A screen ID string is required.', `${path}.screenId`, { groupId: id })
     }
     return { id, name: this.name(value.name, `${path}.name`, 'Untitled group', { groupId: id }), screenId }
@@ -717,14 +744,14 @@ class Validator {
   }
 
   element(value: unknown, path: string): DisplayDesignElement | undefined {
-    const screenId = this.sourceVersion >= DISPLAY_DESIGN_VERSION && isRecord(value) && typeof value.screenId === 'string'
+    const screenId = this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7 && isRecord(value) && typeof value.screenId === 'string'
       ? value.screenId
       : 'display-screen-1'
-    if (this.sourceVersion >= DISPLAY_DESIGN_VERSION && !screenId) {
+    if (this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7 && !screenId) {
       this.finding('invalid-screen-reference', 'A screen ID string is required.', `${path}.screenId`)
     }
     if (isRecord(value) && value.kind === 'symbol-instance') {
-      this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION
+      this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION_V7
         ? ['kind', 'id', 'name', 'groupId', 'screenId', 'symbolId', 'x', 'y', 'visible', 'state']
         : ['kind', 'id', 'name', 'groupId', 'symbolId', 'x', 'y', 'visible', 'state'], path)
       const id = this.id(value.id, `${path}.id`)
@@ -929,7 +956,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION)
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION_V7 || value.version === DISPLAY_DESIGN_VERSION)
     ? value.version
     : DISPLAY_DESIGN_VERSION
   const validator = new Validator(sourceVersion)
@@ -942,13 +969,13 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION_V6 && value.version !== DISPLAY_DESIGN_VERSION) {
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION_V6 && value.version !== DISPLAY_DESIGN_VERSION_V7 && value.version !== DISPLAY_DESIGN_VERSION) {
       validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} through ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
     const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
-    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION
-    const hasScreens = value.version === DISPLAY_DESIGN_VERSION
+    const hasTokens = value.version >= DISPLAY_DESIGN_VERSION_V3
+    const hasScreens = value.version >= DISPLAY_DESIGN_VERSION_V7
     validator.keys(
       value,
       isVersion1

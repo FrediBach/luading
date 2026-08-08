@@ -131,13 +131,44 @@ end,
     const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
     pixelBox.width = 3
     pixelBox.height = 3
-    pixelBox.shades = [3, 3, 3, 3, 8, 3, 3, 3, 3]
+    pixelBox.frames[0]!.shades = [3, 3, 3, 3, 8, 3, 3, 3, 3]
     const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [pixelBox] }
     const { commands, generated } = await runGenerated(document)
 
     expect(generated.source).toContain('drawRectangle(8, 16, 8 + 2, 16 + 2, 3)')
     expect(generated.source).toContain('drawLine(8 + 1, 16 + 1, 8 + 1, 16 + 1, 8)')
     expect(commands).toEqual(compileDisplayDesign(document).commands)
+  })
+
+  it('runs pixel-box animation on 30 Hz draw callbacks through the real Lua boundary', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('animated-pixel-box')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    pixelBox.width = 1
+    pixelBox.height = 1
+    pixelBox.frameRate = 15
+    pixelBox.frames = [{ shades: [3], duration: 2 }, { shades: [11], duration: 1 }]
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [pixelBox] }
+    const generated = generateDisplayDesignLua(document)
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    expect(generated.source).toContain('local displayFrame = 0')
+    expect(generated.source).toContain('if displayFrame % 6 < 4 then')
+    expect(generated.source).toContain('elseif displayFrame % 6 < 6 then')
+
+    const lua = await createDistingLuaTestEngine(50)
+    openEngines.push(lua)
+    const display = new DistingDisplayApi()
+    display.register(lua.global)
+    const runtime = await loadLuaProgramRuntime(lua, `return {\n${generated.source}}\n`)
+    const shades = Array.from({ length: 7 }, () => {
+      display.reset()
+      runtime.draw?.()
+      const command = display.commands[0]
+      return command && 'shade' in command ? command.shade : undefined
+    })
+    runtime.close?.()
+
+    expect(shades).toEqual([3, 3, 3, 3, 11, 11, 3])
   })
 
   it('runs polygons through one minimal reusable Lua helper at the real display boundary', async () => {

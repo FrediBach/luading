@@ -122,7 +122,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 8 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 9 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -154,16 +154,34 @@ describe('display design validation', () => {
     const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
     pixelBox.width = 2
     pixelBox.height = 2
-    pixelBox.shades = [0, 5, 10, 15]
+    pixelBox.frames[0]!.shades = [0, 5, 10, 15]
     expect(validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [pixelBox] }).ok).toBe(true)
 
-    const mismatch = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...pixelBox, shades: [0, 1] }] })
+    const mismatch = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...pixelBox, frames: [{ shades: [0, 1], duration: 1 }] }] })
     expect(mismatch.findings.map(({ ruleId }) => ruleId)).toContain('pixel-box-size-mismatch')
-    const invalidShade = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...pixelBox, shades: [0, 1, 2, 16] }] })
+    const invalidShade = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...pixelBox, frames: [{ shades: [0, 1, 2, 16], duration: 1 }] }] })
     expect(invalidShade.findings.map(({ ruleId }) => ruleId)).toContain('invalid-pixel-shade')
 
     const version3 = { ...createEmptyDisplayDesign(), version: 3, elements: [pixelBox] }
     expect(validateDisplayDesign(version3).findings.map(({ ruleId }) => ruleId)).toContain('unsupported-element-version')
+  })
+
+  it('validates pixel-box animation rates, frame counts, and durations', () => {
+    const ids = createSequentialDisplayDesignIdFactory('pixel-animation-validation')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    const animated = {
+      ...pixelBox,
+      frameRate: 15 as const,
+      frames: [pixelBox.frames[0]!, { ...structuredClone(pixelBox.frames[0]!), duration: 3 }],
+    }
+    expect(validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [animated] }).ok).toBe(true)
+
+    const badRate = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...animated, frameRate: 7 }] })
+    expect(badRate.findings.map(({ ruleId }) => ruleId)).toContain('invalid-pixel-box-frame-rate')
+    const oneAnimatedFrame = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...animated, frames: [animated.frames[0]!] }] })
+    expect(oneAnimatedFrame.findings.map(({ ruleId }) => ruleId)).toContain('animated-pixel-box-frame-count')
+    const badDuration = validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [{ ...animated, frames: [{ ...animated.frames[0]!, duration: 0 }, animated.frames[1]!] }] })
+    expect(badDuration.findings.map(({ ruleId }) => ruleId)).toContain('invalid-number')
   })
 
   it('validates polygon detail and keeps it exclusive to version 5', () => {

@@ -757,6 +757,14 @@
 .display-designer-shades button[aria-pressed='true'] { outline: 2px solid white; outline-offset: -3px; }
 
 .display-designer-pixel-box-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.display-designer-pixel-animation,
+.display-designer-pixel-frame-controls { display: grid; gap: 7px; }
+.display-designer-pixel-animation { grid-template-columns: auto minmax(0, 1fr); align-items: end; }
+.display-designer-pixel-animation > [role='switch'] { min-width: 78px; }
+.display-designer-pixel-frame-controls { padding: 7px; border: 1px solid var(--nt-line); border-radius: 6px; background: var(--surface-recessed); }
+.display-designer-pixel-frame-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.display-designer-pixel-frame-tabs button { flex: 0 0 auto; }
+.display-designer-pixel-frame-tabs button[aria-pressed='true'] { border-color: var(--nt-green); color: var(--nt-green); }
 .display-designer-pixel-box-editor {
   display: grid;
   width: max-content;

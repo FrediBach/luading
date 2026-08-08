@@ -74,11 +74,11 @@ describe('display design model', () => {
     expect(ids('element')).toBe('designer-element-3')
   })
 
-  it('creates a browser-only empty v7 document and deterministic scoped IDs', () => {
+  it('creates a browser-only empty v8 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({
       kind: 'luading-display-design',
-      version: 7,
+      version: 8,
       name: 'Untitled display',
       displayMode: 'parameter-line',
       screens: [{ id: 'display-screen-1', name: 'Screen 1' }],
@@ -156,7 +156,9 @@ describe('display design model', () => {
     expect(elements.find((element) => element.kind === 'polygon')).toMatchObject({ sides: 6 })
     expect(elements.find((element) => element.kind === 'bezier')).toMatchObject({ segments: 24, points: expect.any(Array) })
     expect(elements.filter((element) => element.kind === 'text').map(({ tiny }) => tiny)).toEqual([false, true])
-    expect(elements.find((element) => element.kind === 'pixel-box')).toMatchObject({ width: 8, height: 8, shades: Array(64).fill(15) })
+    expect(elements.find((element) => element.kind === 'pixel-box')).toMatchObject({
+      width: 8, height: 8, frameRate: null, frames: [{ shades: Array(64).fill(15), duration: 1 }],
+    })
     expect(new Set(elements.map(({ id }) => id)).size).toBe(11)
   })
 

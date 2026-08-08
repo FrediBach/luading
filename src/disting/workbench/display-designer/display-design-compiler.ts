@@ -56,6 +56,22 @@ export interface DisplayPrimitiveTranslation {
   y: number
 }
 
+export function resolveDisplayPixelBoxFrame(
+  primitive: Extract<DisplayPrimitiveElement, { kind: 'pixel-box' }>,
+  displayFrame = 0,
+) {
+  if (primitive.frameRate === null || primitive.frames.length < 2) return primitive.frames[0]!
+  const displayFramesPerRateStep = 30 / primitive.frameRate
+  const total = primitive.frames.reduce((sum, frame) => sum + frame.duration * displayFramesPerRateStep, 0)
+  let position = ((Math.floor(displayFrame) % total) + total) % total
+  for (const frame of primitive.frames) {
+    const duration = frame.duration * displayFramesPerRateStep
+    if (position < duration) return frame
+    position -= duration
+  }
+  return primitive.frames[0]!
+}
+
 interface CommandBounds {
   left: number
   top: number
@@ -151,6 +167,7 @@ export function compileDisplayPrimitiveCommands(
   bindings: DisplayBindingMap,
   translation: DisplayPrimitiveTranslation = NO_TRANSLATION,
   tokens: DisplayTokenMap = createDisplayTokenMap([]),
+  displayFrame = 0,
 ): DrawCommand[] {
   if (!resolveDisplayVisibility(primitive.visible, bindings)) return []
   if (primitive.kind === 'polygon') {
@@ -178,7 +195,8 @@ export function compileDisplayPrimitiveCommands(
   }
   const originX = translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true)
   const originY = translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true)
-  return optimizeDisplayPixelBox(primitive.width, primitive.height, primitive.shades).map((region): DrawCommand => {
+  const frame = resolveDisplayPixelBoxFrame(primitive, displayFrame)
+  return optimizeDisplayPixelBox(primitive.width, primitive.height, frame.shades).map((region): DrawCommand => {
     const x1 = originX + region.x1
     const y1 = originY + region.y1
     const x2 = originX + region.x2
@@ -296,7 +314,7 @@ function emptyMetrics(document?: DisplayDesignDocument): CompiledDisplayDesignMe
   }
 }
 
-export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisplayDesign {
+export function compileDisplayDesign(value: DisplayDesignDocument, displayFrame = 0): CompiledDisplayDesign {
   const validation = validateDisplayDesign(value)
   if (!validation.document || !validation.ok) {
     return { commands: [], commandSources: [], findings: validation.findings, metrics: emptyMetrics(validation.document) }
@@ -316,7 +334,7 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
   let maximumVariantDrawCallCount = 0
   for (const [elementIndex, element] of activeDisplayDesignElements(document).entries()) {
     if (element.kind !== 'symbol-instance') {
-      const elementCommands = compileDisplayPrimitiveCommands(element, bindings, NO_TRANSLATION, tokens)
+      const elementCommands = compileDisplayPrimitiveCommands(element, bindings, NO_TRANSLATION, tokens, displayFrame)
       if (elementCommands.length === 0) continue
       const firstCommand = commands.length
       commands.push(...elementCommands)
@@ -360,7 +378,7 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
       y: resolveDisplayScalar(element.y, bindings, tokens),
     }
     for (const primitive of variant.elements) {
-      const primitiveCommands = compileDisplayPrimitiveCommands(primitive, bindings, translation, tokens)
+      const primitiveCommands = compileDisplayPrimitiveCommands(primitive, bindings, translation, tokens, displayFrame)
       if (primitiveCommands.length === 0) continue
       const primitiveFirstCommand = commands.length
       commands.push(...primitiveCommands)
@@ -406,7 +424,7 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
       }))
     }
     const largestVariant = Math.max(0, ...symbol.variants.map((candidate) => candidate.elements.reduce((count, primitive) => (
-      count + compileDisplayPrimitiveCommands(primitive, bindings, NO_TRANSLATION, tokens).length
+      count + compileDisplayPrimitiveCommands(primitive, bindings, NO_TRANSLATION, tokens, displayFrame).length
     ), 0)))
     maximumVariantDrawCallCount += largestVariant
   }

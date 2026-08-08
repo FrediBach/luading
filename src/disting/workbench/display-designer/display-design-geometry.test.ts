@@ -76,15 +76,15 @@ describe('display design geometry', () => {
   it('creates, moves, and resizes pixel boxes while preserving overlapping shades', () => {
     const ids = createSequentialDisplayDesignIdFactory('pixel-geometry')
     const created = createDisplayPrimitiveFromGesture('pixel-box', { x: 12, y: 18 }, { x: 10, y: 16 }, 'full-screen', ids)
-    expect(created).toMatchObject({ kind: 'pixel-box', x: literal(10), y: literal(16), width: 3, height: 3, shades: Array(9).fill(15) })
+    expect(created).toMatchObject({ kind: 'pixel-box', x: literal(10), y: literal(16), width: 3, height: 3, frames: [{ shades: Array(9).fill(15), duration: 1 }] })
     if (created.kind !== 'pixel-box') return
-    created.shades = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    created.frames[0]!.shades = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [created] }
     const moved = translateDisplayElements(document, [created.id], 4, 5).elements[0]
     expect(moved).toMatchObject({ kind: 'pixel-box', x: literal(14), y: literal(21) })
     const resized = resizeDisplayElement(created, 'bottom-right', { x: 13, y: 19 }, document)
     expect(resized).toMatchObject({ kind: 'pixel-box', width: 4, height: 4 })
-    if (resized.kind === 'pixel-box') expect(resized.shades).toEqual([
+    if (resized.kind === 'pixel-box') expect(resized.frames[0]!.shades).toEqual([
       1, 2, 3, 0,
       4, 5, 6, 0,
       7, 8, 9, 0,

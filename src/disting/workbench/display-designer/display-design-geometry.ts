@@ -79,7 +79,7 @@ export function createDisplayPrimitiveFromGesture(
     const y = Math.min(start.y, end.y)
     const width = Math.abs(end.x - start.x) + 1
     const height = Math.abs(end.y - start.y) + 1
-    return { ...element, x: literal(x), y: literal(y), width, height, shades: Array(width * height).fill(15) }
+    return { ...element, x: literal(x), y: literal(y), width, height, frames: [{ shades: Array(width * height).fill(15), duration: 1 }] }
   }
   if (element.kind === 'line' || element.kind === 'box') {
     return { ...element, x1: literal(start.x), y1: literal(start.y), x2: literal(end.x), y2: literal(end.y) }
@@ -364,14 +364,17 @@ export function resizeDisplayElement(
     const nextBottom = Math.max(top, bottom)
     const width = nextRight - nextLeft + 1
     const height = nextBottom - nextTop + 1
-    const shades = Array<number>(width * height).fill(0)
-    for (let targetY = nextTop; targetY <= nextBottom; targetY += 1) {
-      for (let targetX = nextLeft; targetX <= nextRight; targetX += 1) {
-        if (targetX < bounds.left || targetX > bounds.right || targetY < bounds.top || targetY > bounds.bottom) continue
-        shades[(targetY - nextTop) * width + targetX - nextLeft] = element.shades[(targetY - bounds.top) * element.width + targetX - bounds.left] ?? 0
+    const frames = element.frames.map((frame) => {
+      const shades = Array<number>(width * height).fill(0)
+      for (let targetY = nextTop; targetY <= nextBottom; targetY += 1) {
+        for (let targetX = nextLeft; targetX <= nextRight; targetX += 1) {
+          if (targetX < bounds.left || targetX > bounds.right || targetY < bounds.top || targetY > bounds.bottom) continue
+          shades[(targetY - nextTop) * width + targetX - nextLeft] = frame.shades[(targetY - bounds.top) * element.width + targetX - bounds.left] ?? 0
+        }
       }
-    }
-    return { ...cloneDisplayDesign(element), x: set(element.x, nextLeft), y: set(element.y, nextTop), width, height, shades }
+      return { ...frame, shades }
+    })
+    return { ...cloneDisplayDesign(element), x: set(element.x, nextLeft), y: set(element.y, nextTop), width, height, frames }
   }
   if (element.kind === 'line') {
     if (handle === 'start') return { ...cloneDisplayDesign(element), x1: set(element.x1, x), y1: set(element.y1, y) }

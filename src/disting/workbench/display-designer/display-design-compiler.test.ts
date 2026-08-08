@@ -114,7 +114,7 @@ describe('display design compiler', () => {
     const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
     pixelBox.width = 3
     pixelBox.height = 3
-    pixelBox.shades = [3, 3, 3, 3, 8, 3, 3, 3, 3]
+    pixelBox.frames[0]!.shades = [3, 3, 3, 3, 8, 3, 3, 3, 3]
     const result = compileDisplayDesign({ ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [pixelBox] })
 
     expect(result.commands).toEqual<DrawCommand[]>([
@@ -123,6 +123,29 @@ describe('display design compiler', () => {
     ])
     expect(result.commandSources).toEqual([{ elementId: pixelBox.id, firstCommand: 0, commandCount: 2 }])
     expect(result.metrics).toMatchObject({ elementCount: 1, drawCallCount: 2, maximumVariantDrawCallCount: 2 })
+  })
+
+  it('selects animated pixel-box frames from the 30 Hz display frame and per-frame duration', () => {
+    const ids = createSequentialDisplayDesignIdFactory('animated-pixels')
+    const pixelBox = createDefaultDisplayPrimitive('pixel-box', ids)
+    pixelBox.width = 1
+    pixelBox.height = 1
+    pixelBox.frameRate = 15
+    pixelBox.frames = [
+      { shades: [2], duration: 2 },
+      { shades: [9], duration: 1 },
+    ]
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [pixelBox] }
+
+    expect([0, 1, 2, 3, 6].map((frame) => compileDisplayDesign(document, frame).commands[0])).toEqual([
+      expect.objectContaining({ shade: 2 }),
+      expect.objectContaining({ shade: 2 }),
+      expect.objectContaining({ shade: 2 }),
+      expect.objectContaining({ shade: 2 }),
+      expect.objectContaining({ shade: 2 }),
+    ])
+    expect(compileDisplayDesign(document, 4).commands[0]).toEqual(expect.objectContaining({ shade: 9 }))
+    expect(compileDisplayDesign(document, 5).commands[0]).toEqual(expect.objectContaining({ shade: 9 }))
   })
 
   it('expands polygon detail into exact integer line segments', () => {

@@ -99,6 +99,7 @@ import {
   removeDisplayDesignLayoutGrid,
   DISPLAY_DESIGN_VERSION,
   DISPLAY_DESIGN_LIMITS,
+  DISPLAY_PIXEL_BOX_FRAME_RATES,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
   duplicateDisplayDesignScreen,
@@ -121,6 +122,7 @@ import {
   type DisplayStaticScalar,
   type DisplayPrimitiveElement,
   type DisplayPrimitivePreset,
+  type DisplayPixelBoxFrameRate,
   type DisplayTextElement,
   type DisplaySymbolInstance,
 } from './display-design-model'
@@ -171,6 +173,12 @@ type DesignerZoom = 'fit' | 1 | 2 | 3 | 4
 type DisplayScalarProperty = 'shade' | 'x1' | 'y1' | 'x2' | 'y2' | 'x' | 'y' | 'radius'
 type DisplayScenePrimitive = Exclude<DisplayDesignElement, { kind: 'symbol-instance' }>
 type DisplayScenePixelBox = Extract<DisplayDesignElement, { kind: 'pixel-box' }>
+
+function hasDisplayPixelBoxAnimation(document: DisplayDesignDocument): boolean {
+  const animated = (primitive: DisplayPrimitiveElement) => primitive.kind === 'pixel-box' && primitive.frameRate !== null && primitive.frames.length > 1
+  return document.elements.some((element) => element.kind !== 'symbol-instance' && animated(element))
+    || document.symbols.some((symbol) => symbol.variants.some((variant) => variant.elements.some(animated)))
+}
 
 interface DisplayDesignerViewPreferences {
   showPixelGrid: boolean
@@ -1146,6 +1154,7 @@ function DisplayDesignerInspector({
   onDetachInstance?(instance: DisplaySymbolInstance): void
 }) {
   const [pixelPaintShade, setPixelPaintShade] = useState(15)
+  const [pixelFrameIndex, setPixelFrameIndex] = useState(0)
   if (!element) return (
     <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
       <h3 id="display-designer-properties-title">Properties</h3>
@@ -1233,6 +1242,8 @@ function DisplayDesignerInspector({
   }
 
   if (element.kind === 'pixel-box') {
+    const activeFrameIndex = Math.min(pixelFrameIndex, element.frames.length - 1)
+    const activeFrame = element.frames[activeFrameIndex]!
     const updatePixelBox = (
       label: string,
       change: (current: DisplayScenePixelBox) => DisplayScenePixelBox,
@@ -1257,20 +1268,32 @@ function DisplayDesignerInspector({
       onCommit(`Make pixel box ${property.toUpperCase()} dynamic`, nextDocument)
     }
     const resize = (width: number, height: number) => {
-      const shades = Array<number>(width * height).fill(0)
-      const copyWidth = Math.min(width, element.width)
-      const copyHeight = Math.min(height, element.height)
-      for (let y = 0; y < copyHeight; y += 1) {
-        for (let x = 0; x < copyWidth; x += 1) shades[y * width + x] = element.shades[y * element.width + x] ?? 0
-      }
-      updatePixelBox('Resize pixel box', (current) => ({ ...current, width, height, shades }))
+      updatePixelBox('Resize pixel box', (current) => {
+        const copyWidth = Math.min(width, current.width)
+        const copyHeight = Math.min(height, current.height)
+        const frames = current.frames.map((frame) => {
+          const shades = Array<number>(width * height).fill(0)
+          for (let y = 0; y < copyHeight; y += 1) {
+            for (let x = 0; x < copyWidth; x += 1) shades[y * width + x] = frame.shades[y * current.width + x] ?? 0
+          }
+          return { ...frame, shades }
+        })
+        return { ...current, width, height, frames }
+      })
     }
     const setPixelShade = (index: number, shade: number) => updatePixelBox('Paint pixel box pixel', (current) => {
-      const shades = [...current.shades]
+      const frames = cloneDisplayDesign(current.frames)
+      const shades = frames[activeFrameIndex]?.shades ?? []
       shades[index] = shade
-      return { ...current, shades }
+      return { ...current, frames }
     })
-    const optimizedCalls = optimizeDisplayPixelBox(element.width, element.height, element.shades).length
+    const setActiveFrameShades = (label: string, shade: number) => updatePixelBox(label, (current) => ({
+      ...current,
+      frames: current.frames.map((frame, index) => index === activeFrameIndex
+        ? { ...frame, shades: Array(current.width * current.height).fill(shade) }
+        : frame),
+    }))
+    const optimizedCalls = optimizeDisplayPixelBox(element.width, element.height, activeFrame.shades).length
     return <section className="display-designer-panel display-designer-inspector" aria-labelledby="display-designer-properties-title">
       <h3 id="display-designer-properties-title">Properties</h3>
       <p className="display-designer-element-kind">Pixel box</p>
@@ -1313,14 +1336,55 @@ function DisplayDesignerInspector({
           return true
         }} />
       </div>
-      <p className="display-designer-computed">{element.width * element.height} pixels · {optimizedCalls} optimized draw {optimizedCalls === 1 ? 'call' : 'calls'}</p>
+      <div className="display-designer-pixel-animation">
+        <button type="button" role="switch" aria-label="Animate pixel box" aria-checked={element.frameRate !== null} onClick={() => {
+          if (element.frameRate === null) {
+            updatePixelBox('Animate pixel box', (current) => ({
+              ...current,
+              frameRate: 15,
+              frames: [current.frames[0]!, cloneDisplayDesign(current.frames[0]!)],
+            }))
+            setPixelFrameIndex(1)
+          } else {
+            updatePixelBox('Make pixel box static', (current) => ({ ...current, frameRate: null, frames: [current.frames[0]!] }))
+            setPixelFrameIndex(0)
+          }
+        }}>{element.frameRate === null ? 'Static' : 'Animated'}</button>
+        {element.frameRate !== null && <label className="display-designer-field"><span>Frame rate</span><select value={element.frameRate} onChange={(event) => {
+          const frameRate = Number(event.currentTarget.value) as DisplayPixelBoxFrameRate
+          updatePixelBox('Change pixel-box frame rate', (current) => ({ ...current, frameRate }))
+        }}>{DISPLAY_PIXEL_BOX_FRAME_RATES.map((rate) => <option key={rate} value={rate}>{rate} Hz · every {30 / rate} display {30 / rate === 1 ? 'frame' : 'frames'}</option>)}</select></label>}
+      </div>
+      {element.frameRate !== null && <div className="display-designer-pixel-frame-controls">
+        <div className="display-designer-pixel-frame-tabs" role="group" aria-label="Pixel-box frames">
+          {element.frames.map((_, index) => <button key={index} type="button" aria-pressed={activeFrameIndex === index} onClick={() => setPixelFrameIndex(index)}>Frame {index + 1}</button>)}
+        </div>
+        <div className="display-designer-pixel-box-actions">
+          <button type="button" disabled={element.frames.length >= DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrames} onClick={() => {
+            updatePixelBox('Add pixel-box frame', (current) => ({ ...current, frames: [...current.frames, cloneDisplayDesign(current.frames.at(-1)!)] }))
+            setPixelFrameIndex(element.frames.length)
+          }}>Add frame</button>
+          <button type="button" disabled={element.frames.length <= 2} onClick={() => {
+            updatePixelBox('Remove pixel-box frame', (current) => ({ ...current, frames: current.frames.filter((_, index) => index !== activeFrameIndex) }))
+            setPixelFrameIndex(Math.max(0, activeFrameIndex - 1))
+          }}>Remove frame</button>
+        </div>
+        <CommitInput label="Frame duration" type="number" min={1} max={DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrameDuration} step={1} value={activeFrame.duration} onCommit={(draft) => {
+          const duration = Number(draft)
+          if (!Number.isInteger(duration) || duration < 1 || duration > DISPLAY_DESIGN_LIMITS.maximumPixelBoxFrameDuration) return false
+          updatePixelBox('Change pixel-box frame duration', (current) => ({ ...current, frames: current.frames.map((frame, index) => index === activeFrameIndex ? { ...frame, duration } : frame) }))
+          return true
+        }} />
+        <p className="display-designer-computed">Frame {activeFrameIndex + 1} lasts {activeFrame.duration} base {activeFrame.duration === 1 ? 'interval' : 'intervals'} at {element.frameRate} Hz.</p>
+      </div>}
+      <p className="display-designer-computed">{element.width * element.height} pixels · frame {activeFrameIndex + 1} · {optimizedCalls} optimized draw {optimizedCalls === 1 ? 'call' : 'calls'}</p>
       <fieldset className="display-designer-shades"><legend>Paint shade: {pixelPaintShade}</legend><div>{Array.from({ length: 16 }, (_, shade) => <button key={shade} type="button" aria-label={`Paint shade ${shade}`} aria-pressed={pixelPaintShade === shade} style={{ '--shade': shade } as CSSProperties} onClick={() => setPixelPaintShade(shade)}>{shade}</button>)}</div></fieldset>
       <div className="display-designer-pixel-box-actions">
-        <button type="button" onClick={() => updatePixelBox('Fill pixel box', (current) => ({ ...current, shades: Array(current.width * current.height).fill(pixelPaintShade) }))}>Fill all</button>
-        <button type="button" onClick={() => updatePixelBox('Clear pixel box', (current) => ({ ...current, shades: Array(current.width * current.height).fill(0) }))}>Clear to shade 0</button>
+        <button type="button" onClick={() => setActiveFrameShades('Fill pixel-box frame', pixelPaintShade)}>Fill frame</button>
+        <button type="button" onClick={() => setActiveFrameShades('Clear pixel-box frame', 0)}>Clear frame to shade 0</button>
       </div>
       <div className="display-designer-pixel-box-editor" role="grid" aria-label={`${element.name} pixel shades`} style={{ gridTemplateColumns: `repeat(${element.width}, 24px)` }}>
-        {element.shades.map((shade, index) => {
+        {activeFrame.shades.map((shade, index) => {
           const x = index % element.width
           const y = Math.floor(index / element.width)
           return <button
@@ -1868,6 +1932,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const [savedDocumentText, setSavedDocumentText] = useState(initialSavedDocumentText)
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
+  const [animationDisplayFrame, setAnimationDisplayFrame] = useState(0)
   const gestureRef = useRef<DisplayDesignerGesture | null>(null)
   const [idFactory, setIdFactory] = useState<DisplayDesignIdFactory>(() => createSequentialDisplayDesignIdFactory('designer'))
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -1898,10 +1963,20 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     groups: activeVariant ? [] : activeDocument.groups,
     symbols: activeVariant ? [] : activeDocument.symbols,
   }), [activeDocument, activeVariant, hiddenGroupIds])
-  const previewCompiled = useMemo(() => compileDisplayDesign(previewDocument), [previewDocument])
+  const previewHasAnimation = useMemo(() => hasDisplayPixelBoxAnimation(previewDocument), [previewDocument])
+  const previewCompiled = useMemo(
+    () => compileDisplayDesign(previewDocument, animationDisplayFrame),
+    [animationDisplayFrame, previewDocument],
+  )
   const generated = useMemo(() => generateDisplayDesignLua(document), [document])
   const serializedDocument = useMemo(() => serializeDisplayDesign(document), [document])
   const dirty = !serializedDocument.ok || serializedDocument.text !== savedDocumentText
+
+  useEffect(() => {
+    if (!open || !previewHasAnimation) return
+    const interval = window.setInterval(() => setAnimationDisplayFrame((frame) => frame + 1), 1000 / 30)
+    return () => window.clearInterval(interval)
+  }, [open, previewHasAnimation])
 
   useEffect(() => {
     if (!open) return

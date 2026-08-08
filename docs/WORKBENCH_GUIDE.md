@@ -864,11 +864,19 @@ detail contributes exactly one descriptive draw call per segment.
 
 A **Pixel box** stores one of those 16 shades for every pixel in its rectangular
 area. Select a paint shade and choose individual cells in the Properties grid,
-or use **Fill all** and **Clear to shade 0** for bulk edits. Width/height edits
-and artboard resize handles retain pixels that remain inside the overlapping
-top-left area; newly exposed pixels start at shade 0. The grid scrolls for
-larger boxes, and every cell is a labelled keyboard button as well as a visual
-shade swatch.
+or use **Fill frame** and **Clear frame to shade 0** for bulk edits. Width/height
+edits and artboard resize handles retain pixels in the overlapping top-left area
+of every frame; newly exposed pixels start at shade 0. The grid scrolls for larger
+boxes, and every cell is a labelled keyboard button as well as a visual shade swatch.
+
+Pixel-box animation is optional. Turning on **Animated** creates frame 2 as an
+exact copy of frame 1, and **Add frame** always duplicates the last frame. Choose
+a base rate that divides the display's 30 Hz draw rate exactly: 30, 15, 10, 6, 5,
+3, 2, or 1 Hz. Each frame has a positive whole-number duration measured in those
+base-rate intervals. For example, duration 3 at 5 Hz holds that frame for 0.6
+seconds, or 18 display callbacks. The artboard previews this sequence while the
+generated callback advances an integer counter once per draw call; it does not
+claim wall-clock accuracy beyond the display cadence.
 
 Pixel boxes compile to ordinary non-antialiased `drawLine()` and
 `drawRectangle()` calls. The optimizer compares horizontal, vertical, and
@@ -1035,9 +1043,10 @@ draft is replaced; a failed read or invalid file keeps the draft unchanged.
 Version-1 files open with no layout grid or tokens, while version-2 files retain
 their grid; both migrate numeric binding endpoints into static-scalar literal
 wrappers. Version-3 files retain their tokens and grid, version-4 files retain
-pixel boxes, version-5 files retain polygons, and version-6 files retain
-multi-point Bézier curves. Downloads always use strict version 7, which adds
-ordered named screens and screen ownership for scene elements and groups, with
+pixel boxes, version-5 files retain polygons, version-6 files retain
+multi-point Bézier curves, and version-7 files retain named screens and screen
+ownership. Downloads always use strict version 8, which stores every pixel box
+as one or more frames with an optional animation rate, with
 ordered `tokens` and a
 `layoutGrid` that is either the uniform-grid definition or `null`. Use
 **Download design** for a

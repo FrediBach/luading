@@ -5,7 +5,11 @@ export const DISPLAY_DESIGN_VERSION_V3 = 3 as const
 export const DISPLAY_DESIGN_VERSION_V4 = 4 as const
 export const DISPLAY_DESIGN_VERSION_V5 = 5 as const
 export const DISPLAY_DESIGN_VERSION_V6 = 6 as const
-export const DISPLAY_DESIGN_VERSION = 7 as const
+export const DISPLAY_DESIGN_VERSION_V7 = 7 as const
+export const DISPLAY_DESIGN_VERSION = 8 as const
+
+export const DISPLAY_PIXEL_BOX_FRAME_RATES = [30, 15, 10, 6, 5, 3, 2, 1] as const
+export type DisplayPixelBoxFrameRate = typeof DISPLAY_PIXEL_BOX_FRAME_RATES[number]
 
 export const DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID = {
   kind: 'uniform',
@@ -28,6 +32,8 @@ export const DISPLAY_DESIGN_LIMITS = {
   maximumFormulaCodePoints: 256,
   maximumTextCodePoints: 512,
   maximumPixelBoxPixels: 256 * 64,
+  maximumPixelBoxFrames: 64,
+  maximumPixelBoxFrameDuration: 999,
   maximumNameCodePoints: 80,
   minimumCoordinate: -4096,
   maximumCoordinate: 4096,
@@ -161,7 +167,13 @@ export interface DisplayPixelBoxElement {
   y: DisplayScalar
   width: number
   height: number
+  frameRate: DisplayPixelBoxFrameRate | null
+  frames: DisplayPixelBoxFrame[]
+}
+
+export interface DisplayPixelBoxFrame {
   shades: number[]
+  duration: number
 }
 
 export type DisplayPrimitiveElement =
@@ -327,6 +339,14 @@ export interface DisplayDesignDocumentV6 extends DisplayDesignDocumentFields {
 }
 
 export interface DisplayDesignDocumentV7 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION_V7
+  tokens: DisplayDesignToken[]
+  layoutGrid: DisplayDesignLayoutGrid | null
+  screens: DisplayDesignScreen[]
+  activeScreenId: string
+}
+
+export interface DisplayDesignDocumentV8 extends DisplayDesignDocumentFields {
   version: typeof DISPLAY_DESIGN_VERSION
   tokens: DisplayDesignToken[]
   layoutGrid: DisplayDesignLayoutGrid | null
@@ -334,7 +354,7 @@ export interface DisplayDesignDocumentV7 extends DisplayDesignDocumentFields {
   activeScreenId: string
 }
 
-export type DisplayDesignDocument = DisplayDesignDocumentV7
+export type DisplayDesignDocument = DisplayDesignDocumentV8
 
 export interface DisplayDesignSelection {
   elementIds: string[]
@@ -666,7 +686,10 @@ export function createDefaultDisplayPrimitive(
     case 'filled-box':
       return { ...base, kind: 'box', name: 'Filled box', fill: true, x1: literal(8), y1: literal(16), x2: literal(32), y2: literal(24) }
     case 'pixel-box':
-      return { id, kind: 'pixel-box', name: 'Pixel box', visible: visible(), x: literal(8), y: literal(16), width: 8, height: 8, shades: Array(64).fill(15) }
+      return {
+        id, kind: 'pixel-box', name: 'Pixel box', visible: visible(), x: literal(8), y: literal(16), width: 8, height: 8,
+        frameRate: null, frames: [{ shades: Array(64).fill(15), duration: 1 }],
+      }
     case 'pixel-circle':
       return { ...base, kind: 'circle', name: 'Pixel circle', smooth: false, x: literal(20), y: literal(20), radius: literal(6) }
     case 'smooth-circle':
