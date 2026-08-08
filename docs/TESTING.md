@@ -344,9 +344,9 @@ tests compare token formulas, tokenized binding endpoints, shared symbol helpers
 renames, integer/smooth boundaries, and repeated callbacks with commands emitted
 through the production Wasmoon/display bridge.
 
-Display-design file tests pin canonical version-5 root, token, pixel-box, polygon,
+Display-design file tests pin canonical version-6 root, token, pixel-box, polygon, Bézier,
 and AST key ordering and bytes, the trailing newline, strict
-version-1/version-2/version-3/version-4 migration,
+version-1/version-2/version-3/version-4/version-5 migration,
 layout-grid validation and round trips, future-version/size/type rejection,
 unsafe file-name repair, generated-Lua invariance, and defensive parsing without
 partial documents. jsdom covers read and parse
@@ -371,6 +371,13 @@ five-argument polygon helper through the production Wasmoon/display boundary
 and require its emitted commands to equal the pure preview compiler. Geometry
 and jsdom tests cover radial creation, the centre/radius handles, detail editing,
 and generated-source updates.
+
+Bézier compiler tests pin general-degree de Casteljau interpolation, integer
+rounding, segment-count draw metrics, and one source range per curve. Generator
+tests run the three-argument points/segments/shade helper through the production
+Wasmoon/display boundary and require exact parity with the preview compiler.
+Geometry and jsdom tests cover drag creation, per-point handles, point
+add/remove/edit controls, detail editing, and generated-source updates.
 
 The pure display-designer layout model pins the 900/720 CSS-pixel boundaries,
 stable lower-panel order, and wrapping Home/End/arrow tab navigation. Server

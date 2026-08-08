@@ -128,6 +128,27 @@ describe('display design compiler', () => {
     expect(result.metrics).toMatchObject({ drawCallCount: 6, maximumVariantDrawCallCount: 6 })
   })
 
+  it('expands general-degree Bézier detail into exact integer line segments', () => {
+    const ids = createSequentialDisplayDesignIdFactory('bezier')
+    const bezier = createDefaultDisplayPrimitive('bezier', ids)
+    bezier.points = [
+      { x: { kind: 'literal', value: 0 }, y: { kind: 'literal', value: 0 } },
+      { x: { kind: 'literal', value: 4 }, y: { kind: 'literal', value: 8 } },
+      { x: { kind: 'literal', value: 8 }, y: { kind: 'literal', value: 0 } },
+    ]
+    bezier.segments = 4
+    const result = compileDisplayDesign({ ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [bezier] })
+
+    expect(result.commands).toEqual<DrawCommand[]>([
+      { kind: 'line', x1: 0, y1: 0, x2: 2, y2: 3, shade: 15, smooth: false },
+      { kind: 'line', x1: 2, y1: 3, x2: 4, y2: 4, shade: 15, smooth: false },
+      { kind: 'line', x1: 4, y1: 4, x2: 6, y2: 3, shade: 15, smooth: false },
+      { kind: 'line', x1: 6, y1: 3, x2: 8, y2: 0, shade: 15, smooth: false },
+    ])
+    expect(result.commandSources).toEqual([{ elementId: bezier.id, firstCommand: 0, commandCount: 4 }])
+    expect(result.metrics).toMatchObject({ drawCallCount: 4, maximumVariantDrawCallCount: 4 })
+  })
+
   it('reports clipping, complete overflow, and parameter-line overlap with stable focus targets', () => {
     const ids = createSequentialDisplayDesignIdFactory('bounds')
     const clipped = createDefaultDisplayPrimitive('outline-box', ids)

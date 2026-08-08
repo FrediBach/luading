@@ -6,6 +6,7 @@ import {
   DISPLAY_DESIGN_VERSION_V2,
   DISPLAY_DESIGN_VERSION_V3,
   DISPLAY_DESIGN_VERSION_V4,
+  DISPLAY_DESIGN_VERSION_V5,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
   type DisplayDesignDocument,
@@ -97,9 +98,9 @@ class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
 
-  readonly sourceVersion: 1 | 2 | 3 | 4 | 5
+  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6
 
-  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5) {
+  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6) {
     this.sourceVersion = sourceVersion
   }
 
@@ -449,7 +450,7 @@ class Validator {
     }
     if (value.kind === 'polygon') {
       this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'x', 'y', 'radius', 'sides', ...groupKey], path, baseFocus)
-      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION_V5) {
         this.finding('unsupported-element-version', 'Polygons require display design version 5.', `${path}.kind`, baseFocus)
       }
       const sides = this.finiteNumber(
@@ -471,6 +472,44 @@ class Validator {
         sides: Math.round(sides),
       }
     }
+    if (value.kind === 'bezier') {
+      this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'points', 'segments', ...groupKey], path, baseFocus)
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+        this.finding('unsupported-element-version', 'Bézier curves require display design version 6.', `${path}.kind`, baseFocus)
+      }
+      const rawPoints = this.array(value.points, `${path}.points`)
+      if (rawPoints.length < DISPLAY_DESIGN_LIMITS.minimumBezierPoints || rawPoints.length > DISPLAY_DESIGN_LIMITS.maximumBezierPoints) {
+        this.finding(
+          'bezier-point-count',
+          `A Bézier curve needs ${DISPLAY_DESIGN_LIMITS.minimumBezierPoints} through ${DISPLAY_DESIGN_LIMITS.maximumBezierPoints} control points.`,
+          `${path}.points`,
+          baseFocus,
+        )
+      }
+      const points = rawPoints.slice(0, DISPLAY_DESIGN_LIMITS.maximumBezierPoints).flatMap((point, index) => {
+        if (!isRecord(point)) {
+          this.finding('invalid-bezier-point', 'Each Bézier control point needs X and Y coordinates.', `${path}.points[${index}]`, baseFocus)
+          return []
+        }
+        this.keys(point, ['x', 'y'], `${path}.points[${index}]`, baseFocus)
+        return [{
+          x: this.scalar(point.x, `${path}.points[${index}].x`, { integer: true, focus: { ...baseFocus, property: `points[${index}].x` } }),
+          y: this.scalar(point.y, `${path}.points[${index}].y`, { integer: true, focus: { ...baseFocus, property: `points[${index}].y` } }),
+        }]
+      })
+      const segments = this.finiteNumber(
+        value.segments,
+        `${path}.segments`,
+        24,
+        DISPLAY_DESIGN_LIMITS.minimumBezierSegments,
+        DISPLAY_DESIGN_LIMITS.maximumBezierSegments,
+        { ...baseFocus, property: 'segments' },
+      )
+      if (!Number.isInteger(segments)) {
+        this.finding('integer-required', 'Bézier detail must be a whole number of line segments.', `${path}.segments`, { ...baseFocus, property: 'segments' })
+      }
+      return { ...shared, kind: 'bezier', points, segments: Math.round(segments) }
+    }
     if (value.kind === 'text') {
       this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'tiny', 'x', 'y', 'text', 'align', ...groupKey], path, baseFocus)
       const align = value.align === 'left' || value.align === 'centre' || value.align === 'right' ? value.align : 'left'
@@ -483,7 +522,7 @@ class Validator {
       }
     }
     this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', ...groupKey], path, baseFocus)
-    this.finding('invalid-element-kind', 'Element kind must be line, box, pixel-box, circle, polygon, or text.', `${path}.kind`, baseFocus)
+    this.finding('invalid-element-kind', 'Element kind must be line, box, pixel-box, circle, polygon, bezier, or text.', `${path}.kind`, baseFocus)
     return undefined
   }
 
@@ -760,6 +799,11 @@ function checkPrimitiveReferences(
   } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
     checkScalarReference(validator, primitive.radius, `${path}.radius`, bindings, tokens, { ...focus, property: 'radius' }, { minimum: 0, maximum: DISPLAY_DESIGN_LIMITS.maximumRadius })
+  } else if (primitive.kind === 'bezier') {
+    for (const [index, point] of primitive.points.entries()) {
+      checkScalarReference(validator, point.x, `${path}.points[${index}].x`, bindings, tokens, { ...focus, property: `points[${index}].x` })
+      checkScalarReference(validator, point.y, `${path}.points[${index}].y`, bindings, tokens, { ...focus, property: `points[${index}].y` })
+    }
   } else {
     checkScalarReference(validator, primitive.x, `${path}.x`, bindings, tokens, { ...focus, property: 'x' })
     checkScalarReference(validator, primitive.y, `${path}.y`, bindings, tokens, { ...focus, property: 'y' })
@@ -842,7 +886,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION)
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION)
     ? value.version
     : DISPLAY_DESIGN_VERSION
   const validator = new Validator(sourceVersion)
@@ -855,12 +899,12 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION) {
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION) {
       validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} through ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
     const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
-    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION
+    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION
     validator.keys(
       value,
       isVersion1

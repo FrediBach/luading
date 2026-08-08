@@ -46,4 +46,16 @@ describe('display design tokens', () => {
     expect(deleted.tokens.map(({ id }) => id)).toEqual([second.token.id])
     expect(deleted.elements[0]).toMatchObject({ x1: { kind: 'token-expression', expression: { kind: 'binary', left: { kind: 'number', value: 12 }, right: { kind: 'token', tokenId: second.token.id } } } })
   })
+
+  it('discovers and substitutes tokens on Bézier control points', () => {
+    const ids = createSequentialDisplayDesignIdFactory('bezier-token')
+    const created = createDisplayTokenInDocument(createEmptyDisplayDesign(), ids, 'Control X', 19)
+    const bezier = createDefaultDisplayPrimitive('bezier', ids)
+    bezier.points[2]!.x = { kind: 'token-expression', expression: { kind: 'token', tokenId: created.token.id } }
+    const document = { ...created.document, elements: [bezier] }
+
+    expect(listDisplayTokenUsages(document)).toEqual([expect.objectContaining({ tokenId: created.token.id, property: 'points[2].x' })])
+    const substituted = deleteDisplayTokenWithSubstitution(document, created.token.id).elements[0]
+    expect(substituted?.kind === 'bezier' ? substituted.points[2]?.x : undefined).toEqual({ kind: 'literal', value: 19 })
+  })
 })

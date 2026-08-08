@@ -174,7 +174,8 @@ dialog owns the normalized design document, semantic undo history, selection,
 pointer gesture preview, responsive panel state, preview binding values, and
 downloaded-revision marker. Version 3 added ordered document-wide numeric tokens
 and bounded token-expression ASTs; version 4 added bounded pixel-box shade arrays;
-version 5 adds regular polygons with bounded side detail. These remain in the
+version 5 added regular polygons with bounded side detail; version 6 adds
+general-degree Bézier curves with bounded control-point and segment detail. These remain in the
 main-thread document. The singleton uniform layout-grid definition is
 document-owned; grid visibility and pointer-snapping preferences remain view
 state. Pure modules below the dialog parse and print the closed arithmetic
@@ -184,13 +185,16 @@ ordinary draw commands, optimize pixel boxes into exact line/filled-rectangle
 overdraw regions, calculate descriptive metrics, and generate
 deterministic Lua. Polygon compilation expands the same rounded vertices into
 preview line commands while generation emits one closure-local helper accepting
-only centre, radius, side count, and shade. The existing
+only centre, radius, side count, and shade. Bézier compilation uses de Casteljau
+interpolation to emit the selected number of preview line segments; generated
+Lua emits one closure-local helper accepting only the ordered points, segment
+count, and shade. The existing
 main-thread display renderer rasterizes the compiled commands; neither the
 designer document nor its UI state crosses the simulation-worker protocol.
 
 Opening a design first validates browser file metadata, reads and defensively
-parses strict version-1 through version-5 JSON, migrates older versions
-to the canonical version-5 shape (including static-scalar wrappers around old
+parses strict version-1 through version-6 JSON, migrates older versions
+to the canonical version-6 shape (including static-scalar wrappers around old
 number-binding endpoints), and produces canonical serialized bytes. Only a
 fully accepted document replaces the current draft and receives a fresh
 history/ID allocator. Download creates an explicit browser Blob and marks only

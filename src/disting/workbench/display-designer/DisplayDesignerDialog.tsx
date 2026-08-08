@@ -455,6 +455,7 @@ const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
   { id: 'pixel-circle', label: 'Pixel circle', shortLabel: 'Circle' },
   { id: 'smooth-circle', label: 'Smooth circle', shortLabel: 'Smooth circle' },
   { id: 'polygon', label: 'Polygon', shortLabel: 'Polygon' },
+  { id: 'bezier', label: 'Bézier curve', shortLabel: 'Bézier' },
   { id: 'standard-text', label: 'Standard text', shortLabel: 'Text' },
   { id: 'tiny-text', label: 'Tiny text', shortLabel: 'Tiny text' },
 ]
@@ -466,6 +467,7 @@ function elementTypeName(element: DisplayDesignElement): string {
   if (element.kind === 'pixel-box') return 'Pixel box'
   if (element.kind === 'circle') return element.smooth ? 'Smooth circle' : 'Pixel circle'
   if (element.kind === 'polygon') return 'Polygon'
+  if (element.kind === 'bezier') return 'Bézier curve'
   return element.tiny ? 'Tiny text' : 'Standard text'
 }
 
@@ -523,15 +525,24 @@ function CommitInput({
   )
 }
 
-function GeometryOverlay({ command, polygonCommands = [], element, document }: { command?: DrawCommand; polygonCommands?: DrawCommand[]; element: DisplayDesignElement; document: DisplayDesignDocument }) {
+function GeometryOverlay({ command, expandedCommands = [], element, document }: { command?: DrawCommand; expandedCommands?: DrawCommand[]; element: DisplayDesignElement; document: DisplayDesignDocument }) {
   if (element.kind === 'pixel-box') {
     const bounds = displayElementBounds(element, document)
     return <rect x={bounds.left} y={bounds.top} width={element.width} height={element.height} />
   }
   if (element.kind === 'polygon') {
-    return <g>{polygonCommands.flatMap((edge, index) => edge.kind === 'line'
+    return <g>{expandedCommands.flatMap((edge, index) => edge.kind === 'line'
       ? [<line key={index} x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2} />]
       : [])}<circle cx={staticDisplayScalarValue(document, element.x)} cy={staticDisplayScalarValue(document, element.y)} r="1.5" /></g>
+  }
+  if (element.kind === 'bezier') {
+    const points = element.points.map((point) => ({ x: staticDisplayScalarValue(document, point.x), y: staticDisplayScalarValue(document, point.y) }))
+    return <g>
+      <polyline className="display-designer-control-polygon" points={points.map(({ x, y }) => `${x},${y}`).join(' ')} />
+      {expandedCommands.flatMap((edge, index) => edge.kind === 'line'
+        ? [<line key={index} x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2} />]
+        : [])}
+    </g>
   }
   if (!command) return null
   if (command.kind === 'line') {
@@ -729,11 +740,11 @@ function DisplayDesignerArtboard({
             {showGeometry && selectedElements.map((element) => {
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
-              const polygonCommands = source && element.kind === 'polygon'
+              const expandedCommands = source && (element.kind === 'polygon' || element.kind === 'bezier')
                 ? commands.slice(source.firstCommand, source.firstCommand + source.commandCount)
                 : []
               return <g key={element.id} className="display-designer-selection-geometry">
-                <GeometryOverlay command={command} polygonCommands={polygonCommands} element={element} document={document} />
+                <GeometryOverlay command={command} expandedCommands={expandedCommands} element={element} document={document} />
                 {displayElementHandles(element, document).map(({ id, point }) => <g key={id}>
                   <circle
                     className="display-designer-handle-target"
@@ -1420,6 +1431,66 @@ function DisplayDesignerInspector({
           return true
         }} />
         <p>{element.sides} straight edges. Increase detail until the facets reach the pixel scale.</p>
+      </div>}
+      {element.kind === 'bezier' && <div className="display-designer-bezier-editor">
+        <div className="display-designer-computed">
+          <CommitInput label="Detail (segments)" type="number" min={DISPLAY_DESIGN_LIMITS.minimumBezierSegments} max={DISPLAY_DESIGN_LIMITS.maximumBezierSegments} step={1} value={element.segments} onCommit={(draft) => {
+            const segments = Number(draft)
+            if (!Number.isInteger(segments) || segments < DISPLAY_DESIGN_LIMITS.minimumBezierSegments || segments > DISPLAY_DESIGN_LIMITS.maximumBezierSegments) return false
+            update('Change Bézier detail', (current) => current.kind === 'bezier' ? { ...current, segments } : current)
+            return true
+          }} />
+          <p>{element.segments} straight line segments. Increase detail until the facets reach the pixel scale.</p>
+        </div>
+        <h4>Control points</h4>
+        {element.points.map((point, pointIndex) => <fieldset key={pointIndex} className="display-designer-bezier-point">
+          <legend>Point {pointIndex + 1}{pointIndex === 0 ? ' · start' : pointIndex === element.points.length - 1 ? ' · end' : ''}</legend>
+          <div className="display-designer-field-grid">
+            {(['x', 'y'] as const).map((axis) => <DisplayScalarEditor
+              key={axis}
+              document={document}
+              scalar={point[axis]}
+              label={axis.toUpperCase()}
+              integer
+              idFactory={idFactory}
+              onChange={(value, action, baseDocument = document) => onCommit(action, updateDisplayDesignElement(baseDocument, element.id, (current) => current.kind === 'bezier' ? {
+                ...current,
+                points: current.points.map((candidate, index) => index === pointIndex ? { ...candidate, [axis]: value } : candidate),
+              } : current))}
+              onMakeDynamic={() => {
+                const created = createDisplayBindingInDocument(document, 'number', idFactory, `Point ${pointIndex + 1} ${axis.toUpperCase()}`)
+                const currentScalar = point[axis]
+                onCommit(`Make point ${pointIndex + 1} ${axis.toUpperCase()} dynamic`, updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'bezier' ? {
+                  ...current,
+                  points: current.points.map((candidate, index) => index === pointIndex ? {
+                    ...candidate,
+                    [axis]: {
+                      kind: 'number-binding', bindingId: created.binding.id,
+                      from: currentScalar.kind === 'number-binding' ? currentScalar.from : currentScalar,
+                      to: currentScalar.kind === 'number-binding' ? currentScalar.to : offsetDisplayStaticScalar(currentScalar, 16),
+                      quantize: 'integer',
+                    },
+                  } : candidate),
+                } : current))
+              }}
+            />)}
+          </div>
+          <button type="button" disabled={element.points.length <= DISPLAY_DESIGN_LIMITS.minimumBezierPoints} onClick={() => update('Remove Bézier control point', (current) => current.kind === 'bezier' ? { ...current, points: current.points.filter((_, index) => index !== pointIndex) } : current)}>Remove point</button>
+        </fieldset>)}
+        <button type="button" disabled={element.points.length >= DISPLAY_DESIGN_LIMITS.maximumBezierPoints} onClick={() => update('Add Bézier control point', (current) => {
+          if (current.kind !== 'bezier') return current
+          const last = current.points.at(-1)!
+          const previous = current.points.at(-2) ?? last
+          const x = Math.min(DISPLAY_DESIGN_LIMITS.maximumCoordinate, Math.max(
+            DISPLAY_DESIGN_LIMITS.minimumCoordinate,
+            staticDisplayScalarValue(document, last.x) * 2 - staticDisplayScalarValue(document, previous.x),
+          ))
+          const y = Math.min(DISPLAY_DESIGN_LIMITS.maximumCoordinate, Math.max(
+            DISPLAY_DESIGN_LIMITS.minimumCoordinate,
+            staticDisplayScalarValue(document, last.y) * 2 - staticDisplayScalarValue(document, previous.y),
+          ))
+          return { ...current, points: [...current.points, { x: { kind: 'literal', value: x }, y: { kind: 'literal', value: y } }] }
+        })}>Add control point</button>
       </div>}
       {element.kind === 'text' && <>
         <div className="display-designer-field-grid">
@@ -2295,7 +2366,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
           {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
             setActiveTool(tool.id)
-          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'pixel-box' ? '▦' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
+          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'bezier' ? '∿' : tool.id === 'pixel-box' ? '▦' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
           {activeTool !== 'select' && <button type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
         </div>
 

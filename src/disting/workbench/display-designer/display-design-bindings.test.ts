@@ -97,4 +97,23 @@ describe('display design binding operations', () => {
     expect(document.elements[0]).toMatchObject({ visible: { kind: 'visible' } })
     expect(document.elements[1]).toMatchObject({ text: { kind: 'literal', value: 'Preview' } })
   })
+
+  it('discovers and converts number bindings on Bézier control points', () => {
+    const ids = createSequentialDisplayDesignIdFactory('bezier-binding')
+    const bindingId = ids('binding')
+    const bezier = createDefaultDisplayPrimitive('bezier', ids)
+    bezier.points[1]!.x = {
+      kind: 'number-binding', bindingId,
+      from: { kind: 'literal', value: 10 }, to: { kind: 'literal', value: 30 }, quantize: 'integer',
+    }
+    const document: DisplayDesignDocument = {
+      ...createEmptyDisplayDesign(),
+      bindings: [{ kind: 'number', id: bindingId, name: 'Control X', luaName: 'control_x', previewValue: 0.25 }],
+      elements: [bezier],
+    }
+
+    expect(listDisplayBindingUsages(document)).toEqual([expect.objectContaining({ bindingId, property: 'points[1].x' })])
+    const converted = convertDisplayBindingUsesToStatic(document, bindingId).elements[0]
+    expect(converted?.kind === 'bezier' ? converted.points[1]?.x : undefined).toEqual({ kind: 'literal', value: 15 })
+  })
 })

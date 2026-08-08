@@ -13,11 +13,12 @@ import {
 } from './display-design-model'
 import { createDisplayBindingMap, createDisplayTokenMap, offsetDisplayScalar, resolveDisplayScalar, resolveDisplayText, resolveDisplayVisibility, setDisplayScalarPreviewValue } from './display-design-resolution'
 import { displayPolygonVertices } from './display-design-polygon'
+import { compileDisplayBezierLines } from './display-design-bezier'
 
 export interface DisplayDesignPoint { x: number; y: number }
 export interface DisplayDesignBounds { left: number; top: number; right: number; bottom: number }
 export interface DisplayDesignClientRect { left: number; top: number; width: number; height: number }
-export type DisplayDesignHandle = 'start' | 'end' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'centre' | 'radius' | 'anchor'
+export type DisplayDesignHandle = 'start' | 'end' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'centre' | 'radius' | 'anchor' | `point-${number}`
 export type DisplayDesignAlignment = 'left' | 'centre' | 'right' | 'top' | 'middle' | 'bottom'
 export type DisplayDesignDistribution = 'horizontal' | 'vertical'
 
@@ -81,6 +82,18 @@ export function createDisplayPrimitiveFromGesture(
   if (element.kind === 'line' || element.kind === 'box') {
     return { ...element, x1: literal(start.x), y1: literal(start.y), x2: literal(end.x), y2: literal(end.y) }
   }
+  if (element.kind === 'bezier') {
+    const dx = end.x - start.x
+    return {
+      ...element,
+      points: [
+        { x: literal(Math.round(start.x)), y: literal(Math.round(start.y)) },
+        { x: literal(Math.round(start.x + dx / 3)), y: literal(Math.round(start.y)) },
+        { x: literal(Math.round(start.x + 2 * dx / 3)), y: literal(Math.round(end.y)) },
+        { x: literal(Math.round(end.x)), y: literal(Math.round(end.y)) },
+      ],
+    }
+  }
   if (element.kind === 'circle' || element.kind === 'polygon') {
     const radius = snapDisplayCoordinate(Math.hypot(end.x - start.x, end.y - start.y), element.kind === 'circle' && element.smooth)
     return { ...element, x: literal(start.x), y: literal(start.y), radius: literal(radius) }
@@ -136,6 +149,11 @@ export function displayElementBounds(
     const x1 = scalar(element.x1); const y1 = scalar(element.y1)
     const x2 = scalar(element.x2); const y2 = scalar(element.y2)
     return { left: Math.min(x1, x2), top: Math.min(y1, y2), right: Math.max(x1, x2), bottom: Math.max(y1, y2) }
+  }
+  if (element.kind === 'bezier') {
+    const xs = element.points.map((point) => scalar(point.x))
+    const ys = element.points.map((point) => scalar(point.y))
+    return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) }
   }
   if (element.kind === 'circle' || element.kind === 'polygon') {
     const x = scalar(element.x); const y = scalar(element.y); const radius = scalar(element.radius)
@@ -197,6 +215,10 @@ export function displayElementHandles(element: DisplayDesignElement, document?: 
     { id: 'start', point: { x: scalar(element.x1), y: scalar(element.y1) } },
     { id: 'end', point: { x: scalar(element.x2), y: scalar(element.y2) } },
   ]
+  if (element.kind === 'bezier') return element.points.map((point, index) => ({
+    id: `point-${index}` as const,
+    point: { x: scalar(point.x), y: scalar(point.y) },
+  }))
   if (element.kind === 'box' || element.kind === 'pixel-box') {
     const bounds = displayElementBounds(element, document)
     return [
@@ -230,6 +252,13 @@ export function displayElementHitTest(
   if (element.kind === 'line') {
     const [start, end] = displayElementHandles(element, document)
     return distanceToSegment(point, start.point, end.point) <= tolerance
+  }
+  if (element.kind === 'bezier') {
+    const commands = compileDisplayBezierLines(element.points.map((control) => ({
+      x: resolvedScalar(control.x, document),
+      y: resolvedScalar(control.y, document),
+    })), element.segments, 15)
+    return commands.some((command) => command.kind === 'line' && distanceToSegment(point, { x: command.x1, y: command.y1 }, { x: command.x2, y: command.y2 }) <= tolerance)
   }
   if (element.kind === 'polygon') {
     const x = resolvedScalar(element.x, document)
@@ -274,6 +303,10 @@ export function translateDisplayElement(element: DisplayDesignElement, dx: numbe
     ...cloneDisplayDesign(element),
     x1: translateScalar(element.x1, dx), y1: translateScalar(element.y1, dy),
     x2: translateScalar(element.x2, dx), y2: translateScalar(element.y2, dy),
+  }
+  if (element.kind === 'bezier') return {
+    ...cloneDisplayDesign(element),
+    points: element.points.map((point) => ({ x: translateScalar(point.x, dx), y: translateScalar(point.y, dy) })),
   }
   return { ...cloneDisplayDesign(element), x: translateScalar(element.x, dx), y: translateScalar(element.y, dy) }
 }
@@ -341,6 +374,14 @@ export function resizeDisplayElement(
   if (element.kind === 'line') {
     if (handle === 'start') return { ...cloneDisplayDesign(element), x1: set(element.x1, x), y1: set(element.y1, y) }
     if (handle === 'end') return { ...cloneDisplayDesign(element), x2: set(element.x2, x), y2: set(element.y2, y) }
+  }
+  if (element.kind === 'bezier' && handle.startsWith('point-')) {
+    const index = Number(handle.slice('point-'.length))
+    if (Number.isInteger(index) && element.points[index]) {
+      const points = cloneDisplayDesign(element.points)
+      points[index] = { x: set(points[index]!.x, x), y: set(points[index]!.y, y) }
+      return { ...cloneDisplayDesign(element), points }
+    }
   }
   if (element.kind === 'box') {
     const x1 = resolveDisplayScalar(element.x1, bindings, tokens)

@@ -128,6 +128,19 @@ end,
     expect(commands).toEqual(compileDisplayDesign(document).commands)
   })
 
+  it('runs multi-point Béziers through one minimal reusable Lua helper at the real display boundary', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('bezier')
+    const bezier = createDefaultDisplayPrimitive('bezier', ids)
+    bezier.segments = 7
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [bezier] }
+    const { commands, generated } = await runGenerated(document)
+
+    expect(generated.source).toContain('local function drawBezier(points, segments, shade)')
+    expect(generated.source).toContain('drawBezier({{8, 24}, {20, 12}, {36, 36}, {48, 24}}, 7, 15)')
+    expect(generated.source.match(/local function drawBezier/g)).toHaveLength(1)
+    expect(commands).toEqual(compileDisplayDesign(document).commands)
+  })
+
   it('emits binding locals once in document order with ordinary mapping and visibility expressions', () => {
     const ids = createSequentialDisplayDesignIdFactory('binding')
     const numberId = ids('binding')

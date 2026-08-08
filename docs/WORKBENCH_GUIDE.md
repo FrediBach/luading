@@ -825,7 +825,7 @@ browser-only 256×64 display design. Opening the full-size dialog does not pause
 the Lua runtime, change the active script, or replace the normal simulated
 display. The current implementation supports pixel and smooth lines, outlined
 and filled boxes, pixel boxes, pixel and smooth outline circles, regular outline
-polygons, standard text, and tiny text. Choose a primitive tool and drag on the artboard to create repeatedly, or
+polygons, multi-point Bézier curves, standard text, and tiny text. Choose a primitive tool and drag on the artboard to create repeatedly, or
 use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
@@ -838,6 +838,19 @@ only when a polygon is used. Each polygon call passes only those five drawing
 inputs, and the helper expands them into ordinary integer `drawLine()` calls.
 The compiler preview uses the same vertex orientation and rounding as that Lua
 helper. Polygon detail therefore contributes one descriptive draw call per side.
+
+A **Bézier curve** stores an ordered list of 2–16 control points plus a
+**Detail (segments)** value from 1 through 256. Its first and last points are
+the endpoints; every point in between shapes the general-degree curve. Low
+detail deliberately shows the straight approximation segments, while higher
+detail can reduce them to the display's pixel scale. Selected curves show both
+their control polygon and a draggable handle for every point. Points can be
+added, removed, or edited exactly in Properties. Generated Lua emits one local
+`drawBezier(points, segments, shade)` helper only when a curve is used. Each
+curve call passes only those three drawing inputs, and the helper uses de
+Casteljau interpolation before issuing ordinary integer `drawLine()` calls.
+The compiler uses the same interpolation, sampling, and rounding, so Bézier
+detail contributes exactly one descriptive draw call per segment.
 
 A **Pixel box** stores one of those 16 shades for every pixel in its rectangular
 area. Select a paint shade and choose individual cells in the Properties grid,
@@ -1002,8 +1015,9 @@ file. Type, size, version, and document validation complete before the current
 draft is replaced; a failed read or invalid file keeps the draft unchanged.
 Version-1 files open with no layout grid or tokens, while version-2 files retain
 their grid; both migrate numeric binding endpoints into static-scalar literal
-wrappers. Version-3 files retain their tokens and grid, and version-4 files
-retain pixel boxes. Downloads always use strict version 5, which adds polygons,
+wrappers. Version-3 files retain their tokens and grid, version-4 files retain
+pixel boxes, and version-5 files retain polygons. Downloads always use strict
+version 6, which adds multi-point Bézier curves,
 with ordered `tokens` and a
 `layoutGrid` that is either the uniform-grid definition or `null`. Use
 **Download design** for a

@@ -62,6 +62,13 @@ describe('display design geometry', () => {
     expect(circle).toMatchObject({ kind: 'circle', radius: literal(5) })
     const polygon = createDisplayPrimitiveFromGesture('polygon', { x: 30, y: 20 }, { x: 36, y: 28 }, 'full-screen', ids)
     expect(polygon).toMatchObject({ kind: 'polygon', x: literal(30), y: literal(20), radius: literal(10), sides: 6 })
+    const bezier = createDisplayPrimitiveFromGesture('bezier', { x: 10, y: 20 }, { x: 40, y: 32 }, 'full-screen', ids)
+    expect(bezier).toMatchObject({ kind: 'bezier', points: [
+      { x: literal(10), y: literal(20) },
+      { x: literal(20), y: literal(20) },
+      { x: literal(30), y: literal(32) },
+      { x: literal(40), y: literal(32) },
+    ] })
     const text = createDisplayPrimitiveFromGesture('tiny-text', { x: 1.2, y: 2.2 }, { x: 90, y: 40 }, 'full-screen', ids)
     expect(text).toMatchObject({ kind: 'text', x: literal(1), y: literal(2) })
   })

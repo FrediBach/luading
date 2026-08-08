@@ -44,6 +44,8 @@ export function translateDisplayPrimitive(
     next.y1 = translatedScalar(next.y1, dy)
     next.x2 = translatedScalar(next.x2, dx)
     next.y2 = translatedScalar(next.y2, dy)
+  } else if (next.kind === 'bezier') {
+    next.points = next.points.map((point) => ({ x: translatedScalar(point.x, dx), y: translatedScalar(point.y, dy) }))
   } else {
     next.x = translatedScalar(next.x, dx)
     next.y = translatedScalar(next.y, dy)
@@ -62,6 +64,8 @@ function translateDisplayPrimitiveByStaticScalars(
     next.y1 = addDisplayScalarStatic(next.y1, y)
     next.x2 = addDisplayScalarStatic(next.x2, x)
     next.y2 = addDisplayScalarStatic(next.y2, y)
+  } else if (next.kind === 'bezier') {
+    next.points = next.points.map((point) => ({ x: addDisplayScalarStatic(point.x, x), y: addDisplayScalarStatic(point.y, y) }))
   } else {
     next.x = addDisplayScalarStatic(next.x, x)
     next.y = addDisplayScalarStatic(next.y, y)

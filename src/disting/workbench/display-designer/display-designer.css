@@ -521,6 +521,26 @@
   vector-effect: non-scaling-stroke;
 }
 
+.display-designer-selection-geometry .display-designer-control-polygon {
+  fill: none;
+  stroke-dasharray: 2 2;
+  opacity: 0.55;
+}
+
+.display-designer-bezier-editor {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.display-designer-bezier-editor > h4 {
+  margin: 0;
+}
+
+.display-designer-bezier-point {
+  min-width: 0;
+  margin: 0;
+}
+
 .display-designer-selection-geometry circle { fill: var(--nt-green); }
 .display-designer-selection-geometry .display-designer-handle-target {
   pointer-events: all;

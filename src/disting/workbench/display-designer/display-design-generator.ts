@@ -70,6 +70,11 @@ function collectPrimitiveBindingIds(primitive: DisplayPrimitiveElement, bindingI
     collectScalar(primitive.x)
     collectScalar(primitive.y)
     collectScalar(primitive.radius)
+  } else if (primitive.kind === 'bezier') {
+    for (const point of primitive.points) {
+      collectScalar(point.x)
+      collectScalar(point.y)
+    }
   } else {
     collectScalar(primitive.x)
     collectScalar(primitive.y)
@@ -101,6 +106,10 @@ function collectPrimitiveTokenIds(primitive: DisplayPrimitiveElement, tokenIds: 
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
   } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y', 'radius'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
+  } else if (primitive.kind === 'bezier') {
+    for (const point of primitive.points) {
+      count += collectScalarTokenIds(point.x, tokenIds) + collectScalarTokenIds(point.y, tokenIds)
+    }
   } else {
     count += collectScalarTokenIds(primitive.x, tokenIds) + collectScalarTokenIds(primitive.y, tokenIds)
   }
@@ -152,6 +161,7 @@ function primitiveCall(
   tokens: DisplayTokenMap,
   translation?: { x: string; y: string },
   polygonHelperName = 'drawPolygon',
+  bezierHelperName = 'drawBezier',
 ): string {
   if (primitive.kind === 'pixel-box') return ''
   const shade = displayShadeLuaExpression(primitive.shade, bindings, tokens)
@@ -193,6 +203,10 @@ function primitiveCall(
     ]
     return `${polygonHelperName}(${args.join(', ')})`
   }
+  if (primitive.kind === 'bezier') {
+    const points = primitive.points.map((point) => `{${translatedScalarExpression(point.x, bindings, true, tokens, translation?.x)}, ${translatedScalarExpression(point.y, bindings, true, tokens, translation?.y)}}`)
+    return `${bezierHelperName}({${points.join(', ')}}, ${primitive.segments}, ${shade})`
+  }
   const text = primitive.text.kind === 'literal'
     ? luaQuotedString(primitive.text.value)
     : bindings.get(primitive.text.bindingId)?.luaName ?? '""'
@@ -229,11 +243,12 @@ function primitiveSource(
   indent = '  ',
   translation?: { x: string; y: string },
   polygonHelperName = 'drawPolygon',
+  bezierHelperName = 'drawBezier',
 ): string[] {
   const lines = [`${indent}-- ${oneLineComment(primitive.name)}`]
   const calls = primitive.kind === 'pixel-box'
     ? pixelBoxCalls(primitive, bindings, tokens, translation)
-    : [primitiveCall(primitive, bindings, tokens, translation, polygonHelperName)]
+    : [primitiveCall(primitive, bindings, tokens, translation, polygonHelperName, bezierHelperName)]
   if (primitive.visible.kind === 'visible') {
     for (const call of calls) lines.push(`${indent}${call}`)
     return lines
@@ -258,6 +273,7 @@ function symbolHelperSource(
   bindings: DisplayBindingMap,
   tokens: DisplayTokenMap,
   polygonHelperName: string,
+  bezierHelperName: string,
 ): string[] {
   const symbol = document.symbols.find(({ id }) => id === symbolId)
   if (!symbol) return []
@@ -267,11 +283,11 @@ function symbolHelperSource(
   const lines = [`  local function ${symbol.luaName}(x, y, state)`]
   for (const [index, variant] of branches.entries()) {
     lines.push(`    ${index === 0 ? 'if' : 'elseif'} state == ${luaQuotedString(variant.luaValue)} then`)
-    for (const primitive of variant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName))
+    for (const primitive of variant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName, bezierHelperName))
   }
   if (branches.length > 0) lines.push('    else')
   lines.push(`      -- Default state: ${oneLineComment(defaultVariant.name)}`)
-  for (const primitive of defaultVariant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName))
+  for (const primitive of defaultVariant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName, bezierHelperName))
   if (branches.length > 0) lines.push('    end')
   lines.push('  end')
   return lines
@@ -307,6 +323,48 @@ function polygonHelperSource(name: string): string[] {
     '      previous_y = next_y',
     '    end',
     '    drawLine(previous_x, previous_y, first_x, first_y, shade)',
+    '  end',
+  ]
+}
+
+function displayBezierHelperName(document: DisplayDesignDocument): string {
+  const used = new Set([
+    ...document.tokens.map(({ luaName }) => luaName),
+    ...document.bindings.map(({ luaName }) => luaName),
+    ...document.symbols.map(({ luaName }) => luaName),
+  ])
+  const base = 'drawBezier'
+  let name = base
+  let suffix = 2
+  while (used.has(name)) name = `${base}_${suffix++}`
+  return name
+}
+
+function bezierHelperSource(name: string): string[] {
+  return [
+    `  local function ${name}(points, segments, shade)`,
+    '    local previous_x = math.floor(points[1][1] + 0.5)',
+    '    local previous_y = math.floor(points[1][2] + 0.5)',
+    '    local work_x = {}',
+    '    local work_y = {}',
+    '    for segment = 1, segments do',
+    '      local amount = segment / segments',
+    '      for index = 1, #points do',
+    '        work_x[index] = points[index][1]',
+    '        work_y[index] = points[index][2]',
+    '      end',
+    '      for level = #points - 1, 1, -1 do',
+    '        for index = 1, level do',
+    '          work_x[index] = work_x[index] + (work_x[index + 1] - work_x[index]) * amount',
+    '          work_y[index] = work_y[index] + (work_y[index + 1] - work_y[index]) * amount',
+    '        end',
+    '      end',
+    '      local next_x = math.floor(work_x[1] + 0.5)',
+    '      local next_y = math.floor(work_y[1] + 0.5)',
+    '      drawLine(previous_x, previous_y, next_x, next_y, shade)',
+    '      previous_x = next_x',
+    '      previous_y = next_y',
+    '    end',
     '  end',
   ]
 }
@@ -389,7 +447,10 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   const usesPolygon = document.elements.some((element) => element.kind === 'polygon')
     || document.symbols.some((symbol) => usedSymbolIds.has(symbol.id) && symbol.variants.some((variant) => variant.elements.some((primitive) => primitive.kind === 'polygon')))
   const polygonHelperName = displayPolygonHelperName(document)
-  if (usedSymbolIds.size === 0 && usedTokens.length === 0 && !usesPolygon) {
+  const usesBezier = document.elements.some((element) => element.kind === 'bezier')
+    || document.symbols.some((symbol) => usedSymbolIds.has(symbol.id) && symbol.variants.some((variant) => variant.elements.some((primitive) => primitive.kind === 'bezier')))
+  const bezierHelperName = displayBezierHelperName(document)
+  if (usedSymbolIds.size === 0 && usedTokens.length === 0 && !usesPolygon && !usesBezier) {
     const lines = [
     'draw = function(self)',
     '  -- Generated by Luading Display designer; edit freely after copying.',
@@ -429,9 +490,10 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
     lines.push('')
   }
   if (usesPolygon) lines.push(...polygonHelperSource(polygonHelperName), '')
+  if (usesBezier) lines.push(...bezierHelperSource(bezierHelperName), '')
   for (const symbol of document.symbols) {
     if (!usedSymbolIds.has(symbol.id)) continue
-    lines.push(...symbolHelperSource(document, symbol.id, bindings, tokens, polygonHelperName), '')
+    lines.push(...symbolHelperSource(document, symbol.id, bindings, tokens, polygonHelperName, bezierHelperName), '')
   }
   lines.push('  return function(self)', '    -- Generated by Luading Display designer; edit freely after copying.')
   if (usedBindings.length > 0) {
@@ -440,7 +502,7 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   }
   for (const [index, element] of document.elements.entries()) {
     if (element.kind === 'symbol-instance') lines.push(...instanceSource(document, element, bindings, tokens))
-    else lines.push(...primitiveSource(element, bindings, tokens, '    ', undefined, polygonHelperName))
+    else lines.push(...primitiveSource(element, bindings, tokens, '    ', undefined, polygonHelperName, bezierHelperName))
     if (index < document.elements.length - 1) lines.push('')
   }
   if (document.displayMode === 'full-screen') {

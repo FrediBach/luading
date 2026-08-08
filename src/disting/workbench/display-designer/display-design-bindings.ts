@@ -58,6 +58,11 @@ function collectPrimitiveUsages(
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) collectScalarUsage(primitive[property], usages, owner, property)
   } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y', 'radius'] as const) collectScalarUsage(primitive[property], usages, owner, property)
+  } else if (primitive.kind === 'bezier') {
+    for (const [index, point] of primitive.points.entries()) {
+      collectScalarUsage(point.x, usages, owner, `points[${index}].x`)
+      collectScalarUsage(point.y, usages, owner, `points[${index}].y`)
+    }
   } else {
     collectScalarUsage(primitive.x, usages, owner, 'x')
     collectScalarUsage(primitive.y, usages, owner, 'y')
@@ -145,6 +150,10 @@ function mapPrimitive(
   if (primitive.kind === 'polygon') return {
     ...common, kind: 'polygon', sides: primitive.sides,
     x: scalar(primitive.x), y: scalar(primitive.y), radius: scalar(primitive.radius),
+  }
+  if (primitive.kind === 'bezier') return {
+    ...common, kind: 'bezier', segments: primitive.segments,
+    points: primitive.points.map((point) => ({ x: scalar(point.x), y: scalar(point.y) })),
   }
   return {
     ...common, kind: 'text', tiny: primitive.tiny,

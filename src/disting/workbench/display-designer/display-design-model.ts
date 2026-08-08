@@ -3,7 +3,8 @@ export const DISPLAY_DESIGN_VERSION_V1 = 1 as const
 export const DISPLAY_DESIGN_VERSION_V2 = 2 as const
 export const DISPLAY_DESIGN_VERSION_V3 = 3 as const
 export const DISPLAY_DESIGN_VERSION_V4 = 4 as const
-export const DISPLAY_DESIGN_VERSION = 5 as const
+export const DISPLAY_DESIGN_VERSION_V5 = 5 as const
+export const DISPLAY_DESIGN_VERSION = 6 as const
 
 export const DEFAULT_DISPLAY_DESIGN_LAYOUT_GRID = {
   kind: 'uniform',
@@ -31,6 +32,10 @@ export const DISPLAY_DESIGN_LIMITS = {
   maximumRadius: 4096,
   minimumPolygonSides: 3,
   maximumPolygonSides: 256,
+  minimumBezierPoints: 2,
+  maximumBezierPoints: 16,
+  minimumBezierSegments: 1,
+  maximumBezierSegments: 256,
   maximumJsonBytes: 1024 * 1024,
   maximumHistoryTransactions: 100,
   minimumLayoutGridSize: 1,
@@ -125,6 +130,17 @@ export interface DisplayPolygonElement extends DisplayPrimitiveBase {
   sides: number
 }
 
+export interface DisplayBezierPoint {
+  x: DisplayScalar
+  y: DisplayScalar
+}
+
+export interface DisplayBezierElement extends DisplayPrimitiveBase {
+  kind: 'bezier'
+  points: DisplayBezierPoint[]
+  segments: number
+}
+
 export interface DisplayTextElement extends DisplayPrimitiveBase {
   kind: 'text'
   tiny: boolean
@@ -151,6 +167,7 @@ export type DisplayPrimitiveElement =
   | DisplayBoxElement
   | DisplayCircleElement
   | DisplayPolygonElement
+  | DisplayBezierElement
   | DisplayTextElement
   | DisplayPixelBoxElement
 
@@ -289,12 +306,18 @@ export interface DisplayDesignDocumentV4 extends DisplayDesignDocumentFields {
 }
 
 export interface DisplayDesignDocumentV5 extends DisplayDesignDocumentFields {
+  version: typeof DISPLAY_DESIGN_VERSION_V5
+  tokens: DisplayDesignToken[]
+  layoutGrid: DisplayDesignLayoutGrid | null
+}
+
+export interface DisplayDesignDocumentV6 extends DisplayDesignDocumentFields {
   version: typeof DISPLAY_DESIGN_VERSION
   tokens: DisplayDesignToken[]
   layoutGrid: DisplayDesignLayoutGrid | null
 }
 
-export type DisplayDesignDocument = DisplayDesignDocumentV5
+export type DisplayDesignDocument = DisplayDesignDocumentV6
 
 export interface DisplayDesignSelection {
   elementIds: string[]
@@ -334,6 +357,7 @@ export type DisplayPrimitivePreset =
   | 'pixel-circle'
   | 'smooth-circle'
   | 'polygon'
+  | 'bezier'
   | 'standard-text'
   | 'tiny-text'
 
@@ -452,6 +476,11 @@ export function createDefaultDisplayPrimitive(
   scope?: 'element' | 'primitive',
 ): DisplayPolygonElement
 export function createDefaultDisplayPrimitive(
+  preset: 'bezier',
+  idFactory: DisplayDesignIdFactory,
+  scope?: 'element' | 'primitive',
+): DisplayBezierElement
+export function createDefaultDisplayPrimitive(
   preset: 'standard-text' | 'tiny-text',
   idFactory: DisplayDesignIdFactory,
   scope?: 'element' | 'primitive',
@@ -485,6 +514,19 @@ export function createDefaultDisplayPrimitive(
       return { ...base, kind: 'circle', name: 'Smooth circle', smooth: true, x: literal(20.5), y: literal(20.5), radius: literal(6.5) }
     case 'polygon':
       return { ...base, kind: 'polygon', name: 'Polygon', x: literal(20), y: literal(20), radius: literal(8), sides: 6 }
+    case 'bezier':
+      return {
+        ...base,
+        kind: 'bezier',
+        name: 'Bézier curve',
+        points: [
+          { x: literal(8), y: literal(24) },
+          { x: literal(20), y: literal(12) },
+          { x: literal(36), y: literal(36) },
+          { x: literal(48), y: literal(24) },
+        ],
+        segments: 24,
+      }
     case 'standard-text':
       return { ...base, kind: 'text', name: 'Standard text', tiny: false, x: literal(8), y: literal(20), text: { kind: 'literal', value: 'Text' }, align: 'left' }
     case 'tiny-text':

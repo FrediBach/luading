@@ -19,6 +19,7 @@ import type { DisplayTokenMap } from './display-design-token-expressions'
 import { buildDisplayDesignSource } from './display-design-generator'
 import { optimizeDisplayPixelBox } from './display-design-pixel-box'
 import { compileDisplayPolygonLines } from './display-design-polygon'
+import { compileDisplayBezierLines } from './display-design-bezier'
 import { validateDisplayDesign } from './display-design-validation'
 
 export interface DisplayCommandSource {
@@ -123,6 +124,16 @@ export function compileDisplayPrimitive(
       resolvedShade,
     )[0]
   }
+  if (primitive.kind === 'bezier') {
+    return compileDisplayBezierLines(
+      primitive.points.map((point) => ({
+        x: translated(resolveDisplayScalar(point.x, bindings, tokens), translation.x, true),
+        y: translated(resolveDisplayScalar(point.y, bindings, tokens), translation.y, true),
+      })),
+      primitive.segments,
+      resolvedShade,
+    )[0]
+  }
   return {
     kind: 'text',
     x: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
@@ -147,6 +158,16 @@ export function compileDisplayPrimitiveCommands(
       translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
       Math.round(resolveDisplayScalar(primitive.radius, bindings, tokens)),
       primitive.sides,
+      shade(resolveDisplayScalar(primitive.shade, bindings, tokens)),
+    )
+  }
+  if (primitive.kind === 'bezier') {
+    return compileDisplayBezierLines(
+      primitive.points.map((point) => ({
+        x: translated(resolveDisplayScalar(point.x, bindings, tokens), translation.x, true),
+        y: translated(resolveDisplayScalar(point.y, bindings, tokens), translation.y, true),
+      })),
+      primitive.segments,
       shade(resolveDisplayScalar(primitive.shade, bindings, tokens)),
     )
   }
@@ -315,6 +336,15 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
               radius: resolveDisplayScalar(element.radius, bindings, tokens),
               shade: 15, smooth: false,
             }
+        : element.kind === 'bezier'
+          ? {
+              kind: 'box',
+              x1: Math.min(...element.points.map((point) => resolveDisplayScalar(point.x, bindings, tokens))),
+              y1: Math.min(...element.points.map((point) => resolveDisplayScalar(point.y, bindings, tokens))),
+              x2: Math.max(...element.points.map((point) => resolveDisplayScalar(point.x, bindings, tokens))),
+              y2: Math.max(...element.points.map((point) => resolveDisplayScalar(point.y, bindings, tokens))),
+              shade: 15, fill: false, smooth: false,
+            }
         : elementCommands[0]!
       findings.push(...boundsFindings(document, boundsCommand, element.id, elementIndex))
       continue
@@ -356,6 +386,15 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
               y: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
               radius: resolveDisplayScalar(primitive.radius, bindings, tokens),
               shade: 15, smooth: false,
+            }
+        : primitive.kind === 'bezier'
+          ? {
+              kind: 'box',
+              x1: Math.min(...primitive.points.map((point) => translated(resolveDisplayScalar(point.x, bindings, tokens), translation.x, true))),
+              y1: Math.min(...primitive.points.map((point) => translated(resolveDisplayScalar(point.y, bindings, tokens), translation.y, true))),
+              x2: Math.max(...primitive.points.map((point) => translated(resolveDisplayScalar(point.x, bindings, tokens), translation.x, true))),
+              y2: Math.max(...primitive.points.map((point) => translated(resolveDisplayScalar(point.y, bindings, tokens), translation.y, true))),
+              shade: 15, fill: false, smooth: false,
             }
         : primitiveCommands[0]!
       findings.push(...boundsFindings(document, boundsCommand, element.id, elementIndex, {

@@ -100,6 +100,13 @@ function primitiveScalars(primitive: DisplayPrimitiveElement): Array<[string, Di
     return [...common, ['x1', primitive.x1], ['y1', primitive.y1], ['x2', primitive.x2], ['y2', primitive.y2]]
   }
   if (primitive.kind === 'circle' || primitive.kind === 'polygon') return [...common, ['x', primitive.x], ['y', primitive.y], ['radius', primitive.radius]]
+  if (primitive.kind === 'bezier') return [
+    ...common,
+    ...primitive.points.flatMap((point, index): Array<[string, DisplayScalar]> => [
+      [`points[${index}].x`, point.x],
+      [`points[${index}].y`, point.y],
+    ]),
+  ]
   return [...common, ['x', primitive.x], ['y', primitive.y]]
 }
 
@@ -183,6 +190,11 @@ function substitutePrimitive(primitive: DisplayPrimitiveElement, tokenId: string
     next.x = substituteScalar(next.x, tokenId, value)
     next.y = substituteScalar(next.y, tokenId, value)
     next.radius = substituteScalar(next.radius, tokenId, value)
+  } else if (next.kind === 'bezier') {
+    next.points = next.points.map((point) => ({
+      x: substituteScalar(point.x, tokenId, value),
+      y: substituteScalar(point.y, tokenId, value),
+    }))
   } else {
     next.x = substituteScalar(next.x, tokenId, value)
     next.y = substituteScalar(next.y, tokenId, value)

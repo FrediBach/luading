@@ -33,7 +33,7 @@ function validRichDocument(): DisplayDesignDocument {
   const highPrimitive = createDefaultDisplayPrimitive('smooth-circle', ids, 'primitive')
   const presets = [
     'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
-    'pixel-circle', 'smooth-circle', 'polygon', 'standard-text', 'tiny-text',
+    'pixel-circle', 'smooth-circle', 'polygon', 'bezier', 'standard-text', 'tiny-text',
   ] as const
   const primitives: DisplayDesignElement[] = presets.map((preset) => ({ ...createDefaultDisplayPrimitive(preset, ids) }))
   primitives[0]!.groupId = groupId
@@ -42,7 +42,7 @@ function validRichDocument(): DisplayDesignDocument {
     line.x1 = { kind: 'number-binding', bindingId: numberId, from: { kind: 'literal', value: 0 }, to: { kind: 'literal', value: 255 }, quantize: 'integer' }
     line.visible = { kind: 'boolean-binding', bindingId: booleanId, invert: false }
   }
-  const text = primitives[7]
+  const text = primitives[8]
   if (text?.kind === 'text') text.text = { kind: 'text-binding', bindingId: textId }
   const instance: DisplayDesignElement = {
     kind: 'symbol-instance',
@@ -103,7 +103,7 @@ describe('display design validation', () => {
     expect(result.document).not.toBe(input)
     expect(result.document?.elements).not.toBe(input.elements)
     expect(result.document?.elements.map(({ kind }) => kind)).toEqual([
-      'line', 'line', 'box', 'box', 'circle', 'circle', 'polygon', 'text', 'text', 'symbol-instance',
+      'line', 'line', 'box', 'box', 'circle', 'circle', 'polygon', 'bezier', 'text', 'text', 'symbol-instance',
     ])
     expect(result.document?.bindings.map(({ kind }) => kind)).toEqual(['number', 'boolean', 'text', 'choice'])
     expect(result.findings.filter(({ severity }) => severity === 'warning').map(({ ruleId }) => ruleId)).toEqual([
@@ -121,7 +121,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 6 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 7 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -162,6 +162,22 @@ describe('display design validation', () => {
     }
     const version4 = { ...createEmptyDisplayDesign(), version: 4, elements: [polygon] }
     expect(validateDisplayDesign(version4).findings.map(({ ruleId }) => ruleId)).toContain('unsupported-element-version')
+  })
+
+  it('validates multi-point Bézier detail and keeps it exclusive to version 6', () => {
+    const ids = createSequentialDisplayDesignIdFactory('bezier-validation')
+    const bezier = createDefaultDisplayPrimitive('bezier', ids)
+    expect(validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [bezier] }).ok).toBe(true)
+
+    for (const candidate of [
+      { ...bezier, points: bezier.points.slice(0, 1) },
+      { ...bezier, segments: 0 },
+      { ...bezier, segments: 2.5 },
+      { ...bezier, segments: DISPLAY_DESIGN_LIMITS.maximumBezierSegments + 1 },
+    ]) expect(validateDisplayDesign({ ...createEmptyDisplayDesign(), elements: [candidate] }).ok).toBe(false)
+
+    const version5 = { ...createEmptyDisplayDesign(), version: 5, elements: [bezier] }
+    expect(validateDisplayDesign(version5).findings.map(({ ruleId }) => ruleId)).toContain('unsupported-element-version')
   })
 
   it('migrates strict version-1 documents and validates version-2 layout grids', () => {
