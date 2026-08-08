@@ -18,6 +18,7 @@ import {
 import type { DisplayTokenMap } from './display-design-token-expressions'
 import { buildDisplayDesignSource } from './display-design-generator'
 import { optimizeDisplayPixelBox } from './display-design-pixel-box'
+import { compileDisplayPolygonLines } from './display-design-polygon'
 import { validateDisplayDesign } from './display-design-validation'
 
 export interface DisplayCommandSource {
@@ -113,6 +114,15 @@ export function compileDisplayPrimitive(
       smooth: primitive.smooth,
     }
   }
+  if (primitive.kind === 'polygon') {
+    return compileDisplayPolygonLines(
+      translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
+      translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
+      Math.round(resolveDisplayScalar(primitive.radius, bindings, tokens)),
+      primitive.sides,
+      resolvedShade,
+    )[0]
+  }
   return {
     kind: 'text',
     x: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
@@ -131,6 +141,15 @@ export function compileDisplayPrimitiveCommands(
   tokens: DisplayTokenMap = createDisplayTokenMap([]),
 ): DrawCommand[] {
   if (!resolveDisplayVisibility(primitive.visible, bindings)) return []
+  if (primitive.kind === 'polygon') {
+    return compileDisplayPolygonLines(
+      translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
+      translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
+      Math.round(resolveDisplayScalar(primitive.radius, bindings, tokens)),
+      primitive.sides,
+      shade(resolveDisplayScalar(primitive.shade, bindings, tokens)),
+    )
+  }
   if (primitive.kind !== 'pixel-box') {
     const command = compileDisplayPrimitive(primitive, bindings, translation, tokens)
     return command ? [command] : []
@@ -288,6 +307,14 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
             y2: resolveDisplayScalar(element.y, bindings, tokens) + element.height - 1,
             shade: 15, fill: true, smooth: false,
           }
+        : element.kind === 'polygon'
+          ? {
+              kind: 'circle',
+              x: resolveDisplayScalar(element.x, bindings, tokens),
+              y: resolveDisplayScalar(element.y, bindings, tokens),
+              radius: resolveDisplayScalar(element.radius, bindings, tokens),
+              shade: 15, smooth: false,
+            }
         : elementCommands[0]!
       findings.push(...boundsFindings(document, boundsCommand, element.id, elementIndex))
       continue
@@ -322,6 +349,14 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
             y2: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true) + primitive.height - 1,
             shade: 15, fill: true, smooth: false,
           }
+        : primitive.kind === 'polygon'
+          ? {
+              kind: 'circle',
+              x: translated(resolveDisplayScalar(primitive.x, bindings, tokens), translation.x, true),
+              y: translated(resolveDisplayScalar(primitive.y, bindings, tokens), translation.y, true),
+              radius: resolveDisplayScalar(primitive.radius, bindings, tokens),
+              shade: 15, smooth: false,
+            }
         : primitiveCommands[0]!
       findings.push(...boundsFindings(document, boundsCommand, element.id, elementIndex, {
         symbolId: symbol.id,

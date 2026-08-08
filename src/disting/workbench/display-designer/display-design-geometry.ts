@@ -12,6 +12,7 @@ import {
   type DisplayScalar,
 } from './display-design-model'
 import { createDisplayBindingMap, createDisplayTokenMap, offsetDisplayScalar, resolveDisplayScalar, resolveDisplayText, resolveDisplayVisibility, setDisplayScalarPreviewValue } from './display-design-resolution'
+import { displayPolygonVertices } from './display-design-polygon'
 
 export interface DisplayDesignPoint { x: number; y: number }
 export interface DisplayDesignBounds { left: number; top: number; right: number; bottom: number }
@@ -80,8 +81,8 @@ export function createDisplayPrimitiveFromGesture(
   if (element.kind === 'line' || element.kind === 'box') {
     return { ...element, x1: literal(start.x), y1: literal(start.y), x2: literal(end.x), y2: literal(end.y) }
   }
-  if (element.kind === 'circle') {
-    const radius = snapDisplayCoordinate(Math.hypot(end.x - start.x, end.y - start.y), element.smooth)
+  if (element.kind === 'circle' || element.kind === 'polygon') {
+    const radius = snapDisplayCoordinate(Math.hypot(end.x - start.x, end.y - start.y), element.kind === 'circle' && element.smooth)
     return { ...element, x: literal(start.x), y: literal(start.y), radius: literal(radius) }
   }
   return { ...element, x: literal(start.x), y: literal(start.y) }
@@ -136,7 +137,7 @@ export function displayElementBounds(
     const x2 = scalar(element.x2); const y2 = scalar(element.y2)
     return { left: Math.min(x1, x2), top: Math.min(y1, y2), right: Math.max(x1, x2), bottom: Math.max(y1, y2) }
   }
-  if (element.kind === 'circle') {
+  if (element.kind === 'circle' || element.kind === 'polygon') {
     const x = scalar(element.x); const y = scalar(element.y); const radius = scalar(element.radius)
     return { left: x - radius, top: y - radius, right: x + radius, bottom: y + radius }
   }
@@ -205,7 +206,7 @@ export function displayElementHandles(element: DisplayDesignElement, document?: 
       { id: 'bottom-right', point: { x: bounds.right, y: bounds.bottom } },
     ]
   }
-  if (element.kind === 'circle') {
+  if (element.kind === 'circle' || element.kind === 'polygon') {
     const x = scalar(element.x); const y = scalar(element.y); const radius = scalar(element.radius)
     return [{ id: 'centre', point: { x, y } }, { id: 'radius', point: { x: x + radius, y } }]
   }
@@ -229,6 +230,13 @@ export function displayElementHitTest(
   if (element.kind === 'line') {
     const [start, end] = displayElementHandles(element, document)
     return distanceToSegment(point, start.point, end.point) <= tolerance
+  }
+  if (element.kind === 'polygon') {
+    const x = resolvedScalar(element.x, document)
+    const y = resolvedScalar(element.y, document)
+    const vertices = displayPolygonVertices(x, y, resolvedScalar(element.radius, document), element.sides)
+    return vertices.some((start, index) => distanceToSegment(point, start, vertices[(index + 1) % vertices.length]!) <= tolerance)
+      || Math.hypot(point.x - x, point.y - y) <= tolerance
   }
   const bounds = displayElementBounds(element, document)
   if (element.kind === 'circle') {
@@ -348,10 +356,10 @@ export function resizeDisplayElement(
     next[yProperty] = set(next[yProperty], y)
     return next
   }
-  if (element.kind === 'circle') {
+  if (element.kind === 'circle' || element.kind === 'polygon') {
     if (handle === 'centre') return { ...cloneDisplayDesign(element), x: set(element.x, x), y: set(element.y, y) }
     if (handle === 'radius') {
-      const radius = snapDisplayCoordinate(Math.hypot(x - resolvedScalar(element.x, document), y - resolvedScalar(element.y, document)), element.smooth)
+      const radius = snapDisplayCoordinate(Math.hypot(x - resolvedScalar(element.x, document), y - resolvedScalar(element.y, document)), element.kind === 'circle' && element.smooth)
       return { ...cloneDisplayDesign(element), radius: set(element.radius, radius) }
     }
   }

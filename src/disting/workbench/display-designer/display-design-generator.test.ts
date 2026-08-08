@@ -115,6 +115,19 @@ end,
     expect(commands).toEqual(compileDisplayDesign(document).commands)
   })
 
+  it('runs polygons through one minimal reusable Lua helper at the real display boundary', async () => {
+    const ids = createSequentialDisplayDesignIdFactory('polygon')
+    const polygon = createDefaultDisplayPrimitive('polygon', ids)
+    polygon.sides = 4
+    const document = { ...createEmptyDisplayDesign(), displayMode: 'full-screen' as const, elements: [polygon] }
+    const { commands, generated } = await runGenerated(document)
+
+    expect(generated.source).toContain('local function drawPolygon(x, y, radius, sides, shade)')
+    expect(generated.source).toContain('drawPolygon(20, 20, 8, 4, 15)')
+    expect(generated.source.match(/local function drawPolygon/g)).toHaveLength(1)
+    expect(commands).toEqual(compileDisplayDesign(document).commands)
+  })
+
   it('emits binding locals once in document order with ordinary mapping and visibility expressions', () => {
     const ids = createSequentialDisplayDesignIdFactory('binding')
     const numberId = ids('binding')

@@ -56,7 +56,7 @@ function collectPrimitiveUsages(
   if (primitive.visible.kind === 'boolean-binding') usages.push({ ...owner, bindingId: primitive.visible.bindingId, kind: 'boolean', property: 'visibility' })
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) collectScalarUsage(primitive[property], usages, owner, property)
-  } else if (primitive.kind === 'circle') {
+  } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y', 'radius'] as const) collectScalarUsage(primitive[property], usages, owner, property)
   } else {
     collectScalarUsage(primitive.x, usages, owner, 'x')
@@ -140,6 +140,10 @@ function mapPrimitive(
   } as DisplayPrimitiveElement
   if (primitive.kind === 'circle') return {
     ...common, kind: 'circle', smooth: primitive.smooth,
+    x: scalar(primitive.x), y: scalar(primitive.y), radius: scalar(primitive.radius),
+  }
+  if (primitive.kind === 'polygon') return {
+    ...common, kind: 'polygon', sides: primitive.sides,
     x: scalar(primitive.x), y: scalar(primitive.y), radius: scalar(primitive.radius),
   }
   return {

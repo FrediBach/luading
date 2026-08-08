@@ -111,6 +111,23 @@ describe('display design compiler', () => {
     expect(result.metrics).toMatchObject({ elementCount: 1, drawCallCount: 2, maximumVariantDrawCallCount: 2 })
   })
 
+  it('expands polygon detail into exact integer line segments', () => {
+    const ids = createSequentialDisplayDesignIdFactory('polygon')
+    const polygon = createDefaultDisplayPrimitive('polygon', ids)
+    const result = compileDisplayDesign({ ...createEmptyDisplayDesign(), displayMode: 'full-screen', elements: [polygon] })
+
+    expect(result.commands).toEqual<DrawCommand[]>([
+      { kind: 'line', x1: 20, y1: 12, x2: 27, y2: 16, shade: 15, smooth: false },
+      { kind: 'line', x1: 27, y1: 16, x2: 27, y2: 24, shade: 15, smooth: false },
+      { kind: 'line', x1: 27, y1: 24, x2: 20, y2: 28, shade: 15, smooth: false },
+      { kind: 'line', x1: 20, y1: 28, x2: 13, y2: 24, shade: 15, smooth: false },
+      { kind: 'line', x1: 13, y1: 24, x2: 13, y2: 16, shade: 15, smooth: false },
+      { kind: 'line', x1: 13, y1: 16, x2: 20, y2: 12, shade: 15, smooth: false },
+    ])
+    expect(result.commandSources).toEqual([{ elementId: polygon.id, firstCommand: 0, commandCount: 6 }])
+    expect(result.metrics).toMatchObject({ drawCallCount: 6, maximumVariantDrawCallCount: 6 })
+  })
+
   it('reports clipping, complete overflow, and parameter-line overlap with stable focus targets', () => {
     const ids = createSequentialDisplayDesignIdFactory('bounds')
     const clipped = createDefaultDisplayPrimitive('outline-box', ids)

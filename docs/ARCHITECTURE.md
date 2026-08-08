@@ -173,21 +173,24 @@ The display designer is an independent main-thread authoring flow. Its React
 dialog owns the normalized design document, semantic undo history, selection,
 pointer gesture preview, responsive panel state, preview binding values, and
 downloaded-revision marker. Version 3 added ordered document-wide numeric tokens
-and bounded token-expression ASTs; version 4 adds bounded pixel-box shade arrays
-to that main-thread document. The singleton uniform layout-grid definition is
+and bounded token-expression ASTs; version 4 added bounded pixel-box shade arrays;
+version 5 adds regular polygons with bounded side detail. These remain in the
+main-thread document. The singleton uniform layout-grid definition is
 document-owned; grid visibility and pointer-snapping preferences remain view
 state. Pure modules below the dialog parse and print the closed arithmetic
 grammar, validate imported ASTs and token references, resolve scalar previews,
 transform geometry without discarding formulas, expand symbols, compile
 ordinary draw commands, optimize pixel boxes into exact line/filled-rectangle
 overdraw regions, calculate descriptive metrics, and generate
-deterministic Lua. The existing
+deterministic Lua. Polygon compilation expands the same rounded vertices into
+preview line commands while generation emits one closure-local helper accepting
+only centre, radius, side count, and shade. The existing
 main-thread display renderer rasterizes the compiled commands; neither the
 designer document nor its UI state crosses the simulation-worker protocol.
 
 Opening a design first validates browser file metadata, reads and defensively
-parses strict version-1 through version-4 JSON, migrates older versions
-to the canonical version-4 shape (including static-scalar wrappers around old
+parses strict version-1 through version-5 JSON, migrates older versions
+to the canonical version-5 shape (including static-scalar wrappers around old
 number-binding endpoints), and produces canonical serialized bytes. Only a
 fully accepted document replaces the current draft and receives a fresh
 history/ID allocator. Download creates an explicit browser Blob and marks only

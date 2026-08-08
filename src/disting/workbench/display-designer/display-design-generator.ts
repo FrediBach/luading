@@ -66,7 +66,7 @@ function collectPrimitiveBindingIds(primitive: DisplayPrimitiveElement, bindingI
     collectScalar(primitive.y1)
     collectScalar(primitive.x2)
     collectScalar(primitive.y2)
-  } else if (primitive.kind === 'circle') {
+  } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     collectScalar(primitive.x)
     collectScalar(primitive.y)
     collectScalar(primitive.radius)
@@ -99,7 +99,7 @@ function collectPrimitiveTokenIds(primitive: DisplayPrimitiveElement, tokenIds: 
   let count = collectScalarTokenIds(primitive.shade, tokenIds)
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
-  } else if (primitive.kind === 'circle') {
+  } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y', 'radius'] as const) count += collectScalarTokenIds(primitive[property], tokenIds)
   } else {
     count += collectScalarTokenIds(primitive.x, tokenIds) + collectScalarTokenIds(primitive.y, tokenIds)
@@ -151,6 +151,7 @@ function primitiveCall(
   bindings: DisplayBindingMap,
   tokens: DisplayTokenMap,
   translation?: { x: string; y: string },
+  polygonHelperName = 'drawPolygon',
 ): string {
   if (primitive.kind === 'pixel-box') return ''
   const shade = displayShadeLuaExpression(primitive.shade, bindings, tokens)
@@ -181,6 +182,16 @@ function primitiveCall(
       displayScalarLuaExpression(primitive.radius, bindings, integer, tokens),
     ]
     return `${primitive.smooth ? 'drawSmoothCircle' : 'drawCircle'}(${[...args, shade].join(', ')})`
+  }
+  if (primitive.kind === 'polygon') {
+    const args = [
+      translatedScalarExpression(primitive.x, bindings, true, tokens, translation?.x),
+      translatedScalarExpression(primitive.y, bindings, true, tokens, translation?.y),
+      displayScalarLuaExpression(primitive.radius, bindings, true, tokens),
+      String(primitive.sides),
+      shade,
+    ]
+    return `${polygonHelperName}(${args.join(', ')})`
   }
   const text = primitive.text.kind === 'literal'
     ? luaQuotedString(primitive.text.value)
@@ -217,11 +228,12 @@ function primitiveSource(
   tokens: DisplayTokenMap,
   indent = '  ',
   translation?: { x: string; y: string },
+  polygonHelperName = 'drawPolygon',
 ): string[] {
   const lines = [`${indent}-- ${oneLineComment(primitive.name)}`]
   const calls = primitive.kind === 'pixel-box'
     ? pixelBoxCalls(primitive, bindings, tokens, translation)
-    : [primitiveCall(primitive, bindings, tokens, translation)]
+    : [primitiveCall(primitive, bindings, tokens, translation, polygonHelperName)]
   if (primitive.visible.kind === 'visible') {
     for (const call of calls) lines.push(`${indent}${call}`)
     return lines
@@ -245,6 +257,7 @@ function symbolHelperSource(
   symbolId: string,
   bindings: DisplayBindingMap,
   tokens: DisplayTokenMap,
+  polygonHelperName: string,
 ): string[] {
   const symbol = document.symbols.find(({ id }) => id === symbolId)
   if (!symbol) return []
@@ -254,14 +267,48 @@ function symbolHelperSource(
   const lines = [`  local function ${symbol.luaName}(x, y, state)`]
   for (const [index, variant] of branches.entries()) {
     lines.push(`    ${index === 0 ? 'if' : 'elseif'} state == ${luaQuotedString(variant.luaValue)} then`)
-    for (const primitive of variant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }))
+    for (const primitive of variant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName))
   }
   if (branches.length > 0) lines.push('    else')
   lines.push(`      -- Default state: ${oneLineComment(defaultVariant.name)}`)
-  for (const primitive of defaultVariant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }))
+  for (const primitive of defaultVariant.elements) lines.push(...primitiveSource(primitive, bindings, tokens, '      ', { x: 'x', y: 'y' }, polygonHelperName))
   if (branches.length > 0) lines.push('    end')
   lines.push('  end')
   return lines
+}
+
+function displayPolygonHelperName(document: DisplayDesignDocument): string {
+  const used = new Set([
+    ...document.tokens.map(({ luaName }) => luaName),
+    ...document.bindings.map(({ luaName }) => luaName),
+    ...document.symbols.map(({ luaName }) => luaName),
+  ])
+  const base = 'drawPolygon'
+  let name = base
+  let suffix = 2
+  while (used.has(name)) name = `${base}_${suffix++}`
+  return name
+}
+
+function polygonHelperSource(name: string): string[] {
+  return [
+    `  local function ${name}(x, y, radius, sides, shade)`,
+    '    local step = 2 * math.pi / sides',
+    '    local first_x = math.floor(x + 0.5)',
+    '    local first_y = math.floor((y - radius) + 0.5)',
+    '    local previous_x = first_x',
+    '    local previous_y = first_y',
+    '    for index = 1, sides - 1 do',
+    '      local angle = -math.pi / 2 + index * step',
+    '      local next_x = math.floor((x + math.cos(angle) * radius) + 0.5)',
+    '      local next_y = math.floor((y + math.sin(angle) * radius) + 0.5)',
+    '      drawLine(previous_x, previous_y, next_x, next_y, shade)',
+    '      previous_x = next_x',
+    '      previous_y = next_y',
+    '    end',
+    '    drawLine(previous_x, previous_y, first_x, first_y, shade)',
+    '  end',
+  ]
 }
 
 function instanceSource(
@@ -339,7 +386,10 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   const bindings = createDisplayBindingMap(document.bindings)
   const tokens = createDisplayTokenMap(document.tokens)
   const usedTokens = document.tokens.filter(({ id }) => usedTokenIds.has(id))
-  if (usedSymbolIds.size === 0 && usedTokens.length === 0) {
+  const usesPolygon = document.elements.some((element) => element.kind === 'polygon')
+    || document.symbols.some((symbol) => usedSymbolIds.has(symbol.id) && symbol.variants.some((variant) => variant.elements.some((primitive) => primitive.kind === 'polygon')))
+  const polygonHelperName = displayPolygonHelperName(document)
+  if (usedSymbolIds.size === 0 && usedTokens.length === 0 && !usesPolygon) {
     const lines = [
     'draw = function(self)',
     '  -- Generated by Luading Display designer; edit freely after copying.',
@@ -378,9 +428,10 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
     for (const binding of usedBindings) lines.push(`  local ${binding.luaName}`)
     lines.push('')
   }
+  if (usesPolygon) lines.push(...polygonHelperSource(polygonHelperName), '')
   for (const symbol of document.symbols) {
     if (!usedSymbolIds.has(symbol.id)) continue
-    lines.push(...symbolHelperSource(document, symbol.id, bindings, tokens), '')
+    lines.push(...symbolHelperSource(document, symbol.id, bindings, tokens, polygonHelperName), '')
   }
   lines.push('  return function(self)', '    -- Generated by Luading Display designer; edit freely after copying.')
   if (usedBindings.length > 0) {
@@ -389,7 +440,7 @@ export function buildDisplayDesignSource(document: DisplayDesignDocument): Displ
   }
   for (const [index, element] of document.elements.entries()) {
     if (element.kind === 'symbol-instance') lines.push(...instanceSource(document, element, bindings, tokens))
-    else lines.push(...primitiveSource(element, bindings, tokens, '    '))
+    else lines.push(...primitiveSource(element, bindings, tokens, '    ', undefined, polygonHelperName))
     if (index < document.elements.length - 1) lines.push('')
   }
   if (document.displayMode === 'full-screen') {

@@ -5,6 +5,7 @@ import {
   DISPLAY_DESIGN_VERSION_V1,
   DISPLAY_DESIGN_VERSION_V2,
   DISPLAY_DESIGN_VERSION_V3,
+  DISPLAY_DESIGN_VERSION_V4,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
   type DisplayDesignDocument,
@@ -96,9 +97,9 @@ class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
 
-  readonly sourceVersion: 1 | 2 | 3 | 4
+  readonly sourceVersion: 1 | 2 | 3 | 4 | 5
 
-  constructor(sourceVersion: 1 | 2 | 3 | 4) {
+  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5) {
     this.sourceVersion = sourceVersion
   }
 
@@ -386,7 +387,7 @@ class Validator {
     if (allowGroup && value.groupId !== undefined && typeof value.groupId !== 'string') this.finding('invalid-group-reference', 'A group ID string is required.', `${path}.groupId`, baseFocus)
     if (value.kind === 'pixel-box') {
       this.keys(value, ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'shades', ...groupKey], path, baseFocus)
-      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION_V4) {
         this.finding('unsupported-element-version', 'Pixel boxes require display design version 4.', `${path}.kind`, baseFocus)
       }
       const integer = (candidate: unknown, property: string, fallback: number, minimum: number, maximum: number) => {
@@ -446,6 +447,30 @@ class Validator {
         radius: this.scalar(value.radius, `${path}.radius`, { integer, minimum: 0, maximum: DISPLAY_DESIGN_LIMITS.maximumRadius, focus: { ...baseFocus, property: 'radius' } }),
       }
     }
+    if (value.kind === 'polygon') {
+      this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'x', 'y', 'radius', 'sides', ...groupKey], path, baseFocus)
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+        this.finding('unsupported-element-version', 'Polygons require display design version 5.', `${path}.kind`, baseFocus)
+      }
+      const sides = this.finiteNumber(
+        value.sides,
+        `${path}.sides`,
+        6,
+        DISPLAY_DESIGN_LIMITS.minimumPolygonSides,
+        DISPLAY_DESIGN_LIMITS.maximumPolygonSides,
+        { ...baseFocus, property: 'sides' },
+      )
+      if (!Number.isInteger(sides)) {
+        this.finding('integer-required', 'Polygon sides must be a whole number.', `${path}.sides`, { ...baseFocus, property: 'sides' })
+      }
+      return {
+        ...shared, kind: 'polygon',
+        x: this.scalar(value.x, `${path}.x`, { integer: true, focus: { ...baseFocus, property: 'x' } }),
+        y: this.scalar(value.y, `${path}.y`, { integer: true, focus: { ...baseFocus, property: 'y' } }),
+        radius: this.scalar(value.radius, `${path}.radius`, { integer: true, minimum: 0, maximum: DISPLAY_DESIGN_LIMITS.maximumRadius, focus: { ...baseFocus, property: 'radius' } }),
+        sides: Math.round(sides),
+      }
+    }
     if (value.kind === 'text') {
       this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'tiny', 'x', 'y', 'text', 'align', ...groupKey], path, baseFocus)
       const align = value.align === 'left' || value.align === 'centre' || value.align === 'right' ? value.align : 'left'
@@ -458,7 +483,7 @@ class Validator {
       }
     }
     this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', ...groupKey], path, baseFocus)
-    this.finding('invalid-element-kind', 'Element kind must be line, box, pixel-box, circle, or text.', `${path}.kind`, baseFocus)
+    this.finding('invalid-element-kind', 'Element kind must be line, box, pixel-box, circle, polygon, or text.', `${path}.kind`, baseFocus)
     return undefined
   }
 
@@ -732,7 +757,7 @@ function checkPrimitiveReferences(
   checkScalarReference(validator, primitive.shade, `${path}.shade`, bindings, tokens, { ...focus, property: 'shade' })
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     for (const property of ['x1', 'y1', 'x2', 'y2'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
-  } else if (primitive.kind === 'circle') {
+  } else if (primitive.kind === 'circle' || primitive.kind === 'polygon') {
     for (const property of ['x', 'y'] as const) checkScalarReference(validator, primitive[property], `${path}.${property}`, bindings, tokens, { ...focus, property })
     checkScalarReference(validator, primitive.radius, `${path}.radius`, bindings, tokens, { ...focus, property: 'radius' }, { minimum: 0, maximum: DISPLAY_DESIGN_LIMITS.maximumRadius })
   } else {
@@ -817,7 +842,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION)
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION)
     ? value.version
     : DISPLAY_DESIGN_VERSION
   const validator = new Validator(sourceVersion)
@@ -830,12 +855,12 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION) {
-      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1}, ${DISPLAY_DESIGN_VERSION_V2}, ${DISPLAY_DESIGN_VERSION_V3}, and ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION) {
+      validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} through ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
     const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
-    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION
+    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION
     validator.keys(
       value,
       isVersion1

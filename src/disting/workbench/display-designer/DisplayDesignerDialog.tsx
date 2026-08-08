@@ -92,6 +92,7 @@ import {
   deleteDisplayDesignElements,
   deleteDisplayDesignGroup,
   removeDisplayDesignLayoutGrid,
+  DISPLAY_DESIGN_VERSION,
   DISPLAY_DESIGN_LIMITS,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
@@ -453,6 +454,7 @@ const TOOLS: Array<{ id: DesignerTool; label: string; shortLabel: string }> = [
   { id: 'pixel-box', label: 'Pixel box', shortLabel: 'Pixels' },
   { id: 'pixel-circle', label: 'Pixel circle', shortLabel: 'Circle' },
   { id: 'smooth-circle', label: 'Smooth circle', shortLabel: 'Smooth circle' },
+  { id: 'polygon', label: 'Polygon', shortLabel: 'Polygon' },
   { id: 'standard-text', label: 'Standard text', shortLabel: 'Text' },
   { id: 'tiny-text', label: 'Tiny text', shortLabel: 'Tiny text' },
 ]
@@ -463,6 +465,7 @@ function elementTypeName(element: DisplayDesignElement): string {
   if (element.kind === 'box') return element.fill ? 'Filled box' : 'Outline box'
   if (element.kind === 'pixel-box') return 'Pixel box'
   if (element.kind === 'circle') return element.smooth ? 'Smooth circle' : 'Pixel circle'
+  if (element.kind === 'polygon') return 'Polygon'
   return element.tiny ? 'Tiny text' : 'Standard text'
 }
 
@@ -520,10 +523,15 @@ function CommitInput({
   )
 }
 
-function GeometryOverlay({ command, element, document }: { command?: DrawCommand; element: DisplayDesignElement; document: DisplayDesignDocument }) {
+function GeometryOverlay({ command, polygonCommands = [], element, document }: { command?: DrawCommand; polygonCommands?: DrawCommand[]; element: DisplayDesignElement; document: DisplayDesignDocument }) {
   if (element.kind === 'pixel-box') {
     const bounds = displayElementBounds(element, document)
     return <rect x={bounds.left} y={bounds.top} width={element.width} height={element.height} />
+  }
+  if (element.kind === 'polygon') {
+    return <g>{polygonCommands.flatMap((edge, index) => edge.kind === 'line'
+      ? [<line key={index} x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2} />]
+      : [])}<circle cx={staticDisplayScalarValue(document, element.x)} cy={staticDisplayScalarValue(document, element.y)} r="1.5" /></g>
   }
   if (!command) return null
   if (command.kind === 'line') {
@@ -579,7 +587,7 @@ function DisplayDesignerArtboard({
   commands: DrawCommand[]
   displayMode: DisplayDesignDocument['displayMode']
   selectedElementIds: string[]
-  commandSources: Array<{ elementId: string; firstCommand: number }>
+  commandSources: Array<{ elementId: string; firstCommand: number; commandCount: number }>
   activeTool: DesignerTool
   zoom: DesignerZoom
   showPixelGrid: boolean
@@ -721,8 +729,11 @@ function DisplayDesignerArtboard({
             {showGeometry && selectedElements.map((element) => {
               const source = commandSources.find(({ elementId }) => elementId === element.id)
               const command = source ? commands[source.firstCommand] : undefined
+              const polygonCommands = source && element.kind === 'polygon'
+                ? commands.slice(source.firstCommand, source.firstCommand + source.commandCount)
+                : []
               return <g key={element.id} className="display-designer-selection-geometry">
-                <GeometryOverlay command={command} element={element} document={document} />
+                <GeometryOverlay command={command} polygonCommands={polygonCommands} element={element} document={document} />
                 {displayElementHandles(element, document).map(({ id, point }) => <g key={id}>
                   <circle
                     className="display-designer-handle-target"
@@ -1395,11 +1406,20 @@ function DisplayDesignerInspector({
         <select aria-label="Drive width with token/formula" value="" disabled={element.x1.kind === 'number-binding' || document.tokens.length === 0} title={element.x1.kind === 'number-binding' ? 'Width formulas require a static start coordinate.' : undefined} onChange={(event) => { if (event.currentTarget.value) driveBoxSizeWithToken('x', event.currentTarget.value) }}><option value="">Drive width with token/formula…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>
         <select aria-label="Drive height with token/formula" value="" disabled={element.y1.kind === 'number-binding' || document.tokens.length === 0} title={element.y1.kind === 'number-binding' ? 'Height formulas require a static start coordinate.' : undefined} onChange={(event) => { if (event.currentTarget.value) driveBoxSizeWithToken('y', event.currentTarget.value) }}><option value="">Drive height with token/formula…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>
       </div></div>}
-      {element.kind === 'circle' && <div className="display-designer-field-grid">
+      {(element.kind === 'circle' || element.kind === 'polygon') && <div className="display-designer-field-grid">
         {(['x', 'y', 'radius'] as const).map((property) => {
           const label = property === 'radius' ? 'Radius' : property.toUpperCase()
           return <DisplayScalarEditor key={property} document={document} scalar={scalar(property)} label={label} integer={coordinateStep === 1} idFactory={idFactory} minimum={property === 'radius' ? 0 : undefined} maximum={property === 'radius' ? DISPLAY_DESIGN_LIMITS.maximumRadius : undefined} onChange={(value, action, baseDocument) => setScalar(property, value, action, baseDocument)} onMakeDynamic={() => createScalarBinding(property, label)} />
         })}
+      </div>}
+      {element.kind === 'polygon' && <div className="display-designer-computed">
+        <CommitInput label="Detail (sides)" type="number" min={DISPLAY_DESIGN_LIMITS.minimumPolygonSides} max={DISPLAY_DESIGN_LIMITS.maximumPolygonSides} step={1} value={element.sides} onCommit={(draft) => {
+          const sides = Number(draft)
+          if (!Number.isInteger(sides) || sides < DISPLAY_DESIGN_LIMITS.minimumPolygonSides || sides > DISPLAY_DESIGN_LIMITS.maximumPolygonSides) return false
+          update('Change polygon detail', (current) => current.kind === 'polygon' ? { ...current, sides } : current)
+          return true
+        }} />
+        <p>{element.sides} straight edges. Increase detail until the facets reach the pixel scale.</p>
       </div>}
       {element.kind === 'text' && <>
         <div className="display-designer-field-grid">
@@ -1977,14 +1997,14 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       startSnapState = snappedStart.state
       snapState = snappedEnd.state
       snapGuides = [...snappedStart.guides, ...snappedEnd.guides]
-      const endPoint = current.preset.includes('circle')
+      const endPoint = current.preset.includes('circle') || current.preset === 'polygon'
         ? constrainDisplayCreationPoint(point, current.baseDocument.displayMode, smooth)
         : snappedEnd.point
       let primitive = createDisplayPrimitiveFromGesture(current.preset, snappedStart.point, endPoint, current.baseDocument.displayMode, () => current.elementId!)
       if (primitive.kind === 'text') {
         snapState = {}
         snapGuides = snappedStart.guides
-      } else if (primitive.kind === 'circle' && current.baseDocument.layoutGrid && snapToLayoutGrid && !ctrlKey) {
+      } else if ((primitive.kind === 'circle' || primitive.kind === 'polygon') && current.baseDocument.layoutGrid && snapToLayoutGrid && !ctrlKey) {
         const centreX = primitive.x.kind === 'literal' ? primitive.x.value : 0
         const radius = primitive.radius.kind === 'literal' ? primitive.radius.value : 0
         const east = snapDisplayAxisToLayoutGrid({
@@ -1992,7 +2012,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
           candidates: [{ id: 'radius', coordinate: centreX + radius, priority: 'trailing' }],
           gridSize: current.baseDocument.layoutGrid.size,
           rect,
-          precision: smooth ? 0.5 : 1,
+          precision: primitive.kind === 'circle' && primitive.smooth ? 0.5 : 1,
           active: current.snapState?.x,
         })
         if (east.target) {
@@ -2031,7 +2051,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
       const element = current.baseDocument.elements.find(({ id }) => id === current.elementId)
       const smooth = element ? (element.kind === 'line' || element.kind === 'circle') && element.smooth : false
       let snapped = snapPointerPoint(current.baseDocument, point, smooth, rect, current.snapState, ctrlKey)
-      if (element?.kind === 'circle' && current.handle === 'radius') {
+      if ((element?.kind === 'circle' || element?.kind === 'polygon') && current.handle === 'radius') {
         const centreY = staticDisplayScalarValue(current.baseDocument, element.y)
         snapped = { ...snapped, point: { x: snapped.point.x, y: centreY }, state: snapped.state.x ? { x: snapped.state.x } : {}, guides: snapped.guides.filter(({ axis }) => axis === 'x') }
       }
@@ -2134,7 +2154,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     setHiddenGroupIds(new Set())
     setPendingDetachId(undefined)
     updateGesture(null)
-    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.${parsed.migratedFromVersion ? ` Version ${parsed.migratedFromVersion} was migrated in memory; downloading saves version 4.` : ''}`)
+    setFileStatus(`Opened ${file.name}. The current Lua script was not changed.${parsed.migratedFromVersion ? ` Version ${parsed.migratedFromVersion} was migrated in memory; downloading saves version ${DISPLAY_DESIGN_VERSION}.` : ''}`)
   }
 
   const downloadDesign = () => {
@@ -2275,7 +2295,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
           {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
             setActiveTool(tool.id)
-          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'pixel-box' ? '▦' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
+          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'pixel-box' ? '▦' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
           {activeTool !== 'select' && <button type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
         </div>
 

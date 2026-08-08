@@ -60,6 +60,8 @@ describe('display design geometry', () => {
     expect(displayElementBounds(box)).toEqual({ left: 5, top: 12, right: 20, bottom: 30 })
     const circle = createDisplayPrimitiveFromGesture('smooth-circle', { x: 10, y: 10 }, { x: 13, y: 14 }, 'full-screen', ids)
     expect(circle).toMatchObject({ kind: 'circle', radius: literal(5) })
+    const polygon = createDisplayPrimitiveFromGesture('polygon', { x: 30, y: 20 }, { x: 36, y: 28 }, 'full-screen', ids)
+    expect(polygon).toMatchObject({ kind: 'polygon', x: literal(30), y: literal(20), radius: literal(10), sides: 6 })
     const text = createDisplayPrimitiveFromGesture('tiny-text', { x: 1.2, y: 2.2 }, { x: 90, y: 40 }, 'full-screen', ids)
     expect(text).toMatchObject({ kind: 'text', x: literal(1), y: literal(2) })
   })

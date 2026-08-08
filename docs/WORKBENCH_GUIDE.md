@@ -824,11 +824,20 @@ Open **Display designer** from the workbench utilities to author a separate,
 browser-only 256×64 display design. Opening the full-size dialog does not pause
 the Lua runtime, change the active script, or replace the normal simulated
 display. The current implementation supports pixel and smooth lines, outlined
-and filled boxes, pixel boxes, pixel and smooth outline circles, standard text,
-and tiny text. Choose a primitive tool and drag on the artboard to create repeatedly, or
+and filled boxes, pixel boxes, pixel and smooth outline circles, regular outline
+polygons, standard text, and tiny text. Choose a primitive tool and drag on the artboard to create repeatedly, or
 use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
+
+A **Polygon** stores an integer centre and radius plus a **Detail (sides)** value
+from 3 through 256. Low detail deliberately exposes the straight facets;
+increasing it shortens the facets until they reach the display's pixel scale.
+Generated Lua emits one local `drawPolygon(x, y, radius, sides, shade)` helper
+only when a polygon is used. Each polygon call passes only those five drawing
+inputs, and the helper expands them into ordinary integer `drawLine()` calls.
+The compiler preview uses the same vertex orientation and rounding as that Lua
+helper. Polygon detail therefore contributes one descriptive draw call per side.
 
 A **Pixel box** stores one of those 16 shades for every pixel in its rectangular
 area. Select a paint shade and choose individual cells in the Properties grid,
@@ -993,8 +1002,9 @@ file. Type, size, version, and document validation complete before the current
 draft is replaced; a failed read or invalid file keeps the draft unchanged.
 Version-1 files open with no layout grid or tokens, while version-2 files retain
 their grid; both migrate numeric binding endpoints into static-scalar literal
-wrappers. Version-3 files retain their tokens and grid. Downloads always use
-strict version 4, which adds pixel boxes, with ordered `tokens` and a
+wrappers. Version-3 files retain their tokens and grid, and version-4 files
+retain pixel boxes. Downloads always use strict version 5, which adds polygons,
+with ordered `tokens` and a
 `layoutGrid` that is either the uniform-grid definition or `null`. Use
 **Download design** for a
 deterministic JSON file with a safe name. A

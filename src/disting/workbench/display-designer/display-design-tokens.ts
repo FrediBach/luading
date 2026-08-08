@@ -99,7 +99,7 @@ function primitiveScalars(primitive: DisplayPrimitiveElement): Array<[string, Di
   if (primitive.kind === 'line' || primitive.kind === 'box') {
     return [...common, ['x1', primitive.x1], ['y1', primitive.y1], ['x2', primitive.x2], ['y2', primitive.y2]]
   }
-  if (primitive.kind === 'circle') return [...common, ['x', primitive.x], ['y', primitive.y], ['radius', primitive.radius]]
+  if (primitive.kind === 'circle' || primitive.kind === 'polygon') return [...common, ['x', primitive.x], ['y', primitive.y], ['radius', primitive.radius]]
   return [...common, ['x', primitive.x], ['y', primitive.y]]
 }
 
@@ -179,7 +179,7 @@ function substitutePrimitive(primitive: DisplayPrimitiveElement, tokenId: string
     next.y1 = substituteScalar(next.y1, tokenId, value)
     next.x2 = substituteScalar(next.x2, tokenId, value)
     next.y2 = substituteScalar(next.y2, tokenId, value)
-  } else if (next.kind === 'circle') {
+  } else if (next.kind === 'circle' || next.kind === 'polygon') {
     next.x = substituteScalar(next.x, tokenId, value)
     next.y = substituteScalar(next.y, tokenId, value)
     next.radius = substituteScalar(next.radius, tokenId, value)

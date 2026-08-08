@@ -70,11 +70,11 @@ describe('display design model', () => {
     expect(ids('element')).toBe('designer-element-3')
   })
 
-  it('creates a browser-only empty v4 document and deterministic scoped IDs', () => {
+  it('creates a browser-only empty v5 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({
       kind: 'luading-display-design',
-      version: 4,
+      version: 5,
       name: 'Untitled display',
       displayMode: 'parameter-line',
       elements: [],
@@ -113,17 +113,18 @@ describe('display design model', () => {
     const presets = [
       'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
       'pixel-box',
-      'pixel-circle', 'smooth-circle', 'standard-text', 'tiny-text',
+      'pixel-circle', 'smooth-circle', 'polygon', 'standard-text', 'tiny-text',
     ] as const
     const elements = presets.map((preset) => createDefaultDisplayPrimitive(preset, ids))
 
-    expect(elements.map(({ kind }) => kind)).toEqual(['line', 'line', 'box', 'box', 'pixel-box', 'circle', 'circle', 'text', 'text'])
+    expect(elements.map(({ kind }) => kind)).toEqual(['line', 'line', 'box', 'box', 'pixel-box', 'circle', 'circle', 'polygon', 'text', 'text'])
     expect(elements.filter((element) => element.kind === 'line').map(({ smooth }) => smooth)).toEqual([false, true])
     expect(elements.filter((element) => element.kind === 'box').map(({ fill }) => fill)).toEqual([false, true])
     expect(elements.filter((element) => element.kind === 'circle').map(({ smooth }) => smooth)).toEqual([false, true])
+    expect(elements.find((element) => element.kind === 'polygon')).toMatchObject({ sides: 6 })
     expect(elements.filter((element) => element.kind === 'text').map(({ tiny }) => tiny)).toEqual([false, true])
     expect(elements.find((element) => element.kind === 'pixel-box')).toMatchObject({ width: 8, height: 8, shades: Array(64).fill(15) })
-    expect(new Set(elements.map(({ id }) => id)).size).toBe(9)
+    expect(new Set(elements.map(({ id }) => id)).size).toBe(10)
   })
 
   it('creates all binding kinds with valid stable defaults', () => {
