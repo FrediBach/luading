@@ -830,6 +830,16 @@ use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
 
+The screen strip keeps one or more named screens in the same design. **Add
+screen** creates a blank screen, **Duplicate screen** copies the active screen's
+layers and groups with independent IDs, and **Remove screen** deletes the active
+screen when another remains; removal is recoverable through Undo. Edit **Screen
+name** to give each screen a readable role. Switching tabs changes the artboard,
+Layers, groups, and scene metrics to that screen while
+document-wide tokens, runtime bindings, symbols, display mode, and layout grid
+remain shared. A duplicated or deleted screen never duplicates or removes those
+shared definitions.
+
 A **Polygon** stores an integer centre and radius plus a **Detail (sides)** value
 from 3 through 256. Low detail deliberately exposes the straight facets;
 increasing it shortens the facets until they reach the display's pixel scale.
@@ -958,6 +968,15 @@ declared default, and every helper branch expands to ordinary documented draw
 calls. Unused definitions and tokens are omitted with findings. Token/reference
 and draw-call metrics remain descriptive authoring counts.
 
+When a design has multiple screens, generated source adds one collision-safe
+numeric `screen` selector inside the returned `draw` callback and an ordered
+`if`/`elseif` branch for every screen. The selector initially uses the active
+screen's 1-based position and carries a TODO comment: connect that local to
+`self`, a script parameter, or other script state after copying. Screen names
+appear in branch comments for readability; they are not firmware globals or
+runtime APIs. A single-screen design retains the compact source shape without a
+selector branch.
+
 The artboard always remains 256×64 logically while **Fit**, 1×, 2×, 3×, and 4×
 only change its CSS size. Pointer hit targets are enlarged in screen space while
 committed coordinates use integer snapping, or half-pixel snapping for smooth
@@ -1016,9 +1035,10 @@ draft is replaced; a failed read or invalid file keeps the draft unchanged.
 Version-1 files open with no layout grid or tokens, while version-2 files retain
 their grid; both migrate numeric binding endpoints into static-scalar literal
 wrappers. Version-3 files retain their tokens and grid, version-4 files retain
-pixel boxes, and version-5 files retain polygons. Downloads always use strict
-version 6, which adds multi-point Bézier curves,
-with ordered `tokens` and a
+pixel boxes, version-5 files retain polygons, and version-6 files retain
+multi-point Bézier curves. Downloads always use strict version 7, which adds
+ordered named screens and screen ownership for scene elements and groups, with
+ordered `tokens` and a
 `layoutGrid` that is either the uniform-grid definition or `null`. Use
 **Download design** for a
 deterministic JSON file with a safe name. A

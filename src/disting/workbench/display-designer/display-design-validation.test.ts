@@ -35,7 +35,7 @@ function validRichDocument(): DisplayDesignDocument {
     'pixel-line', 'smooth-line', 'outline-box', 'filled-box',
     'pixel-circle', 'smooth-circle', 'polygon', 'bezier', 'standard-text', 'tiny-text',
   ] as const
-  const primitives: DisplayDesignElement[] = presets.map((preset) => ({ ...createDefaultDisplayPrimitive(preset, ids) }))
+  const primitives: DisplayDesignElement[] = presets.map((preset) => ({ ...createDefaultDisplayPrimitive(preset, ids), screenId: 'display-screen-1' }))
   primitives[0]!.groupId = groupId
   const line = primitives[0]
   if (line?.kind === 'line') {
@@ -57,11 +57,12 @@ function validRichDocument(): DisplayDesignDocument {
       bindingId: choiceBindingId,
       variantByChoiceId: { [lowChoiceId]: lowVariantId, [highChoiceId]: highVariantId },
     },
+    screenId: 'display-screen-1',
   }
   return {
     ...createEmptyDisplayDesign('Designer fixture'),
     displayMode: 'full-screen',
-    groups: [{ id: groupId, name: 'Artwork' }],
+    groups: [{ id: groupId, name: 'Artwork', screenId: 'display-screen-1' }],
     bindings: [
       { kind: 'number', id: numberId, name: 'Level', luaName: 'level', previewValue: 0.5 },
       { kind: 'boolean', id: booleanId, name: 'Enabled', luaName: 'enabled', previewValue: true },
@@ -121,7 +122,7 @@ describe('display design validation', () => {
       ok: false,
       findings: [{ ruleId: 'invalid-kind' }],
     })
-    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 7 })
+    const invalidVersion = validateDisplayDesign({ ...createEmptyDisplayDesign(), version: 8 })
     expect(invalidVersion.document).toBeUndefined()
     expect(invalidVersion).toMatchObject({
       ok: false,
@@ -132,6 +133,20 @@ describe('display design validation', () => {
     circular.elements = [circular]
     expect(() => validateDisplayDesign(circular)).not.toThrow()
     expect(validateDisplayDesign(circular).ok).toBe(false)
+  })
+
+  it('validates screen ownership and the active screen reference', () => {
+    const ids = createSequentialDisplayDesignIdFactory('screen-validation')
+    const line = { ...createDefaultDisplayPrimitive('pixel-line', ids), screenId: 'missing-screen' }
+    const invalid = validateDisplayDesign({
+      ...createEmptyDisplayDesign(),
+      activeScreenId: 'missing-screen',
+      elements: [line],
+    })
+    expect(invalid.findings.map(({ ruleId }) => ruleId)).toEqual(expect.arrayContaining(['invalid-active-screen', 'dangling-screen']))
+
+    const empty = validateDisplayDesign({ ...createEmptyDisplayDesign(), screens: [] })
+    expect(empty.findings.map(({ ruleId }) => ruleId)).toContain('empty-screens')
   })
 
   it('validates pixel-box dimensions and every stored shade', () => {
@@ -183,6 +198,8 @@ describe('display design validation', () => {
   it('migrates strict version-1 documents and validates version-2 layout grids', () => {
     const current = createEmptyDisplayDesign('Legacy')
     const legacy = structuredClone(current) as unknown as Record<string, unknown>
+    delete legacy.screens
+    delete legacy.activeScreenId
     delete legacy.layoutGrid
     delete legacy.tokens
     legacy.version = 1

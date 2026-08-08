@@ -98,7 +98,7 @@ describe('Display designer rendering', () => {
     expect(markup).toContain('aria-pressed="true"')
     expect(designerCss).toMatch(/@media \(pointer: coarse\)[\s\S]*?min-height: 44px/)
     expect(designerCss).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation-duration: 0\.01ms !important/)
-    expect(designerCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?grid-template-rows: auto auto auto minmax\(190px, 1fr\) auto minmax\(180px, 35%\)/)
+    expect(designerCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?grid-template-rows: auto auto auto auto minmax\(190px, 1fr\) auto minmax\(180px, 35%\)/)
   })
 
   it('references only variables declared by the inherited app theme or the designer itself', () => {

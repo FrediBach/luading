@@ -145,6 +145,46 @@ afterEach(async () => {
 })
 
 describe('Display designer dialog', () => {
+  it('adds, names, duplicates, switches, and removes isolated screens with generated selector branches', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Outline box')
+    await commitInput(field('Screen name') as HTMLInputElement, 'Main')
+
+    await click(button('Add screen'))
+    await commitInput(field('Screen name') as HTMLInputElement, 'Settings')
+    await addDefault('Standard text')
+
+    const screenTabs = () => [...document.querySelectorAll<HTMLButtonElement>('.display-designer-screen-tabs [role="tab"]')]
+    expect(screenTabs().map((tab) => tab.querySelector('span')?.textContent)).toEqual(['Main', 'Settings'])
+    expect(document.querySelectorAll('.display-designer-layer-select')).toHaveLength(1)
+    expect(layer('Standard text')).toBeTruthy()
+    expect(source()).toContain('local screen = 2 -- TODO: connect this screen selector to self or a parameter.')
+    expect(source()).toContain('if screen == 1 then')
+    expect(source()).toContain('-- Screen 1: Main')
+    expect(source()).toContain('elseif screen == 2 then')
+    expect(source()).toContain('-- Screen 2: Settings')
+
+    await act(async () => {
+      screenTabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+      await Promise.resolve()
+    })
+    expect(screenTabs().map((tab) => tab.tabIndex)).toEqual([0, -1])
+    expect(screenTabs()[0]?.getAttribute('aria-selected')).toBe('true')
+
+    expect(layer('Outline box')).toBeTruthy()
+    expect(document.querySelectorAll('.display-designer-layer-select')).toHaveLength(1)
+
+    await click(screenTabs()[1]!)
+    await click(button('Duplicate screen'))
+    expect(screenTabs().map((tab) => tab.querySelector('span')?.textContent)).toEqual(['Main', 'Settings', 'Settings copy'])
+    expect(layer('Standard text')).toBeTruthy()
+
+    await click(button('Remove screen'))
+    expect(screenTabs().map((tab) => tab.querySelector('span')?.textContent)).toEqual(['Main', 'Settings'])
+    expect(screenTabs()[1]?.getAttribute('aria-selected')).toBe('true')
+  })
+
   it('edits the document layout grid from Artboard properties and keeps view preferences out of history', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))

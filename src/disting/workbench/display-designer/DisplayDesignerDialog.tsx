@@ -78,9 +78,13 @@ import {
   type DisplayDesignHistory,
 } from './display-design-history'
 import {
+  activeDisplayDesignDocument,
+  activeDisplayDesignScreen,
+  activateDisplayDesignScreen,
   addDisplayDesignElement,
   addDefaultDisplayDesignLayoutGrid,
   addDisplayDesignGroup,
+  addDisplayDesignScreen,
   assignDisplayDesignGroup,
   cloneDisplayDesign,
   createCollisionSafeDisplayDesignIdFactory,
@@ -91,11 +95,14 @@ import {
   createSequentialDisplayDesignIdFactory,
   deleteDisplayDesignElements,
   deleteDisplayDesignGroup,
+  deleteDisplayDesignScreen,
   removeDisplayDesignLayoutGrid,
   DISPLAY_DESIGN_VERSION,
   DISPLAY_DESIGN_LIMITS,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
+  duplicateDisplayDesignScreen,
+  mergeActiveDisplayDesignDocument,
   selectDisplayDesignElements,
   selectDisplayDesignVariantPrimitives,
   setDisplayDesignMode,
@@ -104,6 +111,7 @@ import {
   updateDisplayDesignGroup,
   updateDisplayDesignLayoutGrid,
   updateDisplayDesignSymbol,
+  updateDisplayDesignScreen,
   type DisplayDesignDocument,
   type DisplayDesignElement,
   type DisplayDesignBinding,
@@ -1870,6 +1878,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const responsive = layout !== 'wide'
   const effectiveZoom = layout === 'narrow' ? 'fit' : zoom
   const document = gesture?.document ?? history.present.document
+  const activeScreen = activeDisplayDesignScreen(document)
+  const activeDocument = useMemo(() => activeDisplayDesignDocument(document), [document])
   const selection = gesture?.selection ?? history.present.selection
   const selectedId = selection.elementIds[0]
   const activeSymbol = selection.symbolId ? document.symbols.find(({ id }) => id === selection.symbolId) : undefined
@@ -1880,14 +1890,14 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     : selection.elementIds.length === 1 ? document.elements.find(({ id }) => id === selectedId) : undefined
   const compiled = useMemo(() => compileDisplayDesign(document), [document])
   const previewDocument = useMemo(() => ({
-    ...document,
-    displayMode: activeVariant ? 'full-screen' as const : document.displayMode,
+    ...activeDocument,
+    displayMode: activeVariant ? 'full-screen' as const : activeDocument.displayMode,
     elements: activeVariant
       ? cloneDisplayDesign(activeVariant.elements)
-      : document.elements.filter(({ groupId }) => !groupId || !hiddenGroupIds.has(groupId)),
-    groups: activeVariant ? [] : document.groups,
-    symbols: activeVariant ? [] : document.symbols,
-  }), [activeVariant, document, hiddenGroupIds])
+      : activeDocument.elements.filter(({ groupId }) => !groupId || !hiddenGroupIds.has(groupId)),
+    groups: activeVariant ? [] : activeDocument.groups,
+    symbols: activeVariant ? [] : activeDocument.symbols,
+  }), [activeDocument, activeVariant, hiddenGroupIds])
   const previewCompiled = useMemo(() => compileDisplayDesign(previewDocument), [previewDocument])
   const generated = useMemo(() => generateDisplayDesignLua(document), [document])
   const serializedDocument = useMemo(() => serializeDisplayDesign(document), [document])
@@ -1927,6 +1937,13 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     nextSelection: DisplayDesignSelection = selection,
   ) => setHistory((current) => applyDisplayDesignTransaction(current, label, () => ({ document: nextDocument, selection: nextSelection })))
 
+  const switchScreen = (screenId: string) => {
+    if (screenId === activeScreen.id) return
+    updateGesture(null)
+    setActiveTool('select')
+    commit('Switch screen', activateDisplayDesignScreen(document, screenId), createEmptyDisplayDesignSelection())
+  }
+
   const setSelection = (nextSelection: DisplayDesignSelection) => setHistory((current) => ({
     ...current,
     present: { ...current.present, selection: nextSelection },
@@ -1943,12 +1960,24 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     },
   }))
 
-  const selectElement = (id: string, toggle = false) => setSelection(selectDisplayDesignElements(
-    history.present.document,
-    history.present.selection,
-    [id],
-    toggle ? 'toggle' : 'replace',
-  ))
+  const selectElement = (id: string, toggle = false) => setHistory((current) => {
+    const element = current.present.document.elements.find((candidate) => candidate.id === id)
+    const nextDocument = element?.screenId
+      ? activateDisplayDesignScreen(current.present.document, element.screenId)
+      : current.present.document
+    return {
+      ...current,
+      present: {
+        document: nextDocument,
+        selection: selectDisplayDesignElements(
+          nextDocument,
+          current.present.selection,
+          [id],
+          toggle ? 'toggle' : 'replace',
+        ),
+      },
+    }
+  })
 
   const addPrimitive = (preset: DisplayPrimitivePreset) => {
     const primitive = createDefaultDisplayPrimitive(preset, idFactory, activeVariant ? 'primitive' : 'element')
@@ -2363,6 +2392,53 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
           <button type="button" aria-label="Close Display designer" onClick={requestClose}><ControlIcon name="close" size={16} /></button>
         </header>
 
+        <section className="display-designer-screens" aria-label="Design screens">
+          <div className="display-designer-screen-tabs" role="tablist" aria-label="Screens">
+            {document.screens.map((screen, index) => <button
+              key={screen.id}
+              id={`display-designer-screen-tab-${index}`}
+              type="button"
+              role="tab"
+              aria-selected={screen.id === activeScreen.id}
+              aria-controls="display-designer-screen-artboard"
+              tabIndex={screen.id === activeScreen.id ? 0 : -1}
+              onClick={() => switchScreen(screen.id)}
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+                event.preventDefault()
+                event.stopPropagation()
+                const nextIndex = moveDisplayDesignerTab(index, event.key as 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End', document.screens.length)
+                const nextScreen = document.screens[nextIndex]!
+                switchScreen(nextScreen.id)
+                window.requestAnimationFrame(() => globalThis.document.getElementById(`display-designer-screen-tab-${nextIndex}`)?.focus())
+              }}
+            ><span>{screen.name}</span><small>{index + 1}</small></button>)}
+          </div>
+          <CommitInput
+            label="Screen name"
+            value={activeScreen.name}
+            onCommit={(name) => {
+              const trimmed = String(name).trim()
+              if (!trimmed || [...trimmed].length > DISPLAY_DESIGN_LIMITS.maximumNameCodePoints) return false
+              commit('Rename screen', updateDisplayDesignScreen(document, activeScreen.id, (screen) => ({ ...screen, name: trimmed })))
+              return true
+            }}
+          />
+          <div className="display-designer-screen-actions">
+            <button type="button" disabled={document.screens.length >= DISPLAY_DESIGN_LIMITS.maximumScreens} onClick={() => {
+              const added = addDisplayDesignScreen(document, idFactory)
+              commit('Add screen', added.document, createEmptyDisplayDesignSelection())
+            }}>Add screen</button>
+            <button type="button" disabled={document.screens.length >= DISPLAY_DESIGN_LIMITS.maximumScreens} onClick={() => {
+              const duplicated = duplicateDisplayDesignScreen(document, activeScreen.id, idFactory)
+              if (duplicated.screen) commit('Duplicate screen', duplicated.document, createEmptyDisplayDesignSelection())
+            }}>Duplicate screen</button>
+            <button type="button" className="is-danger" disabled={document.screens.length <= 1} onClick={() => {
+              commit('Remove screen', deleteDisplayDesignScreen(document, activeScreen.id), createEmptyDisplayDesignSelection())
+            }}>Remove screen</button>
+          </div>
+        </section>
+
         <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
           {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
             setActiveTool(tool.id)
@@ -2372,7 +2448,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
 
         <p id="display-designer-disclosure" className="display-designer-disclosure" role="note">Browser-only extension: design files and preview controls are not available on Disting NT hardware. Generated Lua uses documented draw calls; smooth rasterization remains an approximate preview.</p>
 
-        <main className={`display-designer-workspace${layersCollapsed ? ' layers-collapsed' : ''}${inspectorCollapsed ? ' inspector-collapsed' : ''}`}>
+        <main id="display-designer-screen-artboard" role="tabpanel" aria-labelledby={`display-designer-screen-tab-${document.screens.findIndex(({ id }) => id === activeScreen.id)}`} className={`display-designer-workspace${layersCollapsed ? ' layers-collapsed' : ''}${inspectorCollapsed ? ' inspector-collapsed' : ''}`}>
           <aside className="display-designer-sidebar display-designer-sidebar--layers">
             <button type="button" className="display-designer-collapse" aria-expanded={!layersCollapsed} onClick={() => setLayersCollapsed((value) => !value)}>{layersCollapsed ? 'Show layers' : 'Hide layers'}</button>
             {(!layersCollapsed || responsive) && <div
@@ -2382,7 +2458,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               aria-labelledby={responsive ? 'display-designer-tab-layers' : undefined}
               hidden={responsive && responsivePanel !== 'layers'}
             ><DisplayDesignerLayers
-              document={document}
+              document={activeDocument}
               selectedIds={selection.elementIds}
               onSelect={selectElement}
               onDuplicateElements={(ids) => {
@@ -2402,7 +2478,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               onSelectGroup={(groupId) => setSelection({
                 ...createEmptyDisplayDesignSelection(),
                 groupIds: [groupId],
-                elementIds: document.elements.filter((element) => element.groupId === groupId).map(({ id }) => id),
+                elementIds: activeDocument.elements.filter((element) => element.groupId === groupId).map(({ id }) => id),
               })}
               onRenameGroup={(groupId, name) => commit('Rename group', updateDisplayDesignGroup(document, groupId, (group) => ({ ...group, name })))}
               onDuplicateGroup={(groupId) => {
@@ -2485,14 +2561,17 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                 hidden={responsive && responsivePanel !== 'properties'}
               ><DisplayDesignerInspector
                 element={selectedElement}
-                document={activeVariant ? previewDocument : document}
+                document={activeVariant ? previewDocument : activeDocument}
                 artboardDocument={document}
                 idFactory={idFactory}
                 showLayoutGrid={showLayoutGrid}
                 onToggleLayoutGrid={() => setShowLayoutGrid((value) => !value)}
                 onArtboardCommit={commit}
                 onCommit={(label, nextDocument) => {
-                  if (!activeSymbol || !activeVariant) { commit(label, nextDocument); return }
+                  if (!activeSymbol || !activeVariant) {
+                    commit(label, mergeActiveDisplayDesignDocument(document, nextDocument))
+                    return
+                  }
                   const merged = updateDisplaySymbolVariant(document, activeSymbol.id, activeVariant.id, (variant) => ({
                     ...variant,
                     elements: nextDocument.elements.filter((element): element is DisplayPrimitiveElement => element.kind !== 'symbol-instance'),

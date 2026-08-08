@@ -4,6 +4,8 @@ import {
   addDefaultDisplayDesignLayoutGrid,
   addDisplayDesignElement,
   addDisplayDesignGroup,
+  addDisplayDesignScreen,
+  activateDisplayDesignScreen,
   addDisplayDesignSymbol,
   assignDisplayDesignGroup,
   createDefaultDisplayBinding,
@@ -19,7 +21,9 @@ import {
   deleteDisplayDesignSymbol,
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
+  duplicateDisplayDesignScreen,
   duplicateDisplayDesignSymbol,
+  deleteDisplayDesignScreen,
   layerIndexToElementIndex,
   normalizeDisplayDesignSelection,
   reorderDisplayDesignElement,
@@ -70,13 +74,15 @@ describe('display design model', () => {
     expect(ids('element')).toBe('designer-element-3')
   })
 
-  it('creates a browser-only empty v6 document and deterministic scoped IDs', () => {
+  it('creates a browser-only empty v7 document and deterministic scoped IDs', () => {
     const ids = createSequentialDisplayDesignIdFactory('scene')
     expect(createEmptyDisplayDesign()).toEqual({
       kind: 'luading-display-design',
-      version: 6,
+      version: 7,
       name: 'Untitled display',
       displayMode: 'parameter-line',
+      screens: [{ id: 'display-screen-1', name: 'Screen 1' }],
+      activeScreenId: 'display-screen-1',
       elements: [],
       groups: [],
       tokens: [],
@@ -89,6 +95,32 @@ describe('display design model', () => {
       'scene-variant-2',
       'scene-element-3',
     ])
+  })
+
+  it('adds, names, duplicates, activates, and removes independent screens', () => {
+    const ids = createSequentialDisplayDesignIdFactory('screen')
+    const first = addDisplayDesignElement(
+      createEmptyDisplayDesign(),
+      createDefaultDisplayPrimitive('pixel-line', ids),
+    )
+    const added = addDisplayDesignScreen(first, ids, 'Details')
+    const withDetails = addDisplayDesignElement(
+      added.document,
+      createDefaultDisplayPrimitive('standard-text', ids),
+    )
+    const duplicated = duplicateDisplayDesignScreen(withDetails, added.screen.id, ids)
+
+    expect(withDetails.screens.map(({ name }) => name)).toEqual(['Screen 1', 'Details'])
+    expect(withDetails.elements.map(({ screenId }) => screenId)).toEqual(['display-screen-1', added.screen.id])
+    expect(duplicated.screen).toMatchObject({ name: 'Details copy' })
+    expect(duplicated.document.elements.filter(({ screenId }) => screenId === duplicated.screen?.id)).toHaveLength(1)
+
+    const activated = activateDisplayDesignScreen(duplicated.document, 'display-screen-1')
+    const removed = deleteDisplayDesignScreen(activated, added.screen.id)
+    expect(activated.activeScreenId).toBe('display-screen-1')
+    expect(removed.screens.map(({ name }) => name)).toEqual(['Screen 1', 'Details copy'])
+    expect(removed.elements.some(({ screenId }) => screenId === added.screen.id)).toBe(false)
+    expect(deleteDisplayDesignScreen(createEmptyDisplayDesign(), 'display-screen-1')).toEqual(createEmptyDisplayDesign())
   })
 
   it('adds, updates, and removes the singleton layout grid immutably', () => {

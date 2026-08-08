@@ -344,15 +344,18 @@ tests compare token formulas, tokenized binding endpoints, shared symbol helpers
 renames, integer/smooth boundaries, and repeated callbacks with commands emitted
 through the production Wasmoon/display bridge.
 
-Display-design file tests pin canonical version-6 root, token, pixel-box, polygon, Bézier,
+Display-design file tests pin canonical version-7 root, screen ownership, token, pixel-box, polygon, Bézier,
 and AST key ordering and bytes, the trailing newline, strict
-version-1/version-2/version-3/version-4/version-5 migration,
+version-1/version-2/version-3/version-4/version-5/version-6 migration,
 layout-grid validation and round trips, future-version/size/type rejection,
 unsafe file-name repair, generated-Lua invariance, and defensive parsing without
 partial documents. jsdom covers read and parse
 failure without scene replacement, discard-before-open confirmation,
 collision-safe editing after open, Blob download dispatch and failure, exact
 clipboard writes, clipboard rejection, and the selected manual-copy fallback.
+Model, generator, and jsdom tests also cover screen add/name/duplicate/remove,
+screen-isolated layers and groups, active-screen selection, collision-safe Lua
+selector branches, and legacy one-screen migration.
 These tests do not exercise a native file picker, download shelf, clipboard
 permission prompt, or durable storage because design files are explicit
 browser handoffs rather than project persistence.

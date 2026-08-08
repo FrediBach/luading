@@ -1,6 +1,7 @@
 import { rasterizeDistingText } from '../../emulation/display-font'
 import { DISTING_DISPLAY, type DrawCommand } from '../../types'
 import {
+  activeDisplayDesignElements,
   type DisplayDesignDocument,
   type DisplayDesignerFinding,
   type DisplayPrimitiveElement,
@@ -277,14 +278,15 @@ function resolveInstanceVariant(
 }
 
 function emptyMetrics(document?: DisplayDesignDocument): CompiledDisplayDesignMetrics {
+  const activeElements = document ? activeDisplayDesignElements(document) : []
   const elementCount = document
-    ? document.elements.filter(({ kind }) => kind !== 'symbol-instance').length
+    ? activeElements.filter(({ kind }) => kind !== 'symbol-instance').length
       + document.symbols.reduce((count, symbol) => count + symbol.variants.reduce((sum, variant) => sum + variant.elements.length, 0), 0)
     : 0
   return {
     elementCount,
     symbolCount: document?.symbols.length ?? 0,
-    instanceCount: document?.elements.filter(({ kind }) => kind === 'symbol-instance').length ?? 0,
+    instanceCount: activeElements.filter(({ kind }) => kind === 'symbol-instance').length,
     drawCallCount: 0,
     maximumVariantDrawCallCount: 0,
     smoothCallCount: 0,
@@ -312,7 +314,7 @@ export function compileDisplayDesign(value: DisplayDesignDocument): CompiledDisp
   const commandSources: DisplayCommandSource[] = []
   const findings = [...initialFindings]
   let maximumVariantDrawCallCount = 0
-  for (const [elementIndex, element] of document.elements.entries()) {
+  for (const [elementIndex, element] of activeDisplayDesignElements(document).entries()) {
     if (element.kind !== 'symbol-instance') {
       const elementCommands = compileDisplayPrimitiveCommands(element, bindings, NO_TRANSLATION, tokens)
       if (elementCommands.length === 0) continue

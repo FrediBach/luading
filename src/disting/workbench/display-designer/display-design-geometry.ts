@@ -1,6 +1,8 @@
 import { fontAtlas, measureDistingText } from '../../emulation/display-font'
 import { DISTING_DISPLAY } from '../../types'
 import {
+  activeDisplayDesignElements,
+  activeDisplayDesignScreen,
   cloneDisplayDesign,
   createDefaultDisplayPrimitive,
   type DisplayDesignDocument,
@@ -459,7 +461,7 @@ export function reorderDisplayDesignSelection(
 ): DisplayDesignDocument {
   const selected = new Set(elementIds)
   if (selected.size === 0) return cloneDisplayDesign(document)
-  let elements = cloneDisplayDesign(document.elements)
+  let elements = cloneDisplayDesign(activeDisplayDesignElements(document))
   if (operation === 'front' || operation === 'back') {
     const moving = elements.filter(({ id }) => selected.has(id))
     const rest = elements.filter(({ id }) => !selected.has(id))
@@ -473,5 +475,12 @@ export function reorderDisplayDesignSelection(
       if (selected.has(elements[index].id) && !selected.has(elements[index - 1].id)) [elements[index], elements[index - 1]] = [elements[index - 1], elements[index]]
     }
   }
-  return { ...cloneDisplayDesign(document), elements }
+  const screenId = activeDisplayDesignScreen(document).id
+  let activeIndex = 0
+  return {
+    ...cloneDisplayDesign(document),
+    elements: document.elements.map((element) => !element.screenId || element.screenId === screenId
+      ? cloneDisplayDesign(elements[activeIndex++]!)
+      : cloneDisplayDesign(element)),
+  }
 }

@@ -3,6 +3,8 @@ import { DistingDisplayApi } from '../../emulation/display-api'
 import { loadLuaProgramRuntime } from '../../emulation/lua-runtime'
 import { createDistingLuaTestEngine } from '../../testing/lua-test-environment'
 import {
+  addDisplayDesignElement,
+  addDisplayDesignScreen,
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
@@ -61,6 +63,29 @@ async function runGenerated(document: DisplayDesignDocument) {
 }
 
 describe('display design Lua generation', () => {
+  it('branches named screens through one collision-safe selector in the draw callback', () => {
+    const ids = createSequentialDisplayDesignIdFactory('screens')
+    const first = addDisplayDesignElement(
+      createEmptyDisplayDesign('Pages'),
+      createDefaultDisplayPrimitive('pixel-line', ids),
+    )
+    const second = addDisplayDesignScreen(first, ids, 'Settings')
+    const document = addDisplayDesignElement(
+      second.document,
+      createDefaultDisplayPrimitive('standard-text', ids),
+    )
+    document.bindings = [{ kind: 'text', id: ids('binding'), name: 'Collision', luaName: 'screen', previewValue: 'Text' }]
+
+    const generated = generateDisplayDesignLua(document)
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    expect(generated.source).toContain('local screen_2 = 2 -- TODO: connect this screen selector to self or a parameter.')
+    expect(generated.source).toContain('if screen_2 == 1 then\n      -- Screen 1: Screen 1')
+    expect(generated.source).toContain('elseif screen_2 == 2 then\n      -- Screen 2: Settings')
+    expect(generated.source).toContain('drawLine(8, 16, 32, 16, 15)')
+    expect(generated.source).toContain('drawText(8, 20, "Text", 15, "left")')
+  })
+
   it('generates deterministic readable source for static calls and safely quoted text', () => {
     const ids = createSequentialDisplayDesignIdFactory('golden')
     const box = createDefaultDisplayPrimitive('filled-box', ids)

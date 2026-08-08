@@ -7,10 +7,12 @@ import {
   DISPLAY_DESIGN_VERSION_V3,
   DISPLAY_DESIGN_VERSION_V4,
   DISPLAY_DESIGN_VERSION_V5,
+  DISPLAY_DESIGN_VERSION_V6,
   type DisplayChoiceBindingChoice,
   type DisplayDesignBinding,
   type DisplayDesignDocument,
   type DisplayDesignLayoutGrid,
+  type DisplayDesignScreen,
   type DisplayDesignerFinding,
   type DisplayDesignerFindingFocus,
   type DisplayDesignElement,
@@ -98,9 +100,9 @@ class Validator {
   readonly findings: DisplayDesignerFinding[] = []
   readonly ids = new Map<string, string>()
 
-  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6
+  readonly sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6) {
+  constructor(sourceVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7) {
     this.sourceVersion = sourceVersion
   }
 
@@ -384,7 +386,9 @@ class Validator {
     const name = this.name(value.name, `${path}.name`, 'Untitled element', baseFocus)
     const visible = this.visibility(value.visible, `${path}.visible`, { ...baseFocus, property: 'visible' })
     const groupId = allowGroup && typeof value.groupId === 'string' ? value.groupId : undefined
-    const groupKey = allowGroup ? ['groupId'] : []
+    const groupKey = allowGroup
+      ? this.sourceVersion >= DISPLAY_DESIGN_VERSION ? ['groupId', 'screenId'] : ['groupId']
+      : []
     if (allowGroup && value.groupId !== undefined && typeof value.groupId !== 'string') this.finding('invalid-group-reference', 'A group ID string is required.', `${path}.groupId`, baseFocus)
     if (value.kind === 'pixel-box') {
       this.keys(value, ['kind', 'id', 'name', 'visible', 'x', 'y', 'width', 'height', 'shades', ...groupKey], path, baseFocus)
@@ -474,7 +478,7 @@ class Validator {
     }
     if (value.kind === 'bezier') {
       this.keys(value, ['kind', 'id', 'name', 'shade', 'visible', 'points', 'segments', ...groupKey], path, baseFocus)
-      if (this.sourceVersion < DISPLAY_DESIGN_VERSION) {
+      if (this.sourceVersion < DISPLAY_DESIGN_VERSION_V6) {
         this.finding('unsupported-element-version', 'Bézier curves require display design version 6.', `${path}.kind`, baseFocus)
       }
       const rawPoints = this.array(value.points, `${path}.points`)
@@ -531,9 +535,25 @@ class Validator {
       this.finding('invalid-group', 'A group object is required.', path)
       return undefined
     }
+    this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION ? ['id', 'name', 'screenId'] : ['id', 'name'], path)
+    const id = this.id(value.id, `${path}.id`)
+    const screenId = this.sourceVersion >= DISPLAY_DESIGN_VERSION && typeof value.screenId === 'string'
+      ? value.screenId
+      : 'display-screen-1'
+    if (this.sourceVersion >= DISPLAY_DESIGN_VERSION && !screenId) {
+      this.finding('invalid-screen-reference', 'A screen ID string is required.', `${path}.screenId`, { groupId: id })
+    }
+    return { id, name: this.name(value.name, `${path}.name`, 'Untitled group', { groupId: id }), screenId }
+  }
+
+  screen(value: unknown, path: string): DisplayDesignScreen | undefined {
+    if (!isRecord(value)) {
+      this.finding('invalid-screen', 'A screen object is required.', path)
+      return undefined
+    }
     this.keys(value, ['id', 'name'], path)
     const id = this.id(value.id, `${path}.id`)
-    return { id, name: this.name(value.name, `${path}.name`, 'Untitled group', { groupId: id }) }
+    return { id, name: this.name(value.name, `${path}.name`, 'Untitled screen') }
   }
 
   token(value: unknown, path: string): DisplayDesignToken | undefined {
@@ -697,8 +717,16 @@ class Validator {
   }
 
   element(value: unknown, path: string): DisplayDesignElement | undefined {
+    const screenId = this.sourceVersion >= DISPLAY_DESIGN_VERSION && isRecord(value) && typeof value.screenId === 'string'
+      ? value.screenId
+      : 'display-screen-1'
+    if (this.sourceVersion >= DISPLAY_DESIGN_VERSION && !screenId) {
+      this.finding('invalid-screen-reference', 'A screen ID string is required.', `${path}.screenId`)
+    }
     if (isRecord(value) && value.kind === 'symbol-instance') {
-      this.keys(value, ['kind', 'id', 'name', 'groupId', 'symbolId', 'x', 'y', 'visible', 'state'], path)
+      this.keys(value, this.sourceVersion >= DISPLAY_DESIGN_VERSION
+        ? ['kind', 'id', 'name', 'groupId', 'screenId', 'symbolId', 'x', 'y', 'visible', 'state']
+        : ['kind', 'id', 'name', 'groupId', 'symbolId', 'x', 'y', 'visible', 'state'], path)
       const id = this.id(value.id, `${path}.id`)
       const focus = { elementId: id }
       const groupId = typeof value.groupId === 'string' ? value.groupId : undefined
@@ -713,9 +741,11 @@ class Validator {
         y: this.scalar(value.y, `${path}.y`, { integer: false, focus: { ...focus, property: 'y' } }),
         visible: this.visibility(value.visible, `${path}.visible`, { ...focus, property: 'visible' }),
         state: this.state(value.state, `${path}.state`, id),
+        screenId,
       }
     }
-    return this.primitive(value, path, {}, true)
+    const primitive = this.primitive(value, path, {}, true)
+    return primitive ? { ...primitive, screenId } : undefined
   }
 }
 
@@ -815,9 +845,17 @@ function checkPrimitiveReferences(
 
 function crossValidate(validator: Validator, document: DisplayDesignDocument): void {
   const groups = new Set(document.groups.map(({ id }) => id))
+  const screens = new Set(document.screens.map(({ id }) => id))
   const bindings = new Map(document.bindings.map((binding) => [binding.id, binding]))
   const tokens = new Map(document.tokens.map((token) => [token.id, token]))
   const symbols = new Map(document.symbols.map((symbol) => [symbol.id, symbol]))
+
+  if (!screens.has(document.activeScreenId)) {
+    validator.finding('invalid-active-screen', 'The active screen must reference one of the design screens.', 'activeScreenId')
+  }
+  for (const [groupIndex, group] of document.groups.entries()) {
+    if (!group.screenId || !screens.has(group.screenId)) validator.finding('dangling-screen', 'The group references a missing screen.', `groups[${groupIndex}].screenId`, { groupId: group.id })
+  }
 
   addDuplicateValues(validator, [
     ...document.tokens.map((token, index) => ({ value: token.luaName, path: `tokens[${index}].luaName`, focus: { tokenId: token.id } })),
@@ -844,7 +882,12 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 
   for (const [elementIndex, element] of document.elements.entries()) {
     const path = `elements[${elementIndex}]`
+    if (!element.screenId || !screens.has(element.screenId)) validator.finding('dangling-screen', 'The element references a missing screen.', `${path}.screenId`, { elementId: element.id })
     if (element.groupId && !groups.has(element.groupId)) validator.finding('dangling-group', 'The element references a missing group.', `${path}.groupId`, { elementId: element.id, property: 'groupId' })
+    if (element.groupId) {
+      const group = document.groups.find(({ id }) => id === element.groupId)
+      if (group && group.screenId !== element.screenId) validator.finding('cross-screen-group', 'An element and its group must belong to the same screen.', `${path}.groupId`, { elementId: element.id, property: 'groupId' })
+    }
     if (element.kind !== 'symbol-instance') {
       checkPrimitiveReferences(validator, element, path, bindings, tokens, { elementId: element.id })
       continue
@@ -886,7 +929,7 @@ function crossValidate(validator: Validator, document: DisplayDesignDocument): v
 }
 
 export function validateDisplayDesign(value: unknown): DisplayDesignValidationResult {
-  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION)
+  const sourceVersion = isRecord(value) && (value.version === DISPLAY_DESIGN_VERSION_V1 || value.version === DISPLAY_DESIGN_VERSION_V2 || value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION)
     ? value.version
     : DISPLAY_DESIGN_VERSION
   const validator = new Validator(sourceVersion)
@@ -899,33 +942,43 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       validator.finding('invalid-kind', `Document kind must be “${DISPLAY_DESIGN_KIND}”.`, '$.kind')
       return { ok: false, findings: validator.findings }
     }
-    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION) {
+    if (value.version !== DISPLAY_DESIGN_VERSION_V1 && value.version !== DISPLAY_DESIGN_VERSION_V2 && value.version !== DISPLAY_DESIGN_VERSION_V3 && value.version !== DISPLAY_DESIGN_VERSION_V4 && value.version !== DISPLAY_DESIGN_VERSION_V5 && value.version !== DISPLAY_DESIGN_VERSION_V6 && value.version !== DISPLAY_DESIGN_VERSION) {
       validator.finding('unsupported-version', `Only display design versions ${DISPLAY_DESIGN_VERSION_V1} through ${DISPLAY_DESIGN_VERSION} are supported.`, '$.version')
       return { ok: false, findings: validator.findings }
     }
     const isVersion1 = value.version === DISPLAY_DESIGN_VERSION_V1
-    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION
+    const hasTokens = value.version === DISPLAY_DESIGN_VERSION_V3 || value.version === DISPLAY_DESIGN_VERSION_V4 || value.version === DISPLAY_DESIGN_VERSION_V5 || value.version === DISPLAY_DESIGN_VERSION_V6 || value.version === DISPLAY_DESIGN_VERSION
+    const hasScreens = value.version === DISPLAY_DESIGN_VERSION
     validator.keys(
       value,
       isVersion1
         ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols']
         : hasTokens
-          ? ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'tokens', 'bindings', 'symbols', 'layoutGrid']
+          ? hasScreens
+            ? ['kind', 'version', 'name', 'displayMode', 'screens', 'activeScreenId', 'elements', 'groups', 'tokens', 'bindings', 'symbols', 'layoutGrid']
+            : ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'tokens', 'bindings', 'symbols', 'layoutGrid']
           : ['kind', 'version', 'name', 'displayMode', 'elements', 'groups', 'bindings', 'symbols', 'layoutGrid'],
       '$',
     )
     const layoutGrid = isVersion1 ? null : validateLayoutGrid(validator, value.layoutGrid)
 
     const rawGroups = validator.array(value.groups, 'groups')
+    const rawScreens = hasScreens ? validator.array(value.screens, 'screens') : [{ id: 'display-screen-1', name: 'Screen 1' }]
     const rawTokens = hasTokens ? validator.array(value.tokens, 'tokens') : []
     const rawBindings = validator.array(value.bindings, 'bindings')
     const rawSymbols = validator.array(value.symbols, 'symbols')
     const rawElements = validator.array(value.elements, 'elements')
+    if (rawScreens.length === 0) validator.finding('empty-screens', 'A display design needs at least one screen.', 'screens')
+    if (rawScreens.length > DISPLAY_DESIGN_LIMITS.maximumScreens) validator.finding('screen-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumScreens} screens.`, 'screens')
     if (rawGroups.length > DISPLAY_DESIGN_LIMITS.maximumGroups) validator.finding('group-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumGroups} groups.`, 'groups')
     if (rawTokens.length > DISPLAY_DESIGN_LIMITS.maximumTokens) validator.finding('token-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumTokens} tokens.`, 'tokens')
     if (rawBindings.length > DISPLAY_DESIGN_LIMITS.maximumBindings) validator.finding('binding-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumBindings} bindings.`, 'bindings')
     if (rawSymbols.length > DISPLAY_DESIGN_LIMITS.maximumSymbols) validator.finding('symbol-limit', `A design may contain at most ${DISPLAY_DESIGN_LIMITS.maximumSymbols} symbols.`, 'symbols')
 
+    const screens = rawScreens.flatMap((screen, index) => {
+      const normalized = validator.screen(screen, `screens[${index}]`)
+      return normalized ? [normalized] : []
+    })
     const groups = rawGroups.flatMap((group, index) => {
       const normalized = validator.group(group, `groups[${index}]`)
       return normalized ? [normalized] : []
@@ -962,6 +1015,10 @@ export function validateDisplayDesign(value: unknown): DisplayDesignValidationRe
       version: DISPLAY_DESIGN_VERSION,
       name: validator.name(value.name, 'name', 'Untitled display'),
       displayMode,
+      screens,
+      activeScreenId: hasScreens && typeof value.activeScreenId === 'string'
+        ? value.activeScreenId
+        : screens[0]?.id ?? 'display-screen-1',
       elements,
       groups,
       tokens,

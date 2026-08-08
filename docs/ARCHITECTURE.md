@@ -94,7 +94,7 @@ pure and do not communicate with the simulation worker.
 | Web Audio and Web MIDI routing | Main thread | Never serialized into the Lua contract; browser port identities never enter the worker |
 | Saved `self.state` | Produced by the worker, held by the coordinator | Kept in memory for a subsequent load; not browser-persisted |
 | Layout, density, responsive mode, theme, and editor text size | Main thread | Best-effort `localStorage`; storage failures fall back to defaults |
-| Open display design, document-owned layout-grid definition, selection, preview values, and undo history | Main-thread `DisplayDesignerDialog` | Document edits are retained for the mounted workbench session unless explicitly downloaded as `.luading-display.json`; never mirrored to a worker, project record, recovery journal, or Lua state |
+| Open display design, named screens and their active screen, document-owned layout-grid definition, selection, preview values, and undo history | Main-thread `DisplayDesignerDialog` | Document edits are retained for the mounted workbench session unless explicitly downloaded as `.luading-display.json`; never mirrored to a worker, project record, recovery journal, or Lua state |
 | Display-designer layout-grid visibility, pixel-grid visibility, pixel preview, geometry overlay, and snap preference | Main-thread `DisplayDesignerDialog` view state | Retained only for the mounted workbench session, including across opened designs; excluded from document history, dirty state, downloads, generated Lua, and worker protocols |
 | Syntax/static diagnostics and source index | Validation worker result | Accepted only for the current source version |
 | Contract diagnostics | Simulation worker during load | Cleared on source changes and replaced by the next load result |
@@ -174,8 +174,10 @@ dialog owns the normalized design document, semantic undo history, selection,
 pointer gesture preview, responsive panel state, preview binding values, and
 downloaded-revision marker. Version 3 added ordered document-wide numeric tokens
 and bounded token-expression ASTs; version 4 added bounded pixel-box shade arrays;
-version 5 added regular polygons with bounded side detail; version 6 adds
-general-degree Bézier curves with bounded control-point and segment detail. These remain in the
+version 5 added regular polygons with bounded side detail; version 6 added
+general-degree Bézier curves with bounded control-point and segment detail; version 7 adds
+ordered named screens with screen-owned scene layers and groups. Tokens, bindings, symbols,
+display mode, and the layout grid remain document-wide and reusable across screens. These remain in the
 main-thread document. The singleton uniform layout-grid definition is
 document-owned; grid visibility and pointer-snapping preferences remain view
 state. Pure modules below the dialog parse and print the closed arithmetic
@@ -193,8 +195,8 @@ main-thread display renderer rasterizes the compiled commands; neither the
 designer document nor its UI state crosses the simulation-worker protocol.
 
 Opening a design first validates browser file metadata, reads and defensively
-parses strict version-1 through version-6 JSON, migrates older versions
-to the canonical version-6 shape (including static-scalar wrappers around old
+parses strict version-1 through version-7 JSON, migrates older versions
+to the canonical version-7 shape (including one default screen for versions 1–6 and static-scalar wrappers around old
 number-binding endpoints), and produces canonical serialized bytes. Only a
 fully accepted document replaces the current draft and receives a fresh
 history/ID allocator. Download creates an explicit browser Blob and marks only
@@ -211,7 +213,11 @@ and suppresses guides whose target was not actually reached. Exact inspector,
 keyboard nudge, alignment, distribution, import, and generator paths do not
 pass through this snapping layer.
 
-Generated Lua is a one-way clipboard handoff. Reachable token declarations live
+Generated Lua is a one-way clipboard handoff. A multi-screen design emits one
+collision-safe numeric screen selector inside the returned draw callback and an
+ordered `if`/`elseif` branch per named screen; the initial selector value matches
+the design's active screen and is an explicit placeholder for script integration.
+Reachable token declarations live
 at the top of the same immediately evaluated closure as reusable symbol helpers,
 before those helpers; runtime-binding placeholders remain inside the returned
 draw callback. The expression AST disappears into ordinary safe Lua arithmetic

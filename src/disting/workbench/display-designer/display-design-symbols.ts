@@ -2,6 +2,7 @@ import { createDisplayBindingInDocument } from './display-design-bindings'
 import { displaySelectionBounds } from './display-design-geometry'
 import { allocateDisplayLuaIdentifier } from './display-design-lua-identifiers'
 import {
+  activeDisplayDesignScreen,
   cloneDisplayDesign,
   type DisplayChoiceBinding,
   type DisplayDesignDocument,
@@ -122,6 +123,7 @@ export function createDisplaySymbolFromSelection(
         const primitive = translateDisplayPrimitive(element, -origin.x, -origin.y)
         primitive.id = idFactory('primitive')
         delete (primitive as DisplayPrimitiveElement & { groupId?: string }).groupId
+        delete (primitive as DisplayPrimitiveElement & { screenId?: string }).screenId
         return primitive
       }),
     }],
@@ -135,6 +137,7 @@ export function createDisplaySymbolFromSelection(
     y: literal(origin.y),
     visible: { kind: 'visible' },
     state: { kind: 'literal', variantId },
+    screenId: activeDisplayDesignScreen(document).id,
   }
   const firstIndex = document.elements.findIndex(({ id }) => selectedIds.has(id))
   const elements = document.elements.filter(({ id }) => !selectedIds.has(id)).map(cloneDisplayDesign)
@@ -336,9 +339,10 @@ export function detachDisplaySymbolInstance(
     ? literal(resolveDisplayScalar(instance.y, bindings, tokens))
     : instance.y
   const detached: DisplayDesignElement[] = variant.elements.map((primitive) => {
-    const next = translateDisplayPrimitiveByStaticScalars(primitive, x, y) as DisplayPrimitiveElement & { groupId?: string }
+    const next = translateDisplayPrimitiveByStaticScalars(primitive, x, y) as DisplayPrimitiveElement & { groupId?: string; screenId?: string }
     next.id = idFactory('element')
     if (instance.groupId) next.groupId = instance.groupId
+    next.screenId = instance.screenId ?? activeDisplayDesignScreen(document).id
     return next
   })
   const elements = cloneDisplayDesign(document.elements)

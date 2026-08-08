@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { DrawCommand } from '../../types'
 import {
+  addDisplayDesignElement,
+  addDisplayDesignScreen,
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
@@ -33,6 +35,18 @@ function findingRules(document: DisplayDesignDocument): string[] {
 }
 
 describe('display design compiler', () => {
+  it('previews only the active screen while preserving document-wide generation metrics', () => {
+    const ids = createSequentialDisplayDesignIdFactory('screen-compile')
+    const first = addDisplayDesignElement(createEmptyDisplayDesign(), createDefaultDisplayPrimitive('pixel-line', ids))
+    const second = addDisplayDesignScreen(first, ids, 'Second')
+    const document = addDisplayDesignElement(second.document, createDefaultDisplayPrimitive('standard-text', ids))
+
+    const compiled = compileDisplayDesign(document)
+    expect(compiled.commands).toEqual([{ kind: 'text', x: 8, y: 20, text: 'Text', shade: 15, tiny: false, align: 'left' }])
+    expect(compiled.metrics.elementCount).toBe(1)
+    expect(compiled.metrics.generatedUtf8Bytes).toBeGreaterThan(0)
+  })
+
   it('compiles every static target primitive in exact draw order with source mappings and metrics', () => {
     const document = staticPrimitiveDocument()
     const result = compileDisplayDesign(document)
