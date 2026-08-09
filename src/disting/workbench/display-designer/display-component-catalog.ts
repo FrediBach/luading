@@ -34,6 +34,25 @@ function line(
   }
 }
 
+function animatedLine(
+  context: DisplayComponentBuildContext,
+  name: string,
+  x1: ScalarValue,
+  y1: ScalarValue,
+  x2: ScalarValue,
+  y2: ScalarValue,
+  shade: ScalarValue = 15,
+  secondaryShade: ScalarValue = 2,
+  direction: 'left' | 'right' | 'up' | 'down' = 'right',
+): DisplayPrimitiveElement {
+  return {
+    kind: 'animated-line', id: context.primitiveId(), name,
+    x1: scalar(x1), y1: scalar(y1), x2: scalar(x2), y2: scalar(y2),
+    shade: scalar(shade), secondaryShade: scalar(secondaryShade), visible: shown,
+    direction, speed: 10,
+  }
+}
+
 function box(
   context: DisplayComponentBuildContext,
   name: string,
@@ -387,6 +406,36 @@ const focusSelectionBrackets: DisplayComponentRecipe = {
   },
 }
 
+const emptyUnavailableMarker: DisplayComponentRecipe = {
+  ...common,
+  id: 'empty-unavailable-marker',
+  name: 'Empty unavailable marker',
+  category: 'layout',
+  description: 'An explicit text fallback for empty, waiting, unavailable, and error states.',
+  tags: ['empty', 'unavailable', 'waiting', 'missing', 'no data', 'fallback', 'placeholder'],
+  footprint: { width: 64, height: 14 },
+  states: [{ value: 'empty', name: 'Empty' }, { value: 'waiting', name: 'Waiting' }, { value: 'unavailable', name: 'Unavailable' }, { value: 'error', name: 'Error' }],
+  defaultState: 'empty',
+  inputs: [textInput('message', 'Message', 'Short script-owned fallback text such as EMPTY, WAIT, NO MIDI, or ERR.', 'EMPTY')],
+  scenarios: [
+    { id: 'default', name: 'Empty', state: 'empty' },
+    { id: 'active', name: 'Waiting for clock', state: 'waiting', values: { message: 'WAIT CLK' } },
+    { id: 'edge', name: 'Unavailable MIDI', state: 'unavailable', values: { message: 'NO MIDI' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'empty' ? 5 : state === 'waiting' ? 10 : state === 'unavailable' ? 8 : 15
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Empty marker frame', 0, 0, 63, 13, shade),
+      tinyText(context, 'Empty marker message', 32, 9, context.text('message'), shade, 'centre'),
+    ]
+    if (state === 'empty') primitives.push(line(context, 'Empty marker dash', 3, 6, 11, 6, 6))
+    if (state === 'waiting') primitives.push(line(context, 'Waiting hand', 7, 7, 7, 2, 15), line(context, 'Waiting hand tip', 7, 7, 11, 9, 15))
+    if (state === 'unavailable') primitives.push(line(context, 'Unavailable slash', 3, 11, 13, 2, 12))
+    if (state === 'error') primitives.push(line(context, 'Empty marker error one', 3, 2, 13, 11, 15), line(context, 'Empty marker error two', 13, 2, 3, 11, 15))
+    return primitives
+  },
+}
+
 const inputJack: DisplayComponentRecipe = {
   ...common,
   id: 'input-jack',
@@ -709,6 +758,39 @@ const routingMatrixCell: DisplayComponentRecipe = {
   },
 }
 
+const patchLinkFlowLine: DisplayComponentRecipe = {
+  ...common,
+  id: 'patch-link-flow-line',
+  name: 'Patch link flow line',
+  category: 'patching',
+  description: 'A directional route with idle, animated flow, selection, blocked, and feedback treatments.',
+  tags: ['patch', 'link', 'flow', 'animated', 'animated route', 'route', 'connection', 'blocked', 'feedback'],
+  footprint: { width: 40, height: 14 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'flowing', name: 'Flowing' }, { value: 'selected', name: 'Selected' }, { value: 'blocked', name: 'Blocked' }, { value: 'feedback', name: 'Feedback' }],
+  defaultState: 'idle',
+  inputs: [booleanInput('active', 'Route active', 'Shows a script-owned activity mark at the destination.')],
+  scenarios: [
+    { id: 'default', name: 'Idle route', state: 'idle' },
+    { id: 'active', name: 'Flowing route', state: 'flowing', values: { active: true } },
+    { id: 'edge', name: 'Blocked route', state: 'blocked' },
+  ],
+  build: (context, state) => {
+    const shade = state === 'idle' ? 5 : state === 'blocked' ? 12 : 15
+    const primitives: DisplayPrimitiveElement[] = []
+    if (state === 'flowing') primitives.push(animatedLine(context, 'Patch flowing route', 1, 7, 33, 7, 15, 2))
+    else primitives.push(line(context, 'Patch route', 1, 7, 33, 7, shade))
+    primitives.push(
+      line(context, 'Patch direction upper', 33, 7, 29, 4, shade),
+      line(context, 'Patch direction lower', 33, 7, 29, 10, shade),
+      box(context, 'Patch destination activity', 35, 5, 39, 9, 15, true, context.visible('active')),
+    )
+    if (state === 'selected') primitives.push(line(context, 'Patch selection top', 1, 1, 38, 1, 15), line(context, 'Patch selection bottom', 1, 12, 38, 12, 15))
+    if (state === 'blocked') primitives.push(line(context, 'Patch blocked one', 15, 2, 23, 12, 15), line(context, 'Patch blocked two', 23, 2, 15, 12, 15))
+    if (state === 'feedback') primitives.push(line(context, 'Patch feedback return', 33, 10, 33, 13, 15), line(context, 'Patch feedback lower', 33, 13, 7, 13, 15), line(context, 'Patch feedback hook', 7, 13, 10, 10, 15))
+    return primitives
+  },
+}
+
 const momentaryButton: DisplayComponentRecipe = {
   ...common,
   id: 'momentary-button',
@@ -1009,6 +1091,45 @@ const encoderRing: DisplayComponentRecipe = {
     if (state === 'turning-right') primitives.push(line(context, 'Encoder right arrow shaft', 10, 0, 15, 2, 15), line(context, 'Encoder right arrow head', 15, 2, 12, 4, 15))
     if (state === 'focused') primitives.push(line(context, 'Encoder focus top', 3, 0, 15, 0, 15), line(context, 'Encoder focus bottom', 3, 17, 15, 17, 15))
     if (state === 'disabled') primitives.push(line(context, 'Encoder disabled mark', 3, 15, 15, 3, 3))
+    return primitives
+  },
+}
+
+const xyPadVectorPoint: DisplayComponentRecipe = {
+  ...common,
+  id: 'xy-pad-vector-point',
+  name: 'XY pad vector point',
+  category: 'controls',
+  description: 'A compact two-axis control with a script-positioned point, optional centre vector, focus, and clipping marks.',
+  tags: ['xy', 'vector', 'pad', 'joystick', 'two axis', 'random walk', 'control'],
+  footprint: { width: 40, height: 28 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'moving', name: 'Moving' }, { value: 'focused', name: 'Focused' }, { value: 'clipped', name: 'Clipped' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('x', 'X position', 'Normalized script-owned horizontal position.', 0.5),
+    numberInput('y', 'Y position', 'Normalized script-owned vertical position.', 0.5),
+    booleanInput('showVector', 'Show centre vector', 'Connects the centre to the supplied point; this is not an inferred movement history.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Centred', state: 'idle' },
+    { id: 'active', name: 'Moving vector', state: 'moving', values: { x: 0.78, y: 0.25, showVector: true } },
+    { id: 'edge', name: 'Clipped corner', state: 'clipped', values: { x: 1, y: 0 } },
+  ],
+  build: (context, state) => {
+    const x = context.number('x', 3, 36)
+    const y = context.number('y', 3, 24)
+    const shade = state === 'disabled' ? 2 : state === 'clipped' || state === 'focused' ? 15 : state === 'moving' ? 13 : 8
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'XY pad frame', 0, 0, 39, 27, shade),
+      line(context, 'XY pad horizontal axis', 2, 14, 37, 14, state === 'disabled' ? 2 : 4),
+      line(context, 'XY pad vertical axis', 20, 2, 20, 25, state === 'disabled' ? 2 : 4),
+      line(context, 'XY centre vector', 20, 14, x, y, 7, context.visible('showVector')),
+      circle(context, 'XY point', x, y, state === 'moving' ? 2 : 1, shade),
+    ]
+    if (state === 'moving') primitives.push(line(context, 'XY moving cross horizontal', context.number('x', 1, 34), y, context.number('x', 5, 38), y, 15))
+    if (state === 'focused') primitives.push(line(context, 'XY focus top', 8, 0, 31, 0, 15), line(context, 'XY focus bottom', 8, 27, 31, 27, 15))
+    if (state === 'clipped') primitives.push(box(context, 'XY clipped corner', 34, 0, 39, 5, 15, true), line(context, 'XY clipped stop', 32, 6, 38, 0, 15))
+    if (state === 'disabled') primitives.push(line(context, 'XY disabled mark', 2, 25, 37, 2, 3))
     return primitives
   },
 }
@@ -1563,6 +1684,45 @@ const pitchQuantizerProcessor: DisplayComponentRecipe = {
   },
 }
 
+const comparatorProcessor: DisplayComponentRecipe = {
+  ...common,
+  id: 'comparator-processor',
+  name: 'Comparator processor',
+  category: 'processors',
+  description: 'A two-input comparison tile with explicit low/high result, selection, bypass, and error geometry.',
+  tags: ['comparator', 'comparison', 'threshold', 'greater than', 'gate', 'logic', 'processor'],
+  footprint: { width: 40, height: 18 },
+  states: [{ value: 'low', name: 'Result low' }, { value: 'high', name: 'Result high' }, { value: 'selected', name: 'Selected' }, { value: 'bypassed', name: 'Bypassed' }, { value: 'error', name: 'Error' }],
+  defaultState: 'low',
+  inputs: [
+    numberInput('a', 'Input A', 'Normalized first operand position.', 0.4),
+    numberInput('b', 'Input B', 'Normalized second operand position or threshold.', 0.6),
+  ],
+  scenarios: [
+    { id: 'default', name: 'A below B', state: 'low', values: { a: 0.35, b: 0.65 } },
+    { id: 'active', name: 'A above B', state: 'high', values: { a: 0.8, b: 0.45 } },
+    { id: 'edge', name: 'Invalid operands', state: 'error', values: { a: 1, b: 0 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'bypassed' ? 3 : state === 'error' || state === 'selected' ? 15 : state === 'high' ? 13 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Comparator frame', 0, 0, 39, 17, shade),
+      line(context, 'Comparator input A', 0, 5, 9, 5, shade),
+      line(context, 'Comparator input B', 0, 12, 9, 12, shade),
+      line(context, 'Comparator A level', context.number('a', 2, 8), 3, context.number('a', 2, 8), 7, shade),
+      line(context, 'Comparator B level', context.number('b', 2, 8), 10, context.number('b', 2, 8), 14, shade),
+      line(context, 'Comparator upper glyph', 13, 5, 22, 9, shade),
+      line(context, 'Comparator lower glyph', 13, 13, 22, 9, shade),
+      line(context, 'Comparator output', 22, 9, 39, 9, shade),
+    ]
+    if (state === 'high') primitives.push(box(context, 'Comparator high result', 31, 6, 36, 12, 15, true))
+    if (state === 'selected') primitives.push(line(context, 'Comparator selected top', 5, 0, 34, 0, 15), line(context, 'Comparator selected bottom', 5, 17, 34, 17, 15))
+    if (state === 'bypassed') primitives.push(line(context, 'Comparator bypass', 7, 15, 33, 2, 5))
+    if (state === 'error') primitives.push(line(context, 'Comparator error one', 26, 3, 36, 14, 15), line(context, 'Comparator error two', 36, 3, 26, 14, 15))
+    return primitives
+  },
+}
+
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
   id: 'unipolar-bar-meter',
@@ -1878,6 +2038,53 @@ const phaseClockRing: DisplayComponentRecipe = {
   },
 }
 
+const noteRangeLadder: DisplayComponentRecipe = {
+  ...common,
+  id: 'note-range-ladder',
+  name: 'Note range ladder',
+  category: 'meters',
+  description: 'A compact pitch ladder showing input, output, accepted range, quantization, rejection, and invalid bounds.',
+  tags: ['note', 'range', 'ladder', 'pitch', 'quantizer', 'transpose', 'clamp', 'midi'],
+  footprint: { width: 64, height: 18 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'quantized', name: 'Quantized' }, { value: 'clamped', name: 'Clamped' }, { value: 'rejected', name: 'Rejected' }, { value: 'invalid', name: 'Invalid' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('input', 'Input note', 'Normalized input-note position over the displayed range.', 0.35),
+    numberInput('output', 'Output note', 'Normalized output-note position after script processing.', 0.4),
+    numberInput('minimum', 'Minimum note', 'Normalized lower accepted range boundary.', 0.2),
+    numberInput('maximum', 'Maximum note', 'Normalized upper accepted range boundary.', 0.8),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle range', state: 'idle' },
+    { id: 'active', name: 'Quantized note', state: 'quantized', values: { input: 0.46, output: 0.5, minimum: 0.2, maximum: 0.8 } },
+    { id: 'edge', name: 'Rejected note', state: 'rejected', values: { input: 0.95, output: 0.8, minimum: 0.2, maximum: 0.8 } },
+  ],
+  build: (context, state) => {
+    const input = context.number('input', 3, 60)
+    const output = context.number('output', 3, 60)
+    const minimum = context.number('minimum', 3, 60)
+    const maximum = context.number('maximum', 3, 60)
+    const shade = state === 'invalid' || state === 'rejected' ? 15 : state === 'clamped' ? 13 : state === 'quantized' ? 12 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Note ladder frame', 0, 0, 63, 17, state === 'invalid' ? 15 : 5),
+      line(context, 'Note ladder rail', 3, 9, 60, 9, 5),
+      line(context, 'Note ladder tick one', 14, 6, 14, 12, 5),
+      line(context, 'Note ladder tick two', 26, 6, 26, 12, 5),
+      line(context, 'Note ladder tick three', 37, 6, 37, 12, 5),
+      line(context, 'Note ladder tick four', 49, 6, 49, 12, 5),
+      line(context, 'Note ladder minimum', minimum, 3, minimum, 15, state === 'invalid' ? 15 : 8),
+      line(context, 'Note ladder maximum', maximum, 3, maximum, 15, state === 'invalid' ? 15 : 8),
+      line(context, 'Note ladder input', input, 1, input, 8, shade),
+      line(context, 'Note ladder output', output, 9, output, 16, state === 'idle' ? 6 : 15),
+    ]
+    if (state === 'quantized') primitives.push(line(context, 'Note ladder quantized link', input, 4, output, 13, 12))
+    if (state === 'clamped') primitives.push(box(context, 'Note ladder clamp stop', output, 6, output, 12, 15, true))
+    if (state === 'rejected') primitives.push(line(context, 'Note ladder reject one', context.number('input', 0, 57), 3, context.number('input', 6, 63), 15, 15), line(context, 'Note ladder reject two', context.number('input', 6, 63), 3, context.number('input', 0, 57), 15, 15))
+    if (state === 'invalid') primitives.push(line(context, 'Note ladder invalid range', maximum, 2, minimum, 16, 15))
+    return primitives
+  },
+}
+
 const stepCell: DisplayComponentRecipe = {
   ...common,
   id: 'step-cell',
@@ -2178,6 +2385,51 @@ const pitchCvLane: DisplayComponentRecipe = {
     if (state === 'muted') primitives.push(line(context, 'Pitch lane mute', 3, 18, 116, 1, 5))
     if (state === 'clipped') primitives.push(box(context, 'Pitch lane clip', 108, 0, 119, 2, 15, true))
     if (state === 'error') primitives.push(line(context, 'Pitch lane error one', 52, 4, 66, 16, 15), line(context, 'Pitch lane error two', 66, 4, 52, 16, 15))
+    return primitives
+  },
+}
+
+const eightStepGateRow: DisplayComponentRecipe = {
+  ...common,
+  id: 'eight-step-gate-row',
+  name: 'Eight-step gate row',
+  category: 'sequencing',
+  description: 'A bounded eight-step gate pattern with independent steps, algorithm-owned playhead, output activity, mute, record, and error states.',
+  tags: ['eight step', '8 step', 'gate', 'row', 'sequencer', 'pattern', 'x0x', 'lane'],
+  footprint: { width: 120, height: 12 },
+  states: [{ value: 'stopped', name: 'Stopped' }, { value: 'running', name: 'Running' }, { value: 'recording', name: 'Recording' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'stopped',
+  inputs: [
+    ...Array.from({ length: 8 }, (_, index) => booleanInput(`step${index + 1}`, `Step ${index + 1}`, `Whether gate step ${index + 1} is active.`, index % 3 === 0)),
+    numberInput('playhead', 'Playhead', 'Normalized algorithm-owned current step position.', 0),
+    booleanInput('outputHigh', 'Output high', 'Shows the current script-owned gate output state.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Stopped pattern', state: 'stopped' },
+    { id: 'active', name: 'Running pattern', state: 'running', values: { step1: true, step2: false, step3: true, step4: false, step5: true, step6: false, step7: false, step8: true, playhead: 0.57, outputHigh: true } },
+    { id: 'edge', name: 'Muted lane', state: 'muted', values: { playhead: 1, outputHigh: false } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : state === 'recording' ? 14 : state === 'running' ? 12 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Gate row rail', 4, 6, 115, 6, state === 'muted' ? 2 : 5),
+      line(context, 'Gate row quarter one', 32, 3, 32, 9, 5),
+      line(context, 'Gate row quarter two', 60, 3, 60, 9, 5),
+      line(context, 'Gate row quarter three', 88, 3, 88, 9, 5),
+    ]
+    for (let index = 0; index < 8; index += 1) {
+      const x = 8 + index * 14
+      primitives.push(box(context, `Gate row step ${index + 1}`, x - 2, 3, x + 2, 9, shade, true, context.visible(`step${index + 1}`)))
+    }
+    const playhead = context.number('playhead', 5, 115)
+    primitives.push(
+      line(context, 'Gate row playhead', playhead, 0, playhead, 11, state === 'running' || state === 'recording' ? 15 : 7),
+      box(context, 'Gate row output high', 116, 4, 119, 8, 15, true, context.visible('outputHigh')),
+    )
+    if (state === 'running') primitives.push(line(context, 'Gate row running rail', 4, 1, playhead, 1, 13))
+    if (state === 'recording') primitives.push(circle(context, 'Gate row record mark', 2, 2, 1, 15))
+    if (state === 'muted') primitives.push(line(context, 'Gate row mute', 3, 10, 114, 1, 5))
+    if (state === 'error') primitives.push(line(context, 'Gate row error one', 52, 1, 66, 10, 15), line(context, 'Gate row error two', 66, 1, 52, 10, 15))
     return primitives
   },
 }
@@ -2503,6 +2755,38 @@ const classicClapGlyph: DisplayComponentRecipe = {
   },
 }
 
+const punchyClapGlyph: DisplayComponentRecipe = {
+  ...common,
+  id: 'punchy-clap-glyph',
+  name: 'Punchy hybrid clap glyph',
+  category: 'drums',
+  description: 'An original angular layered-clap glyph for the Punchy hybrid drum family.',
+  tags: ['909-like', 'punchy hybrid', 'clap', 'handclap', 'drum', 'voice', 'percussion', 'transient'],
+  footprint: { width: 18, height: 16 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'hit', name: 'Hit' }, { value: 'accent', name: 'Accent' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [numberInput('snap', 'Snap level', 'Normalized script-owned clap snap or event level.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle', values: { snap: 0.3 } },
+    { id: 'active', name: 'Clap hit', state: 'hit', values: { snap: 0.8 } },
+    { id: 'edge', name: 'Accented clap', state: 'accent', values: { snap: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('snap', 7, 14)
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Punchy clap upper transient', 2, 4, 14, 7, shade),
+      line(context, 'Punchy clap centre transient', 1, 8, 16, 8, state === 'muted' ? 3 : 11),
+      line(context, 'Punchy clap lower transient', 3, 12, 15, 9, shade),
+      tinyText(context, 'Punchy clap label', 17, 15, 'CP', state === 'muted' ? 3 : 9, 'right'),
+    ]
+    if (state === 'hit') primitives.push(box(context, 'Punchy clap hit core', 6, 5, 11, 11, 15, true))
+    if (state === 'accent') primitives.push(box(context, 'Punchy clap accent core', 5, 4, 12, 12, 15), line(context, 'Punchy clap accent rail', 1, 1, 16, 1, 15))
+    if (state === 'muted') primitives.push(line(context, 'Punchy clap mute', 2, 14, 15, 2, 5))
+    if (state === 'error') primitives.push(line(context, 'Punchy clap error one', 2, 2, 15, 14, 15), line(context, 'Punchy clap error two', 15, 2, 2, 14, 15))
+    return primitives
+  },
+}
+
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
   id: 'clock-source-badge',
@@ -2697,6 +2981,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   segmentedSelector,
   pageIndicator,
   focusSelectionBrackets,
+  emptyUnavailableMarker,
   inputJack,
   outputJack,
   bidirectionalJack,
@@ -2706,6 +2991,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   splitMultipleNode,
   mergeMixNode,
   routingMatrixCell,
+  patchLinkFlowLine,
   momentaryButton,
   toggleSwitch,
   horizontalFader,
@@ -2715,6 +3001,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   verticalFader,
   rotaryKnob,
   encoderRing,
+  xyPadVectorPoint,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,
@@ -2730,6 +3017,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   attenuverterProcessor,
   slewProcessor,
   pitchQuantizerProcessor,
+  comparatorProcessor,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
@@ -2739,6 +3027,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   gateTriggerActivity,
   envelopeContour,
   phaseClockRing,
+  noteRangeLadder,
   stepCell,
   valueStepCell,
   playheadCursor,
@@ -2748,6 +3037,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   trackerRow,
   miniKeyboardRow,
   pitchCvLane,
+  eightStepGateRow,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
@@ -2757,6 +3047,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   classicSnareGlyph,
   punchyKickGlyph,
   classicClapGlyph,
+  punchyClapGlyph,
   clockSourceBadge,
   midiActivity,
   i2cActivity,

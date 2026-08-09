@@ -833,26 +833,26 @@ documented shades.
 The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
-compiler and renderer as the artboard. The catalog currently contains 75
+compiler and renderer as the artboard. The catalog currently contains 82
 choices. Layout includes panel frame, section header, status lamp,
 divider/ruler, label/value row, state badge, tabs/segmented selector, and page
-indicator plus focus/selection brackets. Patch and routing includes input,
+indicator plus focus/selection brackets and an empty/unavailable marker. Patch and routing includes input,
 output, bidirectional, stereo
 paired, and normalled jacks, a labelled port tile, split/multiple node, and
-merge/mix node plus a routing-matrix cell. Controls include momentary button,
+merge/mix node plus a routing-matrix cell and patch link/flow line. Controls include momentary button,
 toggle, horizontal, bipolar, and vertical faders, three-way switch, range
-slider, rotary knob, and encoder ring. Signal
+slider, rotary knob, encoder ring, and XY pad/vector point. Signal
 type, waveform, direction, polarity, unit, and channel/voice badges supply the
 signal vocabulary. Processors include attenuator, mixer, clamp,
 sample-and-hold, logic, Bernoulli, attenuverter, slew, and pitch-quantizer
-tiles. Meters include unipolar, bipolar, segmented, vertical channel,
+tiles plus a comparator. Meters include unipolar, bipolar, segmented, vertical channel,
 threshold/window, modulation-range, gate/trigger activity, envelope-contour,
-and phase/clock-ring displays.
+phase/clock-ring, and note/range-ladder displays.
 Sequencing includes step and value-step cells, playhead cursor, loop-range
 bracket, transport and pattern/page strips, tracker row, and mini keyboard note
-row plus an eight-step pitch/CV lane. Drum components include Classic analog
+row plus eight-step pitch/CV and gate lanes. Drum components include Classic analog
 kick, snare, and clap glyphs, Punchy
-hybrid kick and snare glyph/tile artwork, a drum step cell, fill/roll indicator,
+hybrid kick, snare, and clap glyph/tile artwork, a drum step cell, fill/roll indicator,
 and two-voice overview. Clock-source, MIDI, I2C, preset-state, warning/error,
 and busy/progress badges cover system status.
 
