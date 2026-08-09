@@ -314,6 +314,43 @@ const segmentedSelector: DisplayComponentRecipe = {
   },
 }
 
+const pageIndicator: DisplayComponentRecipe = {
+  ...common,
+  id: 'page-indicator',
+  name: 'Page indicator',
+  category: 'layout',
+  description: 'A compact four-page strip with a position marker and explicit wrap, disabled, and error treatments.',
+  tags: ['page', 'position', 'count', 'screen', 'pattern', 'pagination', 'wrapped'],
+  footprint: { width: 48, height: 8 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'wrapped', name: 'Wrapped' }, { value: 'disabled', name: 'Disabled' }, { value: 'error', name: 'Error' }],
+  defaultState: 'normal',
+  inputs: [
+    numberInput('position', 'Page position', 'Normalized page position across the four-page strip.', 0.33),
+    textInput('pageCount', 'Page and count', 'Script-formatted page and count such as 2/4.', '2/4'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Page two of four', state: 'normal' },
+    { id: 'active', name: 'Wrapped to start', state: 'wrapped', values: { position: 0, pageCount: '1/4' } },
+    { id: 'edge', name: 'Unavailable', state: 'disabled', values: { pageCount: '--' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : state === 'error' ? 15 : state === 'wrapped' ? 13 : 8
+    const position = context.number('position', 2, 29)
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Page block one', 1, 2, 5, 6, shade),
+      box(context, 'Page block two', 9, 2, 13, 6, shade),
+      box(context, 'Page block three', 17, 2, 21, 6, shade),
+      box(context, 'Page block four', 25, 2, 29, 6, shade),
+      line(context, 'Page position', position, 0, position, 7, state === 'disabled' ? 3 : 15),
+      tinyText(context, 'Page count', 47, 7, context.text('pageCount'), shade, 'right'),
+    ]
+    if (state === 'wrapped') primitives.push(line(context, 'Page wrap start', 0, 0, 0, 7, 15), line(context, 'Page wrap end', 30, 0, 30, 7, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Page disabled mark', 1, 7, 29, 0, 3))
+    if (state === 'error') primitives.push(line(context, 'Page error one', 33, 1, 39, 7, 15), line(context, 'Page error two', 39, 1, 33, 7, 15))
+    return primitives
+  },
+}
+
 const inputJack: DisplayComponentRecipe = {
   ...common,
   id: 'input-jack',
@@ -570,6 +607,45 @@ const splitMultipleNode: DisplayComponentRecipe = {
   },
 }
 
+const mergeMixNode: DisplayComponentRecipe = {
+  ...common,
+  id: 'merge-mix-node',
+  name: 'Merge mix node',
+  category: 'patching',
+  description: 'A three-to-one routing node with independent input activity and a clipped output apex.',
+  tags: ['merge', 'mix', 'sum', 'many to one', 'routing', 'combine'],
+  footprint: { width: 28, height: 18 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'active', name: 'Active' }, { value: 'saturated', name: 'Saturated' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'idle',
+  inputs: [
+    booleanInput('upperActive', 'Upper input active', 'Highlights the upper input branch.'),
+    booleanInput('middleActive', 'Middle input active', 'Highlights the middle input branch.'),
+    booleanInput('lowerActive', 'Lower input active', 'Highlights the lower input branch.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle merge', state: 'idle' },
+    { id: 'active', name: 'Mixed inputs', state: 'active', values: { upperActive: true, lowerActive: true } },
+    { id: 'edge', name: 'Saturated output', state: 'saturated', values: { upperActive: true, middleActive: true, lowerActive: true } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : state === 'saturated' ? 15 : state === 'active' ? 13 : 5
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Merge upper branch', 0, 2, 13, 8, shade),
+      line(context, 'Merge middle branch', 0, 9, 13, 9, shade),
+      line(context, 'Merge lower branch', 0, 16, 13, 10, shade),
+      box(context, 'Merge node', 13, 6, 18, 12, shade, state === 'active' || state === 'saturated'),
+      line(context, 'Merge output', 18, 9, 27, 9, shade),
+      box(context, 'Merge upper activity', 0, 0, 3, 3, 15, true, context.visible('upperActive')),
+      box(context, 'Merge middle activity', 0, 7, 3, 10, 15, true, context.visible('middleActive')),
+      box(context, 'Merge lower activity', 0, 14, 3, 17, 15, true, context.visible('lowerActive')),
+    ]
+    if (state === 'active') primitives.push(circle(context, 'Merge active centre', 16, 9, 1, 15))
+    if (state === 'saturated') primitives.push(box(context, 'Merge saturation apex', 24, 6, 27, 8, 15, true))
+    if (state === 'disabled') primitives.push(line(context, 'Merge disabled mark', 4, 1, 24, 16, 3))
+    return primitives
+  },
+}
+
 const momentaryButton: DisplayComponentRecipe = {
   ...common,
   id: 'momentary-button',
@@ -798,6 +874,44 @@ const verticalFader: DisplayComponentRecipe = {
     if (state === 'focused') primitives.push(line(context, 'Vertical fader focus left', 0, 0, 0, 39, 15), line(context, 'Vertical fader focus right', 11, 0, 11, 39, 15))
     if (state === 'at-limit') primitives.push(box(context, 'Vertical fader upper stop', 2, 0, 9, 2, 15, true))
     if (state === 'disabled') primitives.push(line(context, 'Vertical fader disabled mark', 1, 36, 10, 3, 3))
+    return primitives
+  },
+}
+
+const rotaryKnob: DisplayComponentRecipe = {
+  ...common,
+  id: 'rotary-knob',
+  name: 'Rotary knob',
+  category: 'controls',
+  description: 'A compact continuous control with base, effective, focus, limit, and disabled marks.',
+  tags: ['rotary', 'knob', 'pot', 'continuous', 'angle', 'modulated'],
+  footprint: { width: 18, height: 18 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'focused', name: 'Focused' }, { value: 'modulated', name: 'Modulated' }, { value: 'at-limit', name: 'At limit' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'normal',
+  inputs: [
+    numberInput('value', 'Value', 'Normalized base knob value.', 0.5),
+    numberInput('effective', 'Effective value', 'Normalized script-owned effective value after modulation.', 0.7),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Midpoint', state: 'normal' },
+    { id: 'active', name: 'Modulated high', state: 'modulated', values: { value: 0.35, effective: 0.8 } },
+    { id: 'edge', name: 'Upper limit', state: 'at-limit', values: { value: 1, effective: 1 } },
+  ],
+  build: (context, state) => {
+    const base = context.number('value', 3, 15)
+    const effective = context.number('effective', 3, 15)
+    const shade = state === 'disabled' ? 3 : state === 'focused' || state === 'at-limit' ? 15 : 10
+    const primitives: DisplayPrimitiveElement[] = [
+      circle(context, 'Rotary knob ring', 9, 9, 7, shade),
+      circle(context, 'Rotary knob hub', 9, 9, 2, state === 'disabled' ? 3 : 8),
+      line(context, 'Rotary base pointer', 9, 9, base, 4, state === 'modulated' ? 6 : shade),
+      line(context, 'Rotary lower tick', 2, 15, 4, 13, 5),
+      line(context, 'Rotary upper tick', 16, 15, 14, 13, 5),
+    ]
+    if (state === 'modulated') primitives.push(line(context, 'Rotary effective pointer', 9, 9, effective, 3, 15), line(context, 'Rotary modulation chord', base, 4, effective, 3, 8))
+    if (state === 'focused') primitives.push(line(context, 'Rotary focus top', 3, 0, 15, 0, 15), line(context, 'Rotary focus bottom', 3, 17, 15, 17, 15))
+    if (state === 'at-limit') primitives.push(box(context, 'Rotary limit mark', 14, 1, 17, 4, 15, true))
+    if (state === 'disabled') primitives.push(line(context, 'Rotary disabled mark', 3, 15, 15, 3, 3))
     return primitives
   },
 }
@@ -1270,6 +1384,48 @@ const attenuverterProcessor: DisplayComponentRecipe = {
   },
 }
 
+const slewProcessor: DisplayComponentRecipe = {
+  ...common,
+  id: 'slew-processor',
+  name: 'Slew processor',
+  category: 'processors',
+  description: 'A time-response tile that distinguishes rising, falling, holding, bypass, and error states.',
+  tags: ['slew', 'lag', 'glide', 'smoothing', 'low pass', 'rise', 'fall', 'time response'],
+  footprint: { width: 44, height: 20 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'rising', name: 'Rising' }, { value: 'falling', name: 'Falling' }, { value: 'holding', name: 'Holding' }, { value: 'bypassed', name: 'Bypassed' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('input', 'Input level', 'Normalized current input level.', 0.7),
+    numberInput('output', 'Output level', 'Normalized current slewed output level.', 0.45),
+    numberInput('rate', 'Slew rate', 'Normalized rise or fall rate marker.', 0.5),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle' },
+    { id: 'active', name: 'Rising output', state: 'rising', values: { input: 0.85, output: 0.5, rate: 0.7 } },
+    { id: 'edge', name: 'Bypassed', state: 'bypassed', values: { input: 0.9, output: 0.9, rate: 1 } },
+  ],
+  build: (context, state) => {
+    const inputY = context.number('input', 16, 3)
+    const outputY = context.number('output', 16, 3)
+    const rateX = context.number('rate', 14, 31)
+    const shade = state === 'error' ? 15 : state === 'bypassed' ? 4 : state === 'rising' || state === 'falling' ? 13 : state === 'holding' ? 10 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Slew input', 0, inputY, 8, inputY, shade),
+      box(context, 'Slew body', 8, 1, 35, 18, shade),
+      line(context, 'Slew response start', 11, inputY, rateX, outputY, shade),
+      line(context, 'Slew response end', rateX, outputY, 32, outputY, shade),
+      line(context, 'Slew output', 35, outputY, 43, outputY, shade),
+      line(context, 'Slew rate marker', rateX, 3, rateX, 16, state === 'idle' ? 6 : 15),
+    ]
+    if (state === 'rising') primitives.push(line(context, 'Slew rise head left', 32, outputY, 29, 3, 15))
+    if (state === 'falling') primitives.push(line(context, 'Slew fall head right', 32, outputY, 29, 16, 15))
+    if (state === 'holding') primitives.push(box(context, 'Slew hold mark', 20, 7, 23, 11, 12, true))
+    if (state === 'bypassed') primitives.push(line(context, 'Slew bypass', 2, 1, 41, 1, 10))
+    if (state === 'error') primitives.push(line(context, 'Slew error one', 16, 4, 28, 16, 15), line(context, 'Slew error two', 28, 4, 16, 16, 15))
+    return primitives
+  },
+}
+
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
   id: 'unipolar-bar-meter',
@@ -1502,6 +1658,53 @@ const gateTriggerActivity: DisplayComponentRecipe = {
   },
 }
 
+const envelopeContour: DisplayComponentRecipe = {
+  ...common,
+  id: 'envelope-contour',
+  name: 'Envelope contour',
+  category: 'meters',
+  description: 'An ADSR contour with script-owned stage geometry and a distinct current phase and level marker.',
+  tags: ['envelope', 'adsr', 'attack', 'decay', 'sustain', 'release', 'contour', 'slew'],
+  footprint: { width: 64, height: 24 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'gated', name: 'Gated' }, { value: 'released', name: 'Released' }, { value: 'finished', name: 'Finished' }, { value: 'invalid', name: 'Invalid' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('attack', 'Attack time', 'Normalized attack duration mapped into the attack segment.', 0.45),
+    numberInput('decay', 'Decay time', 'Normalized decay duration mapped into the decay segment.', 0.45),
+    numberInput('sustain', 'Sustain level', 'Normalized sustain level.', 0.6),
+    numberInput('release', 'Release time', 'Normalized release duration mapped into the release segment.', 0.55),
+    numberInput('phase', 'Current phase', 'Normalized script-owned position across the complete contour.', 0.3),
+    numberInput('level', 'Current level', 'Normalized script-owned current envelope level.', 0.75),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle contour', state: 'idle', values: { phase: 0, level: 0 } },
+    { id: 'active', name: 'Gate held', state: 'gated', values: { attack: 0.35, decay: 0.5, sustain: 0.65, phase: 0.42, level: 0.72 } },
+    { id: 'edge', name: 'Invalid stages', state: 'invalid', values: { attack: 1, decay: 1, sustain: 0, release: 1, phase: 0.5, level: 0 } },
+  ],
+  build: (context, state) => {
+    const attackX = context.number('attack', 6, 18)
+    const decayX = context.number('decay', 22, 34)
+    const sustainY = context.number('sustain', 20, 7)
+    const releaseX = context.number('release', 48, 61)
+    const phaseX = context.number('phase', 3, 61)
+    const levelY = context.number('level', 20, 3)
+    const shade = state === 'invalid' ? 15 : state === 'gated' ? 13 : state === 'released' ? 11 : state === 'finished' ? 5 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Envelope baseline', 2, 21, 62, 21, state === 'finished' ? 3 : 4),
+      line(context, 'Envelope attack', 3, 20, attackX, 3, shade),
+      line(context, 'Envelope decay', attackX, 3, decayX, sustainY, shade),
+      line(context, 'Envelope sustain', decayX, sustainY, 45, sustainY, shade),
+      line(context, 'Envelope release', 45, sustainY, releaseX, 20, shade),
+      circle(context, 'Envelope current point', phaseX, levelY, state === 'gated' ? 2 : 1, state === 'finished' ? 5 : 15),
+    ]
+    if (state === 'gated') primitives.push(line(context, 'Envelope gate rail', 1, 1, 1, 20, 15))
+    if (state === 'released') primitives.push(line(context, 'Envelope release marker', 45, sustainY, 45, 21, 15))
+    if (state === 'finished') primitives.push(box(context, 'Envelope finished mark', 59, 19, 62, 22, 6, true))
+    if (state === 'invalid') primitives.push(line(context, 'Envelope invalid one', 26, 5, 38, 18, 15), line(context, 'Envelope invalid two', 38, 5, 26, 18, 15))
+    return primitives
+  },
+}
+
 const stepCell: DisplayComponentRecipe = {
   ...common,
   id: 'step-cell',
@@ -1728,6 +1931,41 @@ const trackerRow: DisplayComponentRecipe = {
     if (state === 'current') primitives.push(line(context, 'Tracker current pointer', 0, 0, 5, 4, 15), line(context, 'Tracker current pointer lower', 5, 4, 0, 8, 15))
     if (state === 'muted') primitives.push(line(context, 'Tracker mute', 2, 8, 117, 1, 5))
     if (state === 'empty') primitives.push(line(context, 'Tracker empty rail', 48, 5, 103, 5, 3))
+    return primitives
+  },
+}
+
+const miniKeyboardRow: DisplayComponentRecipe = {
+  ...common,
+  id: 'mini-keyboard-row',
+  name: 'Mini keyboard note row',
+  category: 'sequencing',
+  description: 'A one-octave note row with separate note, root, output, rejection, and disabled marks.',
+  tags: ['keyboard', 'note', 'piano', 'octave', 'scale', 'root', 'quantizer', 'chord'],
+  footprint: { width: 72, height: 14 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'input', name: 'Input note' }, { value: 'output', name: 'Output note' }, { value: 'rejected', name: 'Rejected' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('note', 'Note position', 'Normalized active note position across the octave.', 0.5),
+    numberInput('root', 'Root position', 'Normalized scale-root position across the octave.', 0),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle octave', state: 'idle' },
+    { id: 'active', name: 'Quantized output', state: 'output', values: { note: 0.58, root: 0 } },
+    { id: 'edge', name: 'Rejected note', state: 'rejected', values: { note: 0.92, root: 0.25 } },
+  ],
+  build: (context, state) => {
+    const note = context.number('note', 2, 69)
+    const root = context.number('root', 2, 69)
+    const shade = state === 'disabled' ? 2 : state === 'rejected' ? 15 : state === 'output' ? 14 : state === 'input' ? 10 : 6
+    const primitives: DisplayPrimitiveElement[] = [box(context, 'Keyboard frame', 0, 0, 71, 13, shade)]
+    for (const x of [10, 20, 30, 40, 50, 60]) primitives.push(line(context, `Keyboard white divider ${x}`, x, 1, x, 12, shade))
+    for (const x of [7, 17, 37, 47, 57]) primitives.push(box(context, `Keyboard black key ${x}`, x, 1, x + 5, 6, state === 'disabled' ? 2 : 8, true))
+    primitives.push(line(context, 'Keyboard root', root, 10, root, 13, state === 'disabled' ? 3 : 12))
+    if (state !== 'idle' && state !== 'disabled') primitives.push(box(context, 'Keyboard active note', note, 7, note, 11, shade, true))
+    if (state === 'output') primitives.push(line(context, 'Keyboard output mark', note, 5, note, 12, 15))
+    if (state === 'rejected') primitives.push(line(context, 'Keyboard rejection one', note, 5, note, 12, 15), line(context, 'Keyboard rejection two', context.number('note', 0, 67), 8, context.number('note', 4, 71), 8, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Keyboard disabled mark', 2, 12, 69, 1, 3))
     return primitives
   },
 }
@@ -1989,6 +2227,38 @@ const classicSnareGlyph: DisplayComponentRecipe = {
   },
 }
 
+const punchyKickGlyph: DisplayComponentRecipe = {
+  ...common,
+  id: 'punchy-kick-glyph',
+  name: 'Punchy hybrid kick glyph',
+  category: 'drums',
+  description: 'An original angular shell-and-transient kick glyph for the Punchy hybrid drum family.',
+  tags: ['909-like', 'punchy hybrid', 'kick', 'drum', 'voice', 'percussion', 'transient'],
+  footprint: { width: 18, height: 16 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'hit', name: 'Hit' }, { value: 'accent', name: 'Accent' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [numberInput('body', 'Body level', 'Normalized script-owned body and transient level.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle', values: { body: 0.3 } },
+    { id: 'active', name: 'Kick hit', state: 'hit', values: { body: 0.8 } },
+    { id: 'edge', name: 'Accented hit', state: 'accent', values: { body: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('body', 7, 14)
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Punchy kick shell', 2, 5, 13, 14, shade),
+      line(context, 'Punchy kick face', 5, 3, 15, 8, shade),
+      line(context, 'Punchy kick transient', 15, 8, 17, 2, state === 'accent' ? 15 : 10),
+      tinyText(context, 'Punchy kick label', 17, 15, 'K', state === 'muted' ? 3 : 9, 'right'),
+    ]
+    if (state === 'hit') primitives.push(box(context, 'Punchy kick hit core', 5, 8, 10, 12, 15, true))
+    if (state === 'accent') primitives.push(box(context, 'Punchy kick accent core', 4, 7, 11, 13, 15, true), line(context, 'Punchy kick accent rail', 1, 1, 15, 1, 15))
+    if (state === 'muted') primitives.push(line(context, 'Punchy kick mute', 1, 14, 15, 2, 5))
+    if (state === 'error') primitives.push(line(context, 'Punchy kick error one', 2, 2, 15, 14, 15), line(context, 'Punchy kick error two', 15, 2, 2, 14, 15))
+    return primitives
+  },
+}
+
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
   id: 'clock-source-badge',
@@ -2181,6 +2451,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   labelValueRow,
   stateBadge,
   segmentedSelector,
+  pageIndicator,
   inputJack,
   outputJack,
   bidirectionalJack,
@@ -2188,6 +2459,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   normalledPair,
   labelledPortTile,
   splitMultipleNode,
+  mergeMixNode,
   momentaryButton,
   toggleSwitch,
   horizontalFader,
@@ -2195,6 +2467,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   bipolarFader,
   rangeSlider,
   verticalFader,
+  rotaryKnob,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,
@@ -2208,6 +2481,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   logicProcessor,
   bernoulliRouter,
   attenuverterProcessor,
+  slewProcessor,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
@@ -2215,6 +2489,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   thresholdWindowMeter,
   modulationRangeMeter,
   gateTriggerActivity,
+  envelopeContour,
   stepCell,
   valueStepCell,
   playheadCursor,
@@ -2222,6 +2497,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   transportStrip,
   patternPageStrip,
   trackerRow,
+  miniKeyboardRow,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
@@ -2229,6 +2505,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   drumOverview,
   punchySnareGlyph,
   classicSnareGlyph,
+  punchyKickGlyph,
   clockSourceBadge,
   midiActivity,
   i2cActivity,

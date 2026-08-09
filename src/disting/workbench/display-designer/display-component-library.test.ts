@@ -81,7 +81,17 @@ const SIXTH_WAVE_COMPONENT_IDS = [
   'classic-snare-glyph',
 ] as const
 
-const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS] as const
+const SEVENTH_WAVE_COMPONENT_IDS = [
+  'page-indicator',
+  'merge-mix-node',
+  'rotary-knob',
+  'slew-processor',
+  'envelope-contour',
+  'mini-keyboard-row',
+  'punchy-kick-glyph',
+] as const
+
+const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS] as const
 
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
@@ -96,16 +106,16 @@ function recipe(id: string) {
 describe('display component library', () => {
   it('ships the expected valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(61)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(68)
     const expectedCategoryCounts = {
-      layout: 7,
-      patching: 7,
-      controls: 7,
+      layout: 8,
+      patching: 8,
+      controls: 8,
       signals: 6,
-      processors: 7,
-      meters: 7,
-      sequencing: 7,
-      drums: 7,
+      processors: 8,
+      meters: 8,
+      sequencing: 8,
+      drums: 8,
       status: 6,
     } as const
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
@@ -116,6 +126,7 @@ describe('display component library', () => {
     expect(FOURTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(FOURTH_WAVE_COMPONENT_IDS)
     expect(FIFTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(FIFTH_WAVE_COMPONENT_IDS)
     expect(SIXTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(SIXTH_WAVE_COMPONENT_IDS)
+    expect(SEVENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(SEVENTH_WAVE_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
@@ -127,9 +138,10 @@ describe('display component library', () => {
       'drum-overview',
       'punchy-snare-glyph',
       'classic-snare-glyph',
+      'punchy-kick-glyph',
     ])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph', 'classic-snare-glyph'])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '909-like').map(({ id }) => id)).toEqual(['drum-voice-tile', 'punchy-snare-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '909-like').map(({ id }) => id)).toEqual(['drum-voice-tile', 'punchy-snare-glyph', 'punchy-kick-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'random voltage').map(({ id }) => id)).toEqual(['sample-hold-processor'])
@@ -137,6 +149,8 @@ describe('display component library', () => {
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'io overview').map(({ id }) => id)).toEqual(['labelled-port-tile'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'one to many').map(({ id }) => id)).toEqual(['split-multiple-node'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'tracker event').map(({ id }) => id)).toEqual(['tracker-row'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'many to one').map(({ id }) => id)).toEqual(['merge-mix-node'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'ADSR contour').map(({ id }) => id)).toEqual(['envelope-contour'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
   })
 

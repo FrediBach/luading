@@ -833,23 +833,24 @@ documented shades.
 The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
-compiler and renderer as the artboard. The catalog currently contains 61
+compiler and renderer as the artboard. The catalog currently contains 68
 choices. Layout includes panel frame, section header, status lamp,
-divider/ruler, label/value row, state badge, and tabs/segmented selector. Patch
-and routing includes input, output, bidirectional, stereo paired, and normalled
-jacks, a labelled port tile, and a split/multiple node. Controls include
-momentary button, toggle, horizontal, bipolar, and vertical faders, three-way
-switch, and range slider. Signal type, waveform, direction, polarity, unit, and
-channel/voice badges supply the signal vocabulary. Processors include
-attenuator, mixer, clamp, sample-and-hold, logic, Bernoulli, and attenuverter
-tiles. Meters include unipolar, bipolar, segmented, vertical channel,
-threshold/window, modulation-range, and gate/trigger activity displays.
+divider/ruler, label/value row, state badge, tabs/segmented selector, and page
+indicator. Patch and routing includes input, output, bidirectional, stereo
+paired, and normalled jacks, a labelled port tile, split/multiple node, and
+merge/mix node. Controls include momentary button, toggle, horizontal, bipolar,
+and vertical faders, three-way switch, range slider, and rotary knob. Signal
+type, waveform, direction, polarity, unit, and channel/voice badges supply the
+signal vocabulary. Processors include attenuator, mixer, clamp,
+sample-and-hold, logic, Bernoulli, attenuverter, and slew tiles. Meters include
+unipolar, bipolar, segmented, vertical channel, threshold/window,
+modulation-range, gate/trigger activity, and envelope-contour displays.
 Sequencing includes step and value-step cells, playhead cursor, loop-range
-bracket, transport and pattern/page strips, and a tracker row. Drum components
-include Classic analog kick and snare glyphs, Punchy hybrid glyph/tile artwork,
-a drum step cell, fill/roll indicator, and two-voice overview. Clock-source,
-MIDI, I2C, preset-state, warning/error, and busy/progress badges cover system
-status.
+bracket, transport and pattern/page strips, tracker row, and mini keyboard note
+row. Drum components include Classic analog kick and snare glyphs, Punchy
+hybrid kick and snare glyph/tile artwork, a drum step cell, fill/roll indicator,
+and two-voice overview. Clock-source, MIDI, I2C, preset-state, warning/error,
+and busy/progress badges cover system status.
 
 **Insert** adds one local symbol, a choice binding for its named visual states,
 any number/boolean/text bindings used by the artwork, and one selected instance

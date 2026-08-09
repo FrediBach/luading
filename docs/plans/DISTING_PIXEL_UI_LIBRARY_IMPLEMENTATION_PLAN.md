@@ -2,10 +2,10 @@
 
 ## Status
 
-Proposed on 2026-08-08. Implementation began on 2026-08-08. The first six
+Proposed on 2026-08-08. Implementation began on 2026-08-08. The first seven
 catalog waves now provide the typed catalog/materializer, searchable Components
-panel, scenario previews, and 61 atomic recipes. Seven categories now contain
-seven components; Signal vocabulary and System status contain six each and
+panel, scenario previews, and 68 atomic recipes. Seven categories now contain
+eight components; Signal vocabulary and System status contain six each and
 their reference tables are represented in full. Screen recipes, independent-
 copy workflow, the remaining catalog artwork, and later increments remain
 proposed.
@@ -18,6 +18,7 @@ proposed.
 | Fourth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added one component in every category: label/value row, normalled pair, bipolar fader, unit badge, logic processor, threshold/window meter, transport strip, two-voice drum overview, and warning/error banner. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call atomic budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery again returned no in-app or Chrome backend; real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 | Fifth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added one component in every category: state badge, labelled port tile, range slider, channel/voice badge, Bernoulli router, modulation-range meter, pattern/page strip, Punchy hybrid snare glyph, and busy/progress indicator. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call atomic budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Browser discovery again returned no in-app or Chrome backend, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 | Sixth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added the next atomic component in each category whose reference table still had unimplemented entries: tabs/segmented selector, split/multiple node, vertical fader, attenuverter processor, gate/trigger activity, tracker row, and Classic analog snare glyph. Signal vocabulary and System status already cover their complete reference tables, so this wave does not invent entries for those categories. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call atomic budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no registered in-app or Chrome backend; real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
+| Seventh atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added page indicator, merge/mix node, rotary knob, slew processor, envelope contour, mini keyboard/note row, and Punchy hybrid kick glyph. Signal vocabulary and System status remain complete and unchanged. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call atomic budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no registered in-app or Chrome backend; real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 
 ### Implemented component inventory
 
@@ -26,14 +27,14 @@ reference catalog below. Components not listed here remain proposed.
 
 | Category | Implemented recipes |
 | --- | --- |
-| Layout, labels, and status | Panel/frame; Section header; Status lamp; Divider/ruler; Label/value row; State badge; Tabs/segmented selector |
-| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack; Stereo/paired jacks; Normalled pair; Labelled port tile; Split/multiple node |
-| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader; Three-way switch; Bipolar fader; Range slider; Vertical fader |
+| Layout, labels, and status | Panel/frame; Section header; Status lamp; Divider/ruler; Label/value row; State badge; Tabs/segmented selector; Page indicator |
+| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack; Stereo/paired jacks; Normalled pair; Labelled port tile; Split/multiple node; Merge/mix node |
+| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader; Three-way switch; Bipolar fader; Range slider; Vertical fader; Rotary knob |
 | Signal vocabulary | Signal-type badge (audio, CV, gate, and clock choices); Waveform glyph (sine, triangle, square, and sample-and-hold choices); Direction badge; Polarity/range badge; Unit badge; Channel/voice badge |
-| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor; Sample-and-hold processor; Logic processor (AND, OR, XOR, and NOT choices); Bernoulli router; Attenuverter processor |
-| Meters, ranges, and graphs | Unipolar bar meter; Bipolar bar meter; Segmented meter; Vertical channel meter; Threshold/window meter; Modulation-range meter; Gate/trigger activity |
-| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor; Loop-range bracket; Transport strip; Pattern/page strip; Tracker row |
-| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell; Fill/roll indicator; Two-voice drum overview; Punchy hybrid snare glyph; Classic analog snare glyph |
+| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor; Sample-and-hold processor; Logic processor (AND, OR, XOR, and NOT choices); Bernoulli router; Attenuverter processor; Slew processor |
+| Meters, ranges, and graphs | Unipolar bar meter; Bipolar bar meter; Segmented meter; Vertical channel meter; Threshold/window meter; Modulation-range meter; Gate/trigger activity; Envelope contour |
+| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor; Loop-range bracket; Transport strip; Pattern/page strip; Tracker row; Mini keyboard/note row |
+| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell; Fill/roll indicator; Two-voice drum overview; Punchy hybrid snare glyph; Classic analog snare glyph; Punchy hybrid kick glyph |
 | Clock, MIDI, I2C, and state status | Clock-source badge; MIDI activity; I2C activity; Preset/state marker; Warning/error banner; Busy/progress indicator |
 
 This is the next authoring layer above the existing
