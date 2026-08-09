@@ -2,13 +2,15 @@
 
 ## Status
 
-Proposed on 2026-08-08. Implementation began on 2026-08-08. The first eleven
+Proposed on 2026-08-08. Implementation began on 2026-08-08. The first twelve
 catalog waves now provide the typed catalog/materializer, searchable Components
-panel, scenario previews, and 94 recipes. Six still-growing categories now
-contain twelve components; Layout contains ten, while Signal vocabulary and
-System status contain six each. Layout, Signal vocabulary, Meters, and System
-status are represented in full; every processor family now has at least one
-representative, while several families still lack their full operation breadth.
+panel, scenario previews, and 99 recipes. Patch points and routing, Controls,
+Processors, Sequencing, and Drums now contain thirteen components each; Meters
+contains twelve, Layout contains ten, and Signal vocabulary and System status
+contain six each. Layout, Patch points and routing, Controls, Signal vocabulary,
+Meters, and System status are represented in full; every processor family has
+at least one representative, while several families still lack their full
+operation breadth.
 Screen recipes, independent-
 copy workflow, the remaining catalog artwork, and later increments remain
 proposed.
@@ -26,6 +28,7 @@ proposed.
 | Ninth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added empty/unavailable marker, patch link/flow line, XY pad/vector point, comparator processor, note/range ladder, eight-step gate row, and Punchy hybrid clap glyph. The route uses the designer's existing deterministic animated-line expansion; the XY vector is explicitly supplied state rather than inferred motion history; and the gate row uses eight explicit boolean bindings within version-9 resource limits. Signal vocabulary and System status remain complete and unchanged. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Browser discovery returned no registered in-app or Chrome backend, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 | Tenth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added bus rail/tap, soft-takeover control, clock-transform processor, XY/vector meter, eight-step probability/accent lane, and Classic analog rim/claves glyph. Bus taps, clock validity/pulses, XY position/radius, recent random decisions, and drum hits remain explicit script-owned inputs. The probability lane uses eight scalar bindings and stays within version-9 resource limits. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Browser discovery returned no registered in-app or Chrome backend, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 | Eleventh atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added router/switch, numeric/unit readout, feedback utility, bounded eight-sample scope strip, eight-step Euclidean ring, and Punchy hybrid rim/claves glyph. Route changes, formatted values, feedback stability, chronological history samples, Euclidean hits/position/rotation, and drum events remain explicit script-owned inputs. The scope strip uses eight scalar bindings rather than an unbounded data-series type, satisfying the bounded real-history condition while preserving version-9 limits. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no registered backends, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
+| Twelfth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added send/return loop, choice readout, gain/VCA processor, four-stage strip, and Classic analog closed hi-hat glyph. Return activity, choice formatting and pending state, VCA control activity, stage levels/current stage/gate, and closed-hat events remain explicit script-owned inputs. This wave completes the Patch points and routing and Controls reference tables. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no registered in-app or Chrome backends; real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 
 ### Implemented component inventory
 
@@ -35,14 +38,31 @@ reference catalog below. Components not listed here remain proposed.
 | Category | Implemented recipes |
 | --- | --- |
 | Layout, labels, and status | Panel/frame; Section header; Status lamp; Divider/ruler; Label/value row; State badge; Tabs/segmented selector; Page indicator; Focus/selection brackets; Empty/unavailable marker |
-| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack; Stereo/paired jacks; Normalled pair; Labelled port tile; Split/multiple node; Merge/mix node; Routing matrix cell; Patch link/flow line; Bus rail and tap; Router/switch |
-| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader; Three-way switch; Bipolar fader; Range slider; Vertical fader; Rotary knob; Encoder ring; XY pad/vector point; Soft-takeover control; Numeric/unit readout |
+| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack; Stereo/paired jacks; Normalled pair; Labelled port tile; Split/multiple node; Merge/mix node; Routing matrix cell; Patch link/flow line; Bus rail and tap; Router/switch; Send/return loop |
+| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader; Three-way switch; Bipolar fader; Range slider; Vertical fader; Rotary knob; Encoder ring; XY pad/vector point; Soft-takeover control; Numeric/unit readout; Choice readout |
 | Signal vocabulary | Signal-type badge (audio, CV, gate, and clock choices); Waveform glyph (sine, triangle, square, and sample-and-hold choices); Direction badge; Polarity/range badge; Unit badge; Channel/voice badge |
-| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor; Sample-and-hold processor; Logic processor (AND, OR, XOR, and NOT choices); Bernoulli router; Attenuverter processor; Slew processor; Pitch quantizer processor; Comparator processor; Clock-transform processor; Feedback utility |
+| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor; Sample-and-hold processor; Logic processor (AND, OR, XOR, and NOT choices); Bernoulli router; Attenuverter processor; Gain/VCA processor; Slew processor; Pitch quantizer processor; Comparator processor; Clock-transform processor; Feedback utility |
 | Meters, ranges, and graphs | Unipolar bar meter; Bipolar bar meter; Segmented meter; Vertical channel meter; Threshold/window meter; Modulation-range meter; Gate/trigger activity; Envelope contour; Phase/clock ring; Note/range ladder; XY/vector meter; Bounded scope strip |
-| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor; Loop-range bracket; Transport strip; Pattern/page strip; Tracker row; Mini keyboard/note row; Eight-step pitch/CV lane; Eight-step gate row; Eight-step probability/accent lane; Eight-step Euclidean ring |
-| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell; Fill/roll indicator; Two-voice drum overview; Punchy hybrid snare glyph; Classic analog snare glyph; Punchy hybrid kick glyph; Classic analog clap glyph; Punchy hybrid clap glyph; Classic analog rim/claves glyph; Punchy hybrid rim/claves glyph |
+| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor; Loop-range bracket; Transport strip; Pattern/page strip; Tracker row; Mini keyboard/note row; Eight-step pitch/CV lane; Eight-step gate row; Eight-step probability/accent lane; Eight-step Euclidean ring; Four-stage strip |
+| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell; Fill/roll indicator; Two-voice drum overview; Punchy hybrid snare glyph; Classic analog snare glyph; Punchy hybrid kick glyph; Classic analog clap glyph; Punchy hybrid clap glyph; Classic analog rim/claves glyph; Punchy hybrid rim/claves glyph; Classic analog closed hi-hat glyph |
 | Clock, MIDI, I2C, and state status | Clock-source badge; MIDI activity; I2C activity; Preset/state marker; Warning/error banner; Busy/progress indicator |
+
+### Current completeness
+
+- 99 atomic recipes are implemented and marked in the inventory above.
+- Layout is 10/10, Patch points and routing is 13/13, Controls is 13/13,
+  Signal vocabulary is 6/6, Meters is 12/12, and System status is 6/6 against
+  their reference tables.
+- Sequencing has 13 recipes; the separate reusable 8/16-step row assembly
+  remains proposed. The implemented eight-step gate row covers the gate-lane
+  entry, and the new four-stage strip covers the stage-strip entry.
+- Every processor family is represented, but the full operation lists within
+  those families remain incomplete. The drum table still lacks the 8/16-step
+  drum lane and radial groove/rhythm ring, and both original glyph packs still
+  lack several instruments.
+- Screen recipes, Make independent copy, gallery density/display-mode filters,
+  drag-to-place, and later increments remain proposed. Live browser, physical
+  1x pixel-density, and Disting hardware review remain pending.
 
 This is the next authoring layer above the existing
 [Display designer](DISPLAY_UI_DESIGNER_IMPLEMENTATION_PLAN.md). The designer

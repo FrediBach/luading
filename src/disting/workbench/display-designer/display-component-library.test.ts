@@ -129,7 +129,15 @@ const ELEVENTH_WAVE_COMPONENT_IDS = [
   'punchy-rim-claves-glyph',
 ] as const
 
-const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS, ...EIGHTH_WAVE_COMPONENT_IDS, ...NINTH_WAVE_COMPONENT_IDS, ...TENTH_WAVE_COMPONENT_IDS, ...ELEVENTH_WAVE_COMPONENT_IDS] as const
+const TWELFTH_WAVE_COMPONENT_IDS = [
+  'send-return-loop',
+  'choice-readout',
+  'gain-vca-processor',
+  'four-stage-strip',
+  'classic-closed-hi-hat-glyph',
+] as const
+
+const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS, ...EIGHTH_WAVE_COMPONENT_IDS, ...NINTH_WAVE_COMPONENT_IDS, ...TENTH_WAVE_COMPONENT_IDS, ...ELEVENTH_WAVE_COMPONENT_IDS, ...TWELFTH_WAVE_COMPONENT_IDS] as const
 
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
@@ -144,16 +152,16 @@ function recipe(id: string) {
 describe('display component library', () => {
   it('ships the expected valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(94)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(99)
     const expectedCategoryCounts = {
       layout: 10,
-      patching: 12,
-      controls: 12,
+      patching: 13,
+      controls: 13,
       signals: 6,
-      processors: 12,
+      processors: 13,
       meters: 12,
-      sequencing: 12,
-      drums: 12,
+      sequencing: 13,
+      drums: 13,
       status: 6,
     } as const
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
@@ -169,6 +177,7 @@ describe('display component library', () => {
     expect(NINTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(NINTH_WAVE_COMPONENT_IDS)
     expect(TENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(TENTH_WAVE_COMPONENT_IDS)
     expect(ELEVENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(ELEVENTH_WAVE_COMPONENT_IDS)
+    expect(TWELFTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(TWELFTH_WAVE_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
@@ -185,8 +194,9 @@ describe('display component library', () => {
       'punchy-clap-glyph',
       'classic-rim-claves-glyph',
       'punchy-rim-claves-glyph',
+      'classic-closed-hi-hat-glyph',
     ])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph', 'classic-snare-glyph', 'classic-clap-glyph', 'classic-rim-claves-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph', 'classic-snare-glyph', 'classic-clap-glyph', 'classic-rim-claves-glyph', 'classic-closed-hi-hat-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '909-like').map(({ id }) => id)).toEqual(['drum-voice-tile', 'punchy-snare-glyph', 'punchy-kick-glyph', 'punchy-clap-glyph', 'punchy-rim-claves-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
@@ -215,6 +225,11 @@ describe('display component library', () => {
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'bounded history').map(({ id }) => id)).toEqual(['bounded-scope-strip'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'eight-position Euclidean').map(({ id }) => id)).toEqual(['eight-step-euclidean-ring'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'punchy hybrid rim').map(({ id }) => id)).toEqual(['punchy-rim-claves-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'effects loop').map(({ id }) => id)).toEqual(['send-return-loop'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'choice readout').map(({ id }) => id)).toEqual(['choice-readout'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'amplifier').map(({ id }) => id)).toEqual(['gain-vca-processor'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'segment generator').map(({ id }) => id)).toEqual(['four-stage-strip'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'closed hat').map(({ id }) => id)).toEqual(['classic-closed-hi-hat-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
   })
 

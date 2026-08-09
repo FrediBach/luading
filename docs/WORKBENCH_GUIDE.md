@@ -833,21 +833,21 @@ documented shades.
 The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
-compiler and renderer as the artboard. The catalog currently contains 94
+compiler and renderer as the artboard. The catalog currently contains 99
 choices. Layout includes panel frame, section header, status lamp,
 divider/ruler, label/value row, state badge, tabs/segmented selector, and page
 indicator plus focus/selection brackets and an empty/unavailable marker. Patch and routing includes input,
 output, bidirectional, stereo
 paired, and normalled jacks, a labelled port tile, split/multiple node, and
 merge/mix node plus a routing-matrix cell, patch link/flow line, bus rail/tap,
-and router/switch. Controls include momentary button,
+router/switch, and send/return loop. Controls include momentary button,
 toggle, horizontal, bipolar, and vertical faders, three-way switch, range
 slider, rotary knob, encoder ring, XY pad/vector point, soft-takeover control,
-and numeric/unit readout. Signal
+numeric/unit readout, and choice readout. Signal
 type, waveform, direction, polarity, unit, and channel/voice badges supply the
 signal vocabulary. Processors include attenuator, mixer, clamp,
 sample-and-hold, logic, Bernoulli, attenuverter, slew, and pitch-quantizer
-tiles plus comparator, clock-transform, and feedback processors. Meters include unipolar, bipolar, segmented, vertical channel,
+tiles plus gain/VCA, comparator, clock-transform, and feedback processors. Meters include unipolar, bipolar, segmented, vertical channel,
 threshold/window, modulation-range, gate/trigger activity, envelope-contour,
 phase/clock-ring, note/range-ladder, XY/vector, and bounded eight-sample scope
 displays. The scope samples are chronological normalized values maintained by
@@ -855,8 +855,8 @@ the script outside `draw()`; it does not record or invent history itself.
 Sequencing includes step and value-step cells, playhead cursor, loop-range
 bracket, transport and pattern/page strips, tracker row, and mini keyboard note
 row plus eight-step pitch/CV, gate, and probability/accent lanes and an
-eight-step Euclidean ring. Drum components include Classic analog
-kick, snare, clap, and rim/claves glyphs, Punchy
+eight-step Euclidean ring and four-stage strip. Drum components include Classic analog
+kick, snare, clap, rim/claves, and closed hi-hat glyphs, Punchy
 hybrid kick, snare, clap, and rim/claves glyph/tile artwork, a drum step cell, fill/roll indicator,
 and two-voice overview. Clock-source, MIDI, I2C, preset-state, warning/error,
 and busy/progress badges cover system status.
