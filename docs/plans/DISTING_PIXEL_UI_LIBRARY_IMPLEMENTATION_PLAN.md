@@ -2,15 +2,33 @@
 
 ## Status
 
-Proposed on 2026-08-08. Implementation began on 2026-08-08. The first
-integration phase now provides the typed catalog/materializer, searchable
-Components panel, scenario previews, and two starter components in each of the
-nine atomic component categories. Screen recipes, independent-copy workflow,
-the remaining catalog artwork, and later increments remain proposed.
+Proposed on 2026-08-08. Implementation began on 2026-08-08. The first two
+catalog waves now provide the typed catalog/materializer, searchable Components
+panel, scenario previews, and three components in each of the nine atomic
+component categories (27 recipes total). Screen recipes, independent-copy
+workflow, the remaining catalog artwork, and later increments remain proposed.
 
 | Increment | Status | Verification/evidence |
 | --- | --- | --- |
 | Integration foundation and starter catalog | Implemented (2026-08-08); live browser and hardware review pending | Typed recipe validation/search/materialization, production-renderer gallery previews, scenario selection, responsive Components panel, atomic insertion/undo, and 18 starter components (two in each atomic category). `npx vitest run src/disting/workbench/display-designer src/disting/emulation/display-api.test.ts src/documentation.test.ts` passed 19 files/184 tests. An initial `npm test` run hit one isolated timeout in the unchanged official-script corpus; its focused rerun passed, then `npm test` passed 138 files/851 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Live review was attempted after starting the local Vite server, but the browser runtime reported no registered in-app or Chrome backends; real canvas pixels, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
+| Second atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added one component in every category: status lamp, bidirectional jack, horizontal fader, direction badge, clamp processor, segmented meter, playhead cursor, drum step cell, and I2C activity. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call atomic budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no in-app or Chrome backend; real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
+
+### Implemented component inventory
+
+This inventory is the authoritative implementation marker for the larger
+reference catalog below. Components not listed here remain proposed.
+
+| Category | Implemented recipes |
+| --- | --- |
+| Layout, labels, and status | Panel/frame; Section header; Status lamp |
+| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack |
+| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader |
+| Signal vocabulary | Signal-type badge (audio, CV, gate, and clock choices); Waveform glyph (sine, triangle, square, and sample-and-hold choices); Direction badge |
+| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor |
+| Meters, ranges, and graphs | Unipolar bar meter; Bipolar bar meter; Segmented meter |
+| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor |
+| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell |
+| Clock, MIDI, I2C, and state status | Clock-source badge; MIDI activity; I2C activity |
 
 This is the next authoring layer above the existing
 [Display designer](DISPLAY_UI_DESIGNER_IMPLEMENTATION_PLAN.md). The designer

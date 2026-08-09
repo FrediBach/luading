@@ -89,7 +89,7 @@ export function DisplayComponentLibrary({ onInsert }: Props) {
 
   return <section className="display-designer-panel display-component-library" aria-labelledby="display-component-library-title">
     <h3 id="display-component-library-title">Components</h3>
-    <p className="display-designer-empty">Starter Disting UI kit. Inserted components become ordinary editable symbols and state bindings.</p>
+    <p className="display-designer-empty">Built-in Disting UI kit. Inserted components become ordinary editable symbols and state bindings.</p>
     <div className="display-component-library-filters">
       <label className="display-designer-field">
         <span>Search components</span>

@@ -23,6 +23,18 @@ import {
 
 const openEngines: Array<Awaited<ReturnType<typeof createDistingLuaTestEngine>>> = []
 
+const SECOND_WAVE_COMPONENT_IDS = [
+  'status-lamp',
+  'bidirectional-jack',
+  'horizontal-fader',
+  'direction-badge',
+  'clamp-processor',
+  'segmented-meter',
+  'playhead-cursor',
+  'drum-step-cell',
+  'i2c-activity',
+] as const
+
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
 })
@@ -34,22 +46,47 @@ function recipe(id: string) {
 }
 
 describe('display component library', () => {
-  it('ships two valid starter recipes in every component category', () => {
+  it('ships three valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(DISPLAY_COMPONENT_CATEGORIES.length * 2)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(DISPLAY_COMPONENT_CATEGORIES.length * 3)
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
-      expect(DISPLAY_COMPONENT_RECIPES.filter((candidate) => candidate.category === category.id).map(({ name }) => name)).toHaveLength(2)
+      expect(DISPLAY_COMPONENT_RECIPES.filter((candidate) => candidate.category === category.id).map(({ name }) => name)).toHaveLength(3)
     }
+    expect(SECOND_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(SECOND_WAVE_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '', 'drums').map(({ id }) => id)).toEqual([
       'drum-voice-glyph',
       'drum-voice-tile',
+      'drum-step-cell',
     ])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
+  })
+
+  it('keeps every second-wave state structurally distinct and within the atomic draw budget', () => {
+    for (const recipeId of SECOND_WAVE_COMPONENT_IDS) {
+      const component = recipe(recipeId)
+      const commandSignatures = component.states.map((state) => {
+        const probe = {
+          ...component,
+          scenarios: [
+            { id: 'default', name: 'Default', state: state.value },
+            { id: 'active', name: 'Active', state: state.value },
+            { id: 'edge', name: 'Edge', state: state.value },
+          ],
+        }
+        const compiled = compileDisplayDesign(createDisplayComponentPreview(probe, 'default'))
+        expect(compiled.findings.filter(({ severity }) => severity === 'error'), `${recipeId}/${state.value}`).toEqual([])
+        expect(compiled.metrics.maximumVariantDrawCallCount, recipeId).toBeLessThanOrEqual(16)
+        expect(compiled.metrics.smoothCallCount, recipeId).toBe(0)
+        return JSON.stringify(compiled.commands)
+      })
+      expect(new Set(commandSignatures).size, recipeId).toBe(component.states.length)
+    }
   })
 
   it('materializes every scenario as ordinary valid version-9 symbols, bindings, and instances', () => {
@@ -132,7 +169,12 @@ describe('display component library', () => {
   })
 
   it('keeps preview and generated component commands equal through the real Lua/display boundary', async () => {
-    for (const [recipeId, scenarioId] of [['unipolar-bar-meter', 'active'], ['step-cell', 'edge']] as const) {
+    const cases = [
+      ['unipolar-bar-meter', 'active'],
+      ['step-cell', 'edge'],
+      ...SECOND_WAVE_COMPONENT_IDS.map((id) => [id, 'active'] as const),
+    ] as const
+    for (const [recipeId, scenarioId] of cases) {
       const document = createDisplayComponentPreview(recipe(recipeId), scenarioId)
       const generated = generateDisplayDesignLua(document)
       expect(generated.ok).toBe(true)
