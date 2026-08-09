@@ -327,7 +327,7 @@ as the preview compiler. Bounded 16-step and radial assembly tests expose their
 higher exact costs without bypassing document limits. Model tests pin shared
 duplication and independent cloning of symbols, variants, choices, mappings,
 and referenced bindings. Server-rendering and jsdom tests cover catalog labels,
-1×/magnified pixel previews, category/search/density/mode filtering, scenario
+the responsive pixel preview, category/search/density/mode filtering, scenario
 selection, centre and drag insertion, single-transaction insertion/undo,
 resource details, Integration disclosure, State-panel bindings, generated
 source, and the responsive Components tab. Exact canvas pixels, scrolling

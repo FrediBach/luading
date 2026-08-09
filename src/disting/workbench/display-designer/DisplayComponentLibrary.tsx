@@ -33,16 +33,13 @@ function DisplayComponentCard({
 }) {
   const [scenarioId, setScenarioId] = useState(recipe.scenarios[0]!.id)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const magnifiedCanvasRef = useRef<HTMLCanvasElement>(null)
   const previewDocument = useMemo(() => createDisplayComponentPreview(recipe, scenarioId), [recipe, scenarioId])
   const compiled = useMemo(() => compileDisplayDesign(previewDocument), [previewDocument])
   const category = DISPLAY_COMPONENT_CATEGORIES.find(({ id }) => id === recipe.category)?.label ?? recipe.category
 
   useEffect(() => {
-    for (const canvas of [canvasRef.current, magnifiedCanvasRef.current]) {
-      const context = canvas?.getContext('2d')
-      if (context) renderDistingDisplay(context, compiled.commands)
-    }
+    const context = canvasRef.current?.getContext('2d')
+    if (context) renderDistingDisplay(context, compiled.commands)
   }, [compiled.commands])
 
   return <li className="display-component-card" data-component-id={recipe.id} draggable onDragStart={(event) => {
@@ -57,8 +54,7 @@ function DisplayComponentCard({
       <small>{compiled.metrics.drawCallCount} current / {compiled.metrics.maximumVariantDrawCallCount} max calls</small>
     </header>
     <div className="display-component-previews">
-      <figure><canvas ref={canvasRef} width="256" height="64" aria-label={`${recipe.name} 1x pixel preview`} /><figcaption>1×</figcaption></figure>
-      <figure><canvas ref={magnifiedCanvasRef} width="256" height="64" aria-label={`${recipe.name} magnified pixel preview`} /><figcaption>Magnified</figcaption></figure>
+      <canvas ref={canvasRef} width="256" height="64" aria-label={`${recipe.name} pixel preview`} />
     </div>
     <p>{recipe.description}</p>
     {recipe.costNote && <p className="display-component-cost-note">{recipe.costNote}</p>}

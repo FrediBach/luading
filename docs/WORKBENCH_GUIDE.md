@@ -834,7 +834,7 @@ The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
 compiler and renderer as the artboard. Density and compatible-display-mode
-filters narrow the catalog, and every card shows 1× and magnified previews plus
+filters narrow the catalog, and every card shows one responsive pixel preview plus
 current/maximum draw calls and insertion resources. The catalog contains 128
 choices. Layout includes panel frame, section header, status lamp,
 divider/ruler, label/value row, state badge, tabs/segmented selector, and page

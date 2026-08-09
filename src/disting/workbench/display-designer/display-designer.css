@@ -482,14 +482,10 @@
 .display-component-card details { color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
 .display-component-card > p { margin: 0; }
 .display-component-card canvas { display: block; width: 100%; aspect-ratio: 4 / 1; border: 1px solid color-mix(in srgb, var(--nt-green) 35%, var(--nt-line)); background: #000; image-rendering: pixelated; }
-.display-component-previews { min-width: 0; display: grid; gap: 5px; overflow-x: auto; }
-.display-component-previews figure { min-width: 0; margin: 0; display: grid; gap: 2px; }
-.display-component-previews figure:first-child canvas { width: 256px; height: 64px; max-width: none; }
-.display-component-previews figcaption,
+.display-component-previews { min-width: 0; }
 .display-component-resources,
 .display-component-cost-note,
 .display-component-integration-disclosure { color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
-.display-component-previews figcaption { text-align: right; }
 .display-component-cost-note { padding-left: 6px; border-left: 2px solid var(--nt-green); }
 .display-component-card details summary { color: var(--nt-text); cursor: pointer; }
 .display-component-card details ul { margin: 5px 0 0; padding-left: 18px; }
