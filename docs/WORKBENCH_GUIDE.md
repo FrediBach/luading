@@ -930,8 +930,13 @@ direction, or hold Shift to add the enclosed layers to the current selection.
 Selected artwork can be dragged, nudged by
 one pixel with the arrow keys or five with Shift+arrow, resized through
 element-specific handles, aligned, distributed, duplicated, deleted, or moved
-through draw order. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z undo and redo complete
-gestures; editable fields protect their normal arrow, delete, and undo keys.
+through draw order. Ctrl/Cmd+C copies the selected layer or multi-selection to
+the designer-local clipboard, and Ctrl/Cmd+V pastes it into the current screen
+or symbol state. The first paste is offset two pixels right and down; repeated
+pastes cascade by another two pixels so every result remains visible. A symbol
+instance cannot be pasted inside a symbol state. Ctrl/Cmd+Z and
+Ctrl/Cmd+Shift+Z undo and redo complete gestures; editable fields retain their
+normal copy, paste, arrow, delete, and undo behavior.
 One-level groups provide atomic selection, movement, duplication, deletion, and
 an editor-only hide/show switch; hiding a group never changes generated Lua.
 Layer, group, and symbol rows keep these less-frequent actions in their **•••**

@@ -17,6 +17,12 @@ import { DISTING_DISPLAY, type DrawCommand } from '../../types'
 import { LuaSourcePreview } from '../LuaSourcePreview'
 import { DisplayComponentLibrary } from './DisplayComponentLibrary'
 import { materializeDisplayComponent } from './display-component-library'
+import {
+  DISPLAY_DESIGN_PASTE_OFFSET,
+  copyDisplayDesignSelection,
+  pasteDisplayDesignClipboard,
+  type DisplayDesignClipboard,
+} from './display-design-clipboard'
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import {
@@ -242,6 +248,12 @@ interface DisplayDesignerGesture {
   startSnapState?: DisplayDesignSnapState
   snapState?: DisplayDesignSnapState
   snapGuides: DisplayDesignSnapGuide[]
+}
+
+interface DisplayDesignerClipboardState {
+  clipboard: DisplayDesignClipboard
+  destinationKey?: string
+  pasteCount: number
 }
 
 interface DisplayDesignerMenuAction {
@@ -615,6 +627,7 @@ function DisplayDesignerArtboard({
   snapGuides,
   showOriginMarker,
   selectionArea,
+  clipboardStatus,
   onPointerStart,
   onPointerMove,
   onPointerEnd,
@@ -634,6 +647,7 @@ function DisplayDesignerArtboard({
   snapGuides: DisplayDesignSnapGuide[]
   showOriginMarker?: boolean
   selectionArea?: { start: DisplayDesignPoint; end: DisplayDesignPoint }
+  clipboardStatus?: string
   onPointerStart(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; elementId?: string; handle?: DisplayDesignHandle; shiftKey: boolean; ctrlKey: boolean }): void
   onPointerMove(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }): void
   onPointerEnd(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }): void
@@ -788,8 +802,9 @@ function DisplayDesignerArtboard({
         </div>
       </div>
       <p className="display-designer-stage-status" role="status" aria-live="polite" aria-atomic="true">
+        {clipboardStatus ? `${clipboardStatus} ` : ''}
         {selectedElements.length > 0
-          ? `${selectedElements.length} selected: ${selectedElements.map(({ name }) => name).join(', ')}. Arrow keys move by 1 pixel; Shift plus Arrow moves by 5 pixels.`
+          ? `${selectedElements.length} selected: ${selectedElements.map(({ name }) => name).join(', ')}. Arrow keys move by 1 pixel; Shift plus Arrow moves by 5 pixels. Ctrl/Cmd+C copies; Ctrl/Cmd+V pastes with an offset.`
           : activeTool === 'select' ? 'Select a layer, or drag over empty artboard space to select an area.' : `Drag to create ${TOOLS.find(({ id }) => id === activeTool)?.label}.`}
       </p>
     </section>
@@ -1987,6 +2002,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
   const [animationDisplayFrame, setAnimationDisplayFrame] = useState(0)
   const gestureRef = useRef<DisplayDesignerGesture | null>(null)
+  const clipboardRef = useRef<DisplayDesignerClipboardState | undefined>(undefined)
+  const [clipboardStatus, setClipboardStatus] = useState('')
   const [idFactory, setIdFactory] = useState<DisplayDesignIdFactory>(() => createSequentialDisplayDesignIdFactory('designer'))
   const dialogRef = useRef<HTMLDivElement>(null)
   const discardRef = useRef<HTMLButtonElement>(null)
@@ -2064,6 +2081,35 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     nextDocument: DisplayDesignDocument,
     nextSelection: DisplayDesignSelection = selection,
   ) => setHistory((current) => applyDisplayDesignTransaction(current, label, () => ({ document: nextDocument, selection: nextSelection })))
+
+  const copySelection = () => {
+    const clipboard = copyDisplayDesignSelection(document, selection)
+    if (!clipboard) return false
+    clipboardRef.current = { clipboard, pasteCount: 0 }
+    const count = clipboard.elements.length
+    setClipboardStatus(`Copied ${count} ${count === 1 ? 'layer' : 'layers'}.`)
+    return true
+  }
+
+  const pasteSelection = () => {
+    const current = clipboardRef.current
+    if (!current) return false
+    const destinationKey = selection.symbolId && selection.variantId
+      ? `symbol:${selection.symbolId}:${selection.variantId}`
+      : `screen:${activeScreen.id}`
+    const pasteCount = current.destinationKey === destinationKey ? current.pasteCount + 1 : 1
+    const offset = DISPLAY_DESIGN_PASTE_OFFSET * pasteCount
+    const pasted = pasteDisplayDesignClipboard(document, selection, current.clipboard, idFactory, offset)
+    if (!pasted.ok) {
+      setClipboardStatus(`Paste failed: ${pasted.message}`)
+      return true
+    }
+    clipboardRef.current = { ...current, destinationKey, pasteCount }
+    setActiveTool('select')
+    commit('Paste selection', pasted.document, pasted.selection)
+    setClipboardStatus(`Pasted ${pasted.pastedCount} ${pasted.pastedCount === 1 ? 'layer' : 'layers'} with a ${offset}-pixel offset.`)
+    return true
+  }
 
   const switchScreen = (screenId: string) => {
     if (screenId === activeScreen.id) return
@@ -2339,6 +2385,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     setSavedDocumentText(initialSavedDocumentText())
     setIdFactory(() => createSequentialDisplayDesignIdFactory('designer'))
     setActiveTool('select')
+    clipboardRef.current = undefined
+    setClipboardStatus('')
     updateGesture(null)
     setConfirmDiscard(false)
     onClose()
@@ -2379,6 +2427,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     setSavedDocumentText(canonical.text)
     setIdFactory(() => createCollisionSafeDisplayDesignIdFactory(parsed.document, 'designer'))
     setActiveTool('select')
+    clipboardRef.current = undefined
+    setClipboardStatus('')
     setHiddenGroupIds(new Set())
     setPendingDetachId(undefined)
     updateGesture(null)
@@ -2451,6 +2501,14 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     if (!protectsEditing && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'y') {
       event.preventDefault()
       setHistory(redoDisplayDesign)
+      return
+    }
+    if (!protectsEditing && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'c' && copySelection()) {
+      event.preventDefault()
+      return
+    }
+    if (!protectsEditing && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'v' && pasteSelection()) {
+      event.preventDefault()
       return
     }
     if (!protectsEditing && (event.key === 'Delete' || event.key === 'Backspace') && selection.elementIds.length > 0) {
@@ -2698,6 +2756,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
             snapGuides={gesture?.snapGuides ?? []}
             showOriginMarker={Boolean(activeVariant)}
             selectionArea={gesture?.kind === 'marquee' && gesture.end ? { start: gesture.start, end: gesture.end } : undefined}
+            clipboardStatus={clipboardStatus}
             onPointerStart={beginPointerGesture}
             onPointerMove={movePointerGesture}
             onPointerEnd={finishPointerGesture}

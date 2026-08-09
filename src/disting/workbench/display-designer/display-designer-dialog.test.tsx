@@ -801,6 +801,47 @@ describe('Display designer dialog', () => {
     expect(source().match(/drawLine/g)).toHaveLength(1)
   })
 
+  it('copies and pastes one or multiple selected layers with cascading offsets and protected field shortcuts', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await addDefault('Pixel line')
+    await addDefault('Filled box')
+    await pointer(layer('Pixel line'), 'click', 0, 0)
+    await pointer(layer('Filled box'), 'click', 0, 0, { shiftKey: true })
+
+    const dialog = document.querySelector<HTMLElement>('.display-designer-dialog')!
+    const beforeCopy = source()
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true })) })
+    expect(source()).toBe(beforeCopy)
+    expect(document.querySelector('.display-designer-stage-status')?.textContent).toContain('Copied 2 layers.')
+
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true })) })
+    expect(source().match(/drawLine/g)).toHaveLength(2)
+    expect(source().match(/drawRectangle/g)).toHaveLength(2)
+    expect(source()).toContain('drawLine(10, 18, 34, 18, 15)')
+    expect(source()).toContain('drawRectangle(10, 18, 34, 26, 15)')
+    expect(document.querySelector('.display-designer-stage-status')?.textContent).toContain('Pasted 2 layers with a 2-pixel offset.')
+
+    await act(async () => { dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', metaKey: true, bubbles: true })) })
+    expect(source().match(/drawLine/g)).toHaveLength(3)
+    expect(source().match(/drawRectangle/g)).toHaveLength(3)
+    expect(source()).toContain('drawLine(12, 20, 36, 20, 15)')
+    expect(document.querySelector('.display-designer-stage-status')?.textContent).toContain('Pasted 2 layers with a 4-pixel offset.')
+
+    await click(button('Undo'))
+    expect(source().match(/drawLine/g)).toHaveLength(2)
+    expect(source().match(/drawRectangle/g)).toHaveLength(2)
+
+    await click(layer('Pixel line'))
+    const layerName = field('Layer name') as HTMLInputElement
+    await act(async () => {
+      layerName.focus()
+      layerName.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true }))
+    })
+    expect(source().match(/drawLine/g)).toHaveLength(2)
+    expect(source().match(/drawRectangle/g)).toHaveLength(2)
+  })
+
   it('creates, maps, previews, detaches, and safely deletes dynamic property bindings', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))

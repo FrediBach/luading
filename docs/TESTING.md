@@ -307,7 +307,8 @@ guides for dynamic geometry.
 Its jsdom interaction tests dispatch pointer and keyboard events to pin pointer
 capture requests, gesture cancellation, one-transaction undo, multi-selection,
 groups, final pointer-up modifiers, checked View-options semantics, shortcut
-focus protection, Artboard grid editing, hidden-grid snapping, and protected
+focus protection, Artboard grid editing, hidden-grid snapping, selected-layer
+copy/paste with cascading offsets and one-transaction undo, and protected
 shortcuts. They deliberately do not claim real pointer
 capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
 Canvas visual fidelity.

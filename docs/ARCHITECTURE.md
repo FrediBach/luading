@@ -94,7 +94,7 @@ pure and do not communicate with the simulation worker.
 | Web Audio and Web MIDI routing | Main thread | Never serialized into the Lua contract; browser port identities never enter the worker |
 | Saved `self.state` | Produced by the worker, held by the coordinator | Kept in memory for a subsequent load; not browser-persisted |
 | Layout, density, responsive mode, theme, and editor text size | Main thread | Best-effort `localStorage`; storage failures fall back to defaults |
-| Open display design, named screens and their active screen, document-owned layout-grid definition, selection, preview values, and undo history | Main-thread `DisplayDesignerDialog` | Document edits are retained for the mounted workbench session unless explicitly downloaded as `.luading-display.json`; never mirrored to a worker, project record, recovery journal, or Lua state |
+| Open display design, named screens and their active screen, document-owned layout-grid definition, selection, copied-layer clipboard, preview values, and undo history | Main-thread `DisplayDesignerDialog` | Document edits and the designer-local clipboard are retained for the mounted workbench session unless the document is discarded or replaced; the design document leaves only through an explicit `.luading-display.json` download, and none of this state is mirrored to a worker, project record, recovery journal, or Lua state |
 | Display-designer layout-grid visibility, pixel-grid visibility, pixel preview, geometry overlay, and snap preference | Main-thread `DisplayDesignerDialog` view state | Retained only for the mounted workbench session, including across opened designs; excluded from document history, dirty state, downloads, generated Lua, and worker protocols |
 | Syntax/static diagnostics and source index | Validation worker result | Accepted only for the current source version |
 | Contract diagnostics | Simulation worker during load | Cleared on source changes and replaced by the next load result |
@@ -171,8 +171,9 @@ source when possible; the UI does not label that state as saved locally.
 
 The display designer is an independent main-thread authoring flow. Its React
 dialog owns the normalized design document, semantic undo history, selection,
-pointer gesture preview, responsive panel state, preview binding values, and
-downloaded-revision marker. Version 3 added ordered document-wide numeric tokens
+designer-local copied-layer clipboard, pointer gesture preview, responsive panel
+state, preview binding values, and downloaded-revision marker. Version 3 added
+ordered document-wide numeric tokens
 and bounded token-expression ASTs; version 4 added bounded pixel-box shade arrays;
 version 5 added regular polygons with bounded side detail; version 6 added
 general-degree Bézier curves with bounded control-point and segment detail; version 7 adds
