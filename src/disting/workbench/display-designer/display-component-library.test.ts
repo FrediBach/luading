@@ -35,6 +35,20 @@ const SECOND_WAVE_COMPONENT_IDS = [
   'i2c-activity',
 ] as const
 
+const THIRD_WAVE_COMPONENT_IDS = [
+  'divider-ruler',
+  'stereo-jacks',
+  'three-way-switch',
+  'polarity-badge',
+  'sample-hold-processor',
+  'vertical-channel-meter',
+  'loop-range-bracket',
+  'fill-roll-indicator',
+  'preset-state-marker',
+] as const
+
+const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS] as const
+
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
 })
@@ -46,13 +60,14 @@ function recipe(id: string) {
 }
 
 describe('display component library', () => {
-  it('ships three valid recipes in every component category', () => {
+  it('ships four valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(DISPLAY_COMPONENT_CATEGORIES.length * 3)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(DISPLAY_COMPONENT_CATEGORIES.length * 4)
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
-      expect(DISPLAY_COMPONENT_RECIPES.filter((candidate) => candidate.category === category.id).map(({ name }) => name)).toHaveLength(3)
+      expect(DISPLAY_COMPONENT_RECIPES.filter((candidate) => candidate.category === category.id).map(({ name }) => name)).toHaveLength(4)
     }
     expect(SECOND_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(SECOND_WAVE_COMPONENT_IDS)
+    expect(THIRD_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(THIRD_WAVE_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
@@ -60,15 +75,17 @@ describe('display component library', () => {
       'drum-voice-glyph',
       'drum-voice-tile',
       'drum-step-cell',
+      'fill-roll-indicator',
     ])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'random voltage').map(({ id }) => id)).toEqual(['sample-hold-processor'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
   })
 
-  it('keeps every second-wave state structurally distinct and within the atomic draw budget', () => {
-    for (const recipeId of SECOND_WAVE_COMPONENT_IDS) {
+  it('keeps every added-wave state structurally distinct and within the atomic draw budget', () => {
+    for (const recipeId of IMPLEMENTED_WAVE_COMPONENT_IDS) {
       const component = recipe(recipeId)
       const commandSignatures = component.states.map((state) => {
         const probe = {
@@ -172,7 +189,7 @@ describe('display component library', () => {
     const cases = [
       ['unipolar-bar-meter', 'active'],
       ['step-cell', 'edge'],
-      ...SECOND_WAVE_COMPONENT_IDS.map((id) => [id, 'active'] as const),
+      ...IMPLEMENTED_WAVE_COMPONENT_IDS.map((id) => [id, 'active'] as const),
     ] as const
     for (const [recipeId, scenarioId] of cases) {
       const document = createDisplayComponentPreview(recipe(recipeId), scenarioId)

@@ -833,13 +833,15 @@ documented shades.
 The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
-compiler and renderer as the artboard. The catalog currently contains three
-choices in each of nine categories: panel frame, section header, and status
-lamp; input, output, and bidirectional jacks; momentary button, toggle, and
-horizontal fader; signal type, waveform, and direction badges/glyphs;
-attenuator, mixer, and clamp processors; unipolar, bipolar, and segmented
-meters; step cell, value-step cell, and playhead cursor; drum voice glyph,
-voice tile, and drum step cell; and clock-source, MIDI, and I2C status badges.
+compiler and renderer as the artboard. The catalog currently contains four
+choices in each of nine categories: panel frame, section header, status lamp,
+and divider/ruler; input, output, bidirectional, and stereo paired jacks;
+momentary button, toggle, horizontal fader, and three-way switch; signal type,
+waveform, direction, and polarity badges/glyphs; attenuator, mixer, clamp, and
+sample-and-hold processors; unipolar, bipolar, segmented, and vertical channel
+meters; step cell, value-step cell, playhead cursor, and loop-range bracket;
+drum voice glyph, voice tile, drum step cell, and fill/roll indicator; and
+clock-source, MIDI, I2C, and preset-state status badges.
 
 **Insert** adds one local symbol, a choice binding for its named visual states,
 any number/boolean/text bindings used by the artwork, and one selected instance

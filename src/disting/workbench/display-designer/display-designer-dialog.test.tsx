@@ -152,7 +152,7 @@ describe('Display designer dialog', () => {
     expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(true)
     await click(button('Components'))
     expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(false)
-    expect(document.querySelectorAll('.display-component-card')).toHaveLength(27)
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(36)
     await commitInput(field('Search components') as HTMLInputElement, '808-like')
     expect(document.querySelectorAll('.display-component-card')).toHaveLength(1)
     expect(document.querySelector('.display-component-card strong')?.textContent).toBe('Drum voice glyph')
@@ -163,6 +163,7 @@ describe('Display designer dialog', () => {
       'Input jack',
       'Output jack',
       'Bidirectional jack',
+      'Stereo paired jacks',
     ])
 
     const scenario = document.querySelector<HTMLSelectElement>('[aria-label="Input jack preview scenario"]')!

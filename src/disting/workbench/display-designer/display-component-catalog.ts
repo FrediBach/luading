@@ -183,6 +183,32 @@ const statusLamp: DisplayComponentRecipe = {
   },
 }
 
+const dividerRuler: DisplayComponentRecipe = {
+  ...common,
+  id: 'divider-ruler',
+  name: 'Divider ruler',
+  category: 'layout',
+  description: 'A five-tick section divider with a script-positioned active reference.',
+  tags: ['divider', 'separator', 'ticks', 'scale', 'voltage', 'time', 'guide'],
+  footprint: { width: 48, height: 7 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'active', name: 'Active' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'normal',
+  inputs: [numberInput('reference', 'Reference', 'Normalized location of the bright script-owned reference tick.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Normal', state: 'normal', values: { reference: 0.5 } },
+    { id: 'active', name: 'Active reference', state: 'active', values: { reference: 0.75 } },
+    { id: 'edge', name: 'Disabled', state: 'disabled', values: { reference: 0 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : state === 'active' ? 7 : 4
+    const primitives: DisplayPrimitiveElement[] = [line(context, 'Divider rail', 0, 3, 47, 3, shade)]
+    for (const x of [0, 12, 24, 36, 47]) primitives.push(line(context, `Divider tick ${x}`, x, 1, x, 5, shade))
+    if (state === 'active') primitives.push(line(context, 'Divider active reference', context.number('reference', 0, 47), 0, context.number('reference', 0, 47), 6, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Divider disabled mark', 17, 6, 30, 0, 3))
+    return primitives
+  },
+}
+
 const inputJack: DisplayComponentRecipe = {
   ...common,
   id: 'input-jack',
@@ -288,6 +314,44 @@ const bidirectionalJack: DisplayComponentRecipe = {
   },
 }
 
+const stereoJacks: DisplayComponentRecipe = {
+  ...common,
+  id: 'stereo-jacks',
+  name: 'Stereo paired jacks',
+  category: 'patching',
+  description: 'Compact left/right jacks with linked, split, and disabled structures.',
+  tags: ['stereo', 'paired', 'left', 'right', 'linked', 'split', 'patch'],
+  footprint: { width: 24, height: 12 },
+  states: [{ value: 'linked', name: 'Linked' }, { value: 'split', name: 'Split' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'split',
+  inputs: [
+    booleanInput('leftPatched', 'Left patched', 'Shows the script-known left connection ring.'),
+    booleanInput('rightPatched', 'Right patched', 'Shows the script-known right connection ring.'),
+    booleanInput('leftActive', 'Left active', 'Shows a script-driven left activity centre.'),
+    booleanInput('rightActive', 'Right active', 'Shows a script-driven right activity centre.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Split + unpatched', state: 'split' },
+    { id: 'active', name: 'Linked + active', state: 'linked', values: { leftPatched: true, rightPatched: true, leftActive: true, rightActive: true } },
+    { id: 'edge', name: 'Disabled', state: 'disabled', values: { leftPatched: true, rightPatched: true } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : state === 'linked' ? 11 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      circle(context, 'Left jack', 6, 6, 4, shade),
+      circle(context, 'Right jack', 17, 6, 4, shade),
+      circle(context, 'Left patch ring', 6, 6, 2, 12, context.visible('leftPatched')),
+      circle(context, 'Right patch ring', 17, 6, 2, 12, context.visible('rightPatched')),
+      box(context, 'Left activity', 5, 5, 7, 7, 15, true, context.visible('leftActive')),
+      box(context, 'Right activity', 16, 5, 18, 7, 15, true, context.visible('rightActive')),
+    ]
+    if (state === 'linked') primitives.push(line(context, 'Stereo link bridge', 10, 6, 13, 6, 15), line(context, 'Stereo link top', 10, 4, 13, 4, 9))
+    if (state === 'split') primitives.push(line(context, 'Stereo split divider', 11, 1, 11, 10, 5))
+    if (state === 'disabled') primitives.push(line(context, 'Stereo disabled mark', 2, 10, 21, 1, 3))
+    return primitives
+  },
+}
+
 const momentaryButton: DisplayComponentRecipe = {
   ...common,
   id: 'momentary-button',
@@ -377,6 +441,39 @@ const horizontalFader: DisplayComponentRecipe = {
     if (state === 'focused') primitives.push(line(context, 'Fader focus upper', 0, 0, 47, 0, 15), line(context, 'Fader focus lower', 0, 9, 47, 9, 15))
     if (state === 'at-limit') primitives.push(box(context, 'Fader limit stop', 43, 1, 47, 3, 15, true))
     if (state === 'disabled') primitives.push(line(context, 'Fader disabled mark', 4, 8, 43, 1, 3))
+    return primitives
+  },
+}
+
+const threeWaySwitch: DisplayComponentRecipe = {
+  ...common,
+  id: 'three-way-switch',
+  name: 'Three-way switch',
+  category: 'controls',
+  description: 'A left, centre, or right selector for polarity, range, or direction.',
+  tags: ['switch', 'three position', 'polarity', 'range', 'direction', 'mode'],
+  footprint: { width: 24, height: 10 },
+  states: [{ value: 'left', name: 'Left' }, { value: 'centre', name: 'Centre' }, { value: 'right', name: 'Right' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'centre',
+  inputs: [booleanInput('focused', 'Focused', 'Shows separate focus rails around the selected control.')],
+  scenarios: [
+    { id: 'default', name: 'Centre', state: 'centre' },
+    { id: 'active', name: 'Right + focused', state: 'right', values: { focused: true } },
+    { id: 'edge', name: 'Disabled', state: 'disabled' },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : 8
+    const selectedX = state === 'left' ? 4 : state === 'right' ? 19 : 12
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Three-way rail', 3, 5, 20, 5, shade),
+      line(context, 'Three-way left tick', 4, 2, 4, 8, shade),
+      line(context, 'Three-way centre tick', 12, 2, 12, 8, shade),
+      line(context, 'Three-way right tick', 19, 2, 19, 8, shade),
+      circle(context, 'Three-way thumb', selectedX, 5, 3, state === 'disabled' ? 3 : 15),
+      line(context, 'Three-way focus top', 0, 0, 23, 0, 15, context.visible('focused')),
+      line(context, 'Three-way focus bottom', 0, 9, 23, 9, 15, context.visible('focused')),
+    ]
+    if (state === 'disabled') primitives.push(line(context, 'Three-way disabled mark', 2, 8, 21, 1, 3))
     return primitives
   },
 }
@@ -496,6 +593,36 @@ const directionBadge: DisplayComponentRecipe = {
   },
 }
 
+const polarityBadge: DisplayComponentRecipe = {
+  ...common,
+  id: 'polarity-badge',
+  name: 'Polarity range badge',
+  category: 'signals',
+  description: 'A compact shape-coded qualifier for positive, negative, bipolar, inverted, centred, or clamped CV.',
+  tags: ['polarity', 'range', 'positive', 'negative', 'bipolar', 'invert', 'clamp', 'cv'],
+  footprint: { width: 32, height: 12 },
+  states: [{ value: 'positive', name: 'Positive' }, { value: 'negative', name: 'Negative' }, { value: 'bipolar', name: 'Bipolar' }, { value: 'inverted', name: 'Inverted' }, { value: 'zero-centred', name: 'Zero centred' }, { value: 'clamped', name: 'Clamped' }],
+  defaultState: 'bipolar',
+  inputs: [booleanInput('warning', 'Warning', 'Adds a bright top marker without replacing the range shape.')],
+  scenarios: [
+    { id: 'default', name: 'Bipolar', state: 'bipolar' },
+    { id: 'active', name: 'Positive', state: 'positive' },
+    { id: 'edge', name: 'Clamped warning', state: 'clamped', values: { warning: true } },
+  ],
+  build: (context, state) => {
+    const primitives: DisplayPrimitiveElement[] = [box(context, 'Polarity frame', 0, 0, 31, 11, 4), line(context, 'Polarity zero rail', 3, 6, 20, 6, 6)]
+    if (state === 'positive') primitives.push(line(context, 'Positive stem', 11, 9, 11, 2, 13), line(context, 'Positive head left', 11, 2, 8, 5, 13), line(context, 'Positive head right', 11, 2, 14, 5, 13))
+    if (state === 'negative') primitives.push(line(context, 'Negative stem', 11, 2, 11, 9, 13), line(context, 'Negative head left', 11, 9, 8, 6, 13), line(context, 'Negative head right', 11, 9, 14, 6, 13))
+    if (state === 'bipolar') primitives.push(line(context, 'Bipolar stem', 11, 1, 11, 10, 14), line(context, 'Bipolar positive bar', 8, 2, 14, 2, 12), line(context, 'Bipolar negative bar', 8, 9, 14, 9, 12))
+    if (state === 'inverted') primitives.push(line(context, 'Inverted slope', 5, 2, 17, 9, 13), line(context, 'Inverted head', 17, 9, 13, 9, 13), line(context, 'Inverted cross', 8, 9, 15, 2, 7))
+    if (state === 'zero-centred') primitives.push(line(context, 'Centred vertical', 11, 2, 11, 10, 15), box(context, 'Centred point', 9, 4, 13, 8, 10))
+    if (state === 'clamped') primitives.push(line(context, 'Clamp lower stop', 5, 2, 5, 10, 13), line(context, 'Clamp upper stop', 17, 2, 17, 10, 13), line(context, 'Clamp range', 5, 4, 17, 8, 10))
+    primitives.push(tinyText(context, 'Polarity label', 29, 9, state === 'positive' ? '+' : state === 'negative' ? '-' : state === 'bipolar' ? '+-' : state === 'inverted' ? 'INV' : state === 'zero-centred' ? '0' : 'CL', 9, 'right'))
+    primitives.push(line(context, 'Polarity warning', 22, 1, 30, 1, 15, context.visible('warning')))
+    return primitives
+  },
+}
+
 const attenuator: DisplayComponentRecipe = {
   ...common,
   id: 'attenuator',
@@ -600,6 +727,45 @@ const clampProcessor: DisplayComponentRecipe = {
   },
 }
 
+const sampleHoldProcessor: DisplayComponentRecipe = {
+  ...common,
+  id: 'sample-hold-processor',
+  name: 'Sample and hold',
+  category: 'processors',
+  description: 'A sampling tile that separates acquisition, hold, bypass, and error states.',
+  tags: ['sample and hold', 's&h', 'sampling', 'hold', 'clock', 'random voltage'],
+  footprint: { width: 36, height: 18 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'sampling', name: 'Sampling' }, { value: 'holding', name: 'Holding' }, { value: 'bypassed', name: 'Bypassed' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('value', 'Held value', 'Normalized script-owned held output value.', 0.5),
+    booleanInput('clockPulse', 'Clock pulse', 'Shows a pulse captured by trigger or step state outside drawing.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Holding midpoint', state: 'holding', values: { value: 0.5 } },
+    { id: 'active', name: 'Sampling pulse', state: 'sampling', values: { value: 0.8, clockPulse: true } },
+    { id: 'edge', name: 'Error', state: 'error', values: { value: 0 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'error' ? 15 : state === 'sampling' ? 14 : state === 'holding' ? 11 : state === 'bypassed' ? 4 : 7
+    const valueY = context.number('value', 14, 3)
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Sample input', 0, 9, 6, 9, shade),
+      box(context, 'Sample body', 6, 2, 29, 15, shade),
+      tinyText(context, 'Sample label', 9, 10, 'S/H', shade),
+      line(context, 'Sample output', 29, valueY, 35, valueY, shade),
+      line(context, 'Sample value marker', 27, valueY, 31, valueY, 15),
+      line(context, 'Sample clock stem', 18, 15, 18, 17, 8),
+      box(context, 'Sample clock pulse', 16, 14, 20, 17, 15, true, context.visible('clockPulse')),
+    ]
+    if (state === 'sampling') primitives.push(line(context, 'Sampling edge', 7, 13, 15, 4, 15))
+    if (state === 'holding') primitives.push(line(context, 'Holding shelf', 20, valueY, 28, valueY, 15))
+    if (state === 'bypassed') primitives.push(line(context, 'Sample bypass', 1, 1, 34, 1, 10))
+    if (state === 'error') primitives.push(line(context, 'Sample error one', 10, 4, 25, 13, 15), line(context, 'Sample error two', 25, 4, 10, 13, 15))
+    return primitives
+  },
+}
+
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
   id: 'unipolar-bar-meter',
@@ -683,6 +849,41 @@ const segmentedMeter: DisplayComponentRecipe = {
     for (const x of [6, 12, 18, 24, 30, 36, 42]) primitives.push(line(context, `Segment divider ${x}`, x, 1, x, 7, 0))
     if (state === 'warning') primitives.push(line(context, 'Segment warning mark', 40, 1, 46, 1, 15))
     if (state === 'clipped') primitives.push(box(context, 'Segment clip mark', 43, 0, 47, 2, 15, true))
+    return primitives
+  },
+}
+
+const verticalChannelMeter: DisplayComponentRecipe = {
+  ...common,
+  id: 'vertical-channel-meter',
+  name: 'Vertical channel meter',
+  category: 'meters',
+  description: 'A narrow channel meter with script-owned level and peak hold.',
+  tags: ['vertical', 'channel', 'mixer', 'level', 'peak', 'mute', 'solo'],
+  footprint: { width: 9, height: 40 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'muted', name: 'Muted' }, { value: 'solo', name: 'Solo' }, { value: 'clipped', name: 'Clipped' }],
+  defaultState: 'normal',
+  inputs: [
+    numberInput('value', 'Value', 'Normalized current channel level.', 0.55),
+    numberInput('peak', 'Peak', 'Normalized script-maintained peak hold.', 0.7),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Normal', state: 'normal' },
+    { id: 'active', name: 'Solo high', state: 'solo', values: { value: 0.82, peak: 0.9 } },
+    { id: 'edge', name: 'Clipped', state: 'clipped', values: { value: 1, peak: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'clipped' ? 15 : state === 'solo' ? 13 : 10
+    const valueY = context.number('value', 37, 2)
+    const peakY = context.number('peak', 37, 2)
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Vertical meter outline', 0, 0, 8, 39, state === 'solo' ? 12 : state === 'muted' ? 2 : 4),
+      box(context, 'Vertical meter fill', 2, valueY, 6, 37, shade, true),
+      line(context, 'Vertical meter peak', 1, peakY, 7, peakY, state === 'muted' ? 4 : 15),
+    ]
+    if (state === 'muted') primitives.push(line(context, 'Vertical meter mute', 1, 32, 7, 7, 5))
+    if (state === 'solo') primitives.push(line(context, 'Vertical meter solo left', 0, 0, 0, 39, 15), line(context, 'Vertical meter solo right', 8, 0, 8, 39, 15))
+    if (state === 'clipped') primitives.push(box(context, 'Vertical meter clip', 1, 0, 7, 2, 15, true))
     return primitives
   },
 }
@@ -773,6 +974,41 @@ const playheadCursor: DisplayComponentRecipe = {
     ]
     if (state === 'recording') primitives.push(box(context, 'Playhead record mark', position, 4, position, 7, 15, true))
     if (state === 'queued') primitives.push(line(context, 'Playhead queued left', position, 2, position, 9, 6), line(context, 'Playhead queued right', context.number('position', 2, 47), 2, context.number('position', 2, 47), 9, 10))
+    return primitives
+  },
+}
+
+const loopRangeBracket: DisplayComponentRecipe = {
+  ...common,
+  id: 'loop-range-bracket',
+  name: 'Loop range bracket',
+  category: 'sequencing',
+  description: 'Explicit loop endpoints with pending and reversed-range treatments.',
+  tags: ['sequencer', 'loop', 'range', 'start', 'end', 'pattern'],
+  footprint: { width: 64, height: 10 },
+  states: [{ value: 'inactive', name: 'Inactive' }, { value: 'active', name: 'Active' }, { value: 'pending', name: 'Pending' }, { value: 'invalid', name: 'Invalid' }],
+  defaultState: 'inactive',
+  inputs: [
+    numberInput('start', 'Loop start', 'Normalized algorithm-owned loop start.', 0.2),
+    numberInput('end', 'Loop end', 'Normalized algorithm-owned loop end.', 0.8),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Inactive range', state: 'inactive' },
+    { id: 'active', name: 'Active loop', state: 'active', values: { start: 0.25, end: 0.75 } },
+    { id: 'edge', name: 'Reversed invalid range', state: 'invalid', values: { start: 0.8, end: 0.2 } },
+  ],
+  build: (context, state) => {
+    const start = context.number('start', 2, 61)
+    const end = context.number('end', 2, 61)
+    const shade = state === 'inactive' ? 4 : state === 'pending' ? 10 : 15
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Loop range rail', start, 5, end, 5, shade),
+      line(context, 'Loop start bracket', start, 2, start, 8, shade),
+      line(context, 'Loop end bracket', end, 2, end, 8, shade),
+    ]
+    if (state === 'active') primitives.push(line(context, 'Loop active underline', start, 8, end, 8, 12))
+    if (state === 'pending') primitives.push(line(context, 'Loop pending upper', start, 1, end, 1, 8), line(context, 'Loop pending marker', end, 0, end, 9, 15))
+    if (state === 'invalid') primitives.push(line(context, 'Loop invalid one', 27, 1, 36, 8, 15), line(context, 'Loop invalid two', 36, 1, 27, 8, 15))
     return primitives
   },
 }
@@ -876,6 +1112,41 @@ const drumStepCell: DisplayComponentRecipe = {
   },
 }
 
+const fillRollIndicator: DisplayComponentRecipe = {
+  ...common,
+  id: 'fill-roll-indicator',
+  name: 'Fill roll indicator',
+  category: 'drums',
+  description: 'A bounded fill or roll meter that separates armed, firing, and finished states.',
+  tags: ['drum', 'fill', 'roll', 'ratchet', 'burst', 'density', 'rate'],
+  footprint: { width: 40, height: 12 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'armed', name: 'Armed' }, { value: 'firing', name: 'Firing' }, { value: 'finished', name: 'Finished' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('density', 'Density', 'Normalized authored fill density.', 0.5),
+    numberInput('rate', 'Rate', 'Normalized script-owned roll rate marker.', 0.5),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle', values: { density: 0.25, rate: 0.25 } },
+    { id: 'active', name: 'Firing roll', state: 'firing', values: { density: 0.8, rate: 0.75 } },
+    { id: 'edge', name: 'Finished', state: 'finished', values: { density: 1, rate: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'idle' ? 5 : state === 'armed' ? 10 : state === 'firing' ? 15 : 12
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Fill frame', 0, 0, 39, 11, shade),
+      tinyText(context, 'Fill label', 3, 8, state === 'idle' ? 'FILL' : state === 'armed' ? 'ARM' : state === 'firing' ? 'ROLL' : 'DONE', shade),
+      line(context, 'Fill density rail', 20, 8, 37, 8, 4),
+      box(context, 'Fill density', 20, 6, context.number('density', 20, 37), 9, shade, true),
+      line(context, 'Fill rate marker', context.number('rate', 20, 37), 4, context.number('rate', 20, 37), 10, 15),
+    ]
+    if (state === 'armed') primitives.push(line(context, 'Fill armed upper', 18, 1, 38, 1, 15), line(context, 'Fill armed side', 38, 1, 38, 5, 15))
+    if (state === 'firing') primitives.push(line(context, 'Fill firing one', 22, 2, 22, 4, 12), line(context, 'Fill firing two', 28, 2, 28, 4, 14), line(context, 'Fill firing three', 34, 2, 34, 4, 15))
+    if (state === 'finished') primitives.push(box(context, 'Fill finished mark', 35, 1, 38, 4, 15, true))
+    return primitives
+  },
+}
+
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
   id: 'clock-source-badge',
@@ -967,32 +1238,73 @@ const i2cActivity: DisplayComponentRecipe = {
   },
 }
 
+const presetStateMarker: DisplayComponentRecipe = {
+  ...common,
+  id: 'preset-state-marker',
+  name: 'Preset state marker',
+  category: 'status',
+  description: 'Script-owned preset feedback for clean, changed, saving, saved, or error state.',
+  tags: ['preset', 'state', 'save', 'dirty', 'changed', 'stored', 'status'],
+  footprint: { width: 48, height: 12 },
+  states: [{ value: 'clean', name: 'Clean' }, { value: 'changed', name: 'Changed' }, { value: 'saving', name: 'Saving' }, { value: 'saved', name: 'Saved' }, { value: 'error', name: 'Error' }],
+  defaultState: 'clean',
+  inputs: [textInput('label', 'Preset label', 'Short script-owned preset or state label.', 'P1')],
+  scenarios: [
+    { id: 'default', name: 'Clean', state: 'clean' },
+    { id: 'active', name: 'Changed', state: 'changed', values: { label: 'P2' } },
+    { id: 'edge', name: 'Save error', state: 'error', values: { label: 'P2' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'error' ? 15 : state === 'saved' ? 14 : state === 'saving' ? 11 : state === 'changed' ? 10 : 6
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Preset frame', 0, 0, 47, 11, shade),
+      tinyText(context, 'Preset label', 3, 8, context.text('label'), shade),
+      line(context, 'Preset divider', 25, 1, 25, 10, 4),
+    ]
+    if (state === 'clean') primitives.push(circle(context, 'Preset clean mark', 36, 6, 2, shade))
+    if (state === 'changed') primitives.push(line(context, 'Preset changed horizontal', 31, 6, 41, 6, 15), line(context, 'Preset changed vertical', 36, 1, 36, 10, 15))
+    if (state === 'saving') primitives.push(line(context, 'Preset saving shaft', 31, 3, 41, 8, 15), line(context, 'Preset saving head', 41, 8, 37, 9, 15))
+    if (state === 'saved') primitives.push(line(context, 'Preset saved left', 31, 6, 35, 9, 15), line(context, 'Preset saved right', 35, 9, 42, 2, 15))
+    if (state === 'error') primitives.push(line(context, 'Preset error one', 31, 2, 41, 9, 15), line(context, 'Preset error two', 41, 2, 31, 9, 15))
+    return primitives
+  },
+}
+
 export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   panelFrame,
   sectionHeader,
   statusLamp,
+  dividerRuler,
   inputJack,
   outputJack,
   bidirectionalJack,
+  stereoJacks,
   momentaryButton,
   toggleSwitch,
   horizontalFader,
+  threeWaySwitch,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,
+  polarityBadge,
   attenuator,
   mixer,
   clampProcessor,
+  sampleHoldProcessor,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
+  verticalChannelMeter,
   stepCell,
   valueStepCell,
   playheadCursor,
+  loopRangeBracket,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
+  fillRollIndicator,
   clockSourceBadge,
   midiActivity,
   i2cActivity,
+  presetStateMarker,
 ]
