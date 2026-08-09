@@ -2,12 +2,14 @@
 
 ## Status
 
-Proposed on 2026-08-08. Implementation began on 2026-08-08. The first ten
+Proposed on 2026-08-08. Implementation began on 2026-08-08. The first eleven
 catalog waves now provide the typed catalog/materializer, searchable Components
-panel, scenario previews, and 88 recipes. Six still-growing categories now
-contain eleven components; Layout contains ten, while Signal vocabulary and
-System status contain six each. Layout, Signal vocabulary, and System status
-are represented in full. Screen recipes, independent-
+panel, scenario previews, and 94 recipes. Six still-growing categories now
+contain twelve components; Layout contains ten, while Signal vocabulary and
+System status contain six each. Layout, Signal vocabulary, Meters, and System
+status are represented in full; every processor family now has at least one
+representative, while several families still lack their full operation breadth.
+Screen recipes, independent-
 copy workflow, the remaining catalog artwork, and later increments remain
 proposed.
 
@@ -23,6 +25,7 @@ proposed.
 | Eighth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added focus/selection brackets, routing matrix cell, encoder ring, pitch quantizer processor, phase/clock ring, eight-step pitch/CV lane, and Classic analog clap glyph. The lane uses eight explicit scalar bindings and stays within current version-9 resource limits rather than introducing an undeclared collection model. Signal vocabulary and System status remain complete and unchanged. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call atomic budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no registered in-app or Chrome backend; real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 | Ninth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added empty/unavailable marker, patch link/flow line, XY pad/vector point, comparator processor, note/range ladder, eight-step gate row, and Punchy hybrid clap glyph. The route uses the designer's existing deterministic animated-line expansion; the XY vector is explicitly supplied state rather than inferred motion history; and the gate row uses eight explicit boolean bindings within version-9 resource limits. Signal vocabulary and System status remain complete and unchanged. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Browser discovery returned no registered in-app or Chrome backend, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 | Tenth atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added bus rail/tap, soft-takeover control, clock-transform processor, XY/vector meter, eight-step probability/accent lane, and Classic analog rim/claves glyph. Bus taps, clock validity/pulses, XY position/radius, recent random decisions, and drum hits remain explicit script-owned inputs. The probability lane uses eight scalar bindings and stays within version-9 resource limits. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. Browser discovery returned no registered in-app or Chrome backend, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
+| Eleventh atomic catalog wave | Implemented (2026-08-09); live browser and hardware review pending | Added router/switch, numeric/unit readout, feedback utility, bounded eight-sample scope strip, eight-step Euclidean ring, and Punchy hybrid rim/claves glyph. Route changes, formatted values, feedback stability, chronological history samples, Euclidean hits/position/rotation, and drum events remain explicit script-owned inputs. The scope strip uses eight scalar bindings rather than an unbounded data-series type, satisfying the bounded real-history condition while preserving version-9 limits. Every state is structurally distinct, uses integer drawing calls, and remains within the 16-call recipe budget. Focused component/dialog tests passed 2 files/34 tests; the designer/display/documentation group passed 20 files/190 tests. `npm test` passed 139 files/857 tests. `npm run check` passed with 96.82% statements, 91.18% branches, 100% functions, and 98.43% lines plus the production build. The local Vite server started, but browser discovery returned no registered backends, so real canvas pixels, scenario switching, insertion, scrolling, responsive layout, focus rings, reduced motion, and physical 1x legibility remain unverified. No Disting hardware was available for pixel comparison. |
 
 ### Implemented component inventory
 
@@ -32,13 +35,13 @@ reference catalog below. Components not listed here remain proposed.
 | Category | Implemented recipes |
 | --- | --- |
 | Layout, labels, and status | Panel/frame; Section header; Status lamp; Divider/ruler; Label/value row; State badge; Tabs/segmented selector; Page indicator; Focus/selection brackets; Empty/unavailable marker |
-| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack; Stereo/paired jacks; Normalled pair; Labelled port tile; Split/multiple node; Merge/mix node; Routing matrix cell; Patch link/flow line; Bus rail and tap |
-| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader; Three-way switch; Bipolar fader; Range slider; Vertical fader; Rotary knob; Encoder ring; XY pad/vector point; Soft-takeover control |
+| Patch points and routing | Input jack; Output jack; Bidirectional/utility jack; Stereo/paired jacks; Normalled pair; Labelled port tile; Split/multiple node; Merge/mix node; Routing matrix cell; Patch link/flow line; Bus rail and tap; Router/switch |
+| Controls and parameter displays | Momentary button/pad; Toggle switch; Horizontal fader; Three-way switch; Bipolar fader; Range slider; Vertical fader; Rotary knob; Encoder ring; XY pad/vector point; Soft-takeover control; Numeric/unit readout |
 | Signal vocabulary | Signal-type badge (audio, CV, gate, and clock choices); Waveform glyph (sine, triangle, square, and sample-and-hold choices); Direction badge; Polarity/range badge; Unit badge; Channel/voice badge |
-| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor; Sample-and-hold processor; Logic processor (AND, OR, XOR, and NOT choices); Bernoulli router; Attenuverter processor; Slew processor; Pitch quantizer processor; Comparator processor; Clock-transform processor |
-| Meters, ranges, and graphs | Unipolar bar meter; Bipolar bar meter; Segmented meter; Vertical channel meter; Threshold/window meter; Modulation-range meter; Gate/trigger activity; Envelope contour; Phase/clock ring; Note/range ladder; XY/vector meter |
-| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor; Loop-range bracket; Transport strip; Pattern/page strip; Tracker row; Mini keyboard/note row; Eight-step pitch/CV lane; Eight-step gate row; Eight-step probability/accent lane |
-| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell; Fill/roll indicator; Two-voice drum overview; Punchy hybrid snare glyph; Classic analog snare glyph; Punchy hybrid kick glyph; Classic analog clap glyph; Punchy hybrid clap glyph; Classic analog rim/claves glyph |
+| Signal manipulation and utility blocks | Attenuator; Mixer; Clamp processor; Sample-and-hold processor; Logic processor (AND, OR, XOR, and NOT choices); Bernoulli router; Attenuverter processor; Slew processor; Pitch quantizer processor; Comparator processor; Clock-transform processor; Feedback utility |
+| Meters, ranges, and graphs | Unipolar bar meter; Bipolar bar meter; Segmented meter; Vertical channel meter; Threshold/window meter; Modulation-range meter; Gate/trigger activity; Envelope contour; Phase/clock ring; Note/range ladder; XY/vector meter; Bounded scope strip |
+| Sequencing, clocks, and musical state | Step cell; Value step cell; Playhead cursor; Loop-range bracket; Transport strip; Pattern/page strip; Tracker row; Mini keyboard/note row; Eight-step pitch/CV lane; Eight-step gate row; Eight-step probability/accent lane; Eight-step Euclidean ring |
+| Drum-machine components | Drum voice glyph (Classic analog kick); Drum voice tile (Punchy hybrid); Drum step cell; Fill/roll indicator; Two-voice drum overview; Punchy hybrid snare glyph; Classic analog snare glyph; Punchy hybrid kick glyph; Classic analog clap glyph; Punchy hybrid clap glyph; Classic analog rim/claves glyph; Punchy hybrid rim/claves glyph |
 | Clock, MIDI, I2C, and state status | Clock-source badge; MIDI activity; I2C activity; Preset/state marker; Warning/error banner; Busy/progress indicator |
 
 This is the next authoring layer above the existing
@@ -392,7 +395,7 @@ visual states are `idle`, `processing`, `bypassed`, `selected`, `saturated`, and
 | Phase/clock ring | 20x20 or 32x32 | phase, division markers; `running`, `stopped`, `searching`, `locked` | LFO phase, clock cycle, Euclidean rotation, or loop position. It consumes more pixels/calls than a linear phase bar. |
 | Note/range ladder | 48x16 or wider | input note, output note, min/max, quantized/rejected | Quantizer, range limiter, transposer, or note compressor. Text shows the current note only when space permits. |
 | XY/vector meter | 32x24 or 48x32 | x, y, radius/limit; `clipped`, `stale` | Vector mix, two-channel CV, drift, or uncertainty. Distinct from the interactive-looking XY control by its lack of focus state. |
-| Sparkline/scope strip | 64x16 or wider | history data, zero line, threshold; `running`, `frozen`, `overflow` | Advanced component for script-maintained ring buffers. Deferred until the designer has a safe bounded data-series recipe; a static waveform icon must not masquerade as live history. |
+| Sparkline/scope strip | 64x16 or wider | eight chronological normalized samples, zero line, threshold; `running`, `frozen`, `overflow`, `stale`, `error` | Implemented as the bounded scope strip with eight explicit scalar bindings supplied from a script-maintained ring buffer. An unbounded or arbitrary data-series binding remains deferred; a static waveform icon must not masquerade as live history. |
 
 ### 7. Sequencing, clocks, and musical state
 
@@ -586,9 +589,9 @@ gallery costs equal compiler metrics.
 
 - Implement signal/waveform/unit badges, utility-operation blocks, scalar
   meters, range displays, envelope, phase, note ladder, and XY meter.
-- Defer live sparkline/history insertion until a bounded data-series design is
-  approved; ship its catalog entry only when it can visualize real supplied
-  history rather than a decorative placeholder.
+- Keep arbitrary live history deferred. The implemented bounded scope strip
+  accepts eight explicit chronological scalar samples supplied by script state,
+  rather than inventing motion or introducing an unbounded data-series type.
 - Include modulation-source, clock-utility, routing-switch, matrix, envelope,
   and quantizer screen recipes.
 

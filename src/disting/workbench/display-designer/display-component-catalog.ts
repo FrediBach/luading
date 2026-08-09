@@ -831,6 +831,42 @@ const busRailTap: DisplayComponentRecipe = {
   },
 }
 
+const routerSwitch: DisplayComponentRecipe = {
+  ...common,
+  id: 'router-switch',
+  name: 'Router switch',
+  category: 'patching',
+  description: 'A one-to-three route whose selected destination and exceptional switching states are geometrically explicit.',
+  tags: ['router', 'switch', 'mux', 'multiplexer', 'one of n', 'destination', 'sequential switch'],
+  footprint: { width: 36, height: 20 },
+  states: [{ value: 'route-a', name: 'Route A' }, { value: 'route-b', name: 'Route B' }, { value: 'route-c', name: 'Route C' }, { value: 'switching', name: 'Switching' }, { value: 'disabled', name: 'Disabled' }, { value: 'error', name: 'Error' }],
+  defaultState: 'route-a',
+  inputs: [booleanInput('pulse', 'Switch pulse', 'Shows a short script-maintained route-change event.')],
+  scenarios: [
+    { id: 'default', name: 'Route A', state: 'route-a' },
+    { id: 'active', name: 'Switching routes', state: 'switching', values: { pulse: true } },
+    { id: 'edge', name: 'Route error', state: 'error' },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 3 : state === 'error' ? 15 : state === 'switching' ? 13 : 9
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Router input', 0, 10, 10, 10, shade),
+      circle(context, 'Router pivot', 12, 10, 2, shade),
+      line(context, 'Router output A', 26, 3, 35, 3, state === 'route-a' ? 15 : shade),
+      line(context, 'Router output B', 26, 10, 35, 10, state === 'route-b' ? 15 : shade),
+      line(context, 'Router output C', 26, 17, 35, 17, state === 'route-c' ? 15 : shade),
+      box(context, 'Router switch pulse', 10, 8, 14, 12, 15, true, context.visible('pulse')),
+    ]
+    if (state === 'route-a') primitives.push(line(context, 'Router selected A', 14, 9, 26, 3, 15))
+    if (state === 'route-b') primitives.push(line(context, 'Router selected B', 14, 10, 26, 10, 15))
+    if (state === 'route-c') primitives.push(line(context, 'Router selected C', 14, 11, 26, 17, 15))
+    if (state === 'switching') primitives.push(line(context, 'Router switching A', 14, 9, 25, 5, 12), line(context, 'Router switching B', 14, 11, 25, 15, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Router disabled mark', 3, 18, 32, 1, 5))
+    if (state === 'error') primitives.push(line(context, 'Router error one', 17, 4, 27, 16, 15), line(context, 'Router error two', 27, 4, 17, 16, 15))
+    return primitives
+  },
+}
+
 const momentaryButton: DisplayComponentRecipe = {
   ...common,
   id: 'momentary-button',
@@ -1208,6 +1244,40 @@ const softTakeoverControl: DisplayComponentRecipe = {
     if (state === 'caught') primitives.push(box(context, 'Takeover caught mark', context.number('target', 1, 42), 2, context.number('target', 5, 46), 9, 15))
     if (state === 'disabled') primitives.push(line(context, 'Takeover disabled mark', 2, 10, 45, 1, 3))
     if (state === 'error') primitives.push(line(context, 'Takeover error one', 18, 1, 29, 10, 15), line(context, 'Takeover error two', 29, 1, 18, 10, 15))
+    return primitives
+  },
+}
+
+const numericUnitReadout: DisplayComponentRecipe = {
+  ...common,
+  id: 'numeric-unit-readout',
+  name: 'Numeric unit readout',
+  category: 'controls',
+  description: 'A script-formatted value and unit readout with distinct changing, invalid, and overflow treatments.',
+  tags: ['numeric', 'unit', 'readout', 'value', 'voltage', 'frequency', 'bpm', 'milliseconds', 'percentage', 'note'],
+  footprint: { width: 48, height: 12 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'changing', name: 'Changing' }, { value: 'invalid', name: 'Invalid' }, { value: 'overflow', name: 'Overflow' }],
+  defaultState: 'normal',
+  inputs: [
+    textInput('value', 'Value', 'Short value formatted by script state before draw().', '5.00'),
+    textInput('unit', 'Unit', 'Short unit suffix such as V, Hz, BPM, ms, %, dB, or st.', 'V'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Five volts', state: 'normal' },
+    { id: 'active', name: 'Changing tempo', state: 'changing', values: { value: '128', unit: 'BPM' } },
+    { id: 'edge', name: 'Overflow', state: 'overflow', values: { value: '999+', unit: 'Hz' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'invalid' || state === 'overflow' ? 15 : state === 'changing' ? 13 : 9
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Numeric readout frame', 0, 0, 47, 11, shade),
+      line(context, 'Numeric readout divider', 32, 1, 32, 10, state === 'normal' ? 4 : shade),
+    ]
+    if (state === 'invalid') primitives.push(tinyText(context, 'Numeric invalid value', 29, 8, 'ERR', 15, 'right'), line(context, 'Numeric invalid mark', 3, 10, 13, 1, 15))
+    else primitives.push(tinyText(context, 'Numeric value', 29, 8, context.text('value'), shade, 'right'))
+    primitives.push(tinyText(context, 'Numeric unit', 45, 8, context.text('unit'), shade, 'right'))
+    if (state === 'changing') primitives.push(line(context, 'Numeric changing upper', 2, 1, 8, 1, 15), line(context, 'Numeric changing lower', 2, 10, 8, 10, 15))
+    if (state === 'overflow') primitives.push(line(context, 'Numeric overflow left', 2, 3, 6, 6, 15), line(context, 'Numeric overflow right', 6, 6, 2, 9, 15))
     return primitives
   },
 }
@@ -1847,6 +1917,50 @@ const clockTransformProcessor: DisplayComponentRecipe = {
   },
 }
 
+const feedbackUtility: DisplayComponentRecipe = {
+  ...common,
+  id: 'feedback-utility',
+  name: 'Feedback utility',
+  category: 'processors',
+  description: 'A directional send/return processor with script-owned feedback amount, freeze, instability, clipping, and bypass states.',
+  tags: ['feedback', 'send return', 'freeze', 'tamer', 'limiter', 'loop', 'delay', 'safety'],
+  footprint: { width: 48, height: 20 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'active', name: 'Active' }, { value: 'frozen', name: 'Frozen' }, { value: 'unstable', name: 'Unstable' }, { value: 'clipped', name: 'Clipped' }, { value: 'bypassed', name: 'Bypassed' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('amount', 'Feedback amount', 'Normalized feedback amount calculated by script state.', 0.4),
+    booleanInput('returnActive', 'Return active', 'Shows script-known activity on the return path.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle loop', state: 'idle' },
+    { id: 'active', name: 'Active return', state: 'active', values: { amount: 0.7, returnActive: true } },
+    { id: 'edge', name: 'Unstable feedback', state: 'unstable', values: { amount: 1, returnActive: true } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'bypassed' ? 3 : state === 'unstable' || state === 'clipped' || state === 'error' ? 15 : state === 'frozen' ? 12 : state === 'active' ? 13 : 7
+    const amount = context.number('amount', 7, 39)
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Feedback body', 12, 3, 35, 16, shade),
+      line(context, 'Feedback send', 0, 7, 12, 7, shade),
+      line(context, 'Feedback output', 35, 7, 47, 7, shade),
+      line(context, 'Feedback return down', 42, 7, 42, 18, shade),
+      line(context, 'Feedback return rail', 42, 18, 6, 18, shade),
+      line(context, 'Feedback return up', 6, 18, 6, 11, shade),
+      line(context, 'Feedback return arrow', 6, 11, 10, 14, shade),
+      line(context, 'Feedback amount rail', 15, 12, 32, 12, 4),
+      line(context, 'Feedback amount', amount, 9, amount, 15, shade),
+      box(context, 'Feedback return activity', 39, 15, 45, 19, 15, true, context.visible('returnActive')),
+    ]
+    if (state === 'active') primitives.push(circle(context, 'Feedback active node', 24, 7, 2, 15))
+    if (state === 'frozen') primitives.push(line(context, 'Feedback freeze horizontal', 17, 7, 31, 7, 15), line(context, 'Feedback freeze vertical', 24, 4, 24, 10, 15))
+    if (state === 'unstable') primitives.push(line(context, 'Feedback unstable zig one', 14, 14, 20, 5, 15), line(context, 'Feedback unstable zig two', 20, 5, 27, 14, 15), line(context, 'Feedback unstable zig three', 27, 14, 33, 5, 15))
+    if (state === 'clipped') primitives.push(box(context, 'Feedback clipped stop', 32, 2, 36, 6, 15, true))
+    if (state === 'bypassed') primitives.push(line(context, 'Feedback bypass', 1, 1, 46, 1, 10))
+    if (state === 'error') primitives.push(line(context, 'Feedback error one', 17, 5, 31, 15, 15), line(context, 'Feedback error two', 31, 5, 17, 15, 15))
+    return primitives
+  },
+}
+
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
   id: 'unipolar-bar-meter',
@@ -2249,6 +2363,52 @@ const xyVectorMeter: DisplayComponentRecipe = {
   },
 }
 
+const boundedScopeStrip: DisplayComponentRecipe = {
+  ...common,
+  id: 'bounded-scope-strip',
+  name: 'Bounded scope strip',
+  category: 'meters',
+  description: 'An eight-sample scope whose chronological normalized history is supplied explicitly by script state.',
+  tags: ['sparkline', 'scope', 'bounded history', 'ring buffer', 'waveform history', 'threshold', 'frozen'],
+  footprint: { width: 64, height: 20 },
+  states: [{ value: 'running', name: 'Running' }, { value: 'frozen', name: 'Frozen' }, { value: 'overflow', name: 'Overflow' }, { value: 'stale', name: 'Stale' }, { value: 'error', name: 'Error' }],
+  defaultState: 'running',
+  inputs: [
+    ...Array.from({ length: 8 }, (_, index) => numberInput(`sample${index + 1}`, `Sample ${index + 1}`, `Chronological normalized history sample ${index + 1}, maintained outside draw().`, 0.5)),
+    numberInput('threshold', 'Threshold', 'Normalized script-owned threshold shown across the history.', 0.75),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Flat history', state: 'running' },
+    { id: 'active', name: 'Running waveform', state: 'running', values: { sample1: 0.2, sample2: 0.4, sample3: 0.8, sample4: 0.6, sample5: 0.3, sample6: 0.55, sample7: 0.9, sample8: 0.7, threshold: 0.8 } },
+    { id: 'edge', name: 'History overflow', state: 'overflow', values: { sample1: 0, sample2: 1, sample3: 0, sample4: 1, sample5: 0, sample6: 1, sample7: 0, sample8: 1, threshold: 0.9 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'stale' ? 3 : state === 'overflow' || state === 'error' ? 15 : state === 'frozen' ? 9 : 12
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Scope frame', 0, 0, 63, 19, state === 'stale' ? 2 : state === 'error' ? 15 : 5),
+      line(context, 'Scope zero line', 2, 10, 61, 10, state === 'stale' ? 2 : 4),
+      line(context, 'Scope threshold', 2, context.number('threshold', 17, 2), 61, context.number('threshold', 17, 2), state === 'overflow' ? 15 : 6),
+    ]
+    for (let index = 0; index < 7; index += 1) {
+      primitives.push(line(
+        context,
+        `Scope sample link ${index + 1}`,
+        4 + index * 8,
+        context.number(`sample${index + 1}`, 17, 2),
+        12 + index * 8,
+        context.number(`sample${index + 2}`, 17, 2),
+        shade,
+      ))
+    }
+    if (state === 'running') primitives.push(line(context, 'Scope running cursor', 60, 2, 60, 17, 15))
+    if (state === 'frozen') primitives.push(line(context, 'Scope pause left', 56, 3, 56, 8, 15), line(context, 'Scope pause right', 60, 3, 60, 8, 15))
+    if (state === 'overflow') primitives.push(box(context, 'Scope overflow corner', 57, 0, 63, 4, 15, true))
+    if (state === 'stale') primitives.push(line(context, 'Scope stale mark', 2, 17, 61, 2, 5))
+    if (state === 'error') primitives.push(line(context, 'Scope error one', 25, 3, 39, 17, 15), line(context, 'Scope error two', 39, 3, 25, 17, 15))
+    return primitives
+  },
+}
+
 const stepCell: DisplayComponentRecipe = {
   ...common,
   id: 'step-cell',
@@ -2638,6 +2798,46 @@ const probabilityAccentLane: DisplayComponentRecipe = {
   },
 }
 
+const euclideanRing: DisplayComponentRecipe = {
+  ...common,
+  id: 'eight-step-euclidean-ring',
+  name: 'Eight-step Euclidean ring',
+  category: 'sequencing',
+  description: 'A bounded eight-position Euclidean rhythm ring with explicit hits, current position, rotation, mute, and invalid states.',
+  tags: ['euclidean', 'ring', 'rhythm', 'rotation', 'fills', 'eight step', 'pattern', 'clock'],
+  footprint: { width: 32, height: 32 },
+  states: [{ value: 'stopped', name: 'Stopped' }, { value: 'running', name: 'Running' }, { value: 'hit', name: 'Current hit' }, { value: 'muted', name: 'Muted' }, { value: 'invalid', name: 'Invalid' }],
+  defaultState: 'stopped',
+  inputs: [
+    ...Array.from({ length: 8 }, (_, index) => booleanInput(`step${index + 1}`, `Step ${index + 1}`, `Whether Euclidean position ${index + 1} is filled.`, index % 3 === 0)),
+    numberInput('currentStep', 'Current step', 'Normalized algorithm-owned current position across the eight-step cycle.', 0),
+    numberInput('rotation', 'Rotation', 'Normalized authored Euclidean rotation shown on the upper reference rail.', 0),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Stopped 3-in-8', state: 'stopped' },
+    { id: 'active', name: 'Running hit', state: 'hit', values: { step1: true, step2: false, step3: false, step4: true, step5: false, step6: false, step7: true, step8: false, currentStep: 0.43, rotation: 0.25 } },
+    { id: 'edge', name: 'Muted rotated ring', state: 'muted', values: { currentStep: 1, rotation: 0.75 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'invalid' ? 15 : state === 'hit' ? 15 : state === 'running' ? 12 : 7
+    const positions = [[16, 4], [24, 7], [28, 15], [24, 23], [16, 26], [8, 23], [4, 15], [8, 7]] as const
+    const primitives: DisplayPrimitiveElement[] = [circle(context, 'Euclidean ring rail', 16, 15, 12, state === 'muted' ? 2 : 5)]
+    for (const [index, [x, y]] of positions.entries()) {
+      primitives.push(circle(context, `Euclidean hit ${index + 1}`, x, y, 2, shade, context.visible(`step${index + 1}`)))
+    }
+    primitives.push(
+      line(context, 'Euclidean current position', context.number('currentStep', 3, 28), 29, context.number('currentStep', 3, 28), 31, state === 'stopped' ? 6 : 15),
+      line(context, 'Euclidean rotation', context.number('rotation', 6, 26), 0, context.number('rotation', 6, 26), 3, state === 'muted' ? 3 : 11),
+    )
+    if (state === 'stopped') primitives.push(box(context, 'Euclidean stop mark', 14, 13, 18, 17, 7))
+    if (state === 'running') primitives.push(circle(context, 'Euclidean running centre', 16, 15, 2, 13))
+    if (state === 'hit') primitives.push(line(context, 'Euclidean hit horizontal', 12, 15, 20, 15, 15), line(context, 'Euclidean hit vertical', 16, 11, 16, 19, 15))
+    if (state === 'muted') primitives.push(line(context, 'Euclidean mute', 4, 27, 28, 3, 5))
+    if (state === 'invalid') primitives.push(line(context, 'Euclidean invalid one', 9, 8, 23, 22, 15), line(context, 'Euclidean invalid two', 23, 8, 9, 22, 15))
+    return primitives
+  },
+}
+
 const drumVoiceGlyph: DisplayComponentRecipe = {
   ...common,
   id: 'drum-voice-glyph',
@@ -3023,6 +3223,38 @@ const classicRimClavesGlyph: DisplayComponentRecipe = {
   },
 }
 
+const punchyRimClavesGlyph: DisplayComponentRecipe = {
+  ...common,
+  id: 'punchy-rim-claves-glyph',
+  name: 'Punchy hybrid rim claves glyph',
+  category: 'drums',
+  description: 'An original angular rim-and-stick transient glyph for the Punchy hybrid drum family.',
+  tags: ['909-like', 'punchy hybrid', 'rim', 'claves', 'clave', 'drum', 'voice', 'percussion'],
+  footprint: { width: 18, height: 16 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'hit', name: 'Hit' }, { value: 'accent', name: 'Accent' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [numberInput('snap', 'Snap level', 'Normalized script-owned rim or claves transient level.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle', values: { snap: 0.3 } },
+    { id: 'active', name: 'Claves hit', state: 'hit', values: { snap: 0.8 } },
+    { id: 'edge', name: 'Accented rim', state: 'accent', values: { snap: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('snap', 7, 14)
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Punchy rim shell', 2, 6, 14, 13, shade),
+      line(context, 'Punchy claves upper', 3, 3, 15, 9, state === 'muted' ? 3 : 11),
+      line(context, 'Punchy claves lower', 14, 3, 2, 10, shade),
+      tinyText(context, 'Punchy rim label', 17, 15, 'R', state === 'muted' ? 3 : 9, 'right'),
+    ]
+    if (state === 'hit') primitives.push(box(context, 'Punchy rim hit core', 6, 7, 11, 12, 15, true))
+    if (state === 'accent') primitives.push(box(context, 'Punchy rim accent frame', 1, 1, 16, 14, 15), line(context, 'Punchy rim accent rail', 3, 1, 14, 1, 15))
+    if (state === 'muted') primitives.push(line(context, 'Punchy rim mute', 2, 14, 15, 2, 5))
+    if (state === 'error') primitives.push(line(context, 'Punchy rim error one', 2, 2, 15, 14, 15), line(context, 'Punchy rim error two', 15, 2, 2, 14, 15))
+    return primitives
+  },
+}
+
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
   id: 'clock-source-badge',
@@ -3229,6 +3461,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   routingMatrixCell,
   patchLinkFlowLine,
   busRailTap,
+  routerSwitch,
   momentaryButton,
   toggleSwitch,
   horizontalFader,
@@ -3240,6 +3473,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   encoderRing,
   xyPadVectorPoint,
   softTakeoverControl,
+  numericUnitReadout,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,
@@ -3257,6 +3491,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   pitchQuantizerProcessor,
   comparatorProcessor,
   clockTransformProcessor,
+  feedbackUtility,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
@@ -3268,6 +3503,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   phaseClockRing,
   noteRangeLadder,
   xyVectorMeter,
+  boundedScopeStrip,
   stepCell,
   valueStepCell,
   playheadCursor,
@@ -3279,6 +3515,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   pitchCvLane,
   eightStepGateRow,
   probabilityAccentLane,
+  euclideanRing,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
@@ -3290,6 +3527,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   classicClapGlyph,
   punchyClapGlyph,
   classicRimClavesGlyph,
+  punchyRimClavesGlyph,
   clockSourceBadge,
   midiActivity,
   i2cActivity,
