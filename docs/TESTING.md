@@ -334,6 +334,13 @@ source, and the responsive Components tab. Exact canvas pixels, scrolling
 through the full catalog, and physical 1x legibility still require live
 browser/device review.
 
+The pixel-UI SVG exporter test regenerates the Figma handoff in memory, verifies
+that every catalog recipe and declared state has a named editable group, and
+compares it byte-for-byte with the checked-in
+`design/disting-pixel-ui-components.svg`. Regenerate it with
+`npm run export:pixel-ui-svg` whenever component artwork or state metadata
+changes.
+
 Display-designer binding tests pin safe Lua-local allocation, keywords and
 collisions, stable usage discovery across scene and symbol primitives,
 number/boolean/text/choice binding creation, reverse mappings, integer and

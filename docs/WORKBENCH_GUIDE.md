@@ -869,6 +869,15 @@ two-voice overview, radial groove ring, and fill/roll indicator cover drum
 assemblies. Clock-source, MIDI, I2C, preset-state, warning/error,
 and busy/progress badges cover system status.
 
+The editable Figma handoff is checked in as
+[`design/disting-pixel-ui-components.svg`](../design/disting-pixel-ui-components.svg).
+It contains every catalog component and every declared visual state, grouped by
+category, component, state, and source primitive. Artwork uses the exact
+16-shade display palette at its true 1× logical pixel dimensions; Figma can
+zoom it without raster scaling. Each state frame also retains its dimensions
+in the layer metadata and label. Run `npm run export:pixel-ui-svg` after changing a catalog recipe to
+regenerate the SVG from the same compiler inputs used by the Components panel.
+
 **Insert at centre** adds one local symbol, a choice binding for its named visual states,
 any number/boolean/text bindings used by the artwork, and one selected instance
 at the centre of the active drawing area. The selected preview scenario becomes

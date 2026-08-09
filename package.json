@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "export:pixel-ui-svg": "node tools/run-export-display-component-library-svg.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
