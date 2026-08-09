@@ -111,7 +111,16 @@ const NINTH_WAVE_COMPONENT_IDS = [
   'punchy-clap-glyph',
 ] as const
 
-const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS, ...EIGHTH_WAVE_COMPONENT_IDS, ...NINTH_WAVE_COMPONENT_IDS] as const
+const TENTH_WAVE_COMPONENT_IDS = [
+  'bus-rail-tap',
+  'soft-takeover-control',
+  'clock-transform-processor',
+  'xy-vector-meter',
+  'probability-accent-lane',
+  'classic-rim-claves-glyph',
+] as const
+
+const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS, ...EIGHTH_WAVE_COMPONENT_IDS, ...NINTH_WAVE_COMPONENT_IDS, ...TENTH_WAVE_COMPONENT_IDS] as const
 
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
@@ -126,16 +135,16 @@ function recipe(id: string) {
 describe('display component library', () => {
   it('ships the expected valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(82)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(88)
     const expectedCategoryCounts = {
       layout: 10,
-      patching: 10,
-      controls: 10,
+      patching: 11,
+      controls: 11,
       signals: 6,
-      processors: 10,
-      meters: 10,
-      sequencing: 10,
-      drums: 10,
+      processors: 11,
+      meters: 11,
+      sequencing: 11,
+      drums: 11,
       status: 6,
     } as const
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
@@ -149,6 +158,7 @@ describe('display component library', () => {
     expect(SEVENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(SEVENTH_WAVE_COMPONENT_IDS)
     expect(EIGHTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(EIGHTH_WAVE_COMPONENT_IDS)
     expect(NINTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(NINTH_WAVE_COMPONENT_IDS)
+    expect(TENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(TENTH_WAVE_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
@@ -163,8 +173,9 @@ describe('display component library', () => {
       'punchy-kick-glyph',
       'classic-clap-glyph',
       'punchy-clap-glyph',
+      'classic-rim-claves-glyph',
     ])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph', 'classic-snare-glyph', 'classic-clap-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph', 'classic-snare-glyph', 'classic-clap-glyph', 'classic-rim-claves-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '909-like').map(({ id }) => id)).toEqual(['drum-voice-tile', 'punchy-snare-glyph', 'punchy-kick-glyph', 'punchy-clap-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
@@ -179,9 +190,14 @@ describe('display component library', () => {
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'pitch grid').map(({ id }) => id)).toEqual(['pitch-quantizer-processor'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'no data').map(({ id }) => id)).toEqual(['empty-unavailable-marker'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'animated route').map(({ id }) => id)).toEqual(['patch-link-flow-line'])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'two axis').map(({ id }) => id)).toEqual(['xy-pad-vector-point'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'two axis').map(({ id }) => id)).toEqual(['xy-pad-vector-point', 'xy-vector-meter'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'note range').map(({ id }) => id)).toEqual(['note-range-ladder'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'x0x').map(({ id }) => id)).toContain('eight-step-gate-row')
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'clock bus').map(({ id }) => id)).toEqual(['bus-rail-tap'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'pickup').map(({ id }) => id)).toEqual(['soft-takeover-control'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'clock transform').map(({ id }) => id)).toEqual(['clock-transform-processor'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'two channel cv').map(({ id }) => id)).toEqual(['xy-vector-meter'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'most-recent fired').map(({ id }) => id)).toEqual(['probability-accent-lane'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
   })
 
