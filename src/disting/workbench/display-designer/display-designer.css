@@ -284,7 +284,12 @@
   background: var(--workbench-surface-panel);
 }
 
-.display-designer-sidebar--layers { border-right: 1px solid var(--nt-line); }
+.display-designer-sidebar--layers {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  border-right: 1px solid var(--nt-line);
+}
 .display-designer-sidebar--inspector { border-left: 1px solid var(--nt-line); }
 
 .display-designer-collapse {
@@ -302,6 +307,35 @@
 .inspector-collapsed .display-designer-sidebar--inspector .display-designer-collapse {
   width: 30px;
   writing-mode: vertical-rl;
+}
+
+.display-designer-left-tabs {
+  min-width: 0;
+  padding: 0 6px 6px;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--nt-line);
+  scrollbar-gutter: stable;
+}
+
+.display-designer-left-tabs button {
+  min-width: 0;
+  flex: 1 0 auto;
+  padding-inline: 6px;
+}
+
+.display-designer-left-tabs button[aria-selected='true'] {
+  border-color: var(--nt-green);
+  color: var(--nt-green);
+  box-shadow: inset 0 -2px var(--nt-green);
+}
+
+.display-designer-left-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .display-designer-panel {
@@ -431,7 +465,7 @@
 .display-designer-context-menu button:disabled { opacity: 0.4; cursor: default; }
 .display-designer-context-menu button.is-danger { color: var(--signal-error); }
 
-.display-component-library { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--nt-line); }
+.display-component-library { margin: 0; border-top: 0; }
 .display-component-library > .display-designer-empty { margin: 5px 0 8px; }
 .display-component-library-filters { display: grid; gap: 6px; }
 .display-component-library-count,
@@ -442,6 +476,7 @@
 .display-component-card > header > span { min-width: 0; display: grid; gap: 2px; }
 .display-component-card > header strong,
 .display-component-card > header small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.display-component-card > header strong { font: 700 var(--font-label)/1.2 var(--mono); }
 .display-component-card > header small,
 .display-component-card > p,
 .display-component-card details { color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
@@ -451,7 +486,7 @@
 .display-component-card details ul { margin: 5px 0 0; padding-left: 18px; }
 .display-component-card > button { width: 100%; }
 
-.display-designer-symbols { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--nt-line); }
+.display-designer-symbols { margin: 0; border-top: 0; }
 .display-designer-breadcrumb,
 .display-designer-symbol-actions,
 .display-designer-variant-tabs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }

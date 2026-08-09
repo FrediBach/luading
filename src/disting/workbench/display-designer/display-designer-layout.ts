@@ -14,13 +14,22 @@ export type DisplayDesignerPanel =
   | 'metrics'
   | 'lua'
 
-export const DISPLAY_DESIGNER_PANELS: ReadonlyArray<{
-  id: DisplayDesignerPanel
+export type DisplayDesignerLeftPanel = Extract<DisplayDesignerPanel, 'layers' | 'components' | 'symbols'>
+
+export const DISPLAY_DESIGNER_LEFT_PANELS: ReadonlyArray<{
+  id: DisplayDesignerLeftPanel
   label: string
 }> = [
   { id: 'layers', label: 'Layers' },
   { id: 'components', label: 'Components' },
   { id: 'symbols', label: 'Symbols' },
+]
+
+export const DISPLAY_DESIGNER_PANELS: ReadonlyArray<{
+  id: DisplayDesignerPanel
+  label: string
+}> = [
+  ...DISPLAY_DESIGNER_LEFT_PANELS,
   { id: 'properties', label: 'Properties' },
   { id: 'tokens', label: 'Tokens' },
   { id: 'state', label: 'State' },

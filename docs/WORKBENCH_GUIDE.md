@@ -923,7 +923,12 @@ including shade 0 where erasing is required. The Properties summary, preview,
 metrics, generated Lua, and pixel boxes inside symbols all use that same
 deterministic result.
 
-Layers are shown front-to-back. Select on the artboard or in Layers, and use
+The left sidebar uses **Layers**, **Components**, and **Symbols** tabs so each
+authoring view gets the full sidebar instead of sharing one long stacked
+column. Arrow keys move between focused tabs; Home and End jump to the first
+and last tab. Component cards use compact names above their pixel previews.
+
+Layers are shown front-to-back. Select on the artboard or in **Layers**, and use
 Shift to build a multi-selection. With the Select tool, drag from empty
 artboard space to select every layer fully enclosed by the area; drag in either
 direction, or hold Shift to add the enclosed layers to the current selection.

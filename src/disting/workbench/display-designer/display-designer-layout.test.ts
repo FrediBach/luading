@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DISPLAY_DESIGNER_LEFT_PANELS,
   DISPLAY_DESIGNER_PANELS,
   displayDesignerLayoutForWidth,
   moveDisplayDesignerTab,
@@ -16,6 +17,11 @@ describe('Display designer responsive layout', () => {
   })
 
   it('keeps every responsive authoring region in stable tab order', () => {
+    expect(DISPLAY_DESIGNER_LEFT_PANELS).toEqual([
+      { id: 'layers', label: 'Layers' },
+      { id: 'components', label: 'Components' },
+      { id: 'symbols', label: 'Symbols' },
+    ])
     expect(DISPLAY_DESIGNER_PANELS).toEqual([
       { id: 'layers', label: 'Layers' },
       { id: 'components', label: 'Components' },

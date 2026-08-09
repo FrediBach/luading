@@ -26,10 +26,12 @@ import {
 import { compileDisplayDesign } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
 import {
+  DISPLAY_DESIGNER_LEFT_PANELS,
   DISPLAY_DESIGNER_PANELS,
   displayDesignerLayoutForWidth,
   moveDisplayDesignerTab,
   type DisplayDesignerLayoutMode,
+  type DisplayDesignerLeftPanel,
   type DisplayDesignerPanel,
 } from './display-designer-layout'
 import {
@@ -1997,6 +1999,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const [fileStatus, setFileStatus] = useState('')
   const [focusTokenId, setFocusTokenId] = useState<string>()
   const [responsivePanel, setResponsivePanel] = useState<DisplayDesignerPanel>('layers')
+  const [leftPanel, setLeftPanel] = useState<DisplayDesignerLeftPanel>('layers')
   const [savedDocumentText, setSavedDocumentText] = useState(initialSavedDocumentText)
   const [hiddenGroupIds, setHiddenGroupIds] = useState<Set<string>>(() => new Set())
   const [gesture, setGesture] = useState<DisplayDesignerGesture | null>(null)
@@ -2636,13 +2639,33 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
 
         <main id="display-designer-screen-artboard" role="tabpanel" aria-labelledby={`display-designer-screen-tab-${document.screens.findIndex(({ id }) => id === activeScreen.id)}`} className={`display-designer-workspace${layersCollapsed ? ' layers-collapsed' : ''}${inspectorCollapsed ? ' inspector-collapsed' : ''}`}>
           <aside className="display-designer-sidebar display-designer-sidebar--layers">
-            <button type="button" className="display-designer-collapse" aria-expanded={!layersCollapsed} onClick={() => setLayersCollapsed((value) => !value)}>{layersCollapsed ? 'Show layers' : 'Hide layers'}</button>
+            <button type="button" className="display-designer-collapse" aria-expanded={!layersCollapsed} onClick={() => setLayersCollapsed((value) => !value)}>{layersCollapsed ? 'Show left panel' : 'Hide left panel'}</button>
+            {!responsive && !layersCollapsed && <div className="display-designer-left-tabs" role="tablist" aria-label="Display designer left panel">
+              {DISPLAY_DESIGNER_LEFT_PANELS.map((panel, index) => <button
+                key={panel.id}
+                id={`display-designer-left-tab-${panel.id}`}
+                type="button"
+                role="tab"
+                aria-selected={leftPanel === panel.id}
+                aria-controls={`display-designer-left-panel-${panel.id}`}
+                tabIndex={leftPanel === panel.id ? 0 : -1}
+                onClick={() => setLeftPanel(panel.id)}
+                onKeyDown={(event) => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+                  event.preventDefault()
+                  const nextIndex = moveDisplayDesignerTab(index, event.key as 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End', DISPLAY_DESIGNER_LEFT_PANELS.length)
+                  const nextPanel = DISPLAY_DESIGNER_LEFT_PANELS[nextIndex]!
+                  setLeftPanel(nextPanel.id)
+                  window.requestAnimationFrame(() => globalThis.document.getElementById(`display-designer-left-tab-${nextPanel.id}`)?.focus())
+                }}
+              >{panel.label}</button>)}
+            </div>}
             {(!layersCollapsed || responsive) && <div
-              className="display-designer-responsive-panel"
-              role={responsive ? 'tabpanel' : undefined}
-              id={responsive ? 'display-designer-panel-layers' : undefined}
-              aria-labelledby={responsive ? 'display-designer-tab-layers' : undefined}
-              hidden={responsive && responsivePanel !== 'layers'}
+              className="display-designer-left-panel display-designer-responsive-panel"
+              role="tabpanel"
+              id={responsive ? 'display-designer-panel-layers' : 'display-designer-left-panel-layers'}
+              aria-labelledby={responsive ? 'display-designer-tab-layers' : 'display-designer-left-tab-layers'}
+              hidden={responsive ? responsivePanel !== 'layers' : leftPanel !== 'layers'}
             ><DisplayDesignerLayers
               document={activeDocument}
               selectedIds={selection.elementIds}
@@ -2685,11 +2708,11 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               })}
             /></div>}
             {(!layersCollapsed || responsive) && <div
-              className="display-designer-responsive-panel"
-              role={responsive ? 'tabpanel' : undefined}
-              id={responsive ? 'display-designer-panel-components' : undefined}
-              aria-labelledby={responsive ? 'display-designer-tab-components' : undefined}
-              hidden={responsive && responsivePanel !== 'components'}
+              className="display-designer-left-panel display-designer-responsive-panel"
+              role="tabpanel"
+              id={responsive ? 'display-designer-panel-components' : 'display-designer-left-panel-components'}
+              aria-labelledby={responsive ? 'display-designer-tab-components' : 'display-designer-left-tab-components'}
+              hidden={responsive ? responsivePanel !== 'components' : leftPanel !== 'components'}
             ><DisplayComponentLibrary onInsert={(recipe, scenarioId) => {
               if (activeSymbol) return {
                 ok: false,
@@ -2711,11 +2734,11 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               }
             }} /></div>}
             {(!layersCollapsed || responsive) && <div
-              className="display-designer-responsive-panel"
-              role={responsive ? 'tabpanel' : undefined}
-              id={responsive ? 'display-designer-panel-symbols' : undefined}
-              aria-labelledby={responsive ? 'display-designer-tab-symbols' : undefined}
-              hidden={responsive && responsivePanel !== 'symbols'}
+              className="display-designer-left-panel display-designer-responsive-panel"
+              role="tabpanel"
+              id={responsive ? 'display-designer-panel-symbols' : 'display-designer-left-panel-symbols'}
+              aria-labelledby={responsive ? 'display-designer-tab-symbols' : 'display-designer-left-tab-symbols'}
+              hidden={responsive ? responsivePanel !== 'symbols' : leftPanel !== 'symbols'}
             ><DisplayDesignerSymbols
               document={document}
               selection={selection}
@@ -2802,6 +2825,8 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                     if (binding?.kind === 'choice') variantId = instanceState.variantByChoiceId[binding.previewChoiceId] ?? variantId
                   }
                   setSelection({ ...createEmptyDisplayDesignSelection(), symbolId: symbol.id, variantId, primitiveIds: [] })
+                  setLeftPanel('symbols')
+                  if (responsive) setResponsivePanel('symbols')
                 }}
                 onDetachInstance={(instance) => setPendingDetachId(instance.id)}
               /></div>
@@ -2851,7 +2876,6 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               window.requestAnimationFrame(() => globalThis.document.getElementById(`display-designer-tab-${nextPanel.id}`)?.focus())
             }}
           >{panel.label}</button>)}
-          <span className="sr-only" role="status" aria-live="polite">{DISPLAY_DESIGNER_PANELS.find(({ id }) => id === responsivePanel)?.label} panel selected.</span>
         </div>}
 
         <DisplayDesignerReview

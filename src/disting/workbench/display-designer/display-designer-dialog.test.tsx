@@ -149,6 +149,9 @@ describe('Display designer dialog', () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))
 
+    expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(true)
+    await click(button('Components'))
+    expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(false)
     expect(document.querySelectorAll('.display-component-card')).toHaveLength(18)
     await commitInput(field('Search components') as HTMLInputElement, '808-like')
     expect(document.querySelectorAll('.display-component-card')).toHaveLength(1)
@@ -173,6 +176,8 @@ describe('Display designer dialog', () => {
     expect(document.querySelector('.display-component-library-status')?.textContent).toBe('Inserted Input jack with 3 state bindings.')
 
     await click(button('Edit symbol'))
+    expect(document.querySelector('#display-designer-left-tab-symbols')?.getAttribute('aria-selected')).toBe('true')
+    await click(button('Components'))
     await click(button('Insert Output jack'))
     expect(document.querySelector('.display-component-library-status')?.textContent).toBe(
       'Return to the scene before inserting a component; symbols cannot contain component instances.',
@@ -384,6 +389,37 @@ describe('Display designer dialog', () => {
     expect(document.querySelector('#display-designer-panel-lua')?.hasAttribute('hidden')).toBe(false)
   })
 
+  it('tabs the wide left sidebar with linked panels and roving keyboard focus', async () => {
+    await act(async () => {
+      root.render(<DisplayDesignerDialog open viewportWidth={1200} returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />)
+    })
+    const layersTab = document.querySelector<HTMLButtonElement>('#display-designer-left-tab-layers')!
+    expect(layersTab.getAttribute('aria-selected')).toBe('true')
+    expect(layersTab.tabIndex).toBe(0)
+    expect(document.querySelector('#display-designer-left-panel-layers')?.hasAttribute('hidden')).toBe(false)
+    expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(true)
+    expect(document.querySelector('#display-designer-left-panel-symbols')?.hasAttribute('hidden')).toBe(true)
+
+    await act(async () => {
+      layersTab.focus()
+      layersTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    const componentsTab = document.querySelector<HTMLButtonElement>('#display-designer-left-tab-components')!
+    expect(componentsTab.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(componentsTab)
+    expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(false)
+    expect(document.querySelector('#display-designer-left-panel-layers')?.hasAttribute('hidden')).toBe(true)
+
+    await act(async () => {
+      componentsTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    })
+    expect(document.querySelector('#display-designer-left-tab-symbols')?.getAttribute('aria-selected')).toBe('true')
+    expect(document.activeElement).toBe(document.querySelector('#display-designer-left-tab-symbols'))
+    expect(document.querySelector('#display-designer-left-panel-symbols')?.hasAttribute('hidden')).toBe(false)
+  })
+
   it('labels dynamic controls, shade state, findings, metrics, and preview announcements', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))
@@ -578,9 +614,9 @@ describe('Display designer dialog', () => {
     await click(button('Redo'))
     expect(source().match(/drawRectangle/g)).toHaveLength(1)
 
-    await click(button('Hide layers'))
+    await click(button('Hide left panel'))
     expect(document.querySelector('.display-designer-workspace')?.classList.contains('layers-collapsed')).toBe(true)
-    await click(button('Show layers'))
+    await click(button('Show left panel'))
     await click(button('Hide properties'))
     expect(document.querySelector('.display-designer-workspace')?.classList.contains('inspector-collapsed')).toBe(true)
     await click(button('Show properties'))
