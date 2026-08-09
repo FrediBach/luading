@@ -351,6 +351,42 @@ const pageIndicator: DisplayComponentRecipe = {
   },
 }
 
+const focusSelectionBrackets: DisplayComponentRecipe = {
+  ...common,
+  id: 'focus-selection-brackets',
+  name: 'Focus selection brackets',
+  category: 'layout',
+  description: 'An orthogonal corner overlay for focus or selection with warning, error, and inactive treatments.',
+  tags: ['focus', 'selection', 'brackets', 'cursor', 'overlay', 'bounds', 'highlight'],
+  footprint: { width: 40, height: 20 },
+  states: [{ value: 'inactive', name: 'Inactive' }, { value: 'visible', name: 'Visible' }, { value: 'warning', name: 'Warning' }, { value: 'error', name: 'Error' }],
+  defaultState: 'inactive',
+  inputs: [booleanInput('scriptSelected', 'Script selected', 'Adds a centre selection mark supplied by script state.')],
+  scenarios: [
+    { id: 'default', name: 'Inactive guide', state: 'inactive' },
+    { id: 'active', name: 'Selected', state: 'visible', values: { scriptSelected: true } },
+    { id: 'edge', name: 'Warning selection', state: 'warning', values: { scriptSelected: true } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'inactive' ? 3 : state === 'warning' ? 12 : 15
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Focus top left horizontal', 0, 0, 6, 0, shade),
+      line(context, 'Focus top left vertical', 0, 0, 0, 6, shade),
+      line(context, 'Focus top right horizontal', 33, 0, 39, 0, shade),
+      line(context, 'Focus top right vertical', 39, 0, 39, 6, shade),
+      line(context, 'Focus bottom left horizontal', 0, 19, 6, 19, shade),
+      line(context, 'Focus bottom left vertical', 0, 13, 0, 19, shade),
+      line(context, 'Focus bottom right horizontal', 33, 19, 39, 19, shade),
+      line(context, 'Focus bottom right vertical', 39, 13, 39, 19, shade),
+      box(context, 'Focus script selection', 18, 8, 21, 11, 15, true, context.visible('scriptSelected')),
+    ]
+    if (state === 'visible') primitives.push(line(context, 'Focus visible top', 14, 0, 25, 0, 15))
+    if (state === 'warning') primitives.push(line(context, 'Focus warning rail', 8, 1, 31, 1, 15), line(context, 'Focus warning stem', 20, 1, 20, 5, 15))
+    if (state === 'error') primitives.push(line(context, 'Focus error one', 15, 5, 25, 15, 15), line(context, 'Focus error two', 25, 5, 15, 15, 15))
+    return primitives
+  },
+}
+
 const inputJack: DisplayComponentRecipe = {
   ...common,
   id: 'input-jack',
@@ -646,6 +682,33 @@ const mergeMixNode: DisplayComponentRecipe = {
   },
 }
 
+const routingMatrixCell: DisplayComponentRecipe = {
+  ...common,
+  id: 'routing-matrix-cell',
+  name: 'Routing matrix cell',
+  category: 'patching',
+  description: 'A compact crosspoint with off, connected, modulated, selected, and conflict shapes.',
+  tags: ['routing', 'matrix', 'crosspoint', 'cell', 'modulated', 'conflict', 'patch'],
+  footprint: { width: 9, height: 9 },
+  states: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }, { value: 'modulated', name: 'Modulated' }, { value: 'selected', name: 'Selected' }, { value: 'conflict', name: 'Conflict' }],
+  defaultState: 'off',
+  inputs: [numberInput('amount', 'Modulation amount', 'Normalized modulation amount used for the inner crosspoint shade.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Disconnected', state: 'off', values: { amount: 0 } },
+    { id: 'active', name: 'Modulated route', state: 'modulated', values: { amount: 0.8 } },
+    { id: 'edge', name: 'Route conflict', state: 'conflict', values: { amount: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'off' ? 4 : state === 'conflict' || state === 'selected' ? 15 : state === 'modulated' ? context.number('amount', 7, 14) : 12
+    const primitives: DisplayPrimitiveElement[] = [box(context, 'Matrix cell frame', 0, 0, 8, 8, state === 'selected' ? 15 : state === 'off' ? 3 : 7)]
+    if (state === 'on') primitives.push(box(context, 'Matrix cell connection', 2, 2, 6, 6, shade, true))
+    if (state === 'modulated') primitives.push(circle(context, 'Matrix cell modulation', 4, 4, 3, shade), box(context, 'Matrix cell modulation centre', 4, 4, 4, 4, 15, true))
+    if (state === 'selected') primitives.push(line(context, 'Matrix cell selected horizontal', 1, 4, 7, 4, 15), line(context, 'Matrix cell selected vertical', 4, 1, 4, 7, 15))
+    if (state === 'conflict') primitives.push(line(context, 'Matrix cell conflict one', 1, 1, 7, 7, 15), line(context, 'Matrix cell conflict two', 7, 1, 1, 7, 15))
+    return primitives
+  },
+}
+
 const momentaryButton: DisplayComponentRecipe = {
   ...common,
   id: 'momentary-button',
@@ -912,6 +975,40 @@ const rotaryKnob: DisplayComponentRecipe = {
     if (state === 'focused') primitives.push(line(context, 'Rotary focus top', 3, 0, 15, 0, 15), line(context, 'Rotary focus bottom', 3, 17, 15, 17, 15))
     if (state === 'at-limit') primitives.push(box(context, 'Rotary limit mark', 14, 1, 17, 4, 15, true))
     if (state === 'disabled') primitives.push(line(context, 'Rotary disabled mark', 3, 15, 15, 3, 3))
+    return primitives
+  },
+}
+
+const encoderRing: DisplayComponentRecipe = {
+  ...common,
+  id: 'encoder-ring',
+  name: 'Encoder ring',
+  category: 'controls',
+  description: 'A stepped encoder indicator with turning direction, push, focus, and disabled marks.',
+  tags: ['encoder', 'ring', 'turn', 'push', 'pressed', 'stepped', 'navigation'],
+  footprint: { width: 18, height: 18 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'turning-left', name: 'Turning left' }, { value: 'turning-right', name: 'Turning right' }, { value: 'pressed', name: 'Pressed' }, { value: 'focused', name: 'Focused' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'idle',
+  inputs: [numberInput('position', 'Step position', 'Normalized encoder or choice position.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Idle midpoint', state: 'idle' },
+    { id: 'active', name: 'Turning right', state: 'turning-right', values: { position: 0.75 } },
+    { id: 'edge', name: 'Pressed', state: 'pressed', values: { position: 1 } },
+  ],
+  build: (context, state) => {
+    const position = context.number('position', 3, 15)
+    const shade = state === 'disabled' ? 3 : state === 'focused' || state === 'pressed' ? 15 : state === 'turning-left' || state === 'turning-right' ? 13 : 8
+    const primitives: DisplayPrimitiveElement[] = [
+      circle(context, 'Encoder outer ring', 9, 9, 7, shade),
+      circle(context, 'Encoder push centre', 9, 9, state === 'pressed' ? 3 : 2, state === 'pressed' ? 15 : 7),
+      line(context, 'Encoder position', 9, 9, position, 3, shade),
+      line(context, 'Encoder left tick', 1, 9, 3, 9, 5),
+      line(context, 'Encoder right tick', 15, 9, 17, 9, 5),
+    ]
+    if (state === 'turning-left') primitives.push(line(context, 'Encoder left arrow shaft', 3, 2, 8, 0, 15), line(context, 'Encoder left arrow head', 3, 2, 6, 4, 15))
+    if (state === 'turning-right') primitives.push(line(context, 'Encoder right arrow shaft', 10, 0, 15, 2, 15), line(context, 'Encoder right arrow head', 15, 2, 12, 4, 15))
+    if (state === 'focused') primitives.push(line(context, 'Encoder focus top', 3, 0, 15, 0, 15), line(context, 'Encoder focus bottom', 3, 17, 15, 17, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Encoder disabled mark', 3, 15, 15, 3, 3))
     return primitives
   },
 }
@@ -1426,6 +1523,46 @@ const slewProcessor: DisplayComponentRecipe = {
   },
 }
 
+const pitchQuantizerProcessor: DisplayComponentRecipe = {
+  ...common,
+  id: 'pitch-quantizer-processor',
+  name: 'Pitch quantizer processor',
+  category: 'processors',
+  description: 'A pitch-grid tile that separates input, accepted output, rejected, bypass, and error states.',
+  tags: ['pitch', 'quantizer', 'scale', 'grid', 'pitch grid', 'note', 'accepted', 'rejected', 'semitone'],
+  footprint: { width: 52, height: 20 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'quantized', name: 'Quantized' }, { value: 'rejected', name: 'Rejected' }, { value: 'bypassed', name: 'Bypassed' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    numberInput('input', 'Input pitch', 'Normalized input pitch position in the displayed range.', 0.42),
+    numberInput('output', 'Output pitch', 'Normalized quantized output pitch position.', 0.5),
+    textInput('scale', 'Scale', 'Short script-formatted scale label.', 'MAJ'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle grid', state: 'idle' },
+    { id: 'active', name: 'Accepted note', state: 'quantized', values: { input: 0.47, output: 0.5, scale: 'MIN' } },
+    { id: 'edge', name: 'Rejected note', state: 'rejected', values: { input: 0.9, output: 0.75, scale: 'PENTA' } },
+  ],
+  build: (context, state) => {
+    const inputX = context.number('input', 3, 36)
+    const outputX = context.number('output', 3, 36)
+    const shade = state === 'error' ? 15 : state === 'bypassed' ? 4 : state === 'quantized' ? 13 : state === 'rejected' ? 10 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Quantizer frame', 0, 0, 51, 19, shade),
+      line(context, 'Quantizer pitch rail', 3, 11, 36, 11, 5),
+      line(context, 'Quantizer input marker', inputX, 4, inputX, 15, state === 'rejected' ? 15 : 9),
+      line(context, 'Quantizer output marker', outputX, 2, outputX, 17, state === 'quantized' ? 15 : shade),
+      tinyText(context, 'Quantizer scale label', 49, 8, context.text('scale'), shade, 'right'),
+    ]
+    for (const x of [8, 14, 20, 26, 32]) primitives.push(line(context, `Quantizer grid ${x}`, x, 9, x, 13, 4))
+    if (state === 'quantized') primitives.push(line(context, 'Quantizer accepted link', inputX, 16, outputX, 16, 15))
+    if (state === 'rejected') primitives.push(line(context, 'Quantizer reject one', 40, 10, 48, 17, 15), line(context, 'Quantizer reject two', 48, 10, 40, 17, 15))
+    if (state === 'bypassed') primitives.push(line(context, 'Quantizer bypass', 2, 2, 49, 2, 10))
+    if (state === 'error') primitives.push(line(context, 'Quantizer error one', 17, 4, 29, 16, 15), line(context, 'Quantizer error two', 29, 4, 17, 16, 15))
+    return primitives
+  },
+}
+
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
   id: 'unipolar-bar-meter',
@@ -1705,6 +1842,42 @@ const envelopeContour: DisplayComponentRecipe = {
   },
 }
 
+const phaseClockRing: DisplayComponentRecipe = {
+  ...common,
+  id: 'phase-clock-ring',
+  name: 'Phase clock ring',
+  category: 'meters',
+  description: 'A compact phase and division ring with stopped, running, searching, locked, and error shapes.',
+  tags: ['phase', 'clock', 'ring', 'cycle', 'division', 'rotation', 'lfo', 'euclidean'],
+  footprint: { width: 24, height: 24 },
+  states: [{ value: 'stopped', name: 'Stopped' }, { value: 'running', name: 'Running' }, { value: 'searching', name: 'Searching' }, { value: 'locked', name: 'Locked' }, { value: 'error', name: 'Error' }],
+  defaultState: 'stopped',
+  inputs: [numberInput('phase', 'Phase', 'Normalized script-owned phase position.', 0)],
+  scenarios: [
+    { id: 'default', name: 'Stopped', state: 'stopped', values: { phase: 0 } },
+    { id: 'active', name: 'Running locked', state: 'locked', values: { phase: 0.7 } },
+    { id: 'edge', name: 'Searching', state: 'searching', values: { phase: 0.2 } },
+  ],
+  build: (context, state) => {
+    const phase = context.number('phase', 4, 20)
+    const shade = state === 'error' ? 15 : state === 'stopped' ? 4 : state === 'searching' ? 8 : state === 'locked' ? 15 : 12
+    const primitives: DisplayPrimitiveElement[] = [
+      circle(context, 'Phase ring', 12, 12, 9, shade),
+      line(context, 'Phase top division', 12, 0, 12, 4, state === 'stopped' ? 3 : 8),
+      line(context, 'Phase right division', 20, 12, 23, 12, state === 'stopped' ? 3 : 8),
+      line(context, 'Phase bottom division', 12, 20, 12, 23, state === 'stopped' ? 3 : 8),
+      line(context, 'Phase left division', 0, 12, 4, 12, state === 'stopped' ? 3 : 8),
+      line(context, 'Phase hand', 12, 12, phase, 4, shade),
+      circle(context, 'Phase hub', 12, 12, 1, state === 'stopped' ? 4 : 15),
+    ]
+    if (state === 'running') primitives.push(line(context, 'Phase running tail', phase, 4, context.number('phase', 3, 19), 7, 10))
+    if (state === 'searching') primitives.push(line(context, 'Phase search left', 5, 20, 10, 22, 15), line(context, 'Phase search right', 14, 22, 19, 20, 15))
+    if (state === 'locked') primitives.push(box(context, 'Phase lock mark', 9, 9, 15, 15, 13))
+    if (state === 'error') primitives.push(line(context, 'Phase error one', 5, 5, 19, 19, 15), line(context, 'Phase error two', 19, 5, 5, 19, 15))
+    return primitives
+  },
+}
+
 const stepCell: DisplayComponentRecipe = {
   ...common,
   id: 'step-cell',
@@ -1966,6 +2139,45 @@ const miniKeyboardRow: DisplayComponentRecipe = {
     if (state === 'output') primitives.push(line(context, 'Keyboard output mark', note, 5, note, 12, 15))
     if (state === 'rejected') primitives.push(line(context, 'Keyboard rejection one', note, 5, note, 12, 15), line(context, 'Keyboard rejection two', context.number('note', 0, 67), 8, context.number('note', 4, 71), 8, 15))
     if (state === 'disabled') primitives.push(line(context, 'Keyboard disabled mark', 2, 12, 69, 1, 3))
+    return primitives
+  },
+}
+
+const pitchCvLane: DisplayComponentRecipe = {
+  ...common,
+  id: 'pitch-cv-lane',
+  name: 'Eight-step pitch CV lane',
+  category: 'sequencing',
+  description: 'An eight-step pitch or CV lane with independent values, playhead, mute, clip, and error treatments.',
+  tags: ['pitch', 'cv', 'lane', 'sequencer', 'eight step', 'piano roll', 'values'],
+  footprint: { width: 120, height: 20 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'running', name: 'Running' }, { value: 'muted', name: 'Muted' }, { value: 'clipped', name: 'Clipped' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    ...Array.from({ length: 8 }, (_, index) => numberInput(`step${index + 1}`, `Step ${index + 1}`, `Normalized pitch or CV value for step ${index + 1}.`, 0.25 + (index % 4) * 0.15)),
+    numberInput('playhead', 'Playhead', 'Normalized algorithm-owned playhead position across eight steps.', 0),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle phrase', state: 'idle' },
+    { id: 'active', name: 'Running', state: 'running', values: { step1: 0.2, step2: 0.4, step3: 0.6, step4: 0.8, step5: 0.7, step6: 0.5, step7: 0.3, step8: 0.65, playhead: 0.55 } },
+    { id: 'edge', name: 'Clipped high step', state: 'clipped', values: { step4: 1, playhead: 0.43 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'clipped' || state === 'error' ? 15 : state === 'running' ? 12 : 8
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Pitch lane frame', 0, 0, 119, 19, state === 'muted' ? 2 : state === 'error' ? 15 : 4),
+      line(context, 'Pitch lane baseline', 2, 17, 117, 17, state === 'muted' ? 2 : 5),
+    ]
+    for (let index = 0; index < 8; index += 1) {
+      const x = 7 + index * 15
+      primitives.push(line(context, `Pitch lane step ${index + 1}`, x, 16, x, context.number(`step${index + 1}`, 16, 2), shade))
+    }
+    const playhead = context.number('playhead', 4, 115)
+    primitives.push(line(context, 'Pitch lane playhead', playhead, 0, playhead, 19, state === 'running' ? 15 : 7))
+    if (state === 'running') primitives.push(line(context, 'Pitch lane running rail', 2, 1, playhead, 1, 13))
+    if (state === 'muted') primitives.push(line(context, 'Pitch lane mute', 3, 18, 116, 1, 5))
+    if (state === 'clipped') primitives.push(box(context, 'Pitch lane clip', 108, 0, 119, 2, 15, true))
+    if (state === 'error') primitives.push(line(context, 'Pitch lane error one', 52, 4, 66, 16, 15), line(context, 'Pitch lane error two', 66, 4, 52, 16, 15))
     return primitives
   },
 }
@@ -2259,6 +2471,38 @@ const punchyKickGlyph: DisplayComponentRecipe = {
   },
 }
 
+const classicClapGlyph: DisplayComponentRecipe = {
+  ...common,
+  id: 'classic-clap-glyph',
+  name: 'Classic analog clap glyph',
+  category: 'drums',
+  description: 'An original layered transient glyph for the Classic analog drum family.',
+  tags: ['808-like', 'classic analog', 'clap', 'handclap', 'drum', 'voice', 'percussion'],
+  footprint: { width: 18, height: 16 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'hit', name: 'Hit' }, { value: 'accent', name: 'Accent' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [numberInput('spread', 'Transient spread', 'Normalized script-owned clap spread or event level.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle', values: { spread: 0.3 } },
+    { id: 'active', name: 'Clap hit', state: 'hit', values: { spread: 0.75 } },
+    { id: 'edge', name: 'Accented clap', state: 'accent', values: { spread: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('spread', 7, 14)
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Classic clap left transient', 2, 5, 8, 12, shade),
+      line(context, 'Classic clap centre transient', 8, 2, 9, 13, state === 'muted' ? 3 : 11),
+      line(context, 'Classic clap right transient', 15, 5, 9, 12, shade),
+      tinyText(context, 'Classic clap label', 17, 15, 'CP', state === 'muted' ? 3 : 9, 'right'),
+    ]
+    if (state === 'hit') primitives.push(line(context, 'Classic clap hit rail', 1, 8, 16, 8, 15))
+    if (state === 'accent') primitives.push(line(context, 'Classic clap accent top', 2, 1, 15, 1, 15), line(context, 'Classic clap accent rail', 1, 8, 16, 8, 15))
+    if (state === 'muted') primitives.push(line(context, 'Classic clap mute', 2, 14, 15, 2, 5))
+    if (state === 'error') primitives.push(line(context, 'Classic clap error one', 2, 2, 15, 14, 15), line(context, 'Classic clap error two', 15, 2, 2, 14, 15))
+    return primitives
+  },
+}
+
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
   id: 'clock-source-badge',
@@ -2452,6 +2696,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   stateBadge,
   segmentedSelector,
   pageIndicator,
+  focusSelectionBrackets,
   inputJack,
   outputJack,
   bidirectionalJack,
@@ -2460,6 +2705,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   labelledPortTile,
   splitMultipleNode,
   mergeMixNode,
+  routingMatrixCell,
   momentaryButton,
   toggleSwitch,
   horizontalFader,
@@ -2468,6 +2714,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   rangeSlider,
   verticalFader,
   rotaryKnob,
+  encoderRing,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,
@@ -2482,6 +2729,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   bernoulliRouter,
   attenuverterProcessor,
   slewProcessor,
+  pitchQuantizerProcessor,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
@@ -2490,6 +2738,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   modulationRangeMeter,
   gateTriggerActivity,
   envelopeContour,
+  phaseClockRing,
   stepCell,
   valueStepCell,
   playheadCursor,
@@ -2498,6 +2747,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   patternPageStrip,
   trackerRow,
   miniKeyboardRow,
+  pitchCvLane,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
@@ -2506,6 +2756,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   punchySnareGlyph,
   classicSnareGlyph,
   punchyKickGlyph,
+  classicClapGlyph,
   clockSourceBadge,
   midiActivity,
   i2cActivity,
