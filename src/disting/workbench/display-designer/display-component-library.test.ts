@@ -47,7 +47,19 @@ const THIRD_WAVE_COMPONENT_IDS = [
   'preset-state-marker',
 ] as const
 
-const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS] as const
+const FOURTH_WAVE_COMPONENT_IDS = [
+  'label-value-row',
+  'normalled-pair',
+  'bipolar-fader',
+  'unit-badge',
+  'logic-processor',
+  'threshold-window-meter',
+  'transport-strip',
+  'drum-overview',
+  'warning-error-banner',
+] as const
+
+const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS] as const
 
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
@@ -60,14 +72,15 @@ function recipe(id: string) {
 }
 
 describe('display component library', () => {
-  it('ships four valid recipes in every component category', () => {
+  it('ships five valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(DISPLAY_COMPONENT_CATEGORIES.length * 4)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(DISPLAY_COMPONENT_CATEGORIES.length * 5)
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
-      expect(DISPLAY_COMPONENT_RECIPES.filter((candidate) => candidate.category === category.id).map(({ name }) => name)).toHaveLength(4)
+      expect(DISPLAY_COMPONENT_RECIPES.filter((candidate) => candidate.category === category.id).map(({ name }) => name)).toHaveLength(5)
     }
     expect(SECOND_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(SECOND_WAVE_COMPONENT_IDS)
     expect(THIRD_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(THIRD_WAVE_COMPONENT_IDS)
+    expect(FOURTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(FOURTH_WAVE_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
@@ -76,11 +89,13 @@ describe('display component library', () => {
       'drum-voice-tile',
       'drum-step-cell',
       'fill-roll-indicator',
+      'drum-overview',
     ])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'random voltage').map(({ id }) => id)).toEqual(['sample-hold-processor'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'comparator').map(({ id }) => id)).toEqual(['threshold-window-meter'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
   })
 

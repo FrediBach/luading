@@ -209,6 +209,40 @@ const dividerRuler: DisplayComponentRecipe = {
   },
 }
 
+const labelValueRow: DisplayComponentRecipe = {
+  ...common,
+  id: 'label-value-row',
+  name: 'Label value row',
+  category: 'layout',
+  description: 'A compact dynamic label and value readout with focus, stale, and error treatments.',
+  tags: ['label', 'value', 'parameter', 'voltage', 'note', 'tempo', 'readout'],
+  footprint: { width: 64, height: 10 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'focused', name: 'Focused' }, { value: 'stale', name: 'Stale' }, { value: 'error', name: 'Error' }],
+  defaultState: 'normal',
+  inputs: [
+    textInput('label', 'Label', 'Short field label rendered in the tiny font.', 'RATE'),
+    textInput('value', 'Value', 'Script-formatted value, note, ratio, voltage, or tempo.', '120'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Normal value', state: 'normal' },
+    { id: 'active', name: 'Focused note', state: 'focused', values: { label: 'NOTE', value: 'C4' } },
+    { id: 'edge', name: 'Error', state: 'error', values: { label: 'CV', value: '--' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'stale' ? 4 : state === 'error' ? 15 : state === 'focused' ? 14 : 9
+    const primitives: DisplayPrimitiveElement[] = [
+      tinyText(context, 'Row label', 1, 7, context.text('label'), state === 'stale' ? 3 : 8),
+      line(context, 'Row divider', 31, 1, 31, 8, state === 'stale' ? 2 : 4),
+      line(context, 'Row baseline', 0, 9, 63, 9, state === 'focused' ? 15 : state === 'error' ? 11 : 3),
+    ]
+    if (state === 'error') primitives.push(tinyText(context, 'Row error value', 62, 7, 'ERR', 15, 'right'), line(context, 'Row error mark', 35, 1, 39, 7, 15))
+    else primitives.push(tinyText(context, 'Row value', 62, 7, context.text('value'), shade, 'right'))
+    if (state === 'focused') primitives.push(line(context, 'Row focus left', 0, 0, 5, 0, 15), line(context, 'Row focus right', 58, 0, 63, 0, 15))
+    if (state === 'stale') primitives.push(line(context, 'Row stale slash', 35, 8, 43, 1, 5))
+    return primitives
+  },
+}
+
 const inputJack: DisplayComponentRecipe = {
   ...common,
   id: 'input-jack',
@@ -352,6 +386,41 @@ const stereoJacks: DisplayComponentRecipe = {
   },
 }
 
+const normalledPair: DisplayComponentRecipe = {
+  ...common,
+  id: 'normalled-pair',
+  name: 'Normalled pair',
+  category: 'patching',
+  description: 'Two logical ports with an explicit default route and broken-normal state.',
+  tags: ['normalled', 'normal', 'broken', 'patch', 'default route', 'pair'],
+  footprint: { width: 20, height: 20 },
+  states: [{ value: 'normalled', name: 'Normalled' }, { value: 'broken', name: 'Broken' }, { value: 'active', name: 'Active' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'normalled',
+  inputs: [
+    booleanInput('upperPatched', 'Upper patched', 'Shows the script-known upper connection ring.'),
+    booleanInput('lowerPatched', 'Lower patched', 'Shows the script-known lower connection ring.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Normalled', state: 'normalled' },
+    { id: 'active', name: 'Active normal', state: 'active' },
+    { id: 'edge', name: 'Broken by patch', state: 'broken', values: { lowerPatched: true } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : state === 'active' ? 14 : state === 'broken' ? 9 : 6
+    const primitives: DisplayPrimitiveElement[] = [
+      circle(context, 'Normal upper jack', 6, 6, 4, shade),
+      circle(context, 'Normal lower jack', 14, 14, 4, shade),
+      circle(context, 'Normal upper patch', 6, 6, 2, 13, context.visible('upperPatched')),
+      circle(context, 'Normal lower patch', 14, 14, 2, 13, context.visible('lowerPatched')),
+    ]
+    if (state === 'normalled' || state === 'active') primitives.push(line(context, 'Normal route', 9, 9, 11, 11, state === 'active' ? 15 : 8))
+    if (state === 'active') primitives.push(box(context, 'Normal active mark', 9, 9, 11, 11, 15, true))
+    if (state === 'broken') primitives.push(line(context, 'Normal break one', 8, 12, 12, 8, 15), line(context, 'Normal break two', 8, 8, 12, 12, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Normal disabled mark', 2, 18, 18, 2, 3))
+    return primitives
+  },
+}
+
 const momentaryButton: DisplayComponentRecipe = {
   ...common,
   id: 'momentary-button',
@@ -474,6 +543,38 @@ const threeWaySwitch: DisplayComponentRecipe = {
       line(context, 'Three-way focus bottom', 0, 9, 23, 9, 15, context.visible('focused')),
     ]
     if (state === 'disabled') primitives.push(line(context, 'Three-way disabled mark', 2, 8, 21, 1, 3))
+    return primitives
+  },
+}
+
+const bipolarFader: DisplayComponentRecipe = {
+  ...common,
+  id: 'bipolar-fader',
+  name: 'Bipolar fader',
+  category: 'controls',
+  description: 'A centre-zero fader for offset, pan, attenuversion, swing, or signed CV.',
+  tags: ['fader', 'slider', 'bipolar', 'signed', 'pan', 'offset', 'attenuverter'],
+  footprint: { width: 48, height: 10 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'focused', name: 'Focused' }, { value: 'at-limit', name: 'At limit' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'normal',
+  inputs: [numberInput('value', 'Signed value', 'Signed source normalized from negative to positive into 0 through 1.', 0.5)],
+  scenarios: [
+    { id: 'default', name: 'Zero', state: 'normal', values: { value: 0.5 } },
+    { id: 'active', name: 'Negative focused', state: 'focused', values: { value: 0.2 } },
+    { id: 'edge', name: 'Positive limit', state: 'at-limit', values: { value: 1 } },
+  ],
+  build: (context, state) => {
+    const position = context.number('value', 2, 45)
+    const shade = state === 'disabled' ? 3 : state === 'focused' ? 15 : 10
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Bipolar fader rail', 2, 5, 45, 5, state === 'disabled' ? 2 : 5),
+      line(context, 'Bipolar fader zero', 24, 1, 24, 9, 8),
+      box(context, 'Bipolar fader amount', 24, 4, position, 6, shade, true),
+      line(context, 'Bipolar fader handle', position, 1, position, 9, shade),
+    ]
+    if (state === 'focused') primitives.push(line(context, 'Bipolar focus top', 0, 0, 47, 0, 15), line(context, 'Bipolar focus bottom', 0, 9, 47, 9, 15))
+    if (state === 'at-limit') primitives.push(box(context, 'Bipolar lower stop', 0, 2, 3, 4, 15, true), box(context, 'Bipolar upper stop', 44, 2, 47, 4, 15, true))
+    if (state === 'disabled') primitives.push(line(context, 'Bipolar disabled mark', 4, 8, 43, 1, 3))
     return primitives
   },
 }
@@ -623,6 +724,38 @@ const polarityBadge: DisplayComponentRecipe = {
   },
 }
 
+const unitBadge: DisplayComponentRecipe = {
+  ...common,
+  id: 'unit-badge',
+  name: 'Unit badge',
+  category: 'signals',
+  description: 'A compact unit label for voltage, pitch, time, rate, level, ratio, or steps.',
+  tags: ['unit', 'volts', 'semitones', 'octaves', 'hertz', 'bpm', 'milliseconds', 'percent', 'db'],
+  footprint: { width: 32, height: 12 },
+  states: [
+    { value: 'volts', name: 'Volts' }, { value: 'semitones', name: 'Semitones' }, { value: 'octaves', name: 'Octaves' },
+    { value: 'hertz', name: 'Hertz' }, { value: 'bpm', name: 'BPM' }, { value: 'milliseconds', name: 'Milliseconds' },
+    { value: 'seconds', name: 'Seconds' }, { value: 'percent', name: 'Percent' }, { value: 'decibels', name: 'Decibels' },
+    { value: 'multiplier', name: 'Multiplier' }, { value: 'steps', name: 'Steps' }, { value: 'invalid', name: 'Invalid' },
+  ],
+  defaultState: 'volts',
+  inputs: [],
+  scenarios: [
+    { id: 'default', name: 'Volts', state: 'volts' },
+    { id: 'active', name: 'BPM', state: 'bpm' },
+    { id: 'edge', name: 'Invalid', state: 'invalid' },
+  ],
+  build: (context, state) => {
+    const label = state === 'volts' ? 'V' : state === 'semitones' ? 'st' : state === 'octaves' ? 'oct' : state === 'hertz' ? 'Hz' : state === 'bpm' ? 'BPM' : state === 'milliseconds' ? 'ms' : state === 'seconds' ? 's' : state === 'percent' ? '%' : state === 'decibels' ? 'dB' : state === 'multiplier' ? 'x' : state === 'steps' ? 'steps' : 'ERR'
+    const shade = state === 'invalid' ? 15 : 9
+    return [
+      box(context, 'Unit frame', 0, 0, 31, 11, shade),
+      tinyText(context, 'Unit label', 16, 8, label, shade, 'centre'),
+      ...(state === 'invalid' ? [line(context, 'Unit invalid mark', 2, 10, 29, 1, 15)] : []),
+    ]
+  },
+}
+
 const attenuator: DisplayComponentRecipe = {
   ...common,
   id: 'attenuator',
@@ -766,6 +899,46 @@ const sampleHoldProcessor: DisplayComponentRecipe = {
   },
 }
 
+const logicProcessor: DisplayComponentRecipe = {
+  ...common,
+  id: 'logic-processor',
+  name: 'Logic processor',
+  category: 'processors',
+  description: 'A gate-logic tile with independent input and output truth marks.',
+  tags: ['logic', 'and', 'or', 'xor', 'not', 'gate', 'boolean'],
+  footprint: { width: 40, height: 18 },
+  states: [{ value: 'and', name: 'AND' }, { value: 'or', name: 'OR' }, { value: 'xor', name: 'XOR' }, { value: 'not', name: 'NOT' }, { value: 'error', name: 'Error' }],
+  defaultState: 'and',
+  inputs: [
+    booleanInput('inputA', 'Input A high', 'Shows the script-owned first gate truth value.'),
+    booleanInput('inputB', 'Input B high', 'Shows the script-owned second gate truth value.'),
+    booleanInput('outputHigh', 'Output high', 'Shows the calculated output truth value.'),
+    booleanInput('pulse', 'Pulse', 'Shows a short script-maintained event mark.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'AND low', state: 'and' },
+    { id: 'active', name: 'XOR high', state: 'xor', values: { inputA: true, outputHigh: true, pulse: true } },
+    { id: 'edge', name: 'Error', state: 'error', values: { inputA: true, inputB: true } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'error' ? 15 : 9
+    const label = state === 'and' ? 'AND' : state === 'or' ? 'OR' : state === 'xor' ? 'XOR' : state === 'not' ? 'NOT' : 'ERR'
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Logic body', 7, 1, 32, 16, shade),
+      tinyText(context, 'Logic label', 20, 11, label, shade, 'centre'),
+      line(context, 'Logic input A', 0, 5, 7, 5, shade),
+      line(context, 'Logic output', 32, 9, 39, 9, shade),
+      box(context, 'Logic input A high', 1, 3, 4, 6, 15, true, context.visible('inputA')),
+      box(context, 'Logic output high', 35, 7, 38, 10, 15, true, context.visible('outputHigh')),
+      box(context, 'Logic pulse', 18, 0, 22, 2, 15, true, context.visible('pulse')),
+    ]
+    if (state !== 'not') primitives.push(line(context, 'Logic input B', 0, 13, 7, 13, shade), box(context, 'Logic input B high', 1, 11, 4, 14, 15, true, context.visible('inputB')))
+    if (state === 'not') primitives.push(circle(context, 'Logic invert bubble', 32, 9, 2, 13))
+    if (state === 'error') primitives.push(line(context, 'Logic error one', 11, 3, 28, 14, 15), line(context, 'Logic error two', 28, 3, 11, 14, 15))
+    return primitives
+  },
+}
+
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
   id: 'unipolar-bar-meter',
@@ -884,6 +1057,46 @@ const verticalChannelMeter: DisplayComponentRecipe = {
     if (state === 'muted') primitives.push(line(context, 'Vertical meter mute', 1, 32, 7, 7, 5))
     if (state === 'solo') primitives.push(line(context, 'Vertical meter solo left', 0, 0, 0, 39, 15), line(context, 'Vertical meter solo right', 8, 0, 8, 39, 15))
     if (state === 'clipped') primitives.push(box(context, 'Vertical meter clip', 1, 0, 7, 2, 15, true))
+    return primitives
+  },
+}
+
+const thresholdWindowMeter: DisplayComponentRecipe = {
+  ...common,
+  id: 'threshold-window-meter',
+  name: 'Threshold window meter',
+  category: 'meters',
+  description: 'An input marker and two threshold rails for comparator or safe-range displays.',
+  tags: ['threshold', 'window', 'comparator', 'range', 'voltage', 'gate'],
+  footprint: { width: 64, height: 10 },
+  states: [{ value: 'normal', name: 'Normal' }, { value: 'clamped', name: 'Clamped' }, { value: 'invalid', name: 'Invalid' }],
+  defaultState: 'normal',
+  inputs: [
+    numberInput('input', 'Input', 'Normalized current input position.', 0.5),
+    numberInput('lower', 'Lower threshold', 'Normalized lower comparison threshold.', 0.25),
+    numberInput('upper', 'Upper threshold', 'Normalized upper comparison threshold.', 0.75),
+    booleanInput('result', 'Result high', 'Shows the script-calculated comparator result.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Inside window', state: 'normal', values: { input: 0.5, lower: 0.25, upper: 0.75, result: true } },
+    { id: 'active', name: 'Clamped high', state: 'clamped', values: { input: 1, lower: 0.2, upper: 0.8 } },
+    { id: 'edge', name: 'Reversed invalid window', state: 'invalid', values: { input: 0.5, lower: 0.8, upper: 0.2 } },
+  ],
+  build: (context, state) => {
+    const input = context.number('input', 2, 61)
+    const lower = context.number('lower', 2, 61)
+    const upper = context.number('upper', 2, 61)
+    const shade = state === 'invalid' ? 15 : state === 'clamped' ? 13 : 9
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Threshold outline', 0, 0, 63, 9, state === 'invalid' ? 15 : 4),
+      box(context, 'Threshold window', lower, 3, upper, 6, state === 'invalid' ? 4 : 6, true),
+      line(context, 'Threshold lower rail', lower, 1, lower, 8, shade),
+      line(context, 'Threshold upper rail', upper, 1, upper, 8, shade),
+      line(context, 'Threshold input', input, 0, input, 9, 15),
+      box(context, 'Threshold result', 57, 2, 61, 5, 15, true, context.visible('result')),
+    ]
+    if (state === 'clamped') primitives.push(box(context, 'Threshold lower stop', 0, 1, 3, 3, 13, true), box(context, 'Threshold upper stop', 60, 1, 63, 3, 13, true))
+    if (state === 'invalid') primitives.push(line(context, 'Threshold invalid one', 27, 1, 36, 8, 15), line(context, 'Threshold invalid two', 36, 1, 27, 8, 15))
     return primitives
   },
 }
@@ -1009,6 +1222,39 @@ const loopRangeBracket: DisplayComponentRecipe = {
     if (state === 'active') primitives.push(line(context, 'Loop active underline', start, 8, end, 8, 12))
     if (state === 'pending') primitives.push(line(context, 'Loop pending upper', start, 1, end, 1, 8), line(context, 'Loop pending marker', end, 0, end, 9, 15))
     if (state === 'invalid') primitives.push(line(context, 'Loop invalid one', 27, 1, 36, 8, 15), line(context, 'Loop invalid two', 36, 1, 27, 8, 15))
+    return primitives
+  },
+}
+
+const transportStrip: DisplayComponentRecipe = {
+  ...common,
+  id: 'transport-strip',
+  name: 'Transport strip',
+  category: 'sequencing',
+  description: 'A compact stopped, playing, paused, recording, armed, or waiting-clock status strip.',
+  tags: ['transport', 'play', 'pause', 'record', 'armed', 'clock', 'tempo', 'sequencer'],
+  footprint: { width: 72, height: 10 },
+  states: [{ value: 'stopped', name: 'Stopped' }, { value: 'playing', name: 'Playing' }, { value: 'paused', name: 'Paused' }, { value: 'recording', name: 'Recording' }, { value: 'armed', name: 'Armed' }, { value: 'waiting-clock', name: 'Waiting for clock' }],
+  defaultState: 'stopped',
+  inputs: [textInput('position', 'Tempo or position', 'Script-formatted tempo or position; use a placeholder until clock is valid.', '120')],
+  scenarios: [
+    { id: 'default', name: 'Stopped', state: 'stopped', values: { position: '1.1' } },
+    { id: 'active', name: 'Playing', state: 'playing', values: { position: '120' } },
+    { id: 'edge', name: 'Waiting for clock', state: 'waiting-clock', values: { position: '--' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'stopped' ? 5 : state === 'waiting-clock' ? 8 : state === 'recording' || state === 'armed' ? 15 : 12
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Transport frame', 0, 0, 71, 9, shade),
+      tinyText(context, 'Transport value', 69, 7, context.text('position'), shade, 'right'),
+      line(context, 'Transport divider', 22, 1, 22, 8, 4),
+    ]
+    if (state === 'stopped') primitives.push(box(context, 'Transport stop', 7, 2, 14, 7, shade, true))
+    if (state === 'playing') primitives.push(line(context, 'Transport play upper', 7, 1, 16, 5, shade), line(context, 'Transport play lower', 16, 5, 7, 9, shade), line(context, 'Transport play back', 7, 1, 7, 9, shade))
+    if (state === 'paused') primitives.push(box(context, 'Transport pause left', 6, 2, 9, 7, shade, true), box(context, 'Transport pause right', 13, 2, 16, 7, shade, true))
+    if (state === 'recording') primitives.push(circle(context, 'Transport record', 11, 5, 4, shade), box(context, 'Transport record centre', 9, 3, 13, 7, 15, true))
+    if (state === 'armed') primitives.push(circle(context, 'Transport armed ring', 11, 5, 4, shade), tinyText(context, 'Transport armed label', 11, 7, 'A', 15, 'centre'))
+    if (state === 'waiting-clock') primitives.push(circle(context, 'Transport wait clock', 11, 5, 4, shade), line(context, 'Transport wait hand', 11, 5, 14, 3, 15), line(context, 'Transport wait question', 17, 2, 19, 4, 10))
     return primitives
   },
 }
@@ -1147,6 +1393,57 @@ const fillRollIndicator: DisplayComponentRecipe = {
   },
 }
 
+const drumOverview: DisplayComponentRecipe = {
+  ...common,
+  id: 'drum-overview',
+  name: 'Two voice drum overview',
+  category: 'drums',
+  description: 'A two-voice performance view with independent hit, accent, mute, level, and step inputs.',
+  tags: ['drum', 'overview', 'performance', 'kick', 'snare', 'hit', 'accent', 'mute'],
+  footprint: { width: 64, height: 24 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'playing', name: 'Playing' }, { value: 'clock-lost', name: 'Clock lost' }, { value: 'disabled', name: 'Disabled' }],
+  defaultState: 'idle',
+  inputs: [
+    booleanInput('voiceAHit', 'Kick hit', 'Shows the script-maintained kick event flash.'),
+    booleanInput('voiceAAccent', 'Kick accent', 'Shows an outer kick accent ring.'),
+    booleanInput('voiceAMuted', 'Kick muted', 'Shows a kick strike-through.'),
+    numberInput('voiceALevel', 'Kick level', 'Normalized kick output level used for its body shade.', 0.4),
+    booleanInput('voiceBHit', 'Snare hit', 'Shows the script-maintained snare event flash.'),
+    booleanInput('voiceBAccent', 'Snare accent', 'Shows an outer snare accent ring.'),
+    booleanInput('voiceBMuted', 'Snare muted', 'Shows a snare strike-through.'),
+    numberInput('voiceBLevel', 'Snare level', 'Normalized snare output level used for its body shade.', 0.4),
+    numberInput('step', 'Step position', 'Normalized current algorithm step position.', 0),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle', state: 'idle' },
+    { id: 'active', name: 'Playing accents', state: 'playing', values: { voiceAHit: true, voiceAAccent: true, voiceALevel: 0.9, voiceBHit: true, voiceBLevel: 0.7, step: 0.45 } },
+    { id: 'edge', name: 'Clock lost + muted snare', state: 'clock-lost', values: { voiceBMuted: true, step: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'disabled' ? 2 : state === 'clock-lost' ? 8 : state === 'playing' ? 12 : 5
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Drum overview frame', 0, 0, 63, 23, shade),
+      tinyText(context, 'Drum overview state', 61, 7, state === 'idle' ? 'IDLE' : state === 'playing' ? 'RUN' : state === 'clock-lost' ? 'NO CLK' : 'OFF', shade, 'right'),
+      circle(context, 'Overview kick', 11, 10, 6, context.number('voiceALevel', 5, 15)),
+      tinyText(context, 'Overview kick label', 11, 12, 'K', 15, 'centre'),
+      circle(context, 'Overview snare', 29, 10, 6, context.number('voiceBLevel', 5, 15)),
+      tinyText(context, 'Overview snare label', 29, 12, 'S', 15, 'centre'),
+      box(context, 'Overview kick hit', 9, 8, 13, 12, 15, true, context.visible('voiceAHit')),
+      box(context, 'Overview snare hit', 27, 8, 31, 12, 15, true, context.visible('voiceBHit')),
+      circle(context, 'Overview kick accent', 11, 10, 8, 15, context.visible('voiceAAccent')),
+      circle(context, 'Overview snare accent', 29, 10, 8, 15, context.visible('voiceBAccent')),
+      line(context, 'Overview kick mute', 5, 16, 17, 4, 6, context.visible('voiceAMuted')),
+      line(context, 'Overview snare mute', 23, 16, 35, 4, 6, context.visible('voiceBMuted')),
+      line(context, 'Overview step rail', 42, 19, 61, 19, 4),
+      line(context, 'Overview step marker', context.number('step', 42, 61), 17, context.number('step', 42, 61), 22, 15),
+    ]
+    if (state === 'playing') primitives.push(box(context, 'Overview clock pulse', 43, 4, 46, 7, 15, true))
+    if (state === 'clock-lost') primitives.push(line(context, 'Overview clock lost one', 43, 3, 51, 10, 15), line(context, 'Overview clock lost two', 51, 3, 43, 10, 15))
+    if (state === 'disabled') primitives.push(line(context, 'Overview disabled mark', 2, 21, 39, 2, 3))
+    return primitives
+  },
+}
+
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
   id: 'clock-source-badge',
@@ -1270,41 +1567,80 @@ const presetStateMarker: DisplayComponentRecipe = {
   },
 }
 
+const warningErrorBanner: DisplayComponentRecipe = {
+  ...common,
+  id: 'warning-error-banner',
+  name: 'Warning error banner',
+  category: 'status',
+  description: 'A compact text-required warning or error treatment with latched and dismissed states.',
+  tags: ['warning', 'error', 'banner', 'fault', 'message', 'latched', 'dismissed'],
+  footprint: { width: 80, height: 16 },
+  states: [{ value: 'warning', name: 'Warning' }, { value: 'error', name: 'Error' }, { value: 'latched', name: 'Latched' }, { value: 'dismissed', name: 'Dismissed' }],
+  defaultState: 'warning',
+  inputs: [textInput('message', 'Message', 'Short required script-owned warning or error text.', 'CHECK CV')],
+  scenarios: [
+    { id: 'default', name: 'Warning', state: 'warning' },
+    { id: 'active', name: 'Latched warning', state: 'latched', values: { message: 'NO CLOCK' } },
+    { id: 'edge', name: 'Error', state: 'error', values: { message: 'OVERLOAD' } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'dismissed' ? 3 : state === 'error' ? 15 : state === 'latched' ? 13 : 10
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Banner frame', 0, 0, 79, 15, shade),
+      tinyText(context, 'Banner message', 18, 10, context.text('message'), shade),
+    ]
+    if (state === 'warning') primitives.push(line(context, 'Banner warning base', 3, 12, 14, 12, 15), line(context, 'Banner warning left', 3, 12, 9, 2, 15), line(context, 'Banner warning right', 9, 2, 14, 12, 15))
+    if (state === 'error') primitives.push(line(context, 'Banner error one', 3, 3, 14, 12, 15), line(context, 'Banner error two', 14, 3, 3, 12, 15))
+    if (state === 'latched') primitives.push(box(context, 'Banner latch', 4, 3, 13, 11, 15), box(context, 'Banner latch centre', 7, 5, 10, 8, 0, true))
+    if (state === 'dismissed') primitives.push(line(context, 'Banner dismissed mark', 2, 13, 77, 2, 5))
+    return primitives
+  },
+}
+
 export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   panelFrame,
   sectionHeader,
   statusLamp,
   dividerRuler,
+  labelValueRow,
   inputJack,
   outputJack,
   bidirectionalJack,
   stereoJacks,
+  normalledPair,
   momentaryButton,
   toggleSwitch,
   horizontalFader,
   threeWaySwitch,
+  bipolarFader,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,
   polarityBadge,
+  unitBadge,
   attenuator,
   mixer,
   clampProcessor,
   sampleHoldProcessor,
+  logicProcessor,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
   verticalChannelMeter,
+  thresholdWindowMeter,
   stepCell,
   valueStepCell,
   playheadCursor,
   loopRangeBracket,
+  transportStrip,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
   fillRollIndicator,
+  drumOverview,
   clockSourceBadge,
   midiActivity,
   i2cActivity,
   presetStateMarker,
+  warningErrorBanner,
 ]
