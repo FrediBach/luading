@@ -194,7 +194,13 @@ candidate document, and commits it as one history transaction. The inserted
 result is ordinary version-9 content with no persisted catalog provenance or
 linked-update behavior. Gallery thumbnails materialize temporary full-screen
 documents and pass their compiled commands through the production display
-renderer.
+renderer. Catalog density is derived from declared footprints, recipes declare
+compatible display modes, and insertion preflights compatibility and resource
+limits before committing. Centre insertion scans for the next open eight-pixel
+position; drag placement supplies an explicit clamped origin. Making a symbol
+instance independent clones its definition, variants, choice IDs/mappings, and
+every referenced binding in one main-thread transaction. None of this catalog,
+placement, or clone state crosses the worker boundary.
 
 Pure modules below the dialog parse and print the closed arithmetic
 grammar, validate imported ASTs and token references, resolve scalar previews,

@@ -10,13 +10,16 @@ import {
   materializeDisplayComponent,
   validateDisplayComponentCatalog,
 } from './display-component-library'
-import { compileDisplayDesign } from './display-design-compiler'
+import { compileDisplayDesign, displayCommandBounds } from './display-design-compiler'
 import { generateDisplayDesignLua } from './display-design-generator'
+import { parseDisplayDesignText, serializeDisplayDesign } from './display-design-file'
 import {
   DISPLAY_DESIGN_LIMITS,
   createDefaultDisplayPrimitive,
   createEmptyDisplayDesign,
   createSequentialDisplayDesignIdFactory,
+  duplicateDisplayDesignElements,
+  makeDisplaySymbolInstanceIndependent,
   type DisplayDesignDocument,
   type DisplayDesignSymbol,
 } from './display-design-model'
@@ -137,7 +140,38 @@ const TWELFTH_WAVE_COMPONENT_IDS = [
   'classic-closed-hi-hat-glyph',
 ] as const
 
-const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS, ...EIGHTH_WAVE_COMPONENT_IDS, ...NINTH_WAVE_COMPONENT_IDS, ...TENTH_WAVE_COMPONENT_IDS, ...ELEVENTH_WAVE_COMPONENT_IDS, ...TWELFTH_WAVE_COMPONENT_IDS] as const
+const FINAL_ATOMIC_COMPONENT_IDS = [
+  'polarity-utility-processor',
+  'crossfade-multiply-processor',
+  'waveshaper-processor',
+  'timing-utility-processor',
+  'sampling-utility-processor',
+  'quantization-utility-processor',
+  'comparison-utility-processor',
+  'probability-utility-processor',
+  'switching-utility-processor',
+  'classic-open-hi-hat-glyph',
+  'classic-low-tom-glyph',
+  'classic-mid-tom-glyph',
+  'classic-high-tom-glyph',
+  'classic-cymbal-ride-glyph',
+  'classic-cowbell-glyph',
+  'classic-shaker-maraca-glyph',
+  'classic-generic-percussion-glyph',
+  'punchy-closed-hi-hat-glyph',
+  'punchy-open-hi-hat-glyph',
+  'punchy-low-tom-glyph',
+  'punchy-mid-tom-glyph',
+  'punchy-high-tom-glyph',
+  'punchy-cymbal-ride-glyph',
+  'punchy-cowbell-glyph',
+  'punchy-shaker-maraca-glyph',
+  'punchy-generic-percussion-glyph',
+] as const
+
+const FINAL_ASSEMBLY_COMPONENT_IDS = ['sixteen-step-row', 'eight-step-drum-lane', 'radial-groove-ring'] as const
+
+const IMPLEMENTED_WAVE_COMPONENT_IDS = [...SECOND_WAVE_COMPONENT_IDS, ...THIRD_WAVE_COMPONENT_IDS, ...FOURTH_WAVE_COMPONENT_IDS, ...FIFTH_WAVE_COMPONENT_IDS, ...SIXTH_WAVE_COMPONENT_IDS, ...SEVENTH_WAVE_COMPONENT_IDS, ...EIGHTH_WAVE_COMPONENT_IDS, ...NINTH_WAVE_COMPONENT_IDS, ...TENTH_WAVE_COMPONENT_IDS, ...ELEVENTH_WAVE_COMPONENT_IDS, ...TWELFTH_WAVE_COMPONENT_IDS, ...FINAL_ATOMIC_COMPONENT_IDS] as const
 
 afterEach(() => {
   for (const lua of openEngines.splice(0)) lua.global.close()
@@ -152,16 +186,16 @@ function recipe(id: string) {
 describe('display component library', () => {
   it('ships the expected valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(99)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(128)
     const expectedCategoryCounts = {
       layout: 10,
       patching: 13,
       controls: 13,
       signals: 6,
-      processors: 13,
+      processors: 22,
       meters: 12,
-      sequencing: 13,
-      drums: 13,
+      sequencing: 14,
+      drums: 32,
       status: 6,
     } as const
     for (const category of DISPLAY_COMPONENT_CATEGORIES) {
@@ -178,10 +212,14 @@ describe('display component library', () => {
     expect(TENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(TENTH_WAVE_COMPONENT_IDS)
     expect(ELEVENTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(ELEVENTH_WAVE_COMPONENT_IDS)
     expect(TWELFTH_WAVE_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(TWELFTH_WAVE_COMPONENT_IDS)
+    expect(FINAL_ATOMIC_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(FINAL_ATOMIC_COMPONENT_IDS)
+    expect(FINAL_ASSEMBLY_COMPONENT_IDS.map((id) => recipe(id).id)).toEqual(FINAL_ASSEMBLY_COMPONENT_IDS)
   })
 
   it('filters by category, names, aliases, descriptions, and whitespace-only queries', () => {
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '', 'drums').map(({ id }) => id)).toEqual([
+      'eight-step-drum-lane',
+      'radial-groove-ring',
       'drum-voice-glyph',
       'drum-voice-tile',
       'drum-step-cell',
@@ -195,13 +233,30 @@ describe('display component library', () => {
       'classic-rim-claves-glyph',
       'punchy-rim-claves-glyph',
       'classic-closed-hi-hat-glyph',
+      'classic-open-hi-hat-glyph',
+      'classic-low-tom-glyph',
+      'classic-mid-tom-glyph',
+      'classic-high-tom-glyph',
+      'classic-cymbal-ride-glyph',
+      'classic-cowbell-glyph',
+      'classic-shaker-maraca-glyph',
+      'classic-generic-percussion-glyph',
+      'punchy-closed-hi-hat-glyph',
+      'punchy-open-hi-hat-glyph',
+      'punchy-low-tom-glyph',
+      'punchy-mid-tom-glyph',
+      'punchy-high-tom-glyph',
+      'punchy-cymbal-ride-glyph',
+      'punchy-cowbell-glyph',
+      'punchy-shaker-maraca-glyph',
+      'punchy-generic-percussion-glyph',
     ])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like').map(({ id }) => id)).toEqual(['drum-voice-glyph', 'classic-snare-glyph', 'classic-clap-glyph', 'classic-rim-claves-glyph', 'classic-closed-hi-hat-glyph'])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '909-like').map(({ id }) => id)).toEqual(['drum-voice-tile', 'punchy-snare-glyph', 'punchy-kick-glyph', 'punchy-clap-glyph', 'punchy-rim-claves-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '808-like')).toHaveLength(13)
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '909-like')).toHaveLength(14)
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, ' signed CV ').map(({ id }) => id)).toContain('bipolar-bar-meter')
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'configurable io').map(({ id }) => id)).toEqual(['bidirectional-jack'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'random voltage').map(({ id }) => id)).toEqual(['sample-hold-processor'])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'comparator').map(({ id }) => id)).toEqual(['comparator-processor', 'threshold-window-meter'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'comparator').map(({ id }) => id)).toEqual(['comparator-processor', 'comparison-utility-processor', 'threshold-window-meter'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'io overview').map(({ id }) => id)).toEqual(['labelled-port-tile'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'one to many').map(({ id }) => id)).toEqual(['split-multiple-node'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'tracker event').map(({ id }) => id)).toEqual(['tracker-row'])
@@ -229,8 +284,29 @@ describe('display component library', () => {
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'choice readout').map(({ id }) => id)).toEqual(['choice-readout'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'amplifier').map(({ id }) => id)).toEqual(['gain-vca-processor'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'segment generator').map(({ id }) => id)).toEqual(['four-stage-strip'])
-    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'closed hat').map(({ id }) => id)).toEqual(['classic-closed-hi-hat-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'closed hi').map(({ id }) => id)).toEqual(['classic-closed-hi-hat-glyph', 'punchy-closed-hi-hat-glyph'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'shift register').map(({ id }) => id)).toEqual(['sampling-utility-processor'])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'radial groove').map(({ id }) => id)).toEqual(['radial-groove-ring'])
     expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '   ')).toHaveLength(DISPLAY_COMPONENT_RECIPES.length)
+  })
+
+  it('filters by derived density and declared display-mode compatibility', () => {
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, '', 'all', 'screen').map(({ id }) => id)).toContain('radial-groove-ring')
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'radial groove', 'all', 'all', 'parameter-line')).toEqual([])
+    expect(filterDisplayComponentRecipes(DISPLAY_COMPONENT_RECIPES, 'radial groove', 'all', 'all', 'full-screen').map(({ id }) => id)).toEqual(['radial-groove-ring'])
+  })
+
+  it('rejects missing input guidance and incompatible display modes before mutating a design', () => {
+    const source = recipe('radial-groove-ring')
+    const malformed = {
+      ...source,
+      inputs: source.inputs.map((input, index) => index === 0 ? { ...input, sourceDomain: '' } : input),
+    }
+    expect(validateDisplayComponentCatalog([malformed]).map(({ message }) => message)).toContain('Input “outer1” needs Lua-name, source-domain, and affected-property guidance.')
+    const original = createEmptyDisplayDesign()
+    const result = materializeDisplayComponent(original, source, createSequentialDisplayDesignIdFactory('mode-reject'))
+    expect(result).toMatchObject({ ok: false, message: 'Radial groove ring is not compatible with this display mode.' })
+    expect(original).toEqual(createEmptyDisplayDesign())
   })
 
   it('keeps every added-wave state structurally distinct and within the atomic draw budget', () => {
@@ -255,11 +331,21 @@ describe('display component library', () => {
     }
   })
 
+  it('keeps bounded row and drum assemblies within document limits while exposing their higher exact costs', () => {
+    for (const recipeId of FINAL_ASSEMBLY_COMPONENT_IDS) {
+      const compiled = compileDisplayDesign(createDisplayComponentPreview(recipe(recipeId), 'active'))
+      expect(compiled.findings.filter(({ severity }) => severity === 'error'), recipeId).toEqual([])
+      expect(compiled.metrics.drawCallCount, recipeId).toBeGreaterThan(0)
+      expect(compiled.metrics.smoothCallCount, recipeId).toBe(0)
+      expect(recipe(recipeId).inputs.length, recipeId).toBeLessThan(DISPLAY_DESIGN_LIMITS.maximumBindings)
+    }
+  })
+
   it('materializes every scenario as ordinary valid version-9 symbols, bindings, and instances', () => {
     for (const component of DISPLAY_COMPONENT_RECIPES) {
       for (const scenario of component.scenarios) {
         const result = materializeDisplayComponent(
-          createEmptyDisplayDesign(),
+          { ...createEmptyDisplayDesign(), displayMode: component.compatibleDisplayModes.includes('parameter-line') ? 'parameter-line' : 'full-screen' },
           component,
           createSequentialDisplayDesignIdFactory(`${component.id}-${scenario.id}`),
           { scenarioId: scenario.id },
@@ -273,6 +359,29 @@ describe('display component library', () => {
         expect(result.symbol.variants.map(({ luaValue }) => luaValue)).toEqual(component.states.map(({ value }) => value))
         expect(result.instance.state.kind).toBe('choice-binding')
         expect(compileDisplayDesign(result.document).commands.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('keeps every scenario rasterized within its declared footprint', () => {
+    for (const component of DISPLAY_COMPONENT_RECIPES) {
+      for (const scenario of component.scenarios) {
+        const result = materializeDisplayComponent(
+          { ...createEmptyDisplayDesign(), displayMode: 'full-screen' },
+          component,
+          createSequentialDisplayDesignIdFactory(`bounds-${component.id}-${scenario.id}`),
+          { scenarioId: scenario.id, origin: { x: 0, y: 0 } },
+        )
+        expect(result.ok, `${component.id}/${scenario.id}`).toBe(true)
+        if (!result.ok) continue
+        for (const command of compileDisplayDesign(result.document).commands) {
+          const bounds = displayCommandBounds(command)
+          if (!bounds) continue
+          expect(bounds.left, `${component.id}/${scenario.id}`).toBeGreaterThanOrEqual(0)
+          expect(bounds.top, `${component.id}/${scenario.id}`).toBeGreaterThanOrEqual(0)
+          expect(bounds.right, `${component.id}/${scenario.id}`).toBeLessThan(component.footprint.width)
+          expect(bounds.bottom, `${component.id}/${scenario.id}`).toBeLessThan(component.footprint.height)
+        }
       }
     }
   })
@@ -304,6 +413,53 @@ describe('display component library', () => {
     expect(first.instance.y).toEqual({ kind: 'literal', value: 10 })
     expect(second.instance.x).toEqual({ kind: 'literal', value: 208 })
     expect(second.instance.y).toEqual({ kind: 'literal', value: 54 })
+  })
+
+  it('places centre insertions at the next open eight-pixel-grid position when the centre is occupied', () => {
+    const ids = createSequentialDisplayDesignIdFactory('open-position')
+    const first = materializeDisplayComponent(createEmptyDisplayDesign(), recipe('choice-readout'), ids)
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = materializeDisplayComponent(first.document, recipe('choice-readout'), ids)
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.instance.x).not.toEqual(first.instance.x)
+    expect(second.instance.x.kind === 'literal' ? second.instance.x.value % 8 : -1).toBe(0)
+    expect(second.instance.y.kind === 'literal' ? (second.instance.y.value - 10) % 8 : -1).toBe(0)
+  })
+
+  it('makes a duplicated component independent by cloning its symbol, choices, mappings, and used bindings', () => {
+    const ids = createSequentialDisplayDesignIdFactory('independent-copy')
+    const inserted = materializeDisplayComponent(createEmptyDisplayDesign(), recipe('input-jack'), ids, { scenarioId: 'active' })
+    expect(inserted.ok).toBe(true)
+    if (!inserted.ok) return
+    const shared = duplicateDisplayDesignElements(inserted.document, [inserted.instance.id], ids)
+    const independent = makeDisplaySymbolInstanceIndependent(shared.document, shared.duplicatedIds[0]!, ids)
+    expect(independent.ok).toBe(true)
+    if (!independent.ok) return
+
+    expect(independent.document.symbols).toHaveLength(2)
+    expect(independent.document.bindings).toHaveLength(inserted.document.bindings.length * 2)
+    expect(independent.bindingIds.every((id) => !inserted.bindingIds.includes(id))).toBe(true)
+    const copiedInstance = independent.document.elements.find(({ id }) => id === independent.instanceId)
+    expect(copiedInstance).toMatchObject({ kind: 'symbol-instance', symbolId: independent.symbolId })
+    expect(independent.summary).toContain('later artwork and preview-value edits are no longer shared')
+    expect(compileDisplayDesign(independent.document).findings.filter(({ severity }) => severity === 'error')).toEqual([])
+  })
+
+  it('round-trips inserted components as ordinary canonical version-9 data without catalog provenance', () => {
+    const inserted = materializeDisplayComponent(createEmptyDisplayDesign(), recipe('timing-utility-processor'), createSequentialDisplayDesignIdFactory('round-trip'), { scenarioId: 'active' })
+    expect(inserted.ok).toBe(true)
+    if (!inserted.ok) return
+    const serialized = serializeDisplayDesign(inserted.document)
+    expect(serialized.ok).toBe(true)
+    if (!serialized.ok) return
+    const parsed = parseDisplayDesignText(serialized.text)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.document).toEqual(inserted.document)
+    expect(serialized.text).not.toContain('componentRecipe')
+    expect(compileDisplayDesign(parsed.document).commands).toEqual(compileDisplayDesign(inserted.document).commands)
   })
 
   it('rejects an atomic insertion instead of exceeding document resource limits', () => {

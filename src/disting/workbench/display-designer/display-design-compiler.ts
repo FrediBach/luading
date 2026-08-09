@@ -73,7 +73,7 @@ export function resolveDisplayPixelBoxFrame(
   return primitive.frames[0]!
 }
 
-interface CommandBounds {
+export interface DisplayCommandBounds {
   left: number
   top: number
   right: number
@@ -221,7 +221,7 @@ export function compileDisplayPrimitiveCommands(
   })
 }
 
-function commandBounds(command: DrawCommand): CommandBounds | undefined {
+export function displayCommandBounds(command: DrawCommand): DisplayCommandBounds | undefined {
   if (command.kind === 'line' || command.kind === 'box') {
     return {
       left: Math.min(command.x1, command.x2),
@@ -255,7 +255,7 @@ function boundsFindings(
   elementIndex: number,
   source?: { symbolId: string; variantId: string; primitiveId: string },
 ): DisplayDesignerFinding[] {
-  const bounds = commandBounds(command)
+  const bounds = displayCommandBounds(command)
   if (!bounds) return []
   const focus = { elementId, ...source }
   const path = source

@@ -103,20 +103,27 @@ function tinyText(
 }
 
 const numberInput = (key: string, name: string, description: string, defaultValue = 0.5): DisplayComponentInput => ({
-  kind: 'number', key, name, description, defaultValue,
+  kind: 'number', key, name, description, defaultValue, suggestedLuaName: key,
+  sourceDomain: 'Normalize the script-owned source domain to 0 through 1 before draw().',
+  affectedProperties: 'Mapped coordinates, extent, shade, or cursor position declared by this recipe.',
 })
 
 const booleanInput = (key: string, name: string, description: string, defaultValue = false): DisplayComponentInput => ({
-  kind: 'boolean', key, name, description, defaultValue,
+  kind: 'boolean', key, name, description, defaultValue, suggestedLuaName: key,
+  sourceDomain: 'Supply an explicit script-owned true/false state before draw().',
+  affectedProperties: 'Visibility of the named structural overlay declared by this recipe.',
 })
 
 const textInput = (key: string, name: string, description: string, defaultValue: string): DisplayComponentInput => ({
-  kind: 'text', key, name, description, defaultValue,
+  kind: 'text', key, name, description, defaultValue, suggestedLuaName: key,
+  sourceDomain: 'Format and bound this script-owned string before draw().',
+  affectedProperties: 'Text content of the named label or readout declared by this recipe.',
 })
 
 const common = {
   version: 1 as const,
   tags: [] as readonly string[],
+  compatibleDisplayModes: ['parameter-line', 'full-screen'] as const,
 }
 
 const panelFrame: DisplayComponentRecipe = {
@@ -1358,9 +1365,25 @@ function signalBadgeGlyph(context: DisplayComponentBuildContext, state: string):
     line(context, 'Audio rise', 3, 7, 7, 3, 12), line(context, 'Audio fall', 7, 3, 11, 9, 12),
     line(context, 'Audio rise two', 11, 9, 15, 3, 12), line(context, 'Audio fall two', 15, 3, 19, 7, 12),
   ]
-  if (state === 'cv') return [line(context, 'CV baseline', 3, 7, 19, 7, 8), line(context, 'CV level', 11, 3, 11, 10, 14)]
+  if (state === 'unipolar-cv' || state === 'bipolar-cv' || state === 'pitch-1v-oct') return [
+    line(context, 'CV baseline', 3, 7, 19, 7, 8),
+    line(context, 'CV level', state === 'unipolar-cv' ? 7 : state === 'bipolar-cv' ? 11 : 15, 3, state === 'unipolar-cv' ? 7 : state === 'bipolar-cv' ? 11 : 15, 10, 14),
+  ]
   if (state === 'gate') return [line(context, 'Gate low', 3, 9, 7, 9, 12), line(context, 'Gate rise', 7, 9, 7, 3, 12), line(context, 'Gate high', 7, 3, 15, 3, 12), line(context, 'Gate fall', 15, 3, 15, 9, 12), line(context, 'Gate tail', 15, 9, 19, 9, 12)]
+  if (state === 'trigger') return [line(context, 'Trigger baseline', 3, 9, 19, 9, 8), line(context, 'Trigger spike up', 9, 9, 11, 2, 15), line(context, 'Trigger spike down', 11, 2, 13, 9, 15)]
+  if (state === 'envelope') return [line(context, 'Envelope attack', 3, 9, 8, 2, 13), line(context, 'Envelope decay', 8, 2, 13, 5, 13), line(context, 'Envelope sustain', 13, 5, 17, 5, 13), line(context, 'Envelope release', 17, 5, 20, 9, 13)]
+  if (state === 'lfo') return [line(context, 'LFO rise', 3, 7, 7, 3, 12), line(context, 'LFO fall', 7, 3, 12, 9, 12), line(context, 'LFO return', 12, 9, 18, 3, 12)]
+  if (state === 'noise-random') return [line(context, 'Noise one', 3, 8, 6, 3, 10), line(context, 'Noise two', 6, 3, 10, 9, 13), line(context, 'Noise three', 10, 9, 14, 2, 15), line(context, 'Noise four', 14, 2, 19, 7, 11)]
+  if (state === 'midi') return [tinyText(context, 'MIDI glyph', 11, 9, 'M', 13, 'centre'), line(context, 'MIDI port', 4, 2, 18, 2, 8)]
+  if (state === 'i2c') return [tinyText(context, 'I2C glyph', 11, 9, 'I2C', 13, 'centre'), line(context, 'I2C bus', 3, 2, 19, 2, 8)]
+  if (state === 'bus') return [line(context, 'Bus rail', 3, 6, 19, 6, 13), line(context, 'Bus tap one', 7, 3, 7, 9, 9), line(context, 'Bus tap two', 15, 3, 15, 9, 9)]
+  if (state === 'unknown') return [tinyText(context, 'Unknown glyph', 11, 9, '?', 15, 'centre'), box(context, 'Unknown frame', 5, 1, 17, 10, 8)]
   return [line(context, 'Clock stem', 11, 2, 11, 10, 13), line(context, 'Clock arm', 11, 6, 16, 4, 13), circle(context, 'Clock ring', 11, 6, 5, 8)]
+}
+
+const SIGNAL_BADGE_LABELS: Record<string, string> = {
+  audio: 'A', 'unipolar-cv': 'U', 'bipolar-cv': 'B', 'pitch-1v-oct': '1V', gate: 'G', trigger: 'T', clock: 'C',
+  envelope: 'E', lfo: 'L', 'noise-random': 'N', midi: 'M', i2c: 'I2C', bus: 'B', unknown: '?',
 }
 
 const signalTypeBadge: DisplayComponentRecipe = {
@@ -1371,7 +1394,13 @@ const signalTypeBadge: DisplayComponentRecipe = {
   description: 'An original compact glyph for common modular signal roles.',
   tags: ['audio', 'cv', 'gate', 'trigger', 'clock', 'type'],
   footprint: { width: 32, height: 12 },
-  states: [{ value: 'audio', name: 'Audio' }, { value: 'cv', name: 'CV' }, { value: 'gate', name: 'Gate' }, { value: 'clock', name: 'Clock' }],
+  states: [
+    { value: 'audio', name: 'Audio' }, { value: 'unipolar-cv', name: 'Unipolar CV' }, { value: 'bipolar-cv', name: 'Bipolar CV' },
+    { value: 'pitch-1v-oct', name: 'Pitch 1 V/oct' }, { value: 'gate', name: 'Gate' }, { value: 'trigger', name: 'Trigger' },
+    { value: 'clock', name: 'Clock' }, { value: 'envelope', name: 'Envelope' }, { value: 'lfo', name: 'LFO' },
+    { value: 'noise-random', name: 'Noise/random' }, { value: 'midi', name: 'MIDI' }, { value: 'i2c', name: 'I2C' },
+    { value: 'bus', name: 'Bus' }, { value: 'unknown', name: 'Unknown' },
+  ],
   defaultState: 'audio',
   inputs: [],
   scenarios: [
@@ -1382,7 +1411,7 @@ const signalTypeBadge: DisplayComponentRecipe = {
   build: (context, state) => [
     box(context, 'Signal badge frame', 0, 0, 31, 11, 4),
     ...signalBadgeGlyph(context, state),
-    tinyText(context, 'Signal badge label', 29, 9, state === 'audio' ? 'A' : state === 'cv' ? 'CV' : state === 'gate' ? 'G' : 'C', 9, 'right'),
+    tinyText(context, 'Signal badge label', 29, 9, SIGNAL_BADGE_LABELS[state] ?? '?', 9, 'right'),
   ],
 }
 
@@ -1394,7 +1423,12 @@ const waveformGlyph: DisplayComponentRecipe = {
   description: 'A waveform silhouette with an optional script-driven phase cursor.',
   tags: ['lfo', 'oscillator', 'sine', 'triangle', 'square', 'sample hold'],
   footprint: { width: 32, height: 12 },
-  states: [{ value: 'sine', name: 'Sine' }, { value: 'triangle', name: 'Triangle' }, { value: 'square', name: 'Square' }, { value: 'sample-hold', name: 'Sample & hold' }],
+  states: [
+    { value: 'sine', name: 'Sine' }, { value: 'triangle', name: 'Triangle' }, { value: 'saw-up', name: 'Saw up' },
+    { value: 'saw-down', name: 'Saw down' }, { value: 'square', name: 'Square' }, { value: 'pulse', name: 'Pulse' },
+    { value: 'stepped', name: 'Stepped' }, { value: 'sample-hold', name: 'Sample & hold' }, { value: 'noise', name: 'Noise' },
+    { value: 'envelope', name: 'Envelope' },
+  ],
   defaultState: 'sine',
   inputs: [
     numberInput('phase', 'Phase', 'Normalized phase used to place the cursor.', 0.25),
@@ -1409,7 +1443,12 @@ const waveformGlyph: DisplayComponentRecipe = {
     let waveform: DisplayPrimitiveElement[]
     if (state === 'triangle') waveform = [line(context, 'Triangle rise', 1, 9, 9, 2, 12), line(context, 'Triangle fall', 9, 2, 17, 9, 12), line(context, 'Triangle rise two', 17, 9, 25, 2, 12), line(context, 'Triangle tail', 25, 2, 30, 7, 12)]
     else if (state === 'square') waveform = [line(context, 'Square low', 1, 9, 7, 9, 12), line(context, 'Square rise', 7, 9, 7, 2, 12), line(context, 'Square high', 7, 2, 19, 2, 12), line(context, 'Square fall', 19, 2, 19, 9, 12), line(context, 'Square tail', 19, 9, 30, 9, 12)]
-    else if (state === 'sample-hold') waveform = [line(context, 'Hold one', 1, 8, 8, 8, 12), line(context, 'Hold step one', 8, 8, 8, 4, 12), line(context, 'Hold two', 8, 4, 18, 4, 12), line(context, 'Hold step two', 18, 4, 18, 9, 12), line(context, 'Hold three', 18, 9, 30, 9, 12)]
+    else if (state === 'saw-up') waveform = [line(context, 'Saw up rise one', 1, 9, 10, 2, 12), line(context, 'Saw up reset', 10, 2, 10, 9, 12), line(context, 'Saw up rise two', 10, 9, 20, 2, 12), line(context, 'Saw up reset two', 20, 2, 20, 9, 12), line(context, 'Saw up tail', 20, 9, 30, 2, 12)]
+    else if (state === 'saw-down') waveform = [line(context, 'Saw down fall one', 1, 2, 10, 9, 12), line(context, 'Saw down reset', 10, 9, 10, 2, 12), line(context, 'Saw down fall two', 10, 2, 20, 9, 12), line(context, 'Saw down reset two', 20, 9, 20, 2, 12), line(context, 'Saw down tail', 20, 2, 30, 9, 12)]
+    else if (state === 'pulse') waveform = [line(context, 'Pulse low one', 1, 9, 12, 9, 12), line(context, 'Pulse rise', 12, 9, 12, 2, 12), line(context, 'Pulse high', 12, 2, 17, 2, 12), line(context, 'Pulse fall', 17, 2, 17, 9, 12), line(context, 'Pulse low two', 17, 9, 30, 9, 12)]
+    else if (state === 'stepped' || state === 'sample-hold') waveform = [line(context, 'Hold one', 1, 8, 8, 8, 12), line(context, 'Hold step one', 8, 8, 8, state === 'stepped' ? 6 : 4, 12), line(context, 'Hold two', 8, state === 'stepped' ? 6 : 4, 18, state === 'stepped' ? 6 : 4, 12), line(context, 'Hold step two', 18, state === 'stepped' ? 6 : 4, 18, 9, 12), line(context, 'Hold three', 18, 9, 30, 9, 12)]
+    else if (state === 'noise') waveform = [line(context, 'Noise one', 1, 8, 5, 3, 9), line(context, 'Noise two', 5, 3, 10, 10, 13), line(context, 'Noise three', 10, 10, 16, 2, 15), line(context, 'Noise four', 16, 2, 23, 9, 11), line(context, 'Noise five', 23, 9, 30, 4, 14)]
+    else if (state === 'envelope') waveform = [line(context, 'Envelope attack', 1, 9, 7, 2, 15), line(context, 'Envelope decay', 7, 2, 13, 5, 12), line(context, 'Envelope sustain', 13, 5, 23, 5, 12), line(context, 'Envelope release', 23, 5, 30, 9, 10)]
     else waveform = [line(context, 'Sine one', 1, 7, 6, 2, 12), line(context, 'Sine two', 6, 2, 11, 7, 12), line(context, 'Sine three', 11, 7, 16, 10, 12), line(context, 'Sine four', 16, 10, 22, 3, 12), line(context, 'Sine five', 22, 3, 30, 7, 12)]
     return [
       ...waveform,
@@ -1710,7 +1749,7 @@ const logicProcessor: DisplayComponentRecipe = {
   description: 'A gate-logic tile with independent input and output truth marks.',
   tags: ['logic', 'and', 'or', 'xor', 'not', 'gate', 'boolean'],
   footprint: { width: 40, height: 18 },
-  states: [{ value: 'and', name: 'AND' }, { value: 'or', name: 'OR' }, { value: 'xor', name: 'XOR' }, { value: 'not', name: 'NOT' }, { value: 'error', name: 'Error' }],
+  states: [{ value: 'and', name: 'AND' }, { value: 'or', name: 'OR' }, { value: 'xor', name: 'XOR' }, { value: 'not', name: 'NOT' }, { value: 'nand', name: 'NAND' }, { value: 'nor', name: 'NOR' }, { value: 'error', name: 'Error' }],
   defaultState: 'and',
   inputs: [
     booleanInput('inputA', 'Input A high', 'Shows the script-owned first gate truth value.'),
@@ -1725,7 +1764,7 @@ const logicProcessor: DisplayComponentRecipe = {
   ],
   build: (context, state) => {
     const shade = state === 'error' ? 15 : 9
-    const label = state === 'and' ? 'AND' : state === 'or' ? 'OR' : state === 'xor' ? 'XOR' : state === 'not' ? 'NOT' : 'ERR'
+    const label = state === 'error' ? 'ERR' : state.toUpperCase()
     const primitives: DisplayPrimitiveElement[] = [
       box(context, 'Logic body', 7, 1, 32, 16, shade),
       tinyText(context, 'Logic label', 20, 11, label, shade, 'centre'),
@@ -1736,7 +1775,7 @@ const logicProcessor: DisplayComponentRecipe = {
       box(context, 'Logic pulse', 18, 0, 22, 2, 15, true, context.visible('pulse')),
     ]
     if (state !== 'not') primitives.push(line(context, 'Logic input B', 0, 13, 7, 13, shade), box(context, 'Logic input B high', 1, 11, 4, 14, 15, true, context.visible('inputB')))
-    if (state === 'not') primitives.push(circle(context, 'Logic invert bubble', 32, 9, 2, 13))
+    if (state === 'not' || state === 'nand' || state === 'nor') primitives.push(circle(context, 'Logic invert bubble', 32, 9, 2, 13))
     if (state === 'error') primitives.push(line(context, 'Logic error one', 11, 3, 28, 14, 15), line(context, 'Logic error two', 28, 3, 11, 14, 15))
     return primitives
   },
@@ -1991,7 +2030,7 @@ const clockTransformProcessor: DisplayComponentRecipe = {
   description: 'A clock utility tile for divide, multiply, swing, ratchet, and burst operations with script-owned phase, pulse, and lock state.',
   tags: ['clock', 'divide', 'multiply', 'swing', 'ratchet', 'burst', 'clock transform', 'processor'],
   footprint: { width: 48, height: 18 },
-  states: [{ value: 'divide', name: 'Divide' }, { value: 'multiply', name: 'Multiply' }, { value: 'swing', name: 'Swing' }, { value: 'ratchet', name: 'Ratchet' }, { value: 'burst', name: 'Burst' }, { value: 'error', name: 'Error' }],
+  states: [{ value: 'divide', name: 'Divide' }, { value: 'multiply', name: 'Multiply' }, { value: 'swing', name: 'Swing' }, { value: 'ratchet', name: 'Ratchet' }, { value: 'burst', name: 'Burst' }, { value: 'speed-ramp', name: 'Speed ramp' }, { value: 'error', name: 'Error' }],
   defaultState: 'divide',
   inputs: [
     textInput('ratio', 'Ratio', 'Short script-formatted clock ratio such as /4, x2, or 3:2.', '/4'),
@@ -2024,6 +2063,7 @@ const clockTransformProcessor: DisplayComponentRecipe = {
     if (state === 'swing') primitives.push(line(context, 'Clock swing one', 7, 12, 10, 5, 12), line(context, 'Clock swing two', 10, 5, 14, 12, 15))
     if (state === 'ratchet') primitives.push(line(context, 'Clock ratchet one', 7, 5, 7, 13, 11), line(context, 'Clock ratchet two', 10, 5, 10, 13, 13), line(context, 'Clock ratchet three', 14, 5, 14, 13, 15))
     if (state === 'burst') primitives.push(line(context, 'Clock burst upper', 7, 9, 14, 4, 15), line(context, 'Clock burst centre', 7, 9, 15, 9, 15), line(context, 'Clock burst lower', 7, 9, 14, 14, 15))
+    if (state === 'speed-ramp') primitives.push(line(context, 'Clock speed ramp', 7, 13, 15, 5, 15), line(context, 'Clock speed ramp tick', 11, 9, 15, 13, 11))
     if (state === 'error') primitives.push(line(context, 'Clock transform error one', 7, 4, 15, 14, 15), line(context, 'Clock transform error two', 15, 4, 7, 14, 15))
     return primitives
   },
@@ -2072,6 +2112,153 @@ const feedbackUtility: DisplayComponentRecipe = {
     return primitives
   },
 }
+
+interface OperationProcessorDefinition {
+  id: string
+  name: string
+  description: string
+  tags: readonly string[]
+  operations: readonly { value: string; name: string; label: string }[]
+}
+
+function operationProcessor(definition: OperationProcessorDefinition): DisplayComponentRecipe {
+  return {
+    ...common,
+    id: definition.id,
+    name: definition.name,
+    category: 'processors',
+    description: definition.description,
+    tags: definition.tags,
+    footprint: { width: 48, height: 18 },
+    states: [...definition.operations.map(({ value, name }) => ({ value, name })), { value: 'error', name: 'Error' }],
+    defaultState: definition.operations[0]!.value,
+    inputs: [
+      numberInput('amount', 'Operation amount', 'Normalized script-owned amount, balance, duration, or threshold for the selected operation.', 0.5),
+      booleanInput('active', 'Active', 'Shows script-owned processing or event activity.'),
+    ],
+    scenarios: [
+      { id: 'default', name: definition.operations[0]!.name, state: definition.operations[0]!.value, values: { amount: 0.35 } },
+      { id: 'active', name: definition.operations[1]?.name ?? definition.operations[0]!.name, state: definition.operations[1]?.value ?? definition.operations[0]!.value, values: { amount: 0.75, active: true } },
+      { id: 'edge', name: 'Error', state: 'error', values: { amount: 1, active: true } },
+    ],
+    build: (context, state) => {
+      const operationIndex = Math.max(0, definition.operations.findIndex(({ value }) => value === state))
+      const operation = definition.operations[operationIndex]
+      const shade = state === 'error' ? 15 : 8 + operationIndex % 6
+      const amount = context.number('amount', 20, 43)
+      const primitives: DisplayPrimitiveElement[] = [
+        box(context, `${definition.name} body`, 7, 2, 39, 15, shade),
+        line(context, `${definition.name} input`, 0, 9, 7, 9, shade),
+        line(context, `${definition.name} output`, 39, 9, 47, 9, shade),
+        tinyText(context, `${definition.name} label`, 23, 10, state === 'error' ? 'ERR' : operation?.label ?? '?', shade, 'centre'),
+        line(context, `${definition.name} amount rail`, 20, 13, 43, 13, 4),
+        line(context, `${definition.name} amount`, amount, 11, amount, 15, state === 'error' ? 15 : 12),
+        box(context, `${definition.name} activity`, 2, 6, 5, 11, 15, true, context.visible('active')),
+        line(context, `${definition.name} operation mark`, 9 + operationIndex * 3, 4, 12 + operationIndex * 3, 7 + operationIndex % 3, shade),
+      ]
+      if (state === 'error') primitives.push(line(context, `${definition.name} error one`, 13, 4, 34, 14, 15), line(context, `${definition.name} error two`, 34, 4, 13, 14, 15))
+      return primitives
+    },
+  }
+}
+
+const polarityUtilityProcessor = operationProcessor({
+  id: 'polarity-utility-processor',
+  name: 'Polarity utility processor',
+  description: 'Offset and inversion operations that complete the level-and-polarity processor family.',
+  tags: ['offset', 'invert', 'polarity', 'level', 'processor'],
+  operations: [{ value: 'offset', name: 'Offset', label: 'OFF' }, { value: 'invert', name: 'Invert', label: 'INV' }],
+})
+
+const crossfadeMultiplyProcessor = operationProcessor({
+  id: 'crossfade-multiply-processor',
+  name: 'Crossfade multiply processor',
+  description: 'Sum, average, crossfade, and ring/multiply signal-combination operations.',
+  tags: ['sum', 'average', 'crossfade', 'ring modulation', 'multiply', 'mix'],
+  operations: [
+    { value: 'sum', name: 'Sum', label: 'SUM' }, { value: 'average', name: 'Average', label: 'AVG' },
+    { value: 'crossfade', name: 'Crossfade', label: 'XF' }, { value: 'ring-multiply', name: 'Ring/multiply', label: 'MUL' },
+  ],
+})
+
+const waveshaperProcessor = operationProcessor({
+  id: 'waveshaper-processor',
+  name: 'Waveshaper processor',
+  description: 'Limiter, window, rectification, and fold transfer-shape operations.',
+  tags: ['limiter', 'window', 'half wave rectify', 'full wave rectify', 'fold', 'waveshaper'],
+  operations: [
+    { value: 'limiter', name: 'Limiter', label: 'LIM' }, { value: 'window', name: 'Window', label: 'WIN' },
+    { value: 'half-rectify', name: 'Half-wave rectify', label: 'HWR' }, { value: 'full-rectify', name: 'Full-wave rectify', label: 'FWR' },
+    { value: 'fold', name: 'Fold', label: 'FLD' },
+  ],
+})
+
+const timingUtilityProcessor = operationProcessor({
+  id: 'timing-utility-processor',
+  name: 'Timing utility processor',
+  description: 'Low-pass, delay, gate-delay, gate-length, and pulse-width time-response operations.',
+  tags: ['low pass smoothing', 'delay', 'gate delay', 'gate length', 'pulse width', 'time response'],
+  operations: [
+    { value: 'low-pass', name: 'Low-pass smoothing', label: 'LP' }, { value: 'delay', name: 'Delay', label: 'DLY' },
+    { value: 'gate-delay', name: 'Gate delay', label: 'GD' }, { value: 'gate-length', name: 'Gate length', label: 'GL' },
+    { value: 'pulse-width', name: 'Pulse width', label: 'PW' },
+  ],
+})
+
+const samplingUtilityProcessor = operationProcessor({
+  id: 'sampling-utility-processor',
+  name: 'Sampling utility processor',
+  description: 'Track-and-hold, latch, and bounded shift-register sampling operations.',
+  tags: ['track and hold', 'latch', 'shift register', 'sampling', 'clocked'],
+  operations: [
+    { value: 'track-hold', name: 'Track and hold', label: 'T/H' }, { value: 'latch', name: 'Latch', label: 'LAT' },
+    { value: 'shift-register', name: 'Shift register', label: 'SR' },
+  ],
+})
+
+const quantizationUtilityProcessor = operationProcessor({
+  id: 'quantization-utility-processor',
+  name: 'Quantization utility processor',
+  description: 'Grid, step, and scale-mask quantization operations beyond the pitch-quantizer tile.',
+  tags: ['grid quantizer', 'step quantizer', 'scale mask', 'quantization', 'discrete voltage'],
+  operations: [
+    { value: 'grid', name: 'Grid quantizer', label: 'GRD' }, { value: 'step', name: 'Step quantizer', label: 'STP' },
+    { value: 'scale-mask', name: 'Scale mask', label: 'SCL' },
+  ],
+})
+
+const comparisonUtilityProcessor = operationProcessor({
+  id: 'comparison-utility-processor',
+  name: 'Comparison utility processor',
+  description: 'Window comparator, zero-crossing, minimum, and maximum comparison operations.',
+  tags: ['window comparator', 'zero crossing', 'minimum', 'maximum', 'min max', 'comparison'],
+  operations: [
+    { value: 'window', name: 'Window comparator', label: 'WIN' }, { value: 'zero-crossing', name: 'Zero crossing', label: 'ZERO' },
+    { value: 'minimum', name: 'Minimum', label: 'MIN' }, { value: 'maximum', name: 'Maximum', label: 'MAX' },
+  ],
+})
+
+const probabilityUtilityProcessor = operationProcessor({
+  id: 'probability-utility-processor',
+  name: 'Probability utility processor',
+  description: 'Probability-gate, skip, and random-select operations with explicit script-owned decisions.',
+  tags: ['probability gate', 'skip', 'random select', 'chance', 'decision'],
+  operations: [
+    { value: 'probability-gate', name: 'Probability gate', label: 'PG' }, { value: 'skip', name: 'Skip', label: 'SKIP' },
+    { value: 'random-select', name: 'Random select', label: 'RND' },
+  ],
+})
+
+const switchingUtilityProcessor = operationProcessor({
+  id: 'switching-utility-processor',
+  name: 'Switching utility processor',
+  description: 'Mux, selector, sequential-switch, and sample-router operations.',
+  tags: ['one to n mux', 'n to one selector', 'sequential switch', 'sample router', 'switching'],
+  operations: [
+    { value: 'one-to-n', name: '1-to-N mux', label: '1>N' }, { value: 'n-to-one', name: 'N-to-1 selector', label: 'N>1' },
+    { value: 'sequential', name: 'Sequential switch', label: 'SEQ' }, { value: 'sample-router', name: 'Sample router', label: 'S/R' },
+  ],
+})
 
 const unipolarMeter: DisplayComponentRecipe = {
   ...common,
@@ -2529,7 +2716,7 @@ const stepCell: DisplayComponentRecipe = {
   description: 'A compact gate step with distinct off, on, accent, tie, and mute states.',
   tags: ['sequencer', 'x0x', 'gate', 'pattern', 'step'],
   footprint: { width: 12, height: 12 },
-  states: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }, { value: 'accent', name: 'Accent' }, { value: 'tie', name: 'Tie' }, { value: 'muted', name: 'Muted' }],
+  states: [{ value: 'off', name: 'Off' }, { value: 'on', name: 'On' }, { value: 'accent', name: 'Accent' }, { value: 'tie', name: 'Tie' }, { value: 'ratchet', name: 'Ratchet' }, { value: 'probability', name: 'Probability' }, { value: 'ghost', name: 'Ghost' }, { value: 'muted', name: 'Muted' }],
   defaultState: 'off',
   inputs: [booleanInput('selected', 'Selected', 'Shows an outer playhead or focus bracket.')],
   scenarios: [
@@ -2542,6 +2729,9 @@ const stepCell: DisplayComponentRecipe = {
     if (state === 'on') primitives.push(box(context, 'Step hit', 3, 3, 8, 8, 12, true))
     if (state === 'accent') primitives.push(box(context, 'Step accent', 2, 2, 9, 9, 15, true), box(context, 'Step accent cutout', 4, 4, 7, 7, 0, true))
     if (state === 'tie') primitives.push(line(context, 'Step tie', 2, 6, 9, 6, 13), line(context, 'Step tie hook', 8, 4, 9, 6, 13))
+    if (state === 'ratchet') primitives.push(line(context, 'Step ratchet one', 3, 3, 3, 8, 11), line(context, 'Step ratchet two', 6, 3, 6, 8, 13), line(context, 'Step ratchet three', 9, 3, 9, 8, 15))
+    if (state === 'probability') primitives.push(line(context, 'Step probability slash', 3, 8, 8, 3, 13), box(context, 'Step probability low', 3, 3, 3, 3, 15, true), box(context, 'Step probability high', 8, 8, 8, 8, 15, true))
+    if (state === 'ghost') primitives.push(box(context, 'Step ghost', 4, 4, 7, 7, 6))
     if (state === 'muted') primitives.push(line(context, 'Step mute', 2, 9, 9, 2, 5))
     primitives.push(
       line(context, 'Selected top', 0, 0, 11, 0, 15, context.visible('selected')),
@@ -3000,6 +3190,140 @@ const fourStageStrip: DisplayComponentRecipe = {
   },
 }
 
+const sixteenStepRow: DisplayComponentRecipe = {
+  ...common,
+  id: 'sixteen-step-row',
+  name: 'Sixteen-step row',
+  category: 'sequencing',
+  description: 'A bounded sixteen-step pattern row with independent gates, playhead, loop endpoints, run, record, mute, and error states.',
+  tags: ['16 step', 'sixteen step', 'x0x', 'row', 'sequencer', 'pattern', 'playhead', 'loop'],
+  footprint: { width: 240, height: 12 },
+  states: [{ value: 'stopped', name: 'Stopped' }, { value: 'running', name: 'Running' }, { value: 'recording', name: 'Recording' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'stopped',
+  inputs: [
+    ...Array.from({ length: 16 }, (_, index) => booleanInput(`step${index + 1}`, `Step ${index + 1}`, `Whether authored step ${index + 1} is active.`, index % 4 === 0)),
+    numberInput('playhead', 'Playhead', 'Normalized algorithm-owned current position across sixteen steps.', 0),
+    numberInput('loopStart', 'Loop start', 'Normalized script-owned loop start.', 0),
+    numberInput('loopEnd', 'Loop end', 'Normalized script-owned loop end.', 1),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Stopped pattern', state: 'stopped' },
+    { id: 'active', name: 'Running pattern', state: 'running', values: { step1: true, step5: true, step9: true, step13: true, playhead: 0.47, loopStart: 0.2, loopEnd: 0.8 } },
+    { id: 'edge', name: 'Recording final step', state: 'recording', values: { playhead: 1, loopStart: 0, loopEnd: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : state === 'recording' ? 14 : state === 'running' ? 12 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Sixteen-step rail', 4, 6, 235, 6, state === 'muted' ? 2 : 5),
+      line(context, 'Sixteen-step loop range', context.number('loopStart', 4, 235), 1, context.number('loopEnd', 4, 235), 1, state === 'error' ? 15 : 8),
+      line(context, 'Sixteen-step loop start', context.number('loopStart', 4, 235), 0, context.number('loopStart', 4, 235), 4, 10),
+      line(context, 'Sixteen-step loop end', context.number('loopEnd', 4, 235), 0, context.number('loopEnd', 4, 235), 4, 10),
+    ]
+    for (let index = 0; index < 16; index += 1) {
+      const x = 7 + index * 15
+      primitives.push(box(context, `Sixteen-step gate ${index + 1}`, x - 3, 3, x + 3, 9, shade, true, context.visible(`step${index + 1}`)))
+    }
+    const playhead = context.number('playhead', 4, 235)
+    primitives.push(line(context, 'Sixteen-step playhead', playhead, 0, playhead, 11, state === 'running' || state === 'recording' ? 15 : 6))
+    if (state === 'running') primitives.push(line(context, 'Sixteen-step running rail', 4, 10, playhead, 10, 13))
+    if (state === 'recording') primitives.push(circle(context, 'Sixteen-step record mark', 237, 2, 2, 15))
+    if (state === 'muted') primitives.push(line(context, 'Sixteen-step mute', 3, 10, 236, 1, 5))
+    if (state === 'error') primitives.push(line(context, 'Sixteen-step error one', 111, 1, 128, 10, 15), line(context, 'Sixteen-step error two', 128, 1, 111, 10, 15))
+    return primitives
+  },
+}
+
+const eightStepDrumLane: DisplayComponentRecipe = {
+  ...common,
+  id: 'eight-step-drum-lane',
+  name: 'Eight-step drum lane',
+  category: 'drums',
+  description: 'A bounded drum lane with independent hits and accents, playhead, header flash, mute, solo, and error states.',
+  tags: ['drum lane', '8 step', 'eight step', 'x0x', 'accent', 'playhead', 'mute', 'solo'],
+  footprint: { width: 120, height: 18 },
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'running', name: 'Running' }, { value: 'muted', name: 'Muted' }, { value: 'solo', name: 'Solo' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    ...Array.from({ length: 8 }, (_, index) => booleanInput(`hit${index + 1}`, `Hit ${index + 1}`, `Whether drum step ${index + 1} contains a hit.`, index % 3 === 0)),
+    ...Array.from({ length: 8 }, (_, index) => booleanInput(`accent${index + 1}`, `Accent ${index + 1}`, `Whether drum step ${index + 1} is accented.`, index === 0)),
+    numberInput('playhead', 'Playhead', 'Normalized algorithm-owned current drum step.', 0),
+    booleanInput('recentHit', 'Recent hit', 'Shows the script-maintained event flash at the lane header.'),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle lane', state: 'idle' },
+    { id: 'active', name: 'Running accented hit', state: 'running', values: { hit1: true, hit3: true, hit5: true, hit7: true, accent5: true, playhead: 0.57, recentHit: true } },
+    { id: 'edge', name: 'Muted lane', state: 'muted', values: { playhead: 1 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : state === 'solo' ? 14 : state === 'running' ? 12 : 7
+    const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Drum lane header', 0, 1, 16, 16, shade),
+      tinyText(context, 'Drum lane label', 8, 11, 'DR', shade, 'centre'),
+      box(context, 'Drum lane recent hit', 5, 5, 11, 12, 15, true, context.visible('recentHit')),
+      line(context, 'Drum lane rail', 20, 9, 117, 9, state === 'muted' ? 2 : 5),
+    ]
+    for (let index = 0; index < 8; index += 1) {
+      const x = 25 + index * 13
+      primitives.push(
+        box(context, `Drum lane hit ${index + 1}`, x - 3, 6, x + 3, 12, shade, true, context.visible(`hit${index + 1}`)),
+        line(context, `Drum lane accent ${index + 1}`, x - 4, 4, x + 4, 4, 15, context.visible(`accent${index + 1}`)),
+      )
+    }
+    const playhead = context.number('playhead', 21, 117)
+    primitives.push(line(context, 'Drum lane playhead', playhead, 1, playhead, 16, state === 'running' ? 15 : 6))
+    if (state === 'muted') primitives.push(line(context, 'Drum lane mute', 1, 16, 118, 1, 5))
+    if (state === 'solo') primitives.push(line(context, 'Drum lane solo rail', 1, 0, 118, 0, 15))
+    if (state === 'error') primitives.push(line(context, 'Drum lane error one', 51, 3, 68, 15, 15), line(context, 'Drum lane error two', 68, 3, 51, 15, 15))
+    return primitives
+  },
+}
+
+const radialGrooveRing: DisplayComponentRecipe = {
+  ...common,
+  id: 'radial-groove-ring',
+  name: 'Radial groove ring',
+  category: 'drums',
+  description: 'A bounded two-lane, sixteen-position rhythm ring with explicit authored hits, playhead, swing, mute, and error states; it has a deliberately higher draw cost.',
+  tags: ['radial groove', 'rhythm ring', 'drum', 'two lane', '16 step', '32 states', 'swing', 'rotation'],
+  footprint: { width: 56, height: 56 },
+  compatibleDisplayModes: ['full-screen'],
+  costNote: 'Higher-cost radial assembly: two lanes and thirty-two explicit hit bindings.',
+  states: [{ value: 'idle', name: 'Idle' }, { value: 'running', name: 'Running' }, { value: 'swing', name: 'Swing' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+  defaultState: 'idle',
+  inputs: [
+    ...Array.from({ length: 16 }, (_, index) => booleanInput(`outer${index + 1}`, `Outer hit ${index + 1}`, `Whether outer-lane position ${index + 1} contains a hit.`, index % 4 === 0)),
+    ...Array.from({ length: 16 }, (_, index) => booleanInput(`inner${index + 1}`, `Inner hit ${index + 1}`, `Whether inner-lane position ${index + 1} contains a hit.`, index % 5 === 0)),
+    numberInput('playhead', 'Playhead', 'Normalized algorithm-owned position around the ring.', 0),
+    numberInput('swingAmount', 'Swing amount', 'Normalized script-owned swing or rotation marker.', 0.5),
+  ],
+  scenarios: [
+    { id: 'default', name: 'Idle groove', state: 'idle' },
+    { id: 'active', name: 'Running groove', state: 'running', values: { playhead: 0.45, swingAmount: 0.6 } },
+    { id: 'edge', name: 'Swung groove', state: 'swing', values: { playhead: 0.8, swingAmount: 0.9 } },
+  ],
+  build: (context, state) => {
+    const shade = state === 'muted' ? 3 : state === 'error' ? 15 : state === 'swing' ? 14 : state === 'running' ? 12 : 7
+    const positions = Array.from({ length: 16 }, (_, index) => {
+      const angle = index * Math.PI * 2 / 16 - Math.PI / 2
+      return { outer: [28 + Math.round(Math.cos(angle) * 23), 28 + Math.round(Math.sin(angle) * 23)] as const, inner: [28 + Math.round(Math.cos(angle) * 15), 28 + Math.round(Math.sin(angle) * 15)] as const }
+    })
+    const primitives: DisplayPrimitiveElement[] = [circle(context, 'Groove outer rail', 28, 28, 23, state === 'muted' ? 2 : 5), circle(context, 'Groove inner rail', 28, 28, 15, state === 'muted' ? 2 : 5)]
+    positions.forEach(({ outer, inner }, index) => primitives.push(
+      circle(context, `Groove outer hit ${index + 1}`, outer[0], outer[1], 2, shade, context.visible(`outer${index + 1}`)),
+      circle(context, `Groove inner hit ${index + 1}`, inner[0], inner[1], 2, state === 'swing' ? 15 : shade, context.visible(`inner${index + 1}`)),
+    ))
+    primitives.push(
+      line(context, 'Groove playhead', 28, 28, context.number('playhead', 5, 51), 53, state === 'idle' ? 6 : 15),
+      line(context, 'Groove swing marker', context.number('swingAmount', 7, 49), 1, context.number('swingAmount', 7, 49), 5, state === 'swing' ? 15 : 9),
+    )
+    if (state === 'running') primitives.push(circle(context, 'Groove running centre', 28, 28, 3, 15))
+    if (state === 'swing') primitives.push(line(context, 'Groove swing arc', 13, 8, 43, 8, 15))
+    if (state === 'muted') primitives.push(line(context, 'Groove mute', 7, 49, 49, 7, 5))
+    if (state === 'error') primitives.push(line(context, 'Groove error one', 18, 18, 38, 38, 15), line(context, 'Groove error two', 38, 18, 18, 38, 15))
+    return primitives
+  },
+}
+
 const drumVoiceGlyph: DisplayComponentRecipe = {
   ...common,
   id: 'drum-voice-glyph',
@@ -3249,8 +3573,8 @@ const classicSnareGlyph: DisplayComponentRecipe = {
       line(context, 'Classic snare wire two', 3, 11, 13, 8, state === 'muted' ? 3 : 11),
       tinyText(context, 'Classic snare label', 17, 7, 'S', state === 'muted' ? 3 : 9, 'right'),
     ]
-    if (state === 'hit') primitives.push(circle(context, 'Classic snare hit ring', 8, 9, 7, 15))
-    if (state === 'accent') primitives.push(circle(context, 'Classic snare accent ring', 8, 9, 7, 15), line(context, 'Classic snare accent top', 3, 1, 13, 1, 15))
+    if (state === 'hit') primitives.push(circle(context, 'Classic snare hit ring', 8, 8, 7, 15))
+    if (state === 'accent') primitives.push(circle(context, 'Classic snare accent ring', 8, 8, 7, 15), line(context, 'Classic snare accent top', 3, 1, 13, 1, 15))
     if (state === 'muted') primitives.push(line(context, 'Classic snare mute', 2, 14, 14, 2, 5))
     if (state === 'error') primitives.push(line(context, 'Classic snare error one', 2, 2, 14, 14, 15), line(context, 'Classic snare error two', 14, 2, 2, 14, 15))
     return primitives
@@ -3378,7 +3702,7 @@ const classicRimClavesGlyph: DisplayComponentRecipe = {
       tinyText(context, 'Classic rim label', 17, 15, 'R', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(line(context, 'Classic rim hit edge', 2, 9, 14, 9, 15))
-    if (state === 'accent') primitives.push(circle(context, 'Classic rim accent ring', 8, 9, 7, 15), line(context, 'Classic rim accent top', 3, 1, 13, 1, 15))
+    if (state === 'accent') primitives.push(circle(context, 'Classic rim accent ring', 8, 8, 7, 15), line(context, 'Classic rim accent top', 3, 1, 13, 1, 15))
     if (state === 'muted') primitives.push(line(context, 'Classic rim mute', 2, 14, 15, 2, 5))
     if (state === 'error') primitives.push(line(context, 'Classic rim error one', 2, 2, 15, 14, 15), line(context, 'Classic rim error two', 15, 2, 2, 14, 15))
     return primitives
@@ -3449,6 +3773,108 @@ const classicClosedHiHatGlyph: DisplayComponentRecipe = {
     return primitives
   },
 }
+
+type DrumGlyphStyle = 'classic' | 'punchy'
+type RemainingDrumInstrument = 'closed-hi-hat' | 'open-hi-hat' | 'low-tom' | 'mid-tom' | 'high-tom' | 'cymbal-ride' | 'cowbell' | 'shaker-maraca' | 'generic-percussion'
+
+const DRUM_INSTRUMENT_LABELS: Record<RemainingDrumInstrument, string> = {
+  'closed-hi-hat': 'CH', 'open-hi-hat': 'OH', 'low-tom': 'LT', 'mid-tom': 'MT', 'high-tom': 'HT',
+  'cymbal-ride': 'CY', cowbell: 'CB', 'shaker-maraca': 'SH', 'generic-percussion': 'P',
+}
+
+function remainingDrumInstrumentPrimitives(
+  context: DisplayComponentBuildContext,
+  style: DrumGlyphStyle,
+  instrument: RemainingDrumInstrument,
+  shade: ScalarValue,
+): DisplayPrimitiveElement[] {
+  const angular = style === 'punchy'
+  if (instrument === 'closed-hi-hat') return [
+    line(context, 'Closed hat upper cymbal', 2, 6, 14, 6, shade), line(context, 'Closed hat lower cymbal', 3, angular ? 9 : 8, 13, angular ? 9 : 8, shade),
+    line(context, 'Closed hat stand', 8, 8, 8, 14, shade), line(context, 'Closed hat pedal', 8, 14, angular ? 15 : 13, 14, shade),
+  ]
+  if (instrument === 'open-hi-hat') return [
+    line(context, 'Open hat upper cymbal', 2, angular ? 3 : 4, 14, angular ? 5 : 4, shade), line(context, 'Open hat lower cymbal', 3, 9, 13, angular ? 8 : 9, shade),
+    line(context, 'Open hat gap', 8, 5, 8, 8, shade), line(context, 'Open hat stand', 8, 9, 8, 14, shade),
+  ]
+  if (instrument === 'low-tom' || instrument === 'mid-tom' || instrument === 'high-tom') {
+    const bodyTop = instrument === 'high-tom' ? 3 : instrument === 'mid-tom' ? 5 : 7
+    return angular
+      ? [box(context, 'Tom angular shell', 3, bodyTop, 13, 13, shade), line(context, 'Tom angular head', 2, bodyTop, 14, bodyTop, shade), line(context, 'Tom stand', 8, 13, 8, 15, shade)]
+      : [circle(context, 'Tom round shell', 8, bodyTop + 4, 4, shade), line(context, 'Tom round head', 3, bodyTop, 13, bodyTop, shade), line(context, 'Tom stand', 8, Math.min(14, bodyTop + 8), 8, 15, shade)]
+  }
+  if (instrument === 'cymbal-ride') return [
+    angular ? line(context, 'Cymbal angular bow', 1, 7, 15, 4, shade) : circle(context, 'Cymbal round bow', 8, 7, 7, shade),
+    line(context, 'Cymbal bell', 6, 5, 10, 5, shade), line(context, 'Cymbal stand', 8, 8, 8, 15, shade), line(context, 'Cymbal foot', 4, 15, 12, 15, shade),
+  ]
+  if (instrument === 'cowbell') return [
+    line(context, 'Cowbell upper', 4, 3, 13, 5, shade), line(context, 'Cowbell lower', 4, 12, 13, 10, shade),
+    line(context, 'Cowbell back', 4, 3, 4, 12, shade), line(context, 'Cowbell mouth', 13, 5, 13, 10, shade),
+  ]
+  if (instrument === 'shaker-maraca') return [
+    angular ? box(context, 'Shaker angular body', 3, 3, 12, 11, shade) : circle(context, 'Shaker round body', 8, 7, 5, shade),
+    line(context, 'Shaker handle', 11, 10, 15, 14, shade), line(context, 'Shaker grain one', 5, 5, 7, 7, shade), line(context, 'Shaker grain two', 9, 5, 11, 7, shade),
+  ]
+  return [
+    line(context, 'Percussion diamond upper left', 8, 2, 2, 8, shade), line(context, 'Percussion diamond lower left', 2, 8, 8, 14, shade),
+    line(context, 'Percussion diamond lower right', 8, 14, 14, 8, shade), line(context, 'Percussion diamond upper right', 14, 8, 8, 2, shade),
+    angular ? box(context, 'Percussion angular core', 6, 6, 10, 10, shade, true) : circle(context, 'Percussion round core', 8, 8, 2, shade),
+  ]
+}
+
+function remainingDrumGlyph(style: DrumGlyphStyle, instrument: RemainingDrumInstrument): DisplayComponentRecipe {
+  const family = style === 'classic' ? 'Classic analog' : 'Punchy hybrid'
+  const instrumentName = instrument.split('-').map((part) => part === 'hi' ? 'hi' : part).join(' ')
+  return {
+    ...common,
+    id: `${style}-${instrument}-glyph`,
+    name: `${family} ${instrumentName} glyph`,
+    category: 'drums',
+    description: `An original ${instrumentName} glyph for the ${family} drum family.`,
+    tags: [style === 'classic' ? '808-like' : '909-like', family.toLocaleLowerCase(), instrumentName, DRUM_INSTRUMENT_LABELS[instrument], 'drum', 'voice', 'percussion'],
+    footprint: { width: 18, height: 16 },
+    states: [{ value: 'idle', name: 'Idle' }, { value: 'hit', name: 'Hit' }, { value: 'accent', name: 'Accent' }, { value: 'muted', name: 'Muted' }, { value: 'error', name: 'Error' }],
+    defaultState: 'idle',
+    inputs: [numberInput('level', 'Hit level', `Normalized script-owned ${instrumentName} event level.`, 0.5)],
+    scenarios: [
+      { id: 'default', name: 'Idle', state: 'idle', values: { level: 0.25 } },
+      { id: 'active', name: 'Hit', state: 'hit', values: { level: 0.8 } },
+      { id: 'edge', name: 'Accent', state: 'accent', values: { level: 1 } },
+    ],
+    build: (context, state) => {
+      const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('level', 7, 14)
+      const primitives: DisplayPrimitiveElement[] = [
+        ...remainingDrumInstrumentPrimitives(context, style, instrument, shade),
+        tinyText(context, `${family} ${instrumentName} label`, 17, 15, DRUM_INSTRUMENT_LABELS[instrument], state === 'muted' ? 3 : 9, 'right'),
+      ]
+      if (state === 'hit') primitives.push(circle(context, `${family} ${instrumentName} hit`, 8, 8, 3, 15))
+      if (state === 'accent') primitives.push(box(context, `${family} ${instrumentName} accent`, 1, 1, 16, 14, 15))
+      if (state === 'muted') primitives.push(line(context, `${family} ${instrumentName} mute`, 2, 14, 15, 2, 5))
+      if (state === 'error') primitives.push(line(context, `${family} ${instrumentName} error one`, 2, 2, 15, 14, 15), line(context, `${family} ${instrumentName} error two`, 15, 2, 2, 14, 15))
+      return primitives
+    },
+  }
+}
+
+const remainingDrumGlyphs: readonly DisplayComponentRecipe[] = [
+  remainingDrumGlyph('classic', 'open-hi-hat'),
+  remainingDrumGlyph('classic', 'low-tom'),
+  remainingDrumGlyph('classic', 'mid-tom'),
+  remainingDrumGlyph('classic', 'high-tom'),
+  remainingDrumGlyph('classic', 'cymbal-ride'),
+  remainingDrumGlyph('classic', 'cowbell'),
+  remainingDrumGlyph('classic', 'shaker-maraca'),
+  remainingDrumGlyph('classic', 'generic-percussion'),
+  remainingDrumGlyph('punchy', 'closed-hi-hat'),
+  remainingDrumGlyph('punchy', 'open-hi-hat'),
+  remainingDrumGlyph('punchy', 'low-tom'),
+  remainingDrumGlyph('punchy', 'mid-tom'),
+  remainingDrumGlyph('punchy', 'high-tom'),
+  remainingDrumGlyph('punchy', 'cymbal-ride'),
+  remainingDrumGlyph('punchy', 'cowbell'),
+  remainingDrumGlyph('punchy', 'shaker-maraca'),
+  remainingDrumGlyph('punchy', 'generic-percussion'),
+]
 
 const clockSourceBadge: DisplayComponentRecipe = {
   ...common,
@@ -3690,6 +4116,15 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   comparatorProcessor,
   clockTransformProcessor,
   feedbackUtility,
+  polarityUtilityProcessor,
+  crossfadeMultiplyProcessor,
+  waveshaperProcessor,
+  timingUtilityProcessor,
+  samplingUtilityProcessor,
+  quantizationUtilityProcessor,
+  comparisonUtilityProcessor,
+  probabilityUtilityProcessor,
+  switchingUtilityProcessor,
   unipolarMeter,
   bipolarMeter,
   segmentedMeter,
@@ -3715,6 +4150,9 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   probabilityAccentLane,
   euclideanRing,
   fourStageStrip,
+  sixteenStepRow,
+  eightStepDrumLane,
+  radialGrooveRing,
   drumVoiceGlyph,
   drumVoiceTile,
   drumStepCell,
@@ -3728,6 +4166,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   classicRimClavesGlyph,
   punchyRimClavesGlyph,
   classicClosedHiHatGlyph,
+  ...remainingDrumGlyphs,
   clockSourceBadge,
   midiActivity,
   i2cActivity,

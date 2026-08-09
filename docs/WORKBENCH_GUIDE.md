@@ -833,7 +833,9 @@ documented shades.
 The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
-compiler and renderer as the artboard. The catalog currently contains 99
+compiler and renderer as the artboard. Density and compatible-display-mode
+filters narrow the catalog, and every card shows 1× and magnified previews plus
+current/maximum draw calls and insertion resources. The catalog contains 128
 choices. Layout includes panel frame, section header, status lamp,
 divider/ruler, label/value row, state badge, tabs/segmented selector, and page
 indicator plus focus/selection brackets and an empty/unavailable marker. Patch and routing includes input,
@@ -847,7 +849,10 @@ numeric/unit readout, and choice readout. Signal
 type, waveform, direction, polarity, unit, and channel/voice badges supply the
 signal vocabulary. Processors include attenuator, mixer, clamp,
 sample-and-hold, logic, Bernoulli, attenuverter, slew, and pitch-quantizer
-tiles plus gain/VCA, comparator, clock-transform, and feedback processors. Meters include unipolar, bipolar, segmented, vertical channel,
+tiles plus gain/VCA, comparator, clock-transform, feedback, polarity,
+crossfade/multiply, waveshaping, timing, sampling, quantization, comparison,
+probability, and switching processors. Together they cover every operation
+named in the processor families. Meters include unipolar, bipolar, segmented, vertical channel,
 threshold/window, modulation-range, gate/trigger activity, envelope-contour,
 phase/clock-ring, note/range-ladder, XY/vector, and bounded eight-sample scope
 displays. The scope samples are chronological normalized values maintained by
@@ -855,22 +860,65 @@ the script outside `draw()`; it does not record or invent history itself.
 Sequencing includes step and value-step cells, playhead cursor, loop-range
 bracket, transport and pattern/page strips, tracker row, and mini keyboard note
 row plus eight-step pitch/CV, gate, and probability/accent lanes and an
-eight-step Euclidean ring and four-stage strip. Drum components include Classic analog
+eight-step Euclidean ring, four-stage strip, and bounded sixteen-step row. Drum components include Classic analog
 kick, snare, clap, rim/claves, and closed hi-hat glyphs, Punchy
-hybrid kick, snare, clap, and rim/claves glyph/tile artwork, a drum step cell, fill/roll indicator,
-and two-voice overview. Clock-source, MIDI, I2C, preset-state, warning/error,
+hybrid kick, snare, clap, and rim/claves glyph/tile artwork. Both families also
+include closed/open hi-hats, low/mid/high toms, cymbal/ride, cowbell,
+shaker/maraca, and generic percussion. A drum step cell, eight-step lane,
+two-voice overview, radial groove ring, and fill/roll indicator cover drum
+assemblies. Clock-source, MIDI, I2C, preset-state, warning/error,
 and busy/progress badges cover system status.
 
-**Insert** adds one local symbol, a choice binding for its named visual states,
+**Insert at centre** adds one local symbol, a choice binding for its named visual states,
 any number/boolean/text bindings used by the artwork, and one selected instance
 at the centre of the active drawing area. The selected preview scenario becomes
 the inserted bindings' initial preview. Every fresh insertion receives
-collision-safe names and independent bindings. The result is ordinary editable
+collision-safe names and independent bindings. When the centre is occupied,
+insertion chooses the next open eight-pixel-grid position. With pointer input,
+drag a component card onto the artboard to choose an explicit position. The
+result is ordinary editable
 version-9 designer content: inspect its bindings in **State**, edit its artwork
 and variants in **Symbols**, move or duplicate its instance like another layer,
 and generate the same ordinary Lua/TODO placeholders. The catalog is not stored
 as an opaque dependency, so reopening the design does not require the component
 recipe that created it.
+
+Ordinary **Duplicate** keeps the instance linked to the same symbol artwork and
+bindings. Select a symbol instance and choose **Make independent copy…** when
+the copy must receive cloned artwork, state choices, mappings, and every binding
+used by that component. The confirmation states exactly which values stop being
+shared; the copy is then selected as one undoable transaction.
+
+### Wiring component state
+
+Insertion-generated Lua contains local TODO placeholders. Replace those values
+with state calculated outside `draw()`; drawing must only read it. These small
+patterns cover the common cases:
+
+```lua
+-- Gate/trigger flash: decrement in step(), set from trigger().
+self.flashFrames = math.max(0, (self.flashFrames or 0) - 1)
+local gate_flash = self.flashFrames > 0
+
+-- Bipolar meter: normalize a clamped -5 V..+5 V source.
+local bipolar_meter_value = math.max(0, math.min(1, (self.outputVoltage + 5) / 10))
+
+-- Soft takeover: compare script-owned physical and target values.
+local pickup_waiting = math.abs(self.physicalValue - self.targetValue) > 0.02
+local pickup_caught = not pickup_waiting
+
+-- Step row/playhead: keep authored gates and algorithm position outside draw().
+local step_1 = self.pattern[1]
+local playhead = (self.currentStep - 1) / 15
+
+-- Drum hit/accent: event age is maintained by trigger()/step().
+local drum_hit = (self.kickFlashFrames or 0) > 0
+local drum_accent = drum_hit and self.lastKickVelocity > 0.8
+```
+
+The names in an inserted design are collision-safe variants of the component
+and input names. Use the State panel or generated source to copy the exact local
+names before connecting them to `self`, parameters, inputs, or outputs.
 
 The screen strip keeps one or more named screens in the same design. **Add
 screen** creates a blank screen, **Duplicate screen** copies the active screen's

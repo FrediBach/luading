@@ -314,18 +314,25 @@ They deliberately do not claim real pointer
 capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
 Canvas visual fidelity.
 
-Display-component-library tests pin the nine stable categories, two starter
-recipes per category, recipe/state/scenario validation, search aliases,
-collision-safe names, independent fresh bindings, active-area placement,
-resource-limit rejection without document mutation, and successful
-materialization of every starter scenario as ordinary version-9 symbols and
-instances. Representative numeric and choice-bound components execute through
-the production Wasmoon/display boundary and must emit the same commands as the
-preview compiler. Server-rendering and jsdom tests cover catalog labels,
-pixel-preview canvases, category/search filtering, scenario selection,
-single-transaction insertion/undo, State-panel bindings, generated source, and
-the responsive Components tab. Exact canvas pixels, scrolling through the full
-catalog, and physical 1x legibility still require live browser/device review.
+Display-component-library tests pin the nine stable categories and complete
+128-recipe non-screen catalog, recipe/state/scenario/input-guidance validation,
+search aliases, density and display-mode filters, collision-safe names,
+independent fresh bindings, open-grid and explicit placement, resource-limit
+rejection without document mutation, and successful materialization of every
+scenario as ordinary version-9 symbols and instances. Every scenario's command
+bounds stay inside its declared footprint. Canonical file round trips retain no
+catalog provenance. Numeric, boolean, text, and choice-bound components execute
+through the production Wasmoon/display boundary and must emit the same commands
+as the preview compiler. Bounded 16-step and radial assembly tests expose their
+higher exact costs without bypassing document limits. Model tests pin shared
+duplication and independent cloning of symbols, variants, choices, mappings,
+and referenced bindings. Server-rendering and jsdom tests cover catalog labels,
+1×/magnified pixel previews, category/search/density/mode filtering, scenario
+selection, centre and drag insertion, single-transaction insertion/undo,
+resource details, Integration disclosure, State-panel bindings, generated
+source, and the responsive Components tab. Exact canvas pixels, scrolling
+through the full catalog, and physical 1x legibility still require live
+browser/device review.
 
 Display-designer binding tests pin safe Lua-local allocation, keywords and
 collisions, stable usage discovery across scene and symbol primitives,

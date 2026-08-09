@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -16,7 +17,8 @@ import { renderDistingDisplay } from '../../emulation/display-renderer'
 import { DISTING_DISPLAY, type DrawCommand } from '../../types'
 import { LuaSourcePreview } from '../LuaSourcePreview'
 import { DisplayComponentLibrary } from './DisplayComponentLibrary'
-import { materializeDisplayComponent } from './display-component-library'
+import { DISPLAY_COMPONENT_RECIPES } from './display-component-catalog'
+import { materializeDisplayComponent, type DisplayComponentRecipe } from './display-component-library'
 import {
   DISPLAY_DESIGN_PASTE_OFFSET,
   copyDisplayDesignSelection,
@@ -114,6 +116,7 @@ import {
   duplicateDisplayDesignElements,
   duplicateDisplayDesignGroup,
   duplicateDisplayDesignScreen,
+  makeDisplaySymbolInstanceIndependent,
   mergeActiveDisplayDesignDocument,
   selectDisplayDesignElements,
   selectDisplayDesignVariantPrimitives,
@@ -634,6 +637,7 @@ function DisplayDesignerArtboard({
   onPointerMove,
   onPointerEnd,
   onPointerCancel,
+  onComponentDrop,
 }: {
   document: DisplayDesignDocument
   commands: DrawCommand[]
@@ -654,6 +658,7 @@ function DisplayDesignerArtboard({
   onPointerMove(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }): void
   onPointerEnd(input: { point: DisplayDesignPoint; rect: DisplayDesignClientRect; pointerId: number; ctrlKey: boolean }): void
   onPointerCancel(pointerId: number): void
+  onComponentDrop?(input: { recipeId: string; scenarioId: string; point: DisplayDesignPoint }): void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const artboardRef = useRef<HTMLDivElement>(null)
@@ -693,6 +698,11 @@ function DisplayDesignerArtboard({
     : { width: `${DISTING_DISPLAY.width * zoom}px` }
 
   const logicalEventPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return clientToLogical({ x: event.clientX, y: event.clientY }, rect)
+  }
+
+  const logicalDropPoint = (event: ReactDragEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
     return clientToLogical({ x: event.clientX, y: event.clientY }, rect)
   }
@@ -738,6 +748,18 @@ function DisplayDesignerArtboard({
           onPointerMove={(event) => onPointerMove({ point: logicalEventPoint(event), rect: eventRect(event), pointerId: event.pointerId, ctrlKey: event.ctrlKey })}
           onPointerUp={(event) => { onPointerEnd({ point: logicalEventPoint(event), rect: eventRect(event), pointerId: event.pointerId, ctrlKey: event.ctrlKey }); event.currentTarget.releasePointerCapture?.(event.pointerId) }}
           onPointerCancel={(event) => onPointerCancel(event.pointerId)}
+          onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-luading-display-component')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' } }}
+          onDrop={(event) => {
+            const encoded = event.dataTransfer.getData('application/x-luading-display-component')
+            if (!encoded || !onComponentDrop) return
+            event.preventDefault()
+            try {
+              const parsed = JSON.parse(encoded) as { recipeId?: unknown; scenarioId?: unknown }
+              if (typeof parsed.recipeId === 'string' && typeof parsed.scenarioId === 'string') onComponentDrop({ recipeId: parsed.recipeId, scenarioId: parsed.scenarioId, point: logicalDropPoint(event) })
+            } catch {
+              // Ignore malformed external drag payloads.
+            }
+          }}
           onContextMenu={(event) => { if (event.ctrlKey) event.preventDefault() }}
         >
           <canvas
@@ -1168,6 +1190,7 @@ function DisplayDesignerInspector({
   onToggleLayoutGrid,
   onEditSymbol,
   onDetachInstance,
+  onMakeIndependent,
 }: {
   element?: DisplayDesignElement
   document: DisplayDesignDocument
@@ -1179,6 +1202,7 @@ function DisplayDesignerInspector({
   onToggleLayoutGrid(): void
   onEditSymbol?(instance: DisplaySymbolInstance): void
   onDetachInstance?(instance: DisplaySymbolInstance): void
+  onMakeIndependent?(instance: DisplaySymbolInstance): void
 }) {
   const [pixelPaintShade, setPixelPaintShade] = useState(15)
   const [pixelFrameIndex, setPixelFrameIndex] = useState(0)
@@ -1264,7 +1288,7 @@ function DisplayDesignerInspector({
         const byValue = new Map(symbol.variants.map((variant) => [variant.luaValue, variant.id]))
         updateInstance('Attach choice binding', (instance) => ({ ...instance, state: { kind: 'choice-binding', bindingId: choiceBinding.id, variantByChoiceId: Object.fromEntries(choiceBinding.choices.map((choice) => [choice.id, byValue.get(choice.luaValue) ?? symbol.defaultVariantId])) } }))
       }}><option value="">Attach existing…</option>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>}</>}
-      <div className="display-designer-symbol-actions"><button type="button" onClick={() => onEditSymbol?.(element)}>Edit symbol</button><button type="button" onClick={() => onDetachInstance?.(element)}>Detach instance…</button></div>
+      <div className="display-designer-symbol-actions"><button type="button" onClick={() => onEditSymbol?.(element)}>Edit symbol</button><button type="button" onClick={() => onMakeIndependent?.(element)}>Make independent copy…</button><button type="button" onClick={() => onDetachInstance?.(element)}>Detach instance…</button></div>
     </section>
   }
 
@@ -2545,6 +2569,27 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     else if (!event.shiftKey && globalThis.document.activeElement === last) { event.preventDefault(); first.focus() }
   }
 
+  const insertDisplayComponent = (recipe: DisplayComponentRecipe, scenarioId: string, origin?: { x: number; y: number }) => {
+    if (activeSymbol) return {
+      ok: false,
+      message: 'Return to the scene before inserting a component; symbols cannot contain component instances.',
+    }
+    const inserted = materializeDisplayComponent(document, recipe, idFactory, { scenarioId, origin })
+    if (!inserted.ok) return {
+      ok: false,
+      message: `${inserted.message} ${inserted.findings[0] ?? ''}`.trim(),
+    }
+    setActiveTool('select')
+    commit(`Insert ${recipe.name} component`, inserted.document, {
+      ...createEmptyDisplayDesignSelection(),
+      elementIds: [inserted.instance.id],
+    })
+    return {
+      ok: true,
+      message: `Inserted ${inserted.symbol.name} with ${inserted.bindingIds.length} state binding${inserted.bindingIds.length === 1 ? '' : 's'}.`,
+    }
+  }
+
   const dialog = (
     <div className="display-designer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose() }}>
       <div ref={dialogRef} className={`display-designer-dialog is-${layout}`} data-layout={layout} role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description display-designer-disclosure" onKeyDown={handleKeyDown}>
@@ -2713,26 +2758,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
               id={responsive ? 'display-designer-panel-components' : 'display-designer-left-panel-components'}
               aria-labelledby={responsive ? 'display-designer-tab-components' : 'display-designer-left-tab-components'}
               hidden={responsive ? responsivePanel !== 'components' : leftPanel !== 'components'}
-            ><DisplayComponentLibrary onInsert={(recipe, scenarioId) => {
-              if (activeSymbol) return {
-                ok: false,
-                message: 'Return to the scene before inserting a component; symbols cannot contain component instances.',
-              }
-              const inserted = materializeDisplayComponent(document, recipe, idFactory, { scenarioId })
-              if (!inserted.ok) return {
-                ok: false,
-                message: `${inserted.message} ${inserted.findings[0] ?? ''}`.trim(),
-              }
-              setActiveTool('select')
-              commit(`Insert ${recipe.name} component`, inserted.document, {
-                ...createEmptyDisplayDesignSelection(),
-                elementIds: [inserted.instance.id],
-              })
-              return {
-                ok: true,
-                message: `Inserted ${inserted.symbol.name} with ${inserted.bindingIds.length} state binding${inserted.bindingIds.length === 1 ? '' : 's'}.`,
-              }
-            }} /></div>}
+            ><DisplayComponentLibrary onInsert={insertDisplayComponent} /></div>}
             {(!layersCollapsed || responsive) && <div
               className="display-designer-left-panel display-designer-responsive-panel"
               role="tabpanel"
@@ -2784,6 +2810,10 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
             onPointerMove={movePointerGesture}
             onPointerEnd={finishPointerGesture}
             onPointerCancel={cancelPointerGesture}
+            onComponentDrop={({ recipeId, scenarioId, point }) => {
+              const recipe = DISPLAY_COMPONENT_RECIPES.find(({ id }) => id === recipeId)
+              if (recipe) insertDisplayComponent(recipe, scenarioId, { x: point.x - recipe.footprint.width / 2, y: point.y - recipe.footprint.height / 2 })
+            }}
           />
 
           <aside className="display-designer-sidebar display-designer-sidebar--inspector">
@@ -2829,6 +2859,15 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                   if (responsive) setResponsivePanel('symbols')
                 }}
                 onDetachInstance={(instance) => setPendingDetachId(instance.id)}
+                onMakeIndependent={(instance) => {
+                  const independent = makeDisplaySymbolInstanceIndependent(document, instance.id, idFactory)
+                  if (!independent.ok) return
+                  if (!globalThis.confirm(independent.summary)) return
+                  commit('Make independent component copy', independent.document, {
+                    ...createEmptyDisplayDesignSelection(),
+                    elementIds: [independent.instanceId],
+                  })
+                }}
               /></div>
               <div
                 className="display-designer-responsive-panel"

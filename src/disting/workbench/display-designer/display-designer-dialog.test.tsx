@@ -99,6 +99,26 @@ async function pointer(element: Element, type: string, x: number, y: number, opt
   })
 }
 
+async function dragComponent(card: Element, artboard: Element, x: number, y: number) {
+  const values = new Map<string, string>()
+  const dataTransfer = {
+    types: ['application/x-luading-display-component'],
+    effectAllowed: 'none',
+    dropEffect: 'none',
+    setData: (type: string, value: string) => values.set(type, value),
+    getData: (type: string) => values.get(type) ?? '',
+  }
+  await act(async () => {
+    const start = new Event('dragstart', { bubbles: true, cancelable: true })
+    Object.defineProperty(start, 'dataTransfer', { value: dataTransfer })
+    card.dispatchEvent(start)
+    const drop = new MouseEvent('drop', { bubbles: true, cancelable: true, clientX: x, clientY: y })
+    Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer })
+    artboard.dispatchEvent(drop)
+    await Promise.resolve()
+  })
+}
+
 function prepareArtboard() {
   const artboard = document.querySelector<HTMLElement>('.display-designer-artboard')!
   vi.spyOn(artboard, 'getBoundingClientRect').mockReturnValue({
@@ -152,11 +172,18 @@ describe('Display designer dialog', () => {
     expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(true)
     await click(button('Components'))
     expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(false)
-    expect(document.querySelectorAll('.display-component-card')).toHaveLength(99)
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(128)
     await commitInput(field('Search components') as HTMLInputElement, 'classic analog snare')
     expect(document.querySelectorAll('.display-component-card')).toHaveLength(1)
     expect(document.querySelector('.display-component-card strong')?.textContent).toBe('Classic analog snare glyph')
 
+    await commitInput(field('Search components') as HTMLInputElement, '')
+    await commitInput(field('Search components') as HTMLInputElement, 'radial groove')
+    await choose(field('Compatible display mode') as HTMLSelectElement, 'parameter-line')
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(0)
+    await choose(field('Compatible display mode') as HTMLSelectElement, 'full-screen')
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(1)
+    await choose(field('Compatible display mode') as HTMLSelectElement, 'all')
     await commitInput(field('Search components') as HTMLInputElement, '')
     await choose(field('Component category') as HTMLSelectElement, 'patching')
     expect([...document.querySelectorAll('.display-component-card > header strong')].map((element) => element.textContent)).toEqual([
@@ -177,7 +204,7 @@ describe('Display designer dialog', () => {
 
     const scenario = document.querySelector<HTMLSelectElement>('[aria-label="Input jack preview scenario"]')!
     await choose(scenario, 'active')
-    await click(button('Insert Input jack'))
+    await click(button('Insert Input jack at centre'))
 
     expect(layer('Input jack instance')).toBeTruthy()
     expect(bindingCard('Input jack · State')).toBeTruthy()
@@ -189,7 +216,7 @@ describe('Display designer dialog', () => {
     await click(button('Edit symbol'))
     expect(document.querySelector('#display-designer-left-tab-symbols')?.getAttribute('aria-selected')).toBe('true')
     await click(button('Components'))
-    await click(button('Insert Output jack'))
+    await click(button('Insert Output jack at centre'))
     expect(document.querySelector('.display-component-library-status')?.textContent).toBe(
       'Return to the scene before inserting a component; symbols cannot contain component instances.',
     )
@@ -199,6 +226,20 @@ describe('Display designer dialog', () => {
     await click(button('Undo'))
     expect(document.body.textContent).not.toContain('Input jack instance')
     expect(document.body.textContent).not.toContain('Input jack · Activity')
+  })
+
+  it('drags a component scenario to an explicit artboard position', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Components'))
+    await commitInput(field('Search components') as HTMLInputElement, 'choice readout')
+    const card = document.querySelector<HTMLElement>('[data-component-id="choice-readout"]')!
+    expect(card.draggable).toBe(true)
+    const artboard = prepareArtboard()
+    await dragComponent(card, artboard, 256, 64)
+
+    expect(layer('Choice readout instance')).toBeTruthy()
+    expect(source()).toContain('draw_choice_readout(104, 26')
   })
 
   it('adds, names, duplicates, switches, and removes isolated screens with generated selector branches', async () => {

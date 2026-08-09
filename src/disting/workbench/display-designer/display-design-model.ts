@@ -1063,6 +1063,132 @@ export function duplicateDisplayDesignSymbol(
   }
 }
 
+export type IndependentDisplaySymbolInstanceResult =
+  | { ok: true; document: DisplayDesignDocument; instanceId: string; symbolId: string; bindingIds: string[]; summary: string }
+  | { ok: false; document: DisplayDesignDocument; message: string }
+
+function collectDisplayBindingReferences(value: unknown, found: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectDisplayBindingReferences(item, found)
+    return
+  }
+  if (!value || typeof value !== 'object') return
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'bindingId' && typeof child === 'string') found.add(child)
+    else collectDisplayBindingReferences(child, found)
+  }
+}
+
+function remapIndependentReferences<T>(
+  value: T,
+  bindingIds: ReadonlyMap<string, string>,
+  choiceIds: ReadonlyMap<string, string>,
+  variantIds: ReadonlyMap<string, string>,
+): T {
+  if (Array.isArray(value)) return value.map((item) => remapIndependentReferences(item, bindingIds, choiceIds, variantIds)) as T
+  if (!value || typeof value !== 'object') return value
+  const remapped: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'bindingId' && typeof child === 'string') remapped[key] = bindingIds.get(child) ?? child
+    else if (key === 'variantId' && typeof child === 'string') remapped[key] = variantIds.get(child) ?? child
+    else if (key === 'variantByChoiceId' && child && typeof child === 'object' && !Array.isArray(child)) {
+      remapped[key] = Object.fromEntries(Object.entries(child).map(([choiceId, variantId]) => [
+        choiceIds.get(choiceId) ?? choiceId,
+        typeof variantId === 'string' ? variantIds.get(variantId) ?? variantId : variantId,
+      ]))
+    } else remapped[key] = remapIndependentReferences(child, bindingIds, choiceIds, variantIds)
+  }
+  return remapped as T
+}
+
+export function makeDisplaySymbolInstanceIndependent(
+  document: DisplayDesignDocument,
+  instanceId: string,
+  idFactory: DisplayDesignIdFactory,
+): IndependentDisplaySymbolInstanceResult {
+  const sourceInstance = document.elements.find((element): element is DisplaySymbolInstance => element.id === instanceId && element.kind === 'symbol-instance')
+  if (!sourceInstance) return { ok: false, document: cloneDisplayDesign(document), message: 'Select one symbol instance to make an independent copy.' }
+  const sourceSymbol = document.symbols.find(({ id }) => id === sourceInstance.symbolId)
+  if (!sourceSymbol) return { ok: false, document: cloneDisplayDesign(document), message: 'The selected instance has no valid symbol definition.' }
+
+  const usedBindingIds = new Set<string>()
+  collectDisplayBindingReferences(sourceSymbol, usedBindingIds)
+  collectDisplayBindingReferences(sourceInstance, usedBindingIds)
+  const sourceBindings = document.bindings.filter(({ id }) => usedBindingIds.has(id))
+  if (document.symbols.length >= DISPLAY_DESIGN_LIMITS.maximumSymbols
+    || document.elements.length >= DISPLAY_DESIGN_LIMITS.maximumInstances + DISPLAY_DESIGN_LIMITS.maximumPrimitives
+    || document.bindings.length + sourceBindings.length > DISPLAY_DESIGN_LIMITS.maximumBindings) {
+    return { ok: false, document: cloneDisplayDesign(document), message: 'An independent copy would exceed the current design resource limits.' }
+  }
+
+  const bindingIds = new Map<string, string>()
+  const choiceIds = new Map<string, string>()
+  const usedLuaNames = new Set([
+    ...document.tokens.map(({ luaName }) => luaName),
+    ...document.bindings.map(({ luaName }) => luaName),
+    ...document.symbols.map(({ luaName }) => luaName),
+  ])
+  const bindings = sourceBindings.map((binding) => {
+    const duplicate = cloneDisplayDesign(binding)
+    duplicate.id = idFactory('binding')
+    bindingIds.set(binding.id, duplicate.id)
+    duplicate.name = copiedName(binding.name)
+    duplicate.luaName = allocateCopiedLuaName(binding.luaName, usedLuaNames)
+    usedLuaNames.add(duplicate.luaName)
+    if (duplicate.kind === 'choice') {
+      duplicate.choices = duplicate.choices.map((choice) => {
+        const next = { ...choice, id: idFactory('choice') }
+        choiceIds.set(choice.id, next.id)
+        return next
+      })
+      duplicate.previewChoiceId = choiceIds.get(binding.kind === 'choice' ? binding.previewChoiceId : '') ?? duplicate.choices[0]?.id ?? ''
+    }
+    return duplicate
+  })
+
+  const variantIds = new Map<string, string>()
+  const variants = sourceSymbol.variants.map((variant) => {
+    const id = idFactory('variant')
+    variantIds.set(variant.id, id)
+    return { ...cloneDisplayDesign(variant), id }
+  }).map((variant) => ({
+    ...variant,
+    elements: variant.elements.map((primitive) => ({
+      ...remapIndependentReferences(primitive, bindingIds, choiceIds, variantIds),
+      id: idFactory('primitive'),
+    })),
+  }))
+  const symbol: DisplayDesignSymbol = {
+    ...cloneDisplayDesign(sourceSymbol),
+    id: idFactory('symbol'),
+    name: copiedName(sourceSymbol.name),
+    luaName: allocateCopiedLuaName(sourceSymbol.luaName, usedLuaNames),
+    defaultVariantId: variantIds.get(sourceSymbol.defaultVariantId) ?? variants[0]?.id ?? '',
+    variants,
+  }
+  const instance: DisplaySymbolInstance = {
+    ...remapIndependentReferences(sourceInstance, bindingIds, choiceIds, variantIds),
+    id: idFactory('element'),
+    name: copiedName(sourceInstance.name),
+    symbolId: symbol.id,
+    x: sourceInstance.x.kind === 'literal' ? { ...sourceInstance.x, value: sourceInstance.x.value + 4 } : remapIndependentReferences(sourceInstance.x, bindingIds, choiceIds, variantIds),
+    y: sourceInstance.y.kind === 'literal' ? { ...sourceInstance.y, value: sourceInstance.y.value + 4 } : remapIndependentReferences(sourceInstance.y, bindingIds, choiceIds, variantIds),
+  }
+  return {
+    ok: true,
+    document: {
+      ...cloneDisplayDesign(document),
+      bindings: [...cloneDisplayDesign(document.bindings), ...bindings],
+      symbols: [...cloneDisplayDesign(document.symbols), symbol],
+      elements: [...cloneDisplayDesign(document.elements), instance],
+    },
+    instanceId: instance.id,
+    symbolId: symbol.id,
+    bindingIds: bindings.map(({ id }) => id),
+    summary: `${sourceSymbol.name} copy now has its own symbol definition and ${bindings.length} cloned binding${bindings.length === 1 ? '' : 's'}; later artwork and preview-value edits are no longer shared.`,
+  }
+}
+
 export function setDisplayDesignMode(document: DisplayDesignDocument, displayMode: DisplayMode): DisplayDesignDocument {
   return { ...cloneDisplayDesign(document), displayMode }
 }

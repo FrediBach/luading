@@ -21,6 +21,7 @@ import {
   type DisplayDesignSymbol,
 } from './display-design-model'
 import { validateDisplayDesign } from './display-design-validation'
+import { compileDisplayDesign, displayCommandBounds } from './display-design-compiler'
 
 export type DisplayComponentCategoryId =
   | 'layout'
@@ -37,6 +38,9 @@ export interface DisplayComponentCategory {
   id: DisplayComponentCategoryId
   label: string
 }
+
+export type DisplayComponentDensity = 'micro' | 'compact' | 'regular' | 'screen'
+export type DisplayComponentDisplayMode = 'parameter-line' | 'full-screen'
 
 export const DISPLAY_COMPONENT_CATEGORIES: readonly DisplayComponentCategory[] = [
   { id: 'layout', label: 'Layout' },
@@ -57,6 +61,9 @@ export type DisplayComponentInput =
       name: string
       description: string
       defaultValue: number
+      suggestedLuaName: string
+      sourceDomain: string
+      affectedProperties: string
     }
   | {
       kind: 'boolean'
@@ -64,6 +71,9 @@ export type DisplayComponentInput =
       name: string
       description: string
       defaultValue: boolean
+      suggestedLuaName: string
+      sourceDomain: string
+      affectedProperties: string
     }
   | {
       kind: 'text'
@@ -71,6 +81,9 @@ export type DisplayComponentInput =
       name: string
       description: string
       defaultValue: string
+      suggestedLuaName: string
+      sourceDomain: string
+      affectedProperties: string
     }
 
 export interface DisplayComponentState {
@@ -107,6 +120,8 @@ export interface DisplayComponentRecipe {
   description: string
   tags: readonly string[]
   footprint: { width: number; height: number }
+  compatibleDisplayModes: readonly DisplayComponentDisplayMode[]
+  costNote?: string
   states: readonly DisplayComponentState[]
   defaultState: string
   inputs: readonly DisplayComponentInput[]
@@ -160,6 +175,8 @@ export function validateDisplayComponentCatalog(
     if (!categoryIds.has(recipe.category)) finding('Recipe category is unknown.')
     if (!Number.isInteger(recipe.footprint.width) || recipe.footprint.width < 1 || recipe.footprint.width > 256) finding('Footprint width must be a whole number from 1 through 256.')
     if (!Number.isInteger(recipe.footprint.height) || recipe.footprint.height < 1 || recipe.footprint.height > 64) finding('Footprint height must be a whole number from 1 through 64.')
+    if (recipe.compatibleDisplayModes.length === 0 || recipe.compatibleDisplayModes.some((mode) => mode !== 'parameter-line' && mode !== 'full-screen')) finding('Recipe display-mode compatibility must contain at least one known mode.')
+    if (recipe.compatibleDisplayModes.includes('parameter-line') && recipe.footprint.height > 54) finding('Parameter-line compatible recipes must fit the 54-row custom drawing area.')
     if (recipe.states.length < 2 || recipe.states.length > DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol) finding(`Recipes need from 2 through ${DISPLAY_DESIGN_LIMITS.maximumVariantsPerSymbol} states.`)
     const stateValues = new Set<string>()
     for (const state of recipe.states) {
@@ -174,6 +191,7 @@ export function validateDisplayComponentCatalog(
       if (inputs.has(input.key) || input.key === 'state') finding(`Input key “${input.key}” is duplicated or reserved.`)
       inputs.set(input.key, input)
       if (!input.name.trim() || !input.description.trim()) finding(`Input “${input.key}” needs a name and description.`)
+      if (!input.suggestedLuaName.trim() || !input.sourceDomain.trim() || !input.affectedProperties.trim()) finding(`Input “${input.key}” needs Lua-name, source-domain, and affected-property guidance.`)
       if (!inputValueIsValid(input, input.defaultValue)) finding(`Input “${input.key}” has an invalid default value.`)
     }
     const scenarioIds = new Set<string>()
@@ -197,15 +215,26 @@ export function filterDisplayComponentRecipes(
   recipes: readonly DisplayComponentRecipe[],
   query: string,
   category: DisplayComponentCategoryId | 'all' = 'all',
+  density: DisplayComponentDensity | 'all' = 'all',
+  displayMode: DisplayComponentDisplayMode | 'all' = 'all',
 ): DisplayComponentRecipe[] {
   const normalized = query.trim().toLocaleLowerCase()
   return recipes.filter((recipe) => {
     if (category !== 'all' && recipe.category !== category) return false
+    if (density !== 'all' && displayComponentRecipeDensity(recipe) !== density) return false
+    if (displayMode !== 'all' && !recipe.compatibleDisplayModes.includes(displayMode)) return false
     if (!normalized) return true
     const categoryLabel = DISPLAY_COMPONENT_CATEGORIES.find(({ id }) => id === recipe.category)?.label ?? ''
     return [recipe.name, recipe.description, categoryLabel, ...recipe.tags]
       .some((value) => value.toLocaleLowerCase().includes(normalized))
   })
+}
+
+export function displayComponentRecipeDensity(recipe: DisplayComponentRecipe): DisplayComponentDensity {
+  if (recipe.footprint.width >= 120 || recipe.footprint.height >= 48) return 'screen'
+  if (recipe.footprint.width <= 24 && recipe.footprint.height <= 16) return 'micro'
+  if (recipe.footprint.width <= 64 && recipe.footprint.height <= 24) return 'compact'
+  return 'regular'
 }
 
 function uniqueComponentName(document: DisplayDesignDocument, requested: string): string {
@@ -236,11 +265,30 @@ function componentOrigin(
     x: Math.floor((256 - footprint.width) / 2),
     y: Math.floor((minimumY + 64 - footprint.height) / 2),
   }
-  const origin = requested ?? centered
-  return {
+  const clamp = (origin: { x: number; y: number }) => ({
     x: Math.max(0, Math.min(maximumX, Math.round(origin.x))),
     y: Math.max(minimumY, Math.min(maximumY, Math.round(origin.y))),
-  }
+  })
+  if (requested) return clamp(requested)
+
+  const compiled = compileDisplayDesign(document)
+  const occupied = compiled.commandSources.flatMap((source) => {
+    const bounds = compiled.commands
+      .slice(source.firstCommand, source.firstCommand + source.commandCount)
+      .map(displayCommandBounds)
+      .filter((value): value is NonNullable<typeof value> => Boolean(value))
+    if (bounds.length === 0) return []
+    return [{
+      left: Math.min(...bounds.map(({ left }) => left)), top: Math.min(...bounds.map(({ top }) => top)),
+      right: Math.max(...bounds.map(({ right }) => right)), bottom: Math.max(...bounds.map(({ bottom }) => bottom)),
+    }]
+  })
+  const candidates = [clamp(centered)]
+  for (let y = minimumY; y <= maximumY; y += 8) for (let x = 0; x <= maximumX; x += 8) candidates.push({ x, y })
+  return candidates.find(({ x, y }) => occupied.every((bounds) => (
+    x + footprint.width - 1 < bounds.left - 1 || x > bounds.right + 1
+    || y + footprint.height - 1 < bounds.top - 1 || y > bounds.bottom + 1
+  ))) ?? clamp(centered)
 }
 
 function scenarioForRecipe(
@@ -307,6 +355,11 @@ export function materializeDisplayComponent(
     ok: false,
     message: `${recipe.name} is not a valid component recipe.`,
     findings: recipeFindings.map(({ message }) => message),
+  }
+  if (!recipe.compatibleDisplayModes.includes(document.displayMode)) return {
+    ok: false,
+    message: `${recipe.name} is not compatible with this display mode.`,
+    findings: [`Switch the design to ${recipe.compatibleDisplayModes.join(' or ')} before inserting this component.`],
   }
   const scenario = scenarioForRecipe(recipe, options.scenarioId)
   const componentName = uniqueComponentName(document, recipe.name)
