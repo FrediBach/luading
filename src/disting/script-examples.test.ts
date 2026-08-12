@@ -17,4 +17,12 @@ describe('bundled script groups', () => {
         group: 'fredi-bach',
       })
   })
+
+  it('includes the WeaveForge recreation in the bundled selector', () => {
+    expect(DISTING_SCRIPT_EXAMPLES.get('fredi-bach/WeaveForge'))
+      .toMatchObject({
+        name: 'WeaveForge',
+        group: 'fredi-bach',
+      })
+  })
 })

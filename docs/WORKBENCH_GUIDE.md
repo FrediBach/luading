@@ -493,6 +493,55 @@ typed-input edge behavior replaces Vermona's specified +2 V input threshold,
 and the separate clock inputs are not automatically normalled to one another.
 The internal BPM parameters replace the original tap-tempo gesture.
 
+### WeaveForge recreation
+
+The bundled **WeaveForge** example is an independently written Disting NT
+adaptation of Voltage Foundry Modular's
+[dual shift-register sequencer](https://vfmod.com/modules/weaveforge/) and is
+informed by its public
+[implementation and regression tests](https://github.com/VoltageFoundryMod/ForgeSeries/tree/main/apps/wea).
+Two 16-bit registers advance together. **Length A/B** select the 2-16 bit
+feedback points, while **Chance A/B** decide whether each returning bit flips.
+Chance 0% is an exact locked loop of `Length` steps; 100% is an exact,
+always-inverting loop of twice that length.
+
+**Weave** is the probability that a register receives the other register's
+outgoing bit before Chance is applied. At 0% the two loops are independent. At
+100% with **Direction: Both**, unequal lengths form one exact ring whose period
+is their sum. The one-way directions preserve the sender bit-for-bit while the
+receiver becomes a related variation. The custom display shows A moving left
+to right, B moving right to left, inactive delay-line cells, the crossing
+weave, and all four output read positions.
+
+The four outputs use the source module's DUO layout: **A1 Note** and **B1 Note**
+read independently rotated, 1-8 bit windows and spread them over a shared root,
+one of fifteen scales, and a one-to-five-octave range. **A2 Gate** and **B2
+Gate** have their own rotations, window depth, and shared density threshold.
+Note Slew is a time-based control-rate approximation. Outputs are limited to
+the source module's 0-5 V range.
+
+Input 1 is an external clock. The explicit **Clock** parameter is necessary
+because a Disting script cannot detect whether that input is physically
+patched; Internal mode uses **BPM** and the symmetric `/16` through `x16`
+**Rate** choices. External divisions count incoming triggers, while external
+multiplications are scheduled from the most recently measured interval. Each
+incoming trigger represents one beat; the original IN PPQN setting is omitted.
+
+Inputs 2 and 3 are assignable bipolar CVs. Length moves three steps per volt,
+Chance and Weave move twenty percentage points per volt, Transpose moves twelve
+semitones per volt, and Rotate moves three cells per volt at 100% depth. Reset
+and Lock use a +1 V threshold and ignore depth. Lock forces both mutation
+chances to zero without stopping the registers. **Save state** preserves both
+patterns, both current note/gate states, and the deterministic random stream.
+
+This adaptation keeps the defining register and weave behavior but does not
+reproduce the source module's fully assignable output matrix, AB output source,
+MONO/PULSE layouts, per-output trigger/modulation modes, panel pattern-edit
+actions, automatic external-clock fallback, ten hardware preset slots, or
+electrical and timing characteristics. Its clock multiplication, CV response,
+and slew run at the documented 1 ms Disting Lua cadence and have not been
+compared with physical WeaveForge hardware.
+
 ### Mutable Instruments Marbles recreation
 
 The bundled **Mutable Instruments Marbles** example adapts the musical model

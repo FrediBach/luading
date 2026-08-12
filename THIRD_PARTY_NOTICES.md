@@ -50,6 +50,19 @@ copyright and full MIT license notice.
 
 Source: [mxmxmx/O_C](https://github.com/mxmxmx/O_C)
 
+## Voltage Foundry Modular WeaveForge behavior
+
+`lua-scripts/fredi-bach/WeaveForge.lua` is an independently written Disting NT
+adaptation of the dual shift-register sequencing behavior documented for
+Voltage Foundry Modular's WeaveForge. Its register, weaving, and window-read
+rules are informed by the public manual, implementation, and regression tests.
+It does not copy source code, hardware design files, display assets, or resource
+data from the upstream project.
+
+Source: [VoltageFoundryMod/ForgeSeries WeaveForge](https://github.com/VoltageFoundryMod/ForgeSeries/tree/main/apps/wea)
+
+Manual: [WeaveForge module page](https://vfmod.com/modules/weaveforge/)
+
 ## Disting NT display font atlases
 
 The generated files
