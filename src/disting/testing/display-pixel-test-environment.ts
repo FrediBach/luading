@@ -8,7 +8,7 @@ export function renderDisplayTestPixels(commands: DrawCommand[], width = 256, he
     fillStyle: '#000',
     save() {},
     restore() {},
-    fillRect(x: number, y: number, w: number, h: number) {
+    fillRect(this: { fillStyle: string }, x: number, y: number, w: number, h: number) {
       const green = this.fillStyle === '#000' ? 0 : Number(this.fillStyle.split(',')[1])
       const shade = Math.round(green * 15 / 241)
       for (let row = Math.max(0, y); row < Math.min(height, y + h); row += 1) {
