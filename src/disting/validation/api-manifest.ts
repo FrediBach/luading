@@ -414,6 +414,8 @@ export const DISTING_API: DistingApiEntry[] = [
       snippetDefault: '"left"',
     }),
   ], 'Draws text in the standard font.', {
+    support: 'approximation',
+    supportDetail: 'Pixelmix 8px standard and Tom Thumb 6px tiny faces are simulator approximations; hardware glyphs, spacing, and baselines are unverified.',
     contexts: DRAW_CONTEXT,
   }),
   api('drawTinyText', [
@@ -428,6 +430,8 @@ export const DISTING_API: DistingApiEntry[] = [
       snippetDefault: '"left"',
     }),
   ], 'Draws text in the tiny 3×5 font.', {
+    support: 'approximation',
+    supportDetail: 'Pixelmix 8px standard and Tom Thumb 6px tiny faces are simulator approximations; hardware glyphs, spacing, and baselines are unverified.',
     contexts: DRAW_CONTEXT,
   }),
   api('exit', [], 'Returns control from a UI script to the normal module UI.', {

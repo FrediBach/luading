@@ -163,12 +163,20 @@ describe('Disting IntelliSense API support', () => {
   })
 
   it('does not add a caveat to fully simulated APIs', () => {
-    const drawText = DISTING_API_BY_NAME.get('drawText')
-    const entry = drawText && apiEntryForIntelliSense(drawText)
+    const rectangle = DISTING_API_BY_NAME.get('drawRectangle')
+    const entry = rectangle && apiEntryForIntelliSense(rectangle)
 
     expect(entry?.detail).not.toContain('simulation')
     expect(entry?.documentation).not.toContain('Simulator support')
     expect(entry?.documentation).toContain('Contract source: manual 1.12')
+  })
+
+  it('identifies text faces as unverified approximations in editor help', () => {
+    for (const name of ['drawText', 'drawTinyText']) {
+      const entry = apiEntryForIntelliSense(DISTING_API_BY_NAME.get(name)!)
+      expect(entry.detail).toContain('browser approximation')
+      expect(entry.documentation).toContain('hardware glyphs, spacing, and baselines are unverified')
+    }
   })
 
   it('distinguishes documented constants from compatibility aliases', () => {

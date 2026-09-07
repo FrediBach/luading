@@ -52,7 +52,8 @@ describe('Disting API manifest', () => {
       sendMIDI: 'partial',
       setDisplayMode: 'partial',
     })
-    expect(support.drawText).toBe('full')
+    expect(support.drawText).toBe('approximation')
+    expect(support.drawTinyText).toBe('approximation')
   })
 
   it('requires colour for the six documented drawing primitives', () => {

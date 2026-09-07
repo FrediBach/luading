@@ -316,7 +316,7 @@ message is therefore visible before edge callbacks run.
 The worker schedules `draw()` at the documented 30 fps cadence. Lua drawing
 calls are legal only during the active draw callback and produce
 renderer-independent commands. The main thread rasterizes those commands with
-firmware-derived font atlases and a 16-shade palette.
+deterministic Pixelmix/Tom Thumb approximation atlases and a 16-shade palette.
 
 Worker-to-main frames are transported at 20 fps. A frame includes the latest
 inputs, outputs, parameters, runtime statistics, display commands, and pending

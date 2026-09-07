@@ -1365,3 +1365,13 @@ backup, and clearing site data can still remove projects. Local scripts belong
 to the current browser profile and exact origin. Preview deployments, another
 domain, another device, and private-browsing sessions do not automatically
 share them. Keep a downloaded backup for work that matters.
+
+## Display text appearance
+
+The simulator and display designer share crisp, monochrome font atlases:
+`drawText` uses Pixelmix at 8px; `drawTinyText` uses Tom Thumb at 6px,
+with 3×5 capital glyphs and a four-pixel character advance. These follow the
+font choices in `thorinside/nt_lua_emulator`; hardware glyph shapes, spacing,
+and baselines remain unverified. Text still uses the requested 0–15 shade,
+baseline, alignment, and framebuffer clipping. No large antialiased face is
+exposed by the supported Lua text APIs.

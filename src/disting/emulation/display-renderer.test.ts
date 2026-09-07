@@ -44,13 +44,13 @@ describe('Disting display renderer fonts', () => {
 
     const glyphPixels = fills.filter((fill) => fill.width === 1 && fill.height === 1)
     expect(glyphPixels[0]).toEqual({
-      style: 'rgb(1, 96, 96)',
-      x: 2,
+      style: 'rgb(2, 241, 239)',
+      x: 1,
       y: 0,
       width: 1,
       height: 1,
     })
-    expect(glyphPixels.some((pixel) => pixel.style === 'rgb(2, 225, 223)')).toBe(true)
+    expect(glyphPixels.every((pixel) => pixel.style === 'rgb(2, 241, 239)')).toBe(true)
     expect(glyphPixels.every((pixel) => pixel.x >= 0 && pixel.y >= 0)).toBe(true)
   })
 
@@ -78,7 +78,7 @@ describe('Disting display renderer fonts', () => {
     expect(glyphPixels.every((pixel) => pixel.x < 256 && pixel.y < 64)).toBe(true)
   })
 
-  it('quantizes antialiased text to the display sixteen-shade palette', () => {
+  it('renders monochrome text at the requested display shade', () => {
     const { context, fills } = recordingContext()
     const commands: DrawCommand[] = [
       { kind: 'text', x: 0, y: 7, text: 'A', shade: 8, tiny: false, align: 'left' },
@@ -96,6 +96,6 @@ describe('Disting display renderer fonts', () => {
       .filter((fill) => fill.width === 1 && fill.height === 1)
       .map((fill) => fill.style)
     expect(styles.every((style) => palette.includes(style))).toBe(true)
-    expect(styles).toContain('rgb(1, 112, 112)')
+    expect(new Set(styles)).toEqual(new Set(['rgb(1, 129, 127)']))
   })
 })

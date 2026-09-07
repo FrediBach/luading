@@ -27,7 +27,7 @@ describe('Disting display text bounds', () => {
       bounds: {
         left: 10,
         top: 61,
-        right: 56,
+        right: 60,
         bottom: 67,
       },
     })
