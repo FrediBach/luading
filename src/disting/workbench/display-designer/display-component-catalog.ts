@@ -596,10 +596,10 @@ const stereoJacks: DisplayComponentRecipe = {
     const primitives: DisplayPrimitiveElement[] = [
       circle(context, 'Left jack', 6, 6, 4, shade),
       circle(context, 'Right jack', 17, 6, 4, shade),
-      circle(context, 'Left patch ring', 6, 6, 2, 12, context.visible('leftPatched')),
-      circle(context, 'Right patch ring', 17, 6, 2, 12, context.visible('rightPatched')),
-      box(context, 'Left activity', 5, 5, 7, 7, 15, true, context.visible('leftActive')),
-      box(context, 'Right activity', 16, 5, 18, 7, 15, true, context.visible('rightActive')),
+      circle(context, 'Left patch ring', 6, 6, 2, state === 'disabled' ? 3 : 12, context.visible('leftPatched')),
+      circle(context, 'Right patch ring', 17, 6, 2, state === 'disabled' ? 3 : 12, context.visible('rightPatched')),
+      box(context, 'Left activity', 5, 5, 7, 7, state === 'disabled' ? 3 : 15, true, context.visible('leftActive')),
+      box(context, 'Right activity', 16, 5, 18, 7, state === 'disabled' ? 3 : 15, true, context.visible('rightActive')),
     ]
     if (state === 'linked') primitives.push(line(context, 'Stereo link bridge', 10, 6, 13, 6, 15), line(context, 'Stereo link top', 10, 4, 13, 4, 9))
     if (state === 'split') primitives.push(line(context, 'Stereo split divider', 11, 1, 11, 10, 5))
@@ -1390,17 +1390,16 @@ function signalBadgeGlyph(context: DisplayComponentBuildContext, state: string):
     line(context, 'Audio rise', 3, 7, 7, 3, 12), line(context, 'Audio fall', 7, 3, 11, 9, 12),
     line(context, 'Audio rise two', 11, 9, 15, 3, 12), line(context, 'Audio fall two', 15, 3, 19, 7, 12),
   ]
-  if (state === 'unipolar-cv' || state === 'bipolar-cv' || state === 'pitch-1v-oct') return [
-    line(context, 'CV baseline', 3, 7, 19, 7, 8),
-    line(context, 'CV level', state === 'unipolar-cv' ? 7 : state === 'bipolar-cv' ? 11 : 15, 3, state === 'unipolar-cv' ? 7 : state === 'bipolar-cv' ? 11 : 15, 10, 14),
-  ]
+  if (state === 'unipolar-cv') return [line(context, 'Unipolar baseline', 3, 9, 19, 9, 5), line(context, 'Unipolar level', 5, 4, 17, 4, 14), line(context, 'Unipolar positive', 11, 2, 11, 6, 14)]
+  if (state === 'bipolar-cv') return [line(context, 'Bipolar baseline', 3, 6, 19, 6, 5), line(context, 'Bipolar positive', 7, 2, 7, 4, 14), line(context, 'Bipolar positive bar', 5, 3, 9, 3, 14), line(context, 'Bipolar negative', 13, 9, 17, 9, 14)]
+  if (state === 'pitch-1v-oct') return strokes(context, 'Pitch steps', [[[3, 9], [8, 9], [8, 6], [13, 6], [13, 3], [19, 3]]])
   if (state === 'gate') return [line(context, 'Gate low', 3, 9, 7, 9, 12), line(context, 'Gate rise', 7, 9, 7, 3, 12), line(context, 'Gate high', 7, 3, 15, 3, 12), line(context, 'Gate fall', 15, 3, 15, 9, 12), line(context, 'Gate tail', 15, 9, 19, 9, 12)]
   if (state === 'trigger') return [line(context, 'Trigger baseline', 3, 9, 19, 9, 8), line(context, 'Trigger spike up', 9, 9, 11, 2, 15), line(context, 'Trigger spike down', 11, 2, 13, 9, 15)]
   if (state === 'envelope') return [line(context, 'Envelope attack', 3, 9, 8, 2, 13), line(context, 'Envelope decay', 8, 2, 13, 5, 13), line(context, 'Envelope sustain', 13, 5, 17, 5, 13), line(context, 'Envelope release', 17, 5, 20, 9, 13)]
   if (state === 'lfo') return [line(context, 'LFO rise', 3, 7, 7, 3, 12), line(context, 'LFO fall', 7, 3, 12, 9, 12), line(context, 'LFO return', 12, 9, 18, 3, 12)]
   if (state === 'noise-random') return [line(context, 'Noise one', 3, 8, 6, 3, 10), line(context, 'Noise two', 6, 3, 10, 9, 13), line(context, 'Noise three', 10, 9, 14, 2, 15), line(context, 'Noise four', 14, 2, 19, 7, 11)]
-  if (state === 'midi') return [tinyText(context, 'MIDI glyph', 11, 9, 'M', 13, 'centre'), line(context, 'MIDI port', 4, 2, 18, 2, 8)]
-  if (state === 'i2c') return [tinyText(context, 'I2C glyph', 11, 9, 'I2C', 13, 'centre'), line(context, 'I2C bus', 3, 2, 19, 2, 8)]
+  if (state === 'midi') return [circle(context, 'MIDI port', 11, 6, 4, 12), line(context, 'MIDI pin left', 9, 5, 9, 5, 15), line(context, 'MIDI pin centre', 11, 7, 11, 7, 15), line(context, 'MIDI pin right', 13, 5, 13, 5, 15)]
+  if (state === 'i2c') return [line(context, 'I2C data rail', 3, 3, 19, 3, 12), line(context, 'I2C clock rail', 3, 8, 19, 8, 12), line(context, 'I2C data tap', 7, 3, 7, 5, 8), line(context, 'I2C clock tap', 15, 6, 15, 8, 8)]
   if (state === 'bus') return [line(context, 'Bus rail', 3, 6, 19, 6, 13), line(context, 'Bus tap one', 7, 3, 7, 9, 9), line(context, 'Bus tap two', 15, 3, 15, 9, 9)]
   if (state === 'unknown') return [tinyText(context, 'Unknown glyph', 11, 9, '?', 15, 'centre'), box(context, 'Unknown frame', 5, 1, 17, 10, 8)]
   return [line(context, 'Clock stem', 11, 2, 11, 10, 13), line(context, 'Clock arm', 11, 6, 16, 4, 13), circle(context, 'Clock ring', 11, 6, 5, 8)]
@@ -1418,7 +1417,7 @@ const signalTypeBadge: DisplayComponentRecipe = {
   category: 'signals',
   description: 'An original compact glyph for common modular signal roles.',
   tags: ['audio', 'cv', 'gate', 'trigger', 'clock', 'type'],
-  footprint: { width: 32, height: 12 },
+  footprint: { width: 40, height: 12 },
   states: [
     { value: 'audio', name: 'Audio' }, { value: 'unipolar-cv', name: 'Unipolar CV' }, { value: 'bipolar-cv', name: 'Bipolar CV' },
     { value: 'pitch-1v-oct', name: 'Pitch 1 V/oct' }, { value: 'gate', name: 'Gate' }, { value: 'trigger', name: 'Trigger' },
@@ -1434,9 +1433,9 @@ const signalTypeBadge: DisplayComponentRecipe = {
     { id: 'edge', name: 'Clock', state: 'clock' },
   ],
   build: (context, state) => [
-    box(context, 'Signal badge frame', 0, 0, 31, 11, 4),
+    box(context, 'Signal badge frame', 0, 0, 39, 11, 4),
     ...signalBadgeGlyph(context, state),
-    tinyText(context, 'Signal badge label', 29, 9, SIGNAL_BADGE_LABELS[state] ?? '?', 9, 'right'),
+    tinyText(context, 'Signal badge label', 37, 9, SIGNAL_BADGE_LABELS[state] ?? '?', 9, 'right'),
   ],
 }
 
@@ -1539,7 +1538,7 @@ const polarityBadge: DisplayComponentRecipe = {
   category: 'signals',
   description: 'A compact shape-coded qualifier for positive, negative, bipolar, inverted, centred, or clamped CV.',
   tags: ['polarity', 'range', 'positive', 'negative', 'bipolar', 'invert', 'clamp', 'cv'],
-  footprint: { width: 32, height: 12 },
+  footprint: { width: 40, height: 12 },
   states: [{ value: 'positive', name: 'Positive' }, { value: 'negative', name: 'Negative' }, { value: 'bipolar', name: 'Bipolar' }, { value: 'inverted', name: 'Inverted' }, { value: 'zero-centred', name: 'Zero centred' }, { value: 'clamped', name: 'Clamped' }],
   defaultState: 'bipolar',
   inputs: [booleanInput('warning', 'Warning', 'Adds a bright top marker without replacing the range shape.')],
@@ -1549,14 +1548,14 @@ const polarityBadge: DisplayComponentRecipe = {
     { id: 'edge', name: 'Clamped warning', state: 'clamped', values: { warning: true } },
   ],
   build: (context, state) => {
-    const primitives: DisplayPrimitiveElement[] = [box(context, 'Polarity frame', 0, 0, 31, 11, 4), line(context, 'Polarity zero rail', 3, 6, 20, 6, 6)]
+    const primitives: DisplayPrimitiveElement[] = [box(context, 'Polarity frame', 0, 0, 39, 11, 4), line(context, 'Polarity zero rail', 3, 6, 20, 6, 6)]
     if (state === 'positive') primitives.push(line(context, 'Positive stem', 11, 9, 11, 2, 13), line(context, 'Positive head left', 11, 2, 8, 5, 13), line(context, 'Positive head right', 11, 2, 14, 5, 13))
     if (state === 'negative') primitives.push(line(context, 'Negative stem', 11, 2, 11, 9, 13), line(context, 'Negative head left', 11, 9, 8, 6, 13), line(context, 'Negative head right', 11, 9, 14, 6, 13))
     if (state === 'bipolar') primitives.push(line(context, 'Bipolar stem', 11, 1, 11, 10, 14), line(context, 'Bipolar positive bar', 8, 2, 14, 2, 12), line(context, 'Bipolar negative bar', 8, 9, 14, 9, 12))
     if (state === 'inverted') primitives.push(line(context, 'Inverted slope', 5, 2, 17, 9, 13), line(context, 'Inverted head', 17, 9, 13, 9, 13), line(context, 'Inverted cross', 8, 9, 15, 2, 7))
     if (state === 'zero-centred') primitives.push(line(context, 'Centred vertical', 11, 2, 11, 10, 15), box(context, 'Centred point', 9, 4, 13, 8, 10))
     if (state === 'clamped') primitives.push(line(context, 'Clamp lower stop', 5, 2, 5, 10, 13), line(context, 'Clamp upper stop', 17, 2, 17, 10, 13), line(context, 'Clamp range', 5, 4, 17, 8, 10))
-    primitives.push(tinyText(context, 'Polarity label', 29, 9, state === 'positive' ? '+' : state === 'negative' ? '-' : state === 'bipolar' ? '+-' : state === 'inverted' ? 'INV' : state === 'zero-centred' ? '0' : 'CL', 9, 'right'))
+    primitives.push(tinyText(context, 'Polarity label', 37, 9, state === 'positive' ? '+' : state === 'negative' ? '-' : state === 'bipolar' ? '+-' : state === 'inverted' ? 'INV' : state === 'zero-centred' ? '0' : 'CL', 9, 'right'))
     primitives.push(line(context, 'Polarity warning', 22, 1, 30, 1, 15, context.visible('warning')))
     return primitives
   },
@@ -1589,7 +1588,7 @@ const unitBadge: DisplayComponentRecipe = {
     return [
       box(context, 'Unit frame', 0, 0, 31, 11, shade),
       tinyText(context, 'Unit label', 16, 8, label, shade, 'centre'),
-      ...(state === 'invalid' ? [line(context, 'Unit invalid mark', 2, 10, 29, 1, 15)] : []),
+      ...(state === 'invalid' ? [line(context, 'Unit invalid upper', 2, 3, 6, 7, 15), line(context, 'Unit invalid lower', 6, 3, 2, 7, 15)] : []),
     ]
   },
 }
@@ -4067,9 +4066,9 @@ const busyProgressIndicator: DisplayComponentRecipe = {
   build: (context, state) => {
     const shade = state === 'error' ? 15 : state === 'complete' ? 14 : state === 'working' ? 11 : 5
     const primitives: DisplayPrimitiveElement[] = [
+      line(context, 'Progress rail', 1, 9, 46, 9, 3),
+      box(context, 'Progress fill', 0, 8, state === 'complete' ? 46 : context.number('progress', 0, 46), 9, shade, true),
       box(context, 'Progress frame', 0, 0, 47, 11, shade),
-      line(context, 'Progress rail', 3, 8, 44, 8, 3),
-      box(context, 'Progress fill', 3, 8, state === 'complete' ? 44 : context.number('progress', 3, 44), 9, shade, true),
       tinyText(context, 'Progress label', 3, 6, state === 'idle' ? 'IDLE' : state === 'working' ? 'WORK' : state === 'complete' ? 'DONE' : 'ERR', shade),
     ]
     if (state === 'working') primitives.push(line(context, 'Progress working one', 34, 2, 34, 4, 9), line(context, 'Progress working two', 39, 2, 39, 4, 12), line(context, 'Progress working three', 44, 2, 44, 4, 15))

@@ -40,6 +40,7 @@ describe('Display designer rendering', () => {
     expect(markup).toContain('Search components')
     expect(markup).toContain('Component category')
     expect(markup).toContain('Input jack pixel preview')
+    expect(markup).toContain('width="24" height="24" style="width:96px;height:96px" aria-label="Input jack pixel preview"')
     expect(markup).not.toContain('1x pixel preview')
     expect(markup).not.toContain('magnified pixel preview')
     expect(markup).not.toContain('<figcaption>Magnified</figcaption>')

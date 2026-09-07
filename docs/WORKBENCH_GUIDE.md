@@ -883,7 +883,8 @@ The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
 compiler and renderer as the artboard. Density and compatible-display-mode
-filters narrow the catalog, and every card shows one responsive pixel preview plus
+filters narrow the catalog, and every card shows one cropped pixel preview at
+an integer 1×–4× zoom, plus
 current/maximum draw calls and insertion resources. The catalog contains 128
 choices. Layout includes panel frame, section header, status lamp,
 divider/ruler, label/value row, state badge, tabs/segmented selector, and page
@@ -918,13 +919,27 @@ two-voice overview, radial groove ring, and fill/roll indicator cover drum
 assemblies. Clock-source, MIDI, I2C, preset-state, warning/error,
 and busy/progress badges cover system status.
 
+Component previews retain equal-sized logical pixels instead of stretching the
+full display to the card width. A wide assembly scrolls horizontally when it
+cannot fit at 1×. Processor operation symbols, labels, and amount rails occupy
+separate areas; port names and signal types use separate rows. Micro drum glyphs
+use instrument silhouettes without overprinted abbreviations, with hit/accent
+marks outside the generated instrument shapes. Put a name in a containing drum
+tile when needed. The segmented meter is 49×9 pixels so its eight five-pixel
+segments have equal one-pixel gaps. Signal-type and polarity badges are 40×12
+pixels to separate their symbols from three-character labels.
+
 The editable Figma handoff is checked in as
 [`design/disting-pixel-ui-components.svg`](../design/disting-pixel-ui-components.svg).
 It contains every catalog component and every declared visual state, grouped by
 category, component, state, and source primitive. Artwork uses the exact
 16-shade display palette at its true 1× logical pixel dimensions; Figma can
-zoom it without raster scaling. Each state frame also retains its dimensions
-in the layer metadata and label. Run `npm run export:pixel-ui-svg` after changing a catalog recipe to
+zoom it without raster scaling. Black knockout strokes and text remain editable
+and cover earlier primitives, including inverted button labels and meter gaps.
+Each state uses the first matching authored preview scenario's values when
+available, otherwise the recipe defaults. Component metadata retains the
+footprint; state labels use the readable state name, with stable state IDs in
+the SVG groups. Run `npm run export:pixel-ui-svg` after changing a catalog recipe to
 regenerate the SVG from the same compiler inputs used by the Components panel.
 
 **Insert at centre** adds one local symbol, a choice binding for its named visual states,
@@ -948,6 +963,26 @@ used by that component. The confirmation states exactly which values stop being
 shared; the copy is then selected as one undoable transaction.
 
 ### Wiring component state
+
+Rotary knobs, encoder rings, phase rings, Euclidean rings, and radial groove
+rings take paired normalized X/Y coordinates for their pointers. Calculate both
+coordinates from the same angle outside `draw()` so the pointer moves around
+the circle rather than across a straight chord:
+
+```lua
+-- In step(), or another state update; phase is 0..1, clockwise from the top.
+local angle = self.phase * 2 * math.pi
+self.pointerX = (1 + math.sin(angle)) / 2
+self.pointerY = (1 - math.cos(angle)) / 2
+```
+
+Wire the generated X and Y TODO locals to these fields. For a knob with a
+270-degree sweep, use `angle = (value - 0.5) * 1.5 * math.pi`. For an eight-step
+ring, use `phase = (currentStep - 1) / 8`; the sixteen-step groove ring uses 16.
+The knob's base and effective pointers each have their own coordinate pair.
+These are ordinary script-owned bindings, not a firmware widget API. Existing
+inserted components retain their saved artwork and bindings; reinsert from the
+library to get the revised recipes.
 
 Insertion-generated Lua contains local TODO placeholders. Replace those values
 with state calculated outside `draw()`; drawing must only read it. These small

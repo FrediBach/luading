@@ -330,16 +330,24 @@ and referenced bindings. Server-rendering and jsdom tests cover catalog labels,
 the responsive pixel preview, category/search/density/mode filtering, scenario
 selection, centre and drag insertion, single-transaction insertion/undo,
 resource details, Integration disclosure, State-panel bindings, generated
-source, and the responsive Components tab. Exact canvas pixels, scrolling
-through the full catalog, and physical 1x legibility still require live
-browser/device review.
+source, and the responsive Components tab. Artwork tests exercise every declared
+state at both numeric extremes with boolean overlays enabled, checking integer
+coordinates and footprint containment. Focused raster tests cover empty meters,
+equal segment widths, label separation, alert silhouettes, completed progress,
+drum overlays, circular pointer compass positions, and integer preview scales.
+Actual browser compositing, scrolling through the full catalog, and physical 1x
+legibility still require live browser/device review.
 
 The pixel-UI SVG exporter test regenerates the Figma handoff in memory, verifies
 that every catalog recipe and declared state has a named editable group, and
 compares it byte-for-byte with the checked-in
 `design/disting-pixel-ui-components.svg`. Regenerate it with
 `npm run export:pixel-ui-svg` whenever component artwork or state metadata
-changes.
+changes. Every exported state is also compared pixel for pixel against the
+production display renderer using an in-memory canvas recorder. This catches
+missing black knockouts, inverted text, draw-order differences, and mismatched
+preview values without requiring a browser. It does not validate SVG importer
+behavior in Figma or physical display appearance.
 
 Display-designer binding tests pin safe Lua-local allocation, keywords and
 collisions, stable usage discovery across scene and symbol primitives,

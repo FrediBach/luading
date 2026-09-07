@@ -7,10 +7,13 @@ import { compileDisplayDesign, displayCommandBounds } from './display-design-com
 
 function compile(id: string, state: string, values: Record<string, DisplayComponentScenarioValue> = {}) {
   const recipe = DISPLAY_COMPONENT_RECIPES.find((item) => item.id === id)!
-  return compileDisplayDesign(createDisplayComponentPreview({
+  const supportedValues = Object.fromEntries(Object.entries(values).filter(([key]) => recipe.inputs.some((input) => input.key === key)))
+  const document = createDisplayComponentPreview({
     ...recipe,
-    scenarios: [...recipe.scenarios, { id: 'pixel-test', name: 'Pixel test', state, values }],
-  }, 'pixel-test', { x: 0, y: 0 }))
+    scenarios: [...recipe.scenarios, { id: 'pixel-test', name: 'Pixel test', state, values: supportedValues }],
+  }, 'pixel-test', { x: 0, y: 0 })
+  expect(document.symbols, `${id}/${state} must materialize`).toHaveLength(1)
+  return compileDisplayDesign(document)
 }
 
 const pixels = (id: string, state: string, values: Record<string, DisplayComponentScenarioValue> = {}) =>
@@ -56,6 +59,20 @@ describe('component artwork', () => {
     expect(displayCommandBounds(texts[0]!)!.bottom).toBeLessThan(displayCommandBounds(texts[1]!)!.top)
   })
 
+  it('separates signal and polarity labels from their glyphs, including I2C and INV', () => {
+    for (const [id, state] of [['signal-type-badge', 'i2c'], ['polarity-badge', 'inverted']]) {
+      const label = compile(id!, state!).commands.find((command) => command.kind === 'text')!
+      expect(displayCommandBounds(label)!.left).toBeGreaterThan(20)
+    }
+  })
+
+  it('keeps disabled jack activity dim even when connection and activity bindings remain true', () => {
+    for (const id of ['input-jack', 'output-jack', 'stereo-jacks']) {
+      const raster = pixels(id, 'disabled', { level: 1, activity: true, leftPatched: true, rightPatched: true, leftActive: true, rightActive: true })
+      expect(Math.max(...raster), id).toBeLessThanOrEqual(3)
+    }
+  })
+
   it('keeps processor symbols away from their labels and amount indicators', () => {
     for (const paths of Object.values(PROCESSOR_GLYPHS)) {
       for (const points of paths) for (const [x, y] of points) {
@@ -82,9 +99,27 @@ describe('component artwork', () => {
     expect(pixels('status-lamp', 'warning')[5 * 256 + 4]).toBe(15)
   })
 
+  it('places circular pointers at all four compass positions with a constant radius', () => {
+    for (const [id, prefix, state, cx, cy, radius] of [
+      ['rotary-knob', 'value', 'normal', 9, 9, 5],
+      ['encoder-ring', 'position', 'idle', 9, 9, 5],
+      ['phase-clock-ring', 'phase', 'running', 12, 12, 7],
+      ['eight-step-euclidean-ring', 'currentStep', 'running', 16, 15, 9],
+      ['radial-groove-ring', 'playhead', 'running', 28, 28, 20],
+    ] as const) {
+      for (const [x, y] of [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]) {
+        const pointer = compile(id, state, { [`${prefix}X`]: x!, [`${prefix}Y`]: y! }).commands.find((command) =>
+          command.kind === 'line' && command.x1 === cx && command.y1 === cy
+          && command.x2 === cx + (x! * 2 - 1) * radius && command.y2 === cy + (y! * 2 - 1) * radius)
+        expect(pointer, `${id} at ${x},${y}`).toBeDefined()
+      }
+    }
+  })
+
   it('keeps a completed progress bar filled even when its numeric input is still at its default', () => {
     const raster = pixels('busy-progress-indicator', 'complete')
     expect(raster[9 * 256 + 44]).toBe(14)
+    expect(pixels('busy-progress-indicator', 'idle')[8 * 256 + 1]).toBe(0)
   })
 
   it('preserves drum silhouettes during hit and accent states without overlapping micro labels', () => {

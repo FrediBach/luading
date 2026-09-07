@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { DISPLAY_COMPONENT_RECIPES } from '../src/disting/workbench/display-designer/display-component-catalog'
+import { createDisplayComponentPreview } from '../src/disting/workbench/display-designer/display-component-library'
+import { compileDisplayDesign } from '../src/disting/workbench/display-designer/display-design-compiler'
+import { renderDisplayTestPixels } from '../src/disting/testing/display-pixel-test-environment'
 import {
   DEFAULT_PIXEL_UI_SVG_PATH,
   generateDisplayComponentLibrarySvg,
@@ -32,5 +35,27 @@ describe('pixel UI SVG export', () => {
     expect(state('state-badge', 'active')).toContain('fill="#000000" data-shade="0"')
     expect(state('segmented-meter', 'normal')).toContain('data-name="Segment divider 6"><rect')
     expect(state('input-jack', 'patched')).toMatch(/data-name="Input activity[^"]*"><rect/u)
+  })
+
+  it('matches the production renderer pixel for pixel for every exported state', () => {
+    const svg = generateDisplayComponentLibrarySvg()
+    for (const recipe of DISPLAY_COMPONENT_RECIPES) for (const state of recipe.states) {
+      const variant = svg.split(`data-component-id="${recipe.id}" data-state="${state.value}">`)[1]!.split('</g></g>')[0]!
+      const { width, height } = recipe.footprint
+      const actual = new Uint8Array(width * height)
+      for (const match of variant.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="1" fill="#[0-9a-f]+" data-shade="(\d+)"/gu)) {
+        const [, x, y, length, shade] = match.map(Number)
+        actual.fill(shade!, y! * width + x!, y! * width + x! + length!)
+      }
+      const document = createDisplayComponentPreview({
+        ...recipe,
+        scenarios: [...recipe.scenarios, {
+          id: 'export-test', name: state.name, state: state.value,
+          values: recipe.scenarios.find((scenario) => scenario.state === state.value)?.values,
+        }],
+      }, 'export-test', { x: 0, y: 0 })
+      const expected = renderDisplayTestPixels(compileDisplayDesign(document).commands, width, height)
+      expect(actual, `${recipe.id}/${state.value}`).toEqual(expected)
+    }
   })
 })
