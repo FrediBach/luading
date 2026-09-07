@@ -735,7 +735,7 @@ function DisplayDesignerArtboard({
 
   return (
     <section className="display-designer-stage" aria-label="Display artboard">
-      <div className="display-designer-rulers" aria-hidden="true"><span>0,0</span><span>256 × 64</span></div>
+      <div className="display-designer-rulers" aria-hidden="true"><span>DISPLAY CANVAS <span className="display-designer-origin">· 0,0</span></span><span>256 × 64 px</span></div>
       <div className="display-designer-artboard-scroll">
         <div
           ref={artboardRef}
@@ -1143,13 +1143,17 @@ function DisplayScalarEditor({
 
   if (scalar.kind === 'literal' && !editFormula) return <div className="display-designer-dynamic-property">
     <CommitInput label={label} type="number" min={minimum} max={maximum} step={integer ? 1 : 'any'} value={scalar.value} onCommit={commitLiteral} />
-    <div className="display-designer-dynamic-actions">
-      <button type="button" onClick={() => setEditFormula(true)}>Use {label} token/formula</button>
+    <details className="display-designer-property-options">
+      <summary aria-label={`${label} value options`}>Link value…</summary>
+      <p>Reuse a token, write a formula, or connect runtime state.</p>
+      <div className="display-designer-dynamic-actions">
+      <button type="button" onClick={() => setEditFormula(true)}> Use {label} token/formula</button>
       <button type="button" disabled={document.tokens.length >= DISPLAY_DESIGN_LIMITS.maximumTokens} onClick={createToken}>Create {label} token from value</button>
       {document.tokens.length > 0 && <select aria-label={`Attach ${label} token`} value="" onChange={(event) => { if (event.currentTarget.value) attachToken(event.currentTarget.value) }}><option value="">Attach token…</option>{document.tokens.map((token) => <option key={token.id} value={token.id}>{token.name}</option>)}</select>}
       <button type="button" onClick={onMakeDynamic}>Make {label} runtime dynamic</button>
       {bindings.length > 0 && <select aria-label={`Attach ${label} runtime binding`} value="" onChange={(event) => { if (event.currentTarget.value) attachBinding(event.currentTarget.value) }}><option value="">Attach runtime binding…</option>{bindings.map((binding) => <option key={binding.id} value={binding.id}>{binding.name}</option>)}</select>}
-    </div>
+      </div>
+    </details>
   </div>
 
   if (scalar.kind !== 'number-binding') {
@@ -1926,7 +1930,7 @@ function DisplayDesignerReview({
         hidden={responsive && activePanel !== 'findings'}
       >
         <h3 id="display-designer-findings-title">Findings <span>{findings.length}</span></h3>
-        {findings.length === 0 ? <p role="status">No design findings.</p> : <>
+        {findings.length === 0 ? <p className="display-designer-validation-clear" role="status"><span aria-hidden="true">✓</span> No design findings.</p> : <>
           {errorFindings.length > 0 && <section aria-labelledby="display-designer-errors-title"><h4 id="display-designer-errors-title">Errors ({errorFindings.length})</h4><ul>{errorFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId, finding.focus?.tokenId)}>{finding.message}</button></li>)}</ul></section>}
           {warningFindings.length > 0 && <section aria-labelledby="display-designer-warnings-title"><h4 id="display-designer-warnings-title">Warnings ({warningFindings.length})</h4><ul>{warningFindings.map((finding, index) => <li key={`${finding.ruleId}-${finding.path}-${index}`} data-severity={finding.severity}><button type="button" onClick={() => onFocusFinding(finding.focus?.elementId, finding.focus?.tokenId)}>{finding.message}</button></li>)}</ul></section>}
         </>}
@@ -1961,7 +1965,7 @@ function DisplayDesignerReview({
       >
         <summary>Generated Lua</summary>
         <div className="display-designer-source-actions">
-          <button type="button" disabled={!generated.ok} onClick={copyDrawCallback}>Copy draw callback</button>
+          <button className="display-designer-primary" type="button" disabled={!generated.ok} onClick={copyDrawCallback}>Copy draw callback</button>
           {copyStatus && <p role="status">{copyStatus}</p>}
         </div>
         {showCopyFallback && generated.ok && <label className="display-designer-copy-fallback">
@@ -2594,7 +2598,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
     <div className="display-designer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose() }}>
       <div ref={dialogRef} className={`display-designer-dialog is-${layout}`} data-layout={layout} role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description display-designer-disclosure" onKeyDown={handleKeyDown}>
         <header className="display-designer-header">
-          <div className="display-designer-title"><h2 id="display-designer-title">Display designer (beta)</h2><p id="display-designer-description">Browser-only authoring for the 256 × 64 Disting NT display.</p></div>
+          <div className="display-designer-title"><h2 id="display-designer-title">Display designer <span className="display-designer-beta">Beta</span></h2><p id="display-designer-description">Browser-only authoring for the 256 × 64 Disting NT display.</p></div>
           <label><span>Display mode</span><select value={document.displayMode} onChange={(event) => commit('Change display mode', setDisplayDesignMode(document, event.currentTarget.value as DisplayDesignDocument['displayMode']))}><option value="parameter-line">Keep standard parameter line</option><option value="full-screen">Use full display</option></select></label>
           <label><span>Zoom</span><select aria-label="Artboard zoom" value={effectiveZoom} disabled={layout === 'narrow'} title={layout === 'narrow' ? 'Narrow layouts use Fit zoom' : undefined} onChange={(event) => setZoom(event.currentTarget.value === 'fit' ? 'fit' : Number(event.currentTarget.value) as DesignerZoom)}><option value="fit">Fit</option><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
           <DisplayDesignerViewOptions options={[
@@ -2674,10 +2678,18 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
         </section>
 
         <div className="display-designer-toolbar" role="toolbar" aria-label="Display primitives" aria-orientation="horizontal">
-          {TOOLS.map((tool) => <button key={tool.id} type="button" data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
-            setActiveTool(tool.id)
-          }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'bezier' ? '∿' : tool.id === 'pixel-box' ? '▦' : tool.id === 'animated-line' ? '»' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}
-          {activeTool !== 'select' && <button type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
+          {[
+            { label: 'Select', tools: TOOLS.slice(0, 1) },
+            { label: 'Lines', tools: TOOLS.slice(1, 4) },
+            { label: 'Shapes', tools: TOOLS.slice(4, 11) },
+            { label: 'Text', tools: TOOLS.slice(11) },
+          ].map((group) => <div key={group.label} className="display-designer-tool-group" role="group" aria-label={`${group.label} tools`}>
+            <span className="display-designer-tool-group-label" aria-hidden="true">{group.label}</span>
+            <div>{group.tools.map((tool) => <button key={tool.id} type="button" title={tool.id === 'select' ? 'Select and move layers' : `${tool.label} · drag on the canvas to draw`} data-display-designer-initial-focus={tool.id === 'select' ? '' : undefined} aria-label={tool.label} aria-pressed={activeTool === tool.id} onClick={() => {
+              setActiveTool(tool.id)
+            }}><span className="display-designer-tool-glyph" aria-hidden="true">{tool.id === 'select' ? '↖' : tool.id.includes('text') ? 'T' : tool.id.includes('circle') ? '○' : tool.id === 'polygon' ? '⬡' : tool.id === 'bezier' ? '∿' : tool.id === 'pixel-box' ? '▦' : tool.id === 'animated-line' ? '»' : tool.id === 'filled-box' ? '■' : tool.id.includes('box') ? '□' : '╱'}</span>{tool.shortLabel}</button>)}</div>
+          </div>)}
+          {activeTool !== 'select' && <button className="display-designer-add-default" type="button" onClick={() => addPrimitive(activeTool)}>Add default {TOOLS.find(({ id }) => id === activeTool)?.label}</button>}
         </div>
 
         <p id="display-designer-disclosure" className="display-designer-disclosure" role="note">Browser-only extension: design files and preview controls are not available on Disting NT hardware. Generated Lua uses documented draw calls; smooth rasterization remains an approximate preview.</p>

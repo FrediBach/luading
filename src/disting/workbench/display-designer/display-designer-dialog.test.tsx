@@ -165,6 +165,26 @@ afterEach(async () => {
 })
 
 describe('Display designer dialog', () => {
+  it('groups drawing tools and reveals advanced value editing on demand', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    for (const label of ['Select tools', 'Lines tools', 'Shapes tools', 'Text tools']) {
+      expect(document.querySelector(`[role="group"][aria-label="${label}"]`)).not.toBeNull()
+    }
+    await addDefault('Outline box')
+    const summary = document.querySelector<HTMLElement>('summary[aria-label="X1 value options"]')!
+    const options = summary.closest('details')!
+    expect(options.open).toBe(false)
+    expect(field('X1').closest('details')).toBeNull()
+    await commitInput(field('X1') as HTMLInputElement, '42')
+    expect(source()).toContain('42')
+    await click(summary)
+    expect(options.open).toBe(true)
+    await click(button('Use X1 token/formula'))
+    expect(field('X1 formula')).not.toBeNull()
+    expect(button('Copy draw callback').classList.contains('display-designer-primary')).toBe(true)
+  })
+
   it('searches starter components, previews scenarios, inserts editable stateful symbols, and undoes atomically', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))

@@ -879,6 +879,18 @@ use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
 
+The tool strip groups selection, lines, shapes, and text. Select a tool and
+follow the canvas status hint to draw, or use **Add default** to insert it
+without dragging. The dotted canvas surround separates the display from the
+panels; it is not a snapping grid. **View options** controls actual grid overlays
+and snapping. The compact review area keeps findings, metrics, and the highlighted
+**Copy draw callback** action available below the canvas.
+
+Numeric properties show their editable values first. Expand **Link value…**
+below a value to reuse a token, enter a formula, or connect runtime state.
+Properties already using a formula or binding keep their editing controls
+visible. These disclosures do not change the design or its generated Lua.
+
 The **Components** panel contains the built-in **Disting UI kit**. Search the
 catalog, filter by category, and switch each card among its three preview
 scenarios before inserting it. The preview is rasterized by the same display
