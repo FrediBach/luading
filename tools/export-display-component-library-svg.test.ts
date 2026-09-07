@@ -25,4 +25,12 @@ describe('pixel UI SVG export', () => {
   it('keeps the checked-in Figma artifact synchronized with the catalog', () => {
     expect(readFileSync(DEFAULT_PIXEL_UI_SVG_PATH, 'utf8')).toBe(generateDisplayComponentLibrarySvg())
   })
+
+  it('preserves black knockout artwork and the authored state examples', () => {
+    const svg = generateDisplayComponentLibrarySvg()
+    const state = (id: string, value: string) => svg.split(`data-component-id="${id}" data-state="${value}"`)[1]!.split('<g id="component-')[0]!
+    expect(state('state-badge', 'active')).toContain('fill="#000000" data-shade="0"')
+    expect(state('segmented-meter', 'normal')).toContain('data-name="Segment divider 6"><rect')
+    expect(state('input-jack', 'patched')).toMatch(/data-name="Input activity[^"]*"><rect/u)
+  })
 })

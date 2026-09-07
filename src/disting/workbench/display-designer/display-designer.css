@@ -481,8 +481,8 @@
 .display-component-card > p,
 .display-component-card details { color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
 .display-component-card > p { margin: 0; }
-.display-component-card canvas { display: block; width: 100%; aspect-ratio: 4 / 1; border: 1px solid color-mix(in srgb, var(--nt-green) 35%, var(--nt-line)); background: #000; image-rendering: pixelated; }
-.display-component-previews { min-width: 0; }
+.display-component-card canvas { display: block; flex: none; box-sizing: content-box; margin: auto; border: 1px solid color-mix(in srgb, var(--nt-green) 35%, var(--nt-line)); background: #000; image-rendering: pixelated; }
+.display-component-previews { min-width: 0; min-height: 80px; display: flex; overflow-x: auto; padding: 8px 0; }
 .display-component-resources,
 .display-component-cost-note,
 .display-component-integration-disclosure { color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }

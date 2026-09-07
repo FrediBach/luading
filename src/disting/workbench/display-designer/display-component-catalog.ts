@@ -1,3 +1,4 @@
+import { PROCESSOR_GLYPHS, type PixelStroke } from './display-component-glyphs'
 import {
   type DisplayPrimitiveElement,
   type DisplayScalar,
@@ -32,6 +33,13 @@ function line(
     x1: scalar(x1), y1: scalar(y1), x2: scalar(x2), y2: scalar(y2),
     shade: scalar(shade), visible,
   }
+}
+
+function strokes(context: DisplayComponentBuildContext, name: string, paths: readonly PixelStroke[], x = 0, y = 0, shade: ScalarValue = 12): DisplayPrimitiveElement[] {
+  return paths.flatMap((points, pathIndex) => points.slice(1).map(([px, py], index) => {
+    const [previousX, previousY] = points[index]!
+    return line(context, `${name} ${pathIndex + 1}.${index + 1}`, x + previousX, y + previousY, x + px, y + py, shade)
+  }))
 }
 
 function animatedLine(
@@ -120,6 +128,20 @@ const textInput = (key: string, name: string, description: string, defaultValue:
   affectedProperties: 'Text content of the named label or readout declared by this recipe.',
 })
 
+// Circular coordinates are ordinary script-owned bindings. Keep trigonometry out of draw().
+function radialValues(key: string, turns: number): Record<string, number> {
+  return { [`${key}X`]: (Math.sin(turns * Math.PI * 2) + 1) / 2, [`${key}Y`]: (1 - Math.cos(turns * Math.PI * 2)) / 2 }
+}
+
+function radialInputs(key: string, name: string, turns = 0): DisplayComponentInput[] {
+  const defaults = radialValues(key, turns)
+  return ['X', 'Y'].map((axis) => ({
+    ...numberInput(`${key}${axis}`, `${name} ${axis}`, `Normalized circular pointer ${axis} coordinate, calculated by the script.`, defaults[`${key}${axis}`]!),
+    sourceDomain: 'Before draw(), derive X = (1 + sin(angle))/2 and Y = (1 - cos(angle))/2; angle is radians clockwise from twelve o’clock.',
+    affectedProperties: 'Integer endpoint of the circular pointer; supply X and Y together.',
+  }))
+}
+
 const common = {
   version: 1 as const,
   tags: [] as readonly string[],
@@ -200,10 +222,10 @@ const statusLamp: DisplayComponentRecipe = {
   ],
   build: (context, state) => {
     const shade = state === 'off' ? 4 : state === 'warning' || state === 'error' ? 15 : context.number('level', 7, 15)
-    const primitives: DisplayPrimitiveElement[] = [circle(context, 'Lamp ring', 4, 4, 3, shade)]
+    const primitives: DisplayPrimitiveElement[] = state === 'warning' || state === 'error' ? [] : [circle(context, 'Lamp ring', 4, 4, 3, shade)]
     if (state === 'on') primitives.push(box(context, 'Lamp centre', 3, 3, 5, 5, shade, true))
     if (state === 'pulse') primitives.push(line(context, 'Lamp pulse horizontal', 0, 4, 8, 4, 15), line(context, 'Lamp pulse vertical', 4, 0, 4, 8, 15))
-    if (state === 'warning') primitives.push(line(context, 'Lamp warning base', 1, 7, 7, 7, 15), line(context, 'Lamp warning left', 1, 7, 4, 1, 15), line(context, 'Lamp warning right', 4, 1, 7, 7, 15))
+    if (state === 'warning') primitives.push(line(context, 'Lamp warning base', 1, 7, 7, 7, 15), line(context, 'Lamp warning left', 1, 7, 4, 1, 15), line(context, 'Lamp warning right', 4, 1, 7, 7, 15), line(context, 'Lamp warning dot', 4, 5, 4, 5, 15))
     if (state === 'error') primitives.push(line(context, 'Lamp error one', 1, 1, 7, 7, 15), line(context, 'Lamp error two', 7, 1, 1, 7, 15))
     return primitives
   },
@@ -470,10 +492,10 @@ const inputJack: DisplayComponentRecipe = {
       line(context, 'Input arrow upper', 2, 6, 4, 8, shade),
       line(context, 'Input arrow lower', 2, 10, 4, 8, shade),
     ]
-    if (state !== 'unpatched') primitives.push(circle(context, 'Input level ring', 8, 8, 3, context.number('level', 5, 15)))
+    if (state === 'patched' || state === 'overrange') primitives.push(circle(context, 'Input level ring', 8, 8, 3, context.number('level', 5, 15)))
     if (state === 'overrange') primitives.push(line(context, 'Input overrange mark', 4, 2, 12, 14, 15))
     if (state === 'disabled') primitives.push(line(context, 'Input disabled mark', 3, 13, 13, 3, 3))
-    primitives.push(box(context, 'Input activity', 7, 7, 9, 9, 15, true, context.visible('activity')))
+    primitives.push(box(context, 'Input activity', 7, 7, 9, 9, state === 'disabled' ? 2 : 15, true, context.visible('activity')))
     return primitives
   },
 }
@@ -505,10 +527,10 @@ const outputJack: DisplayComponentRecipe = {
       line(context, 'Output arrow upper', 13, 6, 15, 8, shade),
       line(context, 'Output arrow lower', 13, 10, 15, 8, shade),
     ]
-    if (state !== 'idle') primitives.push(circle(context, 'Output level ring', 7, 8, 3, context.number('level', 5, 15)))
+    if (state === 'connected' || state === 'clipped') primitives.push(circle(context, 'Output level ring', 7, 8, 3, context.number('level', 5, 15)))
     if (state === 'clipped') primitives.push(box(context, 'Output clip flag', 4, 0, 10, 2, 15, true))
     if (state === 'disabled') primitives.push(line(context, 'Output disabled mark', 2, 13, 12, 3, 3))
-    primitives.push(box(context, 'Output activity', 6, 7, 8, 9, 15, true, context.visible('activity')))
+    primitives.push(box(context, 'Output activity', 6, 7, 8, 9, state === 'disabled' ? 2 : 15, true, context.visible('activity')))
     return primitives
   },
 }
@@ -648,9 +670,9 @@ const labelledPortTile: DisplayComponentRecipe = {
       box(context, 'Port tile frame', 0, 0, 39, 17, state === 'warning' ? 15 : 4),
       circle(context, 'Port tile jack', 8, 9, 5, shade),
       tinyText(context, 'Port tile label', 16, 7, context.text('label'), shade),
-      tinyText(context, 'Port tile signal', 37, 7, context.text('signal'), state === 'disabled' ? 3 : 9, 'right'),
-      line(context, 'Port tile level rail', 16, 14, 37, 14, 3),
-      line(context, 'Port tile level', 16, 14, context.number('level', 16, 37), 14, shade),
+      tinyText(context, 'Port tile signal', 37, 12, context.text('signal'), state === 'disabled' ? 3 : 9, 'right'),
+      line(context, 'Port tile level rail', 16, 15, 37, 15, 3),
+      line(context, 'Port tile level', 16, 15, context.number('level', 16, 37), 15, shade),
       box(context, 'Port tile activity', 7, 8, 9, 10, 15, true, context.visible('activity')),
     ]
     if (state === 'input' || state === 'thru') primitives.push(line(context, 'Port input shaft', 0, 9, 3, 9, shade), line(context, 'Port input head', 1, 7, 3, 9, shade))
@@ -997,7 +1019,7 @@ const horizontalFader: DisplayComponentRecipe = {
       line(context, 'Fader rail', 2, 5, 45, 5, state === 'disabled' ? 2 : 5),
       line(context, 'Fader minimum tick', 2, 2, 2, 8, shade),
       line(context, 'Fader maximum tick', 45, 2, 45, 8, shade),
-      line(context, 'Fader base marker', base, 2, base, 8, state === 'modulated' ? 7 : shade),
+      box(context, 'Fader base marker', context.number('value', 2, 43), 2, context.number('value', 4, 45), 8, state === 'modulated' ? 7 : shade, true),
     ]
     if (state === 'modulated') primitives.push(line(context, 'Fader effective marker', effective, 1, effective, 9, 15), line(context, 'Fader modulation range', base, 5, effective, 5, 12))
     if (state === 'focused') primitives.push(line(context, 'Fader focus upper', 0, 0, 47, 0, 15), line(context, 'Fader focus lower', 0, 9, 47, 9, 15))
@@ -1063,7 +1085,7 @@ const bipolarFader: DisplayComponentRecipe = {
       line(context, 'Bipolar fader rail', 2, 5, 45, 5, state === 'disabled' ? 2 : 5),
       line(context, 'Bipolar fader zero', 24, 1, 24, 9, 8),
       box(context, 'Bipolar fader amount', 24, 4, position, 6, shade, true),
-      line(context, 'Bipolar fader handle', position, 1, position, 9, shade),
+      box(context, 'Bipolar fader handle', context.number('value', 1, 44), 2, context.number('value', 3, 46), 8, shade, true),
     ]
     if (state === 'focused') primitives.push(line(context, 'Bipolar focus top', 0, 0, 47, 0, 15), line(context, 'Bipolar focus bottom', 0, 9, 47, 9, 15))
     if (state === 'at-limit') primitives.push(box(context, 'Bipolar lower stop', 0, 2, 3, 4, 15, true), box(context, 'Bipolar upper stop', 44, 2, 47, 4, 15, true))
@@ -1136,7 +1158,7 @@ const verticalFader: DisplayComponentRecipe = {
     const shade = state === 'disabled' ? 3 : state === 'focused' ? 15 : state === 'at-limit' ? 14 : 10
     const primitives: DisplayPrimitiveElement[] = [
       line(context, 'Vertical fader rail', 6, 2, 6, 37, state === 'disabled' ? 2 : 5),
-      line(context, 'Vertical fader base handle', 2, base, 9, base, state === 'modulated' ? 6 : shade),
+      box(context, 'Vertical fader base handle', 2, context.number('value', 36, 1), 9, context.number('value', 38, 3), state === 'modulated' ? 6 : shade, true),
     ]
     if (state === 'modulated') primitives.push(line(context, 'Vertical fader effective handle', 1, effective, 10, effective, 15), line(context, 'Vertical fader modulation link', 10, base, 10, effective, 8))
     if (state === 'focused') primitives.push(line(context, 'Vertical fader focus left', 0, 0, 0, 39, 15), line(context, 'Vertical fader focus right', 11, 0, 11, 39, 15))
@@ -1157,28 +1179,30 @@ const rotaryKnob: DisplayComponentRecipe = {
   states: [{ value: 'normal', name: 'Normal' }, { value: 'focused', name: 'Focused' }, { value: 'modulated', name: 'Modulated' }, { value: 'at-limit', name: 'At limit' }, { value: 'disabled', name: 'Disabled' }],
   defaultState: 'normal',
   inputs: [
-    numberInput('value', 'Value', 'Normalized base knob value.', 0.5),
-    numberInput('effective', 'Effective value', 'Normalized script-owned effective value after modulation.', 0.7),
+    ...radialInputs('value', 'Base pointer'),
+    ...radialInputs('effective', 'Effective pointer', 0.15),
   ],
   scenarios: [
     { id: 'default', name: 'Midpoint', state: 'normal' },
-    { id: 'active', name: 'Modulated high', state: 'modulated', values: { value: 0.35, effective: 0.8 } },
-    { id: 'edge', name: 'Upper limit', state: 'at-limit', values: { value: 1, effective: 1 } },
+    { id: 'active', name: 'Modulated high', state: 'modulated', values: { ...radialValues('value', -0.1125), ...radialValues('effective', 0.225) } },
+    { id: 'edge', name: 'Upper limit', state: 'at-limit', values: { ...radialValues('value', 0.375), ...radialValues('effective', 0.375) } },
   ],
   build: (context, state) => {
-    const base = context.number('value', 3, 15)
-    const effective = context.number('effective', 3, 15)
+    const baseX = context.number('valueX', 4, 14)
+    const baseY = context.number('valueY', 4, 14)
+    const effectiveX = context.number('effectiveX', 4, 14)
+    const effectiveY = context.number('effectiveY', 4, 14)
     const shade = state === 'disabled' ? 3 : state === 'focused' || state === 'at-limit' ? 15 : 10
     const primitives: DisplayPrimitiveElement[] = [
       circle(context, 'Rotary knob ring', 9, 9, 7, shade),
-      circle(context, 'Rotary knob hub', 9, 9, 2, state === 'disabled' ? 3 : 8),
-      line(context, 'Rotary base pointer', 9, 9, base, 4, state === 'modulated' ? 6 : shade),
-      line(context, 'Rotary lower tick', 2, 15, 4, 13, 5),
-      line(context, 'Rotary upper tick', 16, 15, 14, 13, 5),
+      box(context, 'Rotary knob hub', 8, 8, 10, 10, state === 'disabled' ? 3 : 8, true),
+      line(context, 'Rotary base pointer', 9, 9, baseX, baseY, state === 'modulated' ? 6 : shade),
+      line(context, 'Rotary lower tick', 1, 17, 3, 15, 5),
+      line(context, 'Rotary upper tick', 17, 17, 15, 15, 5),
     ]
-    if (state === 'modulated') primitives.push(line(context, 'Rotary effective pointer', 9, 9, effective, 3, 15), line(context, 'Rotary modulation chord', base, 4, effective, 3, 8))
+    if (state === 'modulated') primitives.push(line(context, 'Rotary effective pointer', 9, 9, effectiveX, effectiveY, 15))
     if (state === 'focused') primitives.push(line(context, 'Rotary focus top', 3, 0, 15, 0, 15), line(context, 'Rotary focus bottom', 3, 17, 15, 17, 15))
-    if (state === 'at-limit') primitives.push(box(context, 'Rotary limit mark', 14, 1, 17, 4, 15, true))
+    if (state === 'at-limit') primitives.push(box(context, 'Rotary limit mark', 15, 15, 17, 17, 15, true))
     if (state === 'disabled') primitives.push(line(context, 'Rotary disabled mark', 3, 15, 15, 3, 3))
     return primitives
   },
@@ -1194,19 +1218,20 @@ const encoderRing: DisplayComponentRecipe = {
   footprint: { width: 18, height: 18 },
   states: [{ value: 'idle', name: 'Idle' }, { value: 'turning-left', name: 'Turning left' }, { value: 'turning-right', name: 'Turning right' }, { value: 'pressed', name: 'Pressed' }, { value: 'focused', name: 'Focused' }, { value: 'disabled', name: 'Disabled' }],
   defaultState: 'idle',
-  inputs: [numberInput('position', 'Step position', 'Normalized encoder or choice position.', 0.5)],
+  inputs: [...radialInputs('position', 'Position')],
   scenarios: [
     { id: 'default', name: 'Idle midpoint', state: 'idle' },
-    { id: 'active', name: 'Turning right', state: 'turning-right', values: { position: 0.75 } },
-    { id: 'edge', name: 'Pressed', state: 'pressed', values: { position: 1 } },
+    { id: 'active', name: 'Turning right', state: 'turning-right', values: radialValues('position', 0.25) },
+    { id: 'edge', name: 'Pressed', state: 'pressed', values: radialValues('position', 0.5) },
   ],
   build: (context, state) => {
-    const position = context.number('position', 3, 15)
+    const positionX = context.number('positionX', 4, 14)
+    const positionY = context.number('positionY', 4, 14)
     const shade = state === 'disabled' ? 3 : state === 'focused' || state === 'pressed' ? 15 : state === 'turning-left' || state === 'turning-right' ? 13 : 8
     const primitives: DisplayPrimitiveElement[] = [
       circle(context, 'Encoder outer ring', 9, 9, 7, shade),
       circle(context, 'Encoder push centre', 9, 9, state === 'pressed' ? 3 : 2, state === 'pressed' ? 15 : 7),
-      line(context, 'Encoder position', 9, 9, position, 3, shade),
+      line(context, 'Encoder position', 9, 9, positionX, positionY, shade),
       line(context, 'Encoder left tick', 1, 9, 3, 9, 5),
       line(context, 'Encoder right tick', 15, 9, 17, 9, 5),
     ]
@@ -1435,7 +1460,7 @@ const waveformGlyph: DisplayComponentRecipe = {
     booleanInput('showPhase', 'Show phase', 'Shows the phase cursor.', true),
   ],
   scenarios: [
-    { id: 'default', name: 'Sine', state: 'sine', values: { phase: 0.25, showPhase: true } },
+    { id: 'default', name: 'Sine', state: 'sine', values: { phase: 0.25, showPhase: false } },
     { id: 'active', name: 'Square at 70%', state: 'square', values: { phase: 0.7, showPhase: true } },
     { id: 'edge', name: 'Held', state: 'sample-hold', values: { phase: 1, showPhase: false } },
   ],
@@ -1449,7 +1474,7 @@ const waveformGlyph: DisplayComponentRecipe = {
     else if (state === 'stepped' || state === 'sample-hold') waveform = [line(context, 'Hold one', 1, 8, 8, 8, 12), line(context, 'Hold step one', 8, 8, 8, state === 'stepped' ? 6 : 4, 12), line(context, 'Hold two', 8, state === 'stepped' ? 6 : 4, 18, state === 'stepped' ? 6 : 4, 12), line(context, 'Hold step two', 18, state === 'stepped' ? 6 : 4, 18, 9, 12), line(context, 'Hold three', 18, 9, 30, 9, 12)]
     else if (state === 'noise') waveform = [line(context, 'Noise one', 1, 8, 5, 3, 9), line(context, 'Noise two', 5, 3, 10, 10, 13), line(context, 'Noise three', 10, 10, 16, 2, 15), line(context, 'Noise four', 16, 2, 23, 9, 11), line(context, 'Noise five', 23, 9, 30, 4, 14)]
     else if (state === 'envelope') waveform = [line(context, 'Envelope attack', 1, 9, 7, 2, 15), line(context, 'Envelope decay', 7, 2, 13, 5, 12), line(context, 'Envelope sustain', 13, 5, 23, 5, 12), line(context, 'Envelope release', 23, 5, 30, 9, 10)]
-    else waveform = [line(context, 'Sine one', 1, 7, 6, 2, 12), line(context, 'Sine two', 6, 2, 11, 7, 12), line(context, 'Sine three', 11, 7, 16, 10, 12), line(context, 'Sine four', 16, 10, 22, 3, 12), line(context, 'Sine five', 22, 3, 30, 7, 12)]
+    else waveform = strokes(context, 'Sine', [[[1, 6], [4, 3], [6, 2], [9, 2], [11, 3], [14, 6], [17, 9], [19, 10], [22, 10], [24, 9], [27, 6], [30, 3]]])
     return [
       ...waveform,
       line(context, 'Phase cursor', context.number('phase', 1, 30), 0, context.number('phase', 1, 30), 11, 15, context.visible('showPhase')),
@@ -1881,7 +1906,7 @@ const gainVcaProcessor: DisplayComponentRecipe = {
   ],
   build: (context, state) => {
     const shade = state === 'bypassed' ? 3 : state === 'saturated' || state === 'error' ? 15 : state === 'processing' ? 13 : 7
-    const amount = context.number('gain', 17, 35)
+    const amount = context.number('gain', 18, 28)
     const primitives: DisplayPrimitiveElement[] = [
       box(context, 'VCA body', 7, 2, 31, 15, shade),
       line(context, 'VCA input', 0, 9, 7, 9, shade),
@@ -2090,7 +2115,7 @@ const feedbackUtility: DisplayComponentRecipe = {
   ],
   build: (context, state) => {
     const shade = state === 'bypassed' ? 3 : state === 'unstable' || state === 'clipped' || state === 'error' ? 15 : state === 'frozen' ? 12 : state === 'active' ? 13 : 7
-    const amount = context.number('amount', 7, 39)
+    const amount = context.number('amount', 15, 32)
     const primitives: DisplayPrimitiveElement[] = [
       box(context, 'Feedback body', 12, 3, 35, 16, shade),
       line(context, 'Feedback send', 0, 7, 12, 7, shade),
@@ -2145,18 +2170,19 @@ function operationProcessor(definition: OperationProcessorDefinition): DisplayCo
       const operationIndex = Math.max(0, definition.operations.findIndex(({ value }) => value === state))
       const operation = definition.operations[operationIndex]
       const shade = state === 'error' ? 15 : 8 + operationIndex % 6
-      const amount = context.number('amount', 20, 43)
+      const amount = context.number('amount', 10, 37)
       const primitives: DisplayPrimitiveElement[] = [
-        box(context, `${definition.name} body`, 7, 2, 39, 15, shade),
-        line(context, `${definition.name} input`, 0, 9, 7, 9, shade),
-        line(context, `${definition.name} output`, 39, 9, 47, 9, shade),
-        tinyText(context, `${definition.name} label`, 23, 10, state === 'error' ? 'ERR' : operation?.label ?? '?', shade, 'centre'),
-        line(context, `${definition.name} amount rail`, 20, 13, 43, 13, 4),
-        line(context, `${definition.name} amount`, amount, 11, amount, 15, state === 'error' ? 15 : 12),
-        box(context, `${definition.name} activity`, 2, 6, 5, 11, 15, true, context.visible('active')),
-        line(context, `${definition.name} operation mark`, 9 + operationIndex * 3, 4, 12 + operationIndex * 3, 7 + operationIndex % 3, shade),
+        box(context, `${definition.name} body`, 6, 0, 41, 17, 6),
+        line(context, `${definition.name} input`, 0, 8, 6, 8, shade),
+        line(context, `${definition.name} output`, 41, 8, 47, 8, shade),
+        tinyText(context, `${definition.name} label`, 30, 9, state === 'error' ? 'ERR' : operation?.label ?? '?', 12, 'centre'),
+        line(context, `${definition.name} amount rail`, 10, 14, 37, 14, 4),
+        line(context, `${definition.name} amount`, amount, 12, amount, 16, 15),
+        box(context, `${definition.name} activity`, 1, 7, 3, 9, 15, true, context.visible('active')),
+        ...strokes(context, `${definition.name} operation`, state === 'error'
+          ? [[[1, 1], [7, 7]], [[7, 1], [1, 7]]]
+          : PROCESSOR_GLYPHS[state]!, 9, 2, 12),
       ]
-      if (state === 'error') primitives.push(line(context, `${definition.name} error one`, 13, 4, 34, 14, 15), line(context, `${definition.name} error two`, 34, 4, 13, 14, 15))
       return primitives
     },
   }
@@ -2282,8 +2308,8 @@ const unipolarMeter: DisplayComponentRecipe = {
   build: (context, state) => {
     const shade = state === 'stale' ? 3 : state === 'clipped' ? 15 : 11
     return [
+      box(context, 'Meter fill', 0, 2, context.number('value', 0, 46), 7, shade, true),
       box(context, 'Meter outline', 0, 0, 47, 9, state === 'stale' ? 2 : 4),
-      box(context, 'Meter fill', 1, 2, context.number('value', 1, 46), 7, shade, true),
       line(context, 'Meter peak', context.number('peak', 1, 46), 1, context.number('peak', 1, 46), 8, state === 'stale' ? 4 : 15),
       ...(state === 'clipped' ? [box(context, 'Meter clip mark', 43, 0, 47, 2, 15, true)] : []),
     ]
@@ -2311,8 +2337,8 @@ const bipolarMeter: DisplayComponentRecipe = {
     const shade = state === 'stale' ? 3 : state === 'clipped' ? 15 : 11
     return [
       box(context, 'Bipolar meter outline', 0, 0, 47, 9, state === 'stale' ? 2 : 4),
-      line(context, 'Bipolar zero', 24, 1, 24, 8, 7),
       box(context, 'Bipolar fill', 24, 2, position, 7, shade, true),
+      line(context, 'Bipolar zero', 24, 1, 24, 8, 7),
       line(context, 'Bipolar pointer', position, 1, position, 8, state === 'stale' ? 4 : 15),
     ]
   },
@@ -2325,7 +2351,7 @@ const segmentedMeter: DisplayComponentRecipe = {
   category: 'meters',
   description: 'An eight-part coarse meter for stages, density, progress, or load categories.',
   tags: ['bar', 'discrete', 'stages', 'progress', 'density', 'coarse level'],
-  footprint: { width: 48, height: 9 },
+  footprint: { width: 49, height: 9 },
   states: [{ value: 'normal', name: 'Normal' }, { value: 'warning', name: 'Warning' }, { value: 'clipped', name: 'Clipped' }, { value: 'stale', name: 'Stale' }],
   defaultState: 'normal',
   inputs: [numberInput('value', 'Value', 'Normalized value mapped across eight visible segments.', 0.5)],
@@ -2337,8 +2363,8 @@ const segmentedMeter: DisplayComponentRecipe = {
   build: (context, state) => {
     const shade = state === 'stale' ? 3 : state === 'clipped' ? 15 : state === 'warning' ? 13 : 10
     const primitives: DisplayPrimitiveElement[] = [
-      box(context, 'Segmented meter outline', 0, 0, 47, 8, state === 'stale' ? 2 : 4),
-      box(context, 'Segmented meter fill', 1, 2, context.number('value', 1, 46), 6, shade, true),
+      box(context, 'Segmented meter fill', 0, 2, context.number('value', 0, 47), 6, shade, true),
+      box(context, 'Segmented meter outline', 0, 0, 48, 8, state === 'stale' ? 2 : 4),
     ]
     for (const x of [6, 12, 18, 24, 30, 36, 42]) primitives.push(line(context, `Segment divider ${x}`, x, 1, x, 7, 0))
     if (state === 'warning') primitives.push(line(context, 'Segment warning mark', 40, 1, 46, 1, 15))
@@ -2368,11 +2394,11 @@ const verticalChannelMeter: DisplayComponentRecipe = {
   ],
   build: (context, state) => {
     const shade = state === 'muted' ? 3 : state === 'clipped' ? 15 : state === 'solo' ? 13 : 10
-    const valueY = context.number('value', 37, 2)
+    const valueY = context.number('value', 39, 2)
     const peakY = context.number('peak', 37, 2)
     const primitives: DisplayPrimitiveElement[] = [
+      box(context, 'Vertical meter fill', 2, valueY, 6, 39, shade, true),
       box(context, 'Vertical meter outline', 0, 0, 8, 39, state === 'solo' ? 12 : state === 'muted' ? 2 : 4),
-      box(context, 'Vertical meter fill', 2, valueY, 6, 37, shade, true),
       line(context, 'Vertical meter peak', 1, peakY, 7, peakY, state === 'muted' ? 4 : 15),
     ]
     if (state === 'muted') primitives.push(line(context, 'Vertical meter mute', 1, 32, 7, 7, 5))
@@ -2549,14 +2575,15 @@ const phaseClockRing: DisplayComponentRecipe = {
   footprint: { width: 24, height: 24 },
   states: [{ value: 'stopped', name: 'Stopped' }, { value: 'running', name: 'Running' }, { value: 'searching', name: 'Searching' }, { value: 'locked', name: 'Locked' }, { value: 'error', name: 'Error' }],
   defaultState: 'stopped',
-  inputs: [numberInput('phase', 'Phase', 'Normalized script-owned phase position.', 0)],
+  inputs: [...radialInputs('phase', 'Phase pointer')],
   scenarios: [
-    { id: 'default', name: 'Stopped', state: 'stopped', values: { phase: 0 } },
-    { id: 'active', name: 'Running locked', state: 'locked', values: { phase: 0.7 } },
-    { id: 'edge', name: 'Searching', state: 'searching', values: { phase: 0.2 } },
+    { id: 'default', name: 'Stopped', state: 'stopped', values: radialValues('phase', 0) },
+    { id: 'active', name: 'Running locked', state: 'locked', values: radialValues('phase', 0.7) },
+    { id: 'edge', name: 'Searching', state: 'searching', values: radialValues('phase', 0.2) },
   ],
   build: (context, state) => {
-    const phase = context.number('phase', 4, 20)
+    const phaseX = context.number('phaseX', 5, 19)
+    const phaseY = context.number('phaseY', 5, 19)
     const shade = state === 'error' ? 15 : state === 'stopped' ? 4 : state === 'searching' ? 8 : state === 'locked' ? 15 : 12
     const primitives: DisplayPrimitiveElement[] = [
       circle(context, 'Phase ring', 12, 12, 9, shade),
@@ -2564,10 +2591,10 @@ const phaseClockRing: DisplayComponentRecipe = {
       line(context, 'Phase right division', 20, 12, 23, 12, state === 'stopped' ? 3 : 8),
       line(context, 'Phase bottom division', 12, 20, 12, 23, state === 'stopped' ? 3 : 8),
       line(context, 'Phase left division', 0, 12, 4, 12, state === 'stopped' ? 3 : 8),
-      line(context, 'Phase hand', 12, 12, phase, 4, shade),
+      line(context, 'Phase hand', 12, 12, phaseX, phaseY, shade),
       circle(context, 'Phase hub', 12, 12, 1, state === 'stopped' ? 4 : 15),
     ]
-    if (state === 'running') primitives.push(line(context, 'Phase running tail', phase, 4, context.number('phase', 3, 19), 7, 10))
+    if (state === 'running') primitives.push(circle(context, 'Phase running tip', phaseX, phaseY, 1, 15))
     if (state === 'searching') primitives.push(line(context, 'Phase search left', 5, 20, 10, 22, 15), line(context, 'Phase search right', 14, 22, 19, 20, 15))
     if (state === 'locked') primitives.push(box(context, 'Phase lock mark', 9, 9, 15, 15, 13))
     if (state === 'error') primitives.push(line(context, 'Phase error one', 5, 5, 19, 19, 15), line(context, 'Phase error two', 19, 5, 5, 19, 15))
@@ -2929,7 +2956,7 @@ const trackerRow: DisplayComponentRecipe = {
     const shade = state === 'muted' ? 3 : state === 'empty' ? 4 : state === 'current' || state === 'selected' ? 15 : 9
     const primitives: DisplayPrimitiveElement[] = [
       box(context, 'Tracker row frame', 0, 0, 119, 9, state === 'selected' ? 15 : state === 'current' ? 12 : state === 'muted' ? 2 : 4, state === 'selected'),
-      tinyText(context, 'Tracker row note', 3, 7, state === 'empty' ? '---' : context.text('note'), state === 'selected' ? 0 : shade),
+      tinyText(context, 'Tracker row note', 8, 7, state === 'empty' ? '---' : context.text('note'), state === 'selected' ? 0 : shade),
       line(context, 'Tracker row note divider', 31, 1, 31, 8, state === 'selected' ? 0 : 4),
       tinyText(context, 'Tracker row effect', 116, 7, state === 'empty' ? '---' : context.text('effect'), state === 'selected' ? 0 : shade, 'right'),
       box(context, 'Tracker row gate', 38, 3, 43, 7, state === 'selected' ? 0 : 13, true, context.visible('gate')),
@@ -3112,23 +3139,23 @@ const euclideanRing: DisplayComponentRecipe = {
   defaultState: 'stopped',
   inputs: [
     ...Array.from({ length: 8 }, (_, index) => booleanInput(`step${index + 1}`, `Step ${index + 1}`, `Whether Euclidean position ${index + 1} is filled.`, index % 3 === 0)),
-    numberInput('currentStep', 'Current step', 'Normalized algorithm-owned current position across the eight-step cycle.', 0),
+    ...radialInputs('currentStep', 'Current step pointer'),
     numberInput('rotation', 'Rotation', 'Normalized authored Euclidean rotation shown on the upper reference rail.', 0),
   ],
   scenarios: [
     { id: 'default', name: 'Stopped 3-in-8', state: 'stopped' },
-    { id: 'active', name: 'Running hit', state: 'hit', values: { step1: true, step2: false, step3: false, step4: true, step5: false, step6: false, step7: true, step8: false, currentStep: 0.43, rotation: 0.25 } },
-    { id: 'edge', name: 'Muted rotated ring', state: 'muted', values: { currentStep: 1, rotation: 0.75 } },
+    { id: 'active', name: 'Running hit', state: 'hit', values: { step1: true, step2: false, step3: false, step4: true, step5: false, step6: false, step7: true, step8: false, ...radialValues('currentStep', 3 / 8), rotation: 0.25 } },
+    { id: 'edge', name: 'Muted rotated ring', state: 'muted', values: { ...radialValues('currentStep', 7 / 8), rotation: 0.75 } },
   ],
   build: (context, state) => {
     const shade = state === 'muted' ? 3 : state === 'invalid' ? 15 : state === 'hit' ? 15 : state === 'running' ? 12 : 7
-    const positions = [[16, 4], [24, 7], [28, 15], [24, 23], [16, 26], [8, 23], [4, 15], [8, 7]] as const
+    const positions = Array.from({ length: 8 }, (_, index) => [16 + Math.round(12 * Math.sin(index * Math.PI / 4)), 15 - Math.round(12 * Math.cos(index * Math.PI / 4))] as const)
     const primitives: DisplayPrimitiveElement[] = [circle(context, 'Euclidean ring rail', 16, 15, 12, state === 'muted' ? 2 : 5)]
     for (const [index, [x, y]] of positions.entries()) {
       primitives.push(circle(context, `Euclidean hit ${index + 1}`, x, y, 2, shade, context.visible(`step${index + 1}`)))
     }
     primitives.push(
-      line(context, 'Euclidean current position', context.number('currentStep', 3, 28), 29, context.number('currentStep', 3, 28), 31, state === 'stopped' ? 6 : 15),
+      line(context, 'Euclidean current position', 16, 15, context.number('currentStepX', 7, 25), context.number('currentStepY', 6, 24), state === 'stopped' ? 6 : 15),
       line(context, 'Euclidean rotation', context.number('rotation', 6, 26), 0, context.number('rotation', 6, 26), 3, state === 'muted' ? 3 : 11),
     )
     if (state === 'stopped') primitives.push(box(context, 'Euclidean stop mark', 14, 13, 18, 17, 7))
@@ -3263,7 +3290,7 @@ const eightStepDrumLane: DisplayComponentRecipe = {
       line(context, 'Drum lane rail', 20, 9, 117, 9, state === 'muted' ? 2 : 5),
     ]
     for (let index = 0; index < 8; index += 1) {
-      const x = 25 + index * 13
+      const x = 24 + index * 13
       primitives.push(
         box(context, `Drum lane hit ${index + 1}`, x - 3, 6, x + 3, 12, shade, true, context.visible(`hit${index + 1}`)),
         line(context, `Drum lane accent ${index + 1}`, x - 4, 4, x + 4, 4, 15, context.visible(`accent${index + 1}`)),
@@ -3293,13 +3320,13 @@ const radialGrooveRing: DisplayComponentRecipe = {
   inputs: [
     ...Array.from({ length: 16 }, (_, index) => booleanInput(`outer${index + 1}`, `Outer hit ${index + 1}`, `Whether outer-lane position ${index + 1} contains a hit.`, index % 4 === 0)),
     ...Array.from({ length: 16 }, (_, index) => booleanInput(`inner${index + 1}`, `Inner hit ${index + 1}`, `Whether inner-lane position ${index + 1} contains a hit.`, index % 5 === 0)),
-    numberInput('playhead', 'Playhead', 'Normalized algorithm-owned position around the ring.', 0),
+    ...radialInputs('playhead', 'Playhead pointer'),
     numberInput('swingAmount', 'Swing amount', 'Normalized script-owned swing or rotation marker.', 0.5),
   ],
   scenarios: [
     { id: 'default', name: 'Idle groove', state: 'idle' },
-    { id: 'active', name: 'Running groove', state: 'running', values: { playhead: 0.45, swingAmount: 0.6 } },
-    { id: 'edge', name: 'Swung groove', state: 'swing', values: { playhead: 0.8, swingAmount: 0.9 } },
+    { id: 'active', name: 'Running groove', state: 'running', values: { ...radialValues('playhead', 7 / 16), swingAmount: 0.6 } },
+    { id: 'edge', name: 'Swung groove', state: 'swing', values: { ...radialValues('playhead', 13 / 16), swingAmount: 0.9 } },
   ],
   build: (context, state) => {
     const shade = state === 'muted' ? 3 : state === 'error' ? 15 : state === 'swing' ? 14 : state === 'running' ? 12 : 7
@@ -3313,7 +3340,7 @@ const radialGrooveRing: DisplayComponentRecipe = {
       circle(context, `Groove inner hit ${index + 1}`, inner[0], inner[1], 2, state === 'swing' ? 15 : shade, context.visible(`inner${index + 1}`)),
     ))
     primitives.push(
-      line(context, 'Groove playhead', 28, 28, context.number('playhead', 5, 51), 53, state === 'idle' ? 6 : 15),
+      line(context, 'Groove playhead', 28, 28, context.number('playheadX', 8, 48), context.number('playheadY', 8, 48), state === 'idle' ? 6 : 15),
       line(context, 'Groove swing marker', context.number('swingAmount', 7, 49), 1, context.number('swingAmount', 7, 49), 5, state === 'swing' ? 15 : 9),
     )
     if (state === 'running') primitives.push(circle(context, 'Groove running centre', 28, 28, 3, 15))
@@ -3569,9 +3596,8 @@ const classicSnareGlyph: DisplayComponentRecipe = {
     const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('noise', 7, 14)
     const primitives: DisplayPrimitiveElement[] = [
       circle(context, 'Classic snare shell', 8, 9, 5, shade),
-      line(context, 'Classic snare wire one', 3, 8, 13, 11, state === 'muted' ? 3 : 9),
-      line(context, 'Classic snare wire two', 3, 11, 13, 8, state === 'muted' ? 3 : 11),
-      tinyText(context, 'Classic snare label', 17, 7, 'S', state === 'muted' ? 3 : 9, 'right'),
+      line(context, 'Classic snare wire one', 4, 8, 12, 8, state === 'muted' ? 3 : 9),
+      line(context, 'Classic snare wire two', 4, 11, 12, 11, state === 'muted' ? 3 : 11),
     ]
     if (state === 'hit') primitives.push(circle(context, 'Classic snare hit ring', 8, 8, 7, 15))
     if (state === 'accent') primitives.push(circle(context, 'Classic snare accent ring', 8, 8, 7, 15), line(context, 'Classic snare accent top', 3, 1, 13, 1, 15))
@@ -3603,7 +3629,6 @@ const punchyKickGlyph: DisplayComponentRecipe = {
       box(context, 'Punchy kick shell', 2, 5, 13, 14, shade),
       line(context, 'Punchy kick face', 5, 3, 15, 8, shade),
       line(context, 'Punchy kick transient', 15, 8, 17, 2, state === 'accent' ? 15 : 10),
-      tinyText(context, 'Punchy kick label', 17, 15, 'K', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(box(context, 'Punchy kick hit core', 5, 8, 10, 12, 15, true))
     if (state === 'accent') primitives.push(box(context, 'Punchy kick accent core', 4, 7, 11, 13, 15, true), line(context, 'Punchy kick accent rail', 1, 1, 15, 1, 15))
@@ -3635,7 +3660,6 @@ const classicClapGlyph: DisplayComponentRecipe = {
       line(context, 'Classic clap left transient', 2, 5, 8, 12, shade),
       line(context, 'Classic clap centre transient', 8, 2, 9, 13, state === 'muted' ? 3 : 11),
       line(context, 'Classic clap right transient', 15, 5, 9, 12, shade),
-      tinyText(context, 'Classic clap label', 17, 15, 'CP', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(line(context, 'Classic clap hit rail', 1, 8, 16, 8, 15))
     if (state === 'accent') primitives.push(line(context, 'Classic clap accent top', 2, 1, 15, 1, 15), line(context, 'Classic clap accent rail', 1, 8, 16, 8, 15))
@@ -3667,7 +3691,6 @@ const punchyClapGlyph: DisplayComponentRecipe = {
       line(context, 'Punchy clap upper transient', 2, 4, 14, 7, shade),
       line(context, 'Punchy clap centre transient', 1, 8, 16, 8, state === 'muted' ? 3 : 11),
       line(context, 'Punchy clap lower transient', 3, 12, 15, 9, shade),
-      tinyText(context, 'Punchy clap label', 17, 15, 'CP', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(box(context, 'Punchy clap hit core', 6, 5, 11, 11, 15, true))
     if (state === 'accent') primitives.push(box(context, 'Punchy clap accent core', 5, 4, 12, 12, 15), line(context, 'Punchy clap accent rail', 1, 1, 16, 1, 15))
@@ -3699,7 +3722,6 @@ const classicRimClavesGlyph: DisplayComponentRecipe = {
       circle(context, 'Classic rim shell', 8, 9, 5, shade),
       line(context, 'Classic claves stick one', 3, 4, 13, 12, state === 'muted' ? 3 : 10),
       line(context, 'Classic claves stick two', 13, 4, 3, 12, shade),
-      tinyText(context, 'Classic rim label', 17, 15, 'R', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(line(context, 'Classic rim hit edge', 2, 9, 14, 9, 15))
     if (state === 'accent') primitives.push(circle(context, 'Classic rim accent ring', 8, 8, 7, 15), line(context, 'Classic rim accent top', 3, 1, 13, 1, 15))
@@ -3731,7 +3753,6 @@ const punchyRimClavesGlyph: DisplayComponentRecipe = {
       box(context, 'Punchy rim shell', 2, 6, 14, 13, shade),
       line(context, 'Punchy claves upper', 3, 3, 15, 9, state === 'muted' ? 3 : 11),
       line(context, 'Punchy claves lower', 14, 3, 2, 10, shade),
-      tinyText(context, 'Punchy rim label', 17, 15, 'R', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(box(context, 'Punchy rim hit core', 6, 7, 11, 12, 15, true))
     if (state === 'accent') primitives.push(box(context, 'Punchy rim accent frame', 1, 1, 16, 14, 15), line(context, 'Punchy rim accent rail', 3, 1, 14, 1, 15))
@@ -3764,7 +3785,6 @@ const classicClosedHiHatGlyph: DisplayComponentRecipe = {
       line(context, 'Closed hat lower cymbal', 3, 8, 13, 8, state === 'muted' ? 3 : 10),
       line(context, 'Closed hat stand', 8, 8, 8, 14, shade),
       line(context, 'Closed hat pedal', 8, 14, 13, 14, state === 'muted' ? 3 : 8),
-      tinyText(context, 'Closed hat label', 17, 15, 'CH', state === 'muted' ? 3 : 9, 'right'),
     ]
     if (state === 'hit') primitives.push(line(context, 'Closed hat hit flare left', 2, 3, 5, 5, 15), line(context, 'Closed hat hit flare right', 14, 3, 11, 5, 15))
     if (state === 'accent') primitives.push(line(context, 'Closed hat accent rail', 1, 2, 15, 2, 15), line(context, 'Closed hat accent centre', 8, 0, 8, 5, 15))
@@ -3798,18 +3818,18 @@ function remainingDrumInstrumentPrimitives(
     line(context, 'Open hat gap', 8, 5, 8, 8, shade), line(context, 'Open hat stand', 8, 9, 8, 14, shade),
   ]
   if (instrument === 'low-tom' || instrument === 'mid-tom' || instrument === 'high-tom') {
-    const bodyTop = instrument === 'high-tom' ? 3 : instrument === 'mid-tom' ? 5 : 7
+    const radius = instrument === 'low-tom' ? 6 : instrument === 'mid-tom' ? 5 : 4
     return angular
-      ? [box(context, 'Tom angular shell', 3, bodyTop, 13, 13, shade), line(context, 'Tom angular head', 2, bodyTop, 14, bodyTop, shade), line(context, 'Tom stand', 8, 13, 8, 15, shade)]
-      : [circle(context, 'Tom round shell', 8, bodyTop + 4, 4, shade), line(context, 'Tom round head', 3, bodyTop, 13, bodyTop, shade), line(context, 'Tom stand', 8, Math.min(14, bodyTop + 8), 8, 15, shade)]
+      ? [box(context, 'Tom angular shell', 8 - radius, 7 - radius, 8 + radius, 7 + radius, shade), line(context, 'Tom angular head', 8 - radius, 9 - radius, 8 + radius, 9 - radius, shade), line(context, 'Tom stand', 8, 8 + radius, 8, 15, shade)]
+      : [circle(context, 'Tom round shell', 8, 7, radius, shade), line(context, 'Tom round head', 10 - radius, 8 - radius, 6 + radius, 8 - radius, shade), line(context, 'Tom stand', 8, 8 + radius, 8, 15, shade)]
   }
   if (instrument === 'cymbal-ride') return [
     angular ? line(context, 'Cymbal angular bow', 1, 7, 15, 4, shade) : circle(context, 'Cymbal round bow', 8, 7, 7, shade),
     line(context, 'Cymbal bell', 6, 5, 10, 5, shade), line(context, 'Cymbal stand', 8, 8, 8, 15, shade), line(context, 'Cymbal foot', 4, 15, 12, 15, shade),
   ]
   if (instrument === 'cowbell') return [
-    line(context, 'Cowbell upper', 4, 3, 13, 5, shade), line(context, 'Cowbell lower', 4, 12, 13, 10, shade),
-    line(context, 'Cowbell back', 4, 3, 4, 12, shade), line(context, 'Cowbell mouth', 13, 5, 13, 10, shade),
+    line(context, 'Cowbell upper', 4, 5, 13, 2, shade), line(context, 'Cowbell lower', 4, 10, 13, 13, shade),
+    line(context, 'Cowbell back', 4, 5, 4, 10, shade), line(context, 'Cowbell mouth', 13, 2, 13, 13, shade), line(context, 'Cowbell lip', 15, 3, 15, 12, shade),
   ]
   if (instrument === 'shaker-maraca') return [
     angular ? box(context, 'Shaker angular body', 3, 3, 12, 11, shade) : circle(context, 'Shaker round body', 8, 7, 5, shade),
@@ -3845,10 +3865,9 @@ function remainingDrumGlyph(style: DrumGlyphStyle, instrument: RemainingDrumInst
       const shade = state === 'muted' ? 3 : state === 'error' ? 15 : context.number('level', 7, 14)
       const primitives: DisplayPrimitiveElement[] = [
         ...remainingDrumInstrumentPrimitives(context, style, instrument, shade),
-        tinyText(context, `${family} ${instrumentName} label`, 17, 15, DRUM_INSTRUMENT_LABELS[instrument], state === 'muted' ? 3 : 9, 'right'),
       ]
-      if (state === 'hit') primitives.push(circle(context, `${family} ${instrumentName} hit`, 8, 8, 3, 15))
-      if (state === 'accent') primitives.push(box(context, `${family} ${instrumentName} accent`, 1, 1, 16, 14, 15))
+      if (state === 'hit') primitives.push(line(context, `${family} ${instrumentName} hit left`, 0, 5, 0, 9, 15), line(context, `${family} ${instrumentName} hit right`, 17, 5, 17, 9, 15))
+      if (state === 'accent') primitives.push(line(context, `${family} ${instrumentName} accent top`, 2, 0, 14, 0, 15), line(context, `${family} ${instrumentName} accent left`, 0, 3, 0, 11, 15), line(context, `${family} ${instrumentName} accent right`, 17, 3, 17, 11, 15))
       if (state === 'muted') primitives.push(line(context, `${family} ${instrumentName} mute`, 2, 14, 15, 2, 5))
       if (state === 'error') primitives.push(line(context, `${family} ${instrumentName} error one`, 2, 2, 15, 14, 15), line(context, `${family} ${instrumentName} error two`, 15, 2, 2, 14, 15))
       return primitives
@@ -4050,8 +4069,8 @@ const busyProgressIndicator: DisplayComponentRecipe = {
     const primitives: DisplayPrimitiveElement[] = [
       box(context, 'Progress frame', 0, 0, 47, 11, shade),
       line(context, 'Progress rail', 3, 8, 44, 8, 3),
-      box(context, 'Progress fill', 3, 6, context.number('progress', 3, 44), 9, shade, true),
-      tinyText(context, 'Progress label', 3, 5, state === 'idle' ? 'IDLE' : state === 'working' ? 'WORK' : state === 'complete' ? 'DONE' : 'ERR', shade),
+      box(context, 'Progress fill', 3, 8, state === 'complete' ? 44 : context.number('progress', 3, 44), 9, shade, true),
+      tinyText(context, 'Progress label', 3, 6, state === 'idle' ? 'IDLE' : state === 'working' ? 'WORK' : state === 'complete' ? 'DONE' : 'ERR', shade),
     ]
     if (state === 'working') primitives.push(line(context, 'Progress working one', 34, 2, 34, 4, 9), line(context, 'Progress working two', 39, 2, 39, 4, 12), line(context, 'Progress working three', 44, 2, 44, 4, 15))
     if (state === 'complete') primitives.push(line(context, 'Progress complete left', 34, 3, 38, 6, 15), line(context, 'Progress complete right', 38, 6, 45, 1, 15))

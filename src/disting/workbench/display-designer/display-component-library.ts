@@ -461,13 +461,23 @@ export function materializeDisplayComponent(
 export function createDisplayComponentPreview(
   recipe: DisplayComponentRecipe,
   scenarioId?: string,
+  origin?: { x: number; y: number },
 ): DisplayDesignDocument {
   const document = { ...createEmptyDisplayDesign(`${recipe.name} preview`), displayMode: 'full-screen' as const }
   const result = materializeDisplayComponent(
     document,
     recipe,
     createSequentialDisplayDesignIdFactory(`component-preview-${recipe.id}`),
-    { scenarioId },
+    { scenarioId, origin },
   )
   return result.ok ? result.document : document
+}
+
+export function displayComponentPreviewLayout(footprint: { width: number; height: number }) {
+  const x = Math.min(4, Math.floor((256 - footprint.width) / 2))
+  const y = Math.min(4, Math.floor((64 - footprint.height) / 2))
+  const width = footprint.width + x * 2
+  const height = footprint.height + y * 2
+  const scale = Math.max(1, Math.min(4, Math.floor(224 / width), Math.floor(128 / height)))
+  return { x, y, width, height, scale }
 }

@@ -164,7 +164,6 @@ function horizontalRuns(pixels: Pixel[], width: number, height: number): PixelRu
     }
   }
   const ordered = [...resolved.values()]
-    .filter(({ shade }) => shade > 0)
     .sort((left, right) => left.y - right.y || left.x - right.x)
   const runs: PixelRun[] = []
   for (const pixel of ordered) {
@@ -181,7 +180,10 @@ function exportVariant(recipe: DisplayComponentRecipe, stateIndex: number): SvgV
   const scenarioId = `svg-export-state-${stateIndex}`
   const exportRecipe: DisplayComponentRecipe = {
     ...recipe,
-    scenarios: [...recipe.scenarios, { id: scenarioId, name: state.name, state: state.value }],
+    scenarios: [...recipe.scenarios, {
+      id: scenarioId, name: state.name, state: state.value,
+      values: recipe.scenarios.find((scenario) => scenario.state === state.value)?.values,
+    }],
   }
   const document = { ...createEmptyDisplayDesign(`${recipe.name} · ${state.name}`), displayMode: 'full-screen' as const }
   const materialized = materializeDisplayComponent(
@@ -218,7 +220,7 @@ function variantSvg(component: SvgComponent, variant: SvgVariant, x: number, y: 
   return [
     `<g id="${componentId}--${stateId}" data-name="${xml(recipe.name)} / ${xml(variant.stateName)}" data-component-id="${xml(recipe.id)}" data-state="${xml(variant.stateValue)}">`,
     `<title>${xml(recipe.name)} / ${xml(variant.stateName)}</title>`,
-    `<text x="${x}" y="${y + 15}" class="variant-label">${index + 1}. ${xml(variant.stateName)} · ${xml(variant.stateValue)}</text>`,
+    `<text x="${x}" y="${y + 15}" class="variant-label">${index + 1}. ${xml(variant.stateName)}</text>`,
     `<g transform="translate(${x} ${y + VARIANT_LABEL_HEIGHT}) scale(${PIXEL_SCALE})">`,
     `<rect data-name="Background" width="${recipe.footprint.width}" height="${recipe.footprint.height}" fill="#000000"/>`,
     `<g data-name="Pixel artwork" shape-rendering="crispEdges">${primitiveGroups}</g>`,
@@ -228,7 +230,8 @@ function variantSvg(component: SvgComponent, variant: SvgVariant, x: number, y: 
 }
 
 function componentLayout(component: SvgComponent): ComponentLayout {
-  const cellWidth = Math.max(112, component.recipe.footprint.width * PIXEL_SCALE + 10)
+  const labelWidth = Math.max(...component.variants.map((variant) => (variant.stateName.length + 4) * 8))
+  const cellWidth = Math.max(112, labelWidth, component.recipe.footprint.width * PIXEL_SCALE + 10)
   const columns = Math.max(1, Math.min(
     component.variants.length,
     Math.floor((MAX_COMPONENT_WIDTH - COMPONENT_PADDING * 2 + VARIANT_COLUMN_GAP) / (cellWidth + VARIANT_COLUMN_GAP)),

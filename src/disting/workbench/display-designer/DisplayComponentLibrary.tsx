@@ -6,6 +6,7 @@ import {
   DISPLAY_COMPONENT_CATEGORIES,
   createDisplayComponentPreview,
   displayComponentRecipeDensity,
+  displayComponentPreviewLayout,
   filterDisplayComponentRecipes,
   type DisplayComponentCategoryId,
   type DisplayComponentDensity,
@@ -33,7 +34,8 @@ function DisplayComponentCard({
 }) {
   const [scenarioId, setScenarioId] = useState(recipe.scenarios[0]!.id)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const previewDocument = useMemo(() => createDisplayComponentPreview(recipe, scenarioId), [recipe, scenarioId])
+  const layout = displayComponentPreviewLayout(recipe.footprint)
+  const previewDocument = useMemo(() => createDisplayComponentPreview(recipe, scenarioId, displayComponentPreviewLayout(recipe.footprint)), [recipe, scenarioId])
   const compiled = useMemo(() => compileDisplayDesign(previewDocument), [previewDocument])
   const category = DISPLAY_COMPONENT_CATEGORIES.find(({ id }) => id === recipe.category)?.label ?? recipe.category
 
@@ -54,7 +56,9 @@ function DisplayComponentCard({
       <small>{compiled.metrics.drawCallCount} current / {compiled.metrics.maximumVariantDrawCallCount} max calls</small>
     </header>
     <div className="display-component-previews">
-      <canvas ref={canvasRef} width="256" height="64" aria-label={`${recipe.name} pixel preview`} />
+      <canvas ref={canvasRef} width={layout.width} height={layout.height}
+        style={{ width: layout.width * layout.scale, height: layout.height * layout.scale }}
+        aria-label={`${recipe.name} pixel preview`} />
     </div>
     <p>{recipe.description}</p>
     {recipe.costNote && <p className="display-component-cost-note">{recipe.costNote}</p>}
