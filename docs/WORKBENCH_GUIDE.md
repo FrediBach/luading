@@ -133,6 +133,36 @@ routes, outputs, or workspace layout, and they are separate from **Save state**.
 Every bundled parameterized example includes several ready-to-use snapshots;
 parameterless examples do not show the selector.
 
+### Logic Gate Schema Builder
+
+The bundled **Logic Gate Schema Builder** is an editable 8-column, 4-row logic
+patch. Encoder 1 moves the column and Encoder 2 moves the row, wrapping at the
+edges. Press **Pot 3** for the previous tile or **Encoder 2** for the next tile.
+The top-right readout identifies the selected coordinate, tile, and HIGH/LOW
+state; an outline marks the cursor independently of signal brightness.
+
+Tiles cycle through empty, **I1-I4**, **W**, **N**, **W+N**, **NOT**, **AND**,
+**OR**, **XOR**, **NAND**, **NOR**, and **O1-O4**. Input tiles read the four gate
+inputs. W reads the western neighbour, N reads the northern neighbour, and W+N
+merges both with OR. NOT inverts west; the binary gates combine west and north.
+Every occupied tile forwards its result to both its eastern and southern
+neighbours, so a wire can branch or turn a corner. Empty tiles and grid edges
+supply low. Output tiles read west and forward that signal; multiple tiles for
+the same output are ORed together. Outputs with no tile are explicitly low.
+
+Signals flow only right/down, without feedback, and the entire grid evaluates
+in each 1 ms control step. High signals produce +5 V outputs and bright tile
+backgrounds with dark labels; low tiles have dim backgrounds. The display uses
+the documented 16 shades rather than RGB colour. All edits take effect on the
+next control step. The demo starts with **O1 = I1**, **O2 = I1 AND I2**,
+**O3 = I3 XOR I4**, and **O4 = NOT I4**. Luading-only input-generator comments
+seed different clock divisions so the demo animates immediately in the browser.
+
+**Save state** preserves the grid and cursor through the script's preset state.
+Restoration resamples the live inputs instead of restoring stale signal levels.
+The example uses documented algorithm custom-UI callbacks. Physical control
+feel, OLED readability, and processor headroom have not been hardware-verified.
+
 ### Melody Range Quantizer
 
 The bundled **Melody Range Quantizer** rounds incoming V/oct pitch to the

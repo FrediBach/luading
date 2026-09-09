@@ -104,6 +104,14 @@ tests establish the independently authored selector behavior described in the
 workbench guide; they do not claim parity with Traffic's hardware, alternate
 modes, electrical response, or gate threshold.
 
+`logic-gate-schema-builder.test.ts` loads the grid editor through Wasmoon and
+registers the production display adapter. It pins all demo input combinations,
+wire/gate truth tables, east/south fan-out, duplicate-output OR, disconnected
+output clearing, grid boundaries, wrapped encoder navigation, tile cycling,
+JSON preset restoration, malformed state normalization, and high/low rendering.
+These checks do not establish live browser interaction, physical control feel,
+OLED readability, or hardware CPU headroom.
+
 `micro-tracker.test.ts` loads the bundled four-track tracker through that same
 Wasmoon bridge. It pins the fixed three-input/eight-output contract, dense
 pattern and Song state normalization, JSON-friendly defensive serialization,
