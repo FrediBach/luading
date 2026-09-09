@@ -35,6 +35,14 @@ extraction and may contain conversion errors.
   machine-readable simulator support catalog. It records support and
   provenance; it is not a higher hardware authority than the manual.
 
+## Talk companions
+
+- [WASM and Web Workers architecture for a talk](WASM_WORKERS_TALK_ARCHITECTURE.md)
+  explains the production runtime with source excerpts, line references, Mermaid
+  diagrams, problems solved, and a suggested talk sequence. Its AssemblyScript
+  appendix covers only the separate tracked benchmark experiment. The canonical
+  architecture above remains the current system reference.
+
 ## Current runbooks
 
 - [MIDI manual validation](MIDI_MANUAL_VALIDATION.md) records the steps and
