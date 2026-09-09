@@ -78,6 +78,24 @@ Disting-specific completion, hover, navigation, and diagnostic adapters are
 registered with Monaco on the main thread. Their source/context helpers are
 pure and do not communicate with the simulation worker.
 
+## Local directory access
+
+`useLocalDirectory` owns session-only File System Access handles, directory
+list polling, and per-project file links on the main thread. Opening a directory
+file uses the project library's normal import path and captures the allocated
+project ID before asynchronous storage completion. Browser drafts retain their
+existing IndexedDB and recovery protection. Directory links are not serialized.
+
+Polling refreshes only the immediate Lua filename list. Reopening externally
+changed content imports a separate draft, preserving previous browser edits.
+Opt-in disk saves are debounced across linked projects, serialized, and compare
+last-read disk content before writing. Failures disable the affected autosave;
+permission requests happen in explicit user actions. Connection generations
+invalidate stale scans and pending writes. An already-started filesystem write
+cannot be cancelled by page teardown, and the content comparison is not an atomic
+lock against external writers. Handles, file identity, permissions, and autosave
+state never cross worker boundaries or enter the Lua API.
+
 ## State ownership
 
 | State | Authoritative owner | Mirroring and persistence |

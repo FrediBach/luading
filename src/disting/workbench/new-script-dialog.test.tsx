@@ -42,8 +42,9 @@ describe('new-script dialog', () => {
     await act(async () => {
       root.render(<ScriptFileActions projects={[]} onCreate={onCreate} onImport={vi.fn()} onExport={vi.fn()} />)
     })
-    const trigger = button('Create new Lua script')
+    const trigger = button('Script files')
     await act(async () => { click(trigger) })
+    await act(async () => { click(button('Create new Lua script')) })
     expect(document.querySelector('[role="dialog"]')).not.toBeNull()
     expect(document.body.textContent).toContain('Quick start')
     expect(document.body.textContent).toContain('Guided setup')
@@ -140,5 +141,42 @@ describe('new-script dialog', () => {
     const consent = document.querySelector<HTMLInputElement>('.script-scaffold-extension-consent input')!
     await act(async () => { click(consent) })
     expect(buttonEvent?.querySelector('input')?.disabled).toBe(false)
+  })
+})
+
+describe('script file dropdown', () => {
+  it('keeps file actions inside the dropdown and reports unsupported directory access', async () => {
+    const onExport = vi.fn()
+    await act(async () => root.render(<ScriptFileActions projects={[]} onCreate={async () => true} onImport={vi.fn()} onExport={onExport} />))
+    expect(document.body.textContent).not.toContain('Export')
+    const trigger = button('Script files')
+    await act(async () => click(trigger))
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(button('Connect local directory').disabled).toBe(true)
+    expect(document.body.textContent).toContain('File System Access API')
+    await act(async () => click(button('Export Lua script')))
+    expect(onExport).toHaveBeenCalledOnce()
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => click(trigger))
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('exposes connected directory actions and a labelled autosave toggle', async () => {
+    const directory = {
+      supported: true, name: 'Scripts', files: ['a.lua'], activeFile: 'a.lua', autosave: false,
+      busy: false, message: 'Connected Scripts.', connect: vi.fn(), disconnect: vi.fn(), refresh: vi.fn(), open: vi.fn(), save: vi.fn(), toggleAutosave: vi.fn(),
+    }
+    await act(async () => root.render(<ScriptFileActions directory={directory} projects={[]} onCreate={async () => true} onImport={vi.fn()} onExport={vi.fn()} />))
+    await act(async () => click(button('Script files')))
+    expect(document.body.textContent).toContain('Linked file: a.lua')
+    const toggle = document.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    expect(toggle.closest('label')?.textContent).toContain('Autosave current file')
+    await act(async () => click(toggle))
+    expect(directory.toggleAutosave).toHaveBeenCalledOnce()
+    await act(async () => click(button('Save current file to directory')))
+    await act(async () => click(button('Refresh')))
+    expect(directory.save).toHaveBeenCalledOnce()
+    expect(directory.refresh).toHaveBeenCalledOnce()
   })
 })

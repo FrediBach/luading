@@ -78,7 +78,7 @@ export interface ProjectLibrary {
   selectTemplate(id: string): Promise<boolean>
   selectProject(id: string): Promise<boolean>
   createNew(input?: NewProjectInput): Promise<boolean>
-  importScript(filename: string, source: string): Promise<boolean>
+  importScript(filename: string, source: string, onImported?: (id: string) => void): Promise<boolean>
   rename(filename: string): Promise<boolean>
   duplicate(): Promise<boolean>
   deleteActive(): Promise<boolean>
@@ -465,6 +465,7 @@ export function useProjectLibrary(options: ProjectLibraryOptions): ProjectLibrar
     source: string,
     modules: Record<string, string>,
     origin: ScriptProjectOrigin,
+    onCreated?: (id: string) => void,
   ): Promise<boolean> => {
     if (!await mayReplace()) return false
     const project = createScriptProject({
@@ -477,6 +478,7 @@ export function useProjectLibrary(options: ProjectLibraryOptions): ProjectLibrar
     })
     replaceProjects([...projectsRef.current, project])
     replaceActive(projectDocument(project))
+    onCreated?.(project.id)
     journalCurrent(projectDocument(project))
     try {
       const stored = await storeRef.current?.createProject(project)
@@ -753,7 +755,7 @@ export function useProjectLibrary(options: ProjectLibraryOptions): ProjectLibrar
       {},
       { kind: 'new' },
     ),
-    importScript: (filename: string, source: string) => createOwnedProject(filename, source, {}, { kind: 'import' }),
+    importScript: (filename: string, source: string, onImported?: (id: string) => void) => createOwnedProject(filename, source, {}, { kind: 'import' }, onImported),
     rename,
     duplicate,
     deleteActive,

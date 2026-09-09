@@ -169,7 +169,9 @@
 }
 
 .script-menu-trigger:focus-visible,
-.commandbar-icon-command:focus-visible {
+.commandbar-icon-command:focus-visible,
+.script-file-menu button:focus-visible,
+.script-file-menu input:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--nt-green) 75%, white);
   outline-offset: 1px;
 }
@@ -249,7 +251,8 @@
   gap: 2px;
 }
 
-.script-menu-groups button {
+.script-menu-groups button,
+.script-file-menu > button {
   min-height: var(--control-target);
   padding: 0 7px;
   display: flex;
@@ -266,7 +269,9 @@
 }
 
 .script-menu-groups button:hover,
-.script-menu-groups button.is-active {
+.script-menu-groups button.is-active,
+.script-file-menu > button:hover:not(:disabled),
+.script-directory-actions button:hover:not(:disabled) {
   border-color: var(--nt-line);
   background: color-mix(in srgb, var(--nt-green) 6%, transparent);
 }
@@ -292,7 +297,8 @@
 
 .script-menu-groups section > p,
 .script-project-actions p,
-.script-storage-actions p {
+.script-storage-actions p,
+.script-directory-actions p {
   margin: 0;
   padding: 7px 8px;
   color: var(--nt-muted);
@@ -300,7 +306,8 @@
 }
 
 .script-project-actions,
-.script-storage-actions {
+.script-storage-actions,
+.script-directory-actions {
   margin-top: 10px;
   padding-top: 9px;
   display: grid;
@@ -309,7 +316,8 @@
 }
 
 .script-project-actions h3,
-.script-storage-actions h3 {
+.script-storage-actions h3,
+.script-directory-actions h3 {
   margin: 0;
   color: var(--nt-muted);
   font: var(--font-micro)/1 var(--mono);
@@ -338,7 +346,8 @@
 
 .script-project-actions button,
 .script-storage-actions button,
-.script-undo-delete {
+.script-undo-delete,
+.script-directory-actions button {
   min-height: var(--control-target);
   padding: 0 8px;
   border: 1px solid var(--nt-line);
@@ -349,7 +358,8 @@
   cursor: pointer;
 }
 
-.script-project-actions button:disabled {
+.script-project-actions button:disabled,
+.script-file-menu button:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -2048,4 +2058,40 @@
   .workbench-runtime-state--running i {
     box-shadow: none;
   }
+}
+
+.script-file-menu {
+  display: grid;
+  gap: 2px;
+}
+
+.script-file-menu > button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.script-directory-actions p {
+  overflow-wrap: anywhere;
+}
+
+.script-directory-actions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-target);
+  color: var(--nt-text);
+  font: var(--font-label)/1.45 var(--mono);
+}
+
+.script-directory-actions input[type='checkbox'] {
+  accent-color: var(--nt-green);
+}
+
+.script-file-actions > .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

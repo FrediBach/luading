@@ -545,6 +545,20 @@ historical label, the documentation map omits a required current reference, or
 the documented test commands drift from `package.json`. These checks are
 structural and intentionally do not pin test-file, test-case, or corpus counts.
 
+## Directory file workflow
+
+`local-directory.test.ts` tests Lua file filtering, write completion, external
+content conflicts, and failed-write aborts using fake File System Access handles.
+`useLocalDirectory.test.tsx` exercises the real project-library coordinator with
+an in-memory project store: opt-in writes, debounce, pending saves across script
+switches, conflict preservation, permission denial, picker cancellation, refresh,
+disconnect, and manual saves. File-menu interaction tests cover collapsed actions,
+unsupported browsers, labelled autosave controls, Escape, and focus restoration.
+These tests do not establish native picker behavior or OS permission persistence.
+Live browser validation must cover desktop/narrow layouts, keyboard interaction,
+real directory selection/cancellation, read/write permission denial, external
+edits/removals, autosave, reconnect after reload, and unsupported browsers.
+
 ## Commands
 
 ```bash

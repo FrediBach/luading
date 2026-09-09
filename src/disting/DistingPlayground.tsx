@@ -1,3 +1,4 @@
+import { useLocalDirectory } from './workbench/useLocalDirectory'
 import {
   startTransition,
   useCallback,
@@ -238,6 +239,8 @@ export function DistingPlayground() {
   const activeProjectId = projectLibrary.active.ref.kind === 'project'
     ? projectLibrary.active.ref.projectId
     : undefined
+
+  const localDirectory = useLocalDirectory(projectLibrary)
 
   const workerRef = useRef<Worker | null>(null)
   const frameCommitGateRef = useRef(new FrameCommitGate<Worker>())
@@ -862,6 +865,7 @@ export function DistingPlayground() {
       announcement={accessibilityAnnouncement}
       commandBar={(
         <CommandBar
+          directory={localDirectory}
           programName={projectLibrary.active.filename}
           selectedExampleId={selectedExampleId}
           activeProjectId={activeProjectId}

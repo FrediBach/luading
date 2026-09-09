@@ -21,6 +21,46 @@ tooltip so the script selector retains space for the current example name.
 The bundled-script selector groups first-party project examples under
 **Luading** and upstream official examples under **Expert Sleepers**.
 
+### File menu and local directories
+
+The **File** dropdown contains **New**, **Import**, and **Export**, plus optional
+**Connect local directory…**. Its action rows, section headings, and directory
+controls share the script dropdown’s compact typography and theme colors.
+Directory access is a browser-only extension using
+the File System Access API. It requires a supporting browser (such as desktop
+Chrome or Edge) on HTTPS or localhost; ordinary import/export remains available
+when directory access is unsupported.
+
+Connecting requests read access and lists immediate `.lua` files (including
+uppercase extensions) in a separate **Directory** section of the scripts dropdown.
+Subdirectories are not scanned. The list refreshes every three seconds, on window
+focus, or with **Refresh**. Reopen a file to read external content changes; the
+editor is never silently replaced by polling. Opening a directory file creates a
+browser-protected draft. Reopening an unchanged file returns to that draft;
+reopening externally changed content creates a fresh draft and preserves the old
+one under My Scripts.
+
+For an opened directory file, **Save current file to directory** requests write
+permission and saves explicitly. **Autosave current file** also saves immediately,
+then writes edits after an 800 ms pause. This opt-in belongs to each linked file;
+pending edits still save when switching scripts. New, imported, duplicated, and
+bundled scripts have no directory link; browser project renames do not rename the
+linked disk file. Use Export to place those scripts in the directory, then open
+them from its section. Browser draft autosave remains separate and always on.
+
+Before each disk write, Luading checks that its last-read content still matches.
+An external change, deleted file, or write failure stops autosave for that file
+and reports the problem in File. Reopen externally changed files to start from a
+fresh disk copy; the previous browser draft remains available. This check cannot
+make a filesystem transaction atomic against another application writing at the
+same instant. Closing a page before a pending disk save finishes can leave the
+disk behind the protected browser draft.
+
+**Disconnect** stops pending directory autosaves and keeps browser drafts. Directory
+handles and autosave choices last only for the current page session; reconnect
+after reload. No directory contents or permissions are sent to the simulation
+worker.
+
 The center workspace is a resizable editor/instrument split on desktop. Drag
 the divider, focus it and use the arrow keys, or double-click it to restore the
 default ratio. The display preview starts in a reserved dock above the

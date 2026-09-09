@@ -96,6 +96,29 @@ describe('My Scripts menu', () => {
     expect(document.body.textContent).toContain('Bundled templates stay pristine')
   })
 
+  it('lists connected files separately and opens them through the directory action', async () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    root = createRoot(host)
+    const directory = {
+      supported: true, name: 'Patch folder', files: ['Disk.lua'], activeFile: 'Disk.lua',
+      autosave: true, busy: false, message: '', connect: vi.fn(), disconnect: vi.fn(),
+      refresh: vi.fn(), open: vi.fn(), save: vi.fn(), toggleAutosave: vi.fn(),
+    }
+    await act(async () => root?.render(<ScriptMenu directory={directory}
+      programName="Disk.lua" selectedExampleId="" projects={[project]} scriptGroups={[]}
+      saveStatus={{ kind: 'saved', savedAt: 1 }} durability={{ supported: false, persisted: null }} loading={false}
+      onSelectExample={vi.fn()} onSelectProject={vi.fn()} onRename={vi.fn()} onDuplicate={vi.fn()}
+      onDelete={vi.fn()} onUndoDelete={vi.fn()} onBackup={vi.fn()} onRestore={vi.fn()} onProtectDrafts={vi.fn()} />))
+    await act(async () => host.querySelector('button')?.click())
+    const section = document.querySelector('[aria-label="Directory: Patch folder"]')!
+    expect(section.textContent).toContain('Disk.luaAutosave')
+    expect(section.querySelector('button')?.getAttribute('aria-current')).toBe('true')
+    await act(async () => section.querySelector('button')?.click())
+    expect(directory.open).toHaveBeenCalledWith('Disk.lua')
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+
   it('uses unambiguous source-persistence labels', () => {
     expect(sourceSaveLabel({ kind: 'saving' })).toBe('Saving source…')
     expect(sourceSaveLabel({ kind: 'degraded', recoverable: true, message: 'offline' })).toBe('Recovery draft')

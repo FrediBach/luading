@@ -1,4 +1,5 @@
 import type { DistingScriptExampleGroup } from '../script-examples'
+import type { LocalDirectoryControls } from './useLocalDirectory'
 import type { ThemeMode } from '../theme'
 import type {
   DistingMidiDestination,
@@ -26,6 +27,7 @@ import type { ScriptScaffoldDraft } from './script-scaffold'
 import type { StorageDurability } from './storage-durability'
 
 interface Props {
+  directory?: LocalDirectoryControls
   programName: string
   selectedExampleId: string
   activeProjectId?: string
@@ -83,6 +85,7 @@ interface Props {
 }
 
 export function CommandBar({
+  directory,
   programName,
   selectedExampleId,
   activeProjectId,
@@ -152,6 +155,7 @@ export function CommandBar({
         </div>
 
         <ScriptMenu
+          directory={directory}
           programName={programName}
           selectedExampleId={selectedExampleId}
           activeProjectId={activeProjectId}
@@ -174,6 +178,7 @@ export function CommandBar({
         />
 
         <ScriptFileActions
+          directory={directory}
           projects={projects}
           onCreate={onCreateScript}
           onImport={onImportScript}

@@ -1,3 +1,4 @@
+import type { LocalDirectoryControls } from './useLocalDirectory'
 import { useRef, useState } from 'react'
 import { ControlIcon } from '../controls'
 import { ControlPopover } from '../controls/ControlPopover'
@@ -8,6 +9,7 @@ import { filterScriptGroups, filterScriptProjects } from './script-menu'
 import { sourceSaveLabel } from './source-save-status'
 
 interface Props {
+  directory?: LocalDirectoryControls
   programName: string
   selectedExampleId: string
   activeProjectId?: string
@@ -30,6 +32,7 @@ interface Props {
 }
 
 export function ScriptMenu({
+  directory,
   programName,
   selectedExampleId,
   activeProjectId,
@@ -57,6 +60,7 @@ export function ScriptMenu({
   const restoreInputRef = useRef<HTMLInputElement>(null)
   const filteredGroups = filterScriptGroups(scriptGroups, query)
   const filteredProjects = filterScriptProjects(projects, query)
+  const directoryFiles = directory?.files.filter((name) => `${directory.name} ${name}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) ?? []
   const saveLabel = sourceSaveLabel(saveStatus)
 
   return (
@@ -96,6 +100,16 @@ export function ScriptMenu({
           onChange={(event) => setQuery(event.target.value)}
         />
         <div className="script-menu-groups">
+          {directory?.name && <section aria-label={`Directory: ${directory.name}`}>
+            <h3>Directory · {directory.name}</h3>
+            {directoryFiles.map((name) => <button type="button" key={name}
+              disabled={directory.busy} aria-current={directory.activeFile === name ? 'true' : undefined}
+              onClick={() => { directory.open(name); setOpen(false); setQuery('') }}>
+              <span>{name}</span>{directory.activeFile === name && <small>{directory.autosave ? 'Autosave' : 'Open'}</small>}
+            </button>)}
+            {directoryFiles.length === 0 && <p>{query ? 'No directory scripts match.' : 'No .lua files in this directory.'}</p>}
+            <p>Refreshes every 3 seconds. Reopen a file to read external edits.</p>
+          </section>}
           <section aria-label="My Scripts">
             <h3>My Scripts</h3>
             {filteredProjects.map((project) => (
@@ -142,7 +156,7 @@ export function ScriptMenu({
               ))}
             </section>
           ))}
-          {filteredGroups.length === 0 && filteredProjects.length === 0 && query && (
+          {filteredGroups.length === 0 && filteredProjects.length === 0 && directoryFiles.length === 0 && query && (
             <p>No scripts match “{query}”.</p>
           )}
         </div>
