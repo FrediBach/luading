@@ -169,6 +169,25 @@ source when possible; the UI does not label that state as saved locally.
 
 ### Display-design authoring and file handoff
 
+SVG import is a separate main-thread review transaction. The file adapter bounds
+input and parses detached XML; a chunked normalizer produces a typed scene with
+effective styles, transforms, source IDs and findings. It resolves local
+references and never mounts raw SVG or fetches external resources. A pure,
+yielding converter chooses existing designer primitives, quantizes solid paints,
+matches native text, and decomposes filled shapes while retaining unpainted
+holes. Reference previews are reconstructed from safe typed geometry; target
+previews use the production compiler and renderer.
+
+The import dialog owns the source scene, options, overrides and accepted losses.
+Abort signals cancel superseded file analysis and conversion; a result is shown
+only for its exact scene, options and display mode. The materializer allocates
+fresh IDs, flattens groups without changing paint order, and validates/serializes
+the complete current destination before one history commit. The normal design
+stays inert while review is open. Temporary source maps and SVG markup are not
+persisted; the output is ordinary version-9 content with the existing bindings,
+code generator and JSON lifecycle. Import never changes the worker protocol,
+active editor source, project storage or firmware API.
+
 The display designer is an independent main-thread authoring flow. Its React
 dialog owns the normalized design document, semantic undo history, selection,
 designer-local copied-layer clipboard, pointer gesture preview, responsive panel

@@ -879,6 +879,73 @@ use its **Add default** action for a keyboard-only starting shape. The inspector
 remains the exact path for coordinates, text, alignment, and one of the 16
 documented shades.
 
+### Importing SVG artwork
+
+Choose **Import SVG**, then **Choose SVG file** to convert a local SVG into
+editable layers. The review dialog keeps the current design intact until
+**Insert artwork** succeeds. Insertion, including an optional new screen, is
+one Undo/Redo transaction. It does not edit or run the active Lua script.
+
+The importer handles basic shapes, path commands (including curves and arcs),
+transforms, nested viewports, local references, solid paints, simple class/ID/type
+styles, and plain text with positioned spans. It prefers native boxes, lines,
+circles and regular polygons, uses editable Bézier curves for curved outlines,
+and converts filled paths into grouped pixel rectangles. Fill holes remain
+unpainted. It does not flatten transparent artwork into opaque pixel boxes.
+
+Text becomes standard or tiny native text after the chosen scale is applied.
+The matcher compares native ink height, advance width and atlas size with an
+estimated source footprint, preferring a candidate that fits. Source fonts are
+not downloaded or recovered. **Native font** overrides the choice; **Text
+content**, object offsets, and **Split line breaks into separate native labels**
+resolve labels that need editing. Missing native characters must be replaced.
+Rotated/skewed text requires an explicit horizontal replacement. Outlined
+letters remain geometry; export live text to retain editable labels. The native
+preview fonts remain simulator approximations, not hardware-verified glyphs.
+
+Use **Source group** for one component/artboard, **Fit artwork** to fit its
+geometry, or **Fit source viewport** to retain source whitespace. Original size
+preserves 1:1 coordinates; Custom exposes uniform scale and offsets. Fit accounts
+for the current display mode: 256×64 in full-screen mode or 256×54 below the
+standard parameter line. The mode remains document-wide; cancel the import and
+change Display mode to expose all 64 rows. **Keep clipped** explicitly accepts
+overflow; findings show its extent. Native text is remeasured after fitting and
+may still need repositioning. Preview zoom offers 1×, 2× and 4× pixel inspection.
+
+Selecting an object or its finding highlights it in the source reference and
+converted preview. Reviewable losses, such as replacing a thick/dashed stroke
+with a thin outline or changing an oversized font, require acceptance. Unsupported
+effects require source correction or explicit **Exclude**. Masks, filters,
+gradients, patterns, images, partial/group opacity, animations, complex text
+layout and advanced CSS are not preserved. The source reference is rebuilt from
+safe geometry and solid paints; its fonts and unsupported effects may differ
+from the original. Raw SVG, scripts, event handlers, external fonts/resources,
+and SVG entity declarations never enter the live page or Lua runtime.
+
+Solid RGB/hex colours and common named colours become one of 16 shades using
+`round(15 * (0.2126*r + 0.7152*g + 0.0722*b) / 255)`. Other colour syntaxes need
+conversion to RGB/hex. **Invert shades** and each object's **Shade** override
+help preserve contrast. Shade 0 paints black; it is not transparency. The pixel
+UI library's exported cyan palette is treated as colour, not trusted shade
+metadata, so generic SVG import does not promise a lossless library round trip.
+
+Files are limited to 2 MiB and 10,000 XML elements, with additional depth,
+reference and geometry limits. Export a selection from oversized files (the
+complete pixel UI library SVG exceeds the file limit). Final imports must fit
+the existing document limits, including 512 total primitives and 1 MiB saved
+JSON. A new screen does not reset those limits. Select less artwork or reduce
+curve detail when conversion is too complex; resizing alone may not help.
+Malformed/missing viewport dimensions can be retried with explicit source width
+and height. Cancelled or superseded reads cannot insert stale artwork.
+
+Imported layers use the normal Properties **Link value** controls for tokens
+and runtime bindings. **Copy draw callback** produces ordinary Lua immediately,
+and Download/Open design retains the imported layers without the SVG file.
+Draw-call and source-byte counts describe generated content, not hardware CPU
+performance.
+
+### Editing the design
+
 The tool strip groups selection, lines, shapes, and text. Select a tool and
 follow the canvas status hint to draw, or use **Add default** to insert it
 without dragging. The dotted canvas surround separates the display from the

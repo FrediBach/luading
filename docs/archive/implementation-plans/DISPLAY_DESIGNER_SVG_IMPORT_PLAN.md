@@ -1,8 +1,34 @@
 # Display designer SVG import implementation plan
 
+> **Historical snapshot.** Archived on 2026-09-09 after implementation and
+> successful automated checks. This document preserves the design decisions
+> and verification record; current behavior is documented in the workbench
+> guide, architecture and testing strategy. Live browser/hardware limitations
+> are recorded below.
+
 ## Status and outcome
 
-Proposed on 2026-09-09. Planning only; none of the increments below is implemented.
+Proposed and implemented on 2026-09-09. The parser, converter, review workflow,
+ordinary version-9 insertion, native text matching and Lua handoff are in place.
+Focused tests, the complete suite and the production check pass; evidence is
+recorded below.
+
+Implementation decisions: source fonts use explicitly labelled estimated
+metrics; native matching weights ink-height error at 1, advance-width error at
+0.25 and atlas-size error at 0.5, with a 0.65 review threshold. Curve candidates
+use bounded segment counts and measured sampled error against rounded output.
+Filled shapes use transparent-hole-preserving rectangles; no opaque pixel-box
+flattening option is exposed. The generic importer ignores exporter shade/state
+metadata and quantizes RGB colours, including the pixel library's cyan palette.
+Large library files must be exported as a selection to meet the 2 MiB limit.
+The source reference is reconstructed geometry with local generic text, not an
+unrestricted rendering of the original SVG.
+
+Live browser setup failed: “privileged native pipe bridge is not available;
+browser-client is not trusted.” The complete unavailable browser matrix is
+recorded in [Testing](../../TESTING.md#react-rendering-and-ui-models). No hardware
+font or smooth-rendering verification was available; conformance claims remain
+unchanged.
 
 Add **Import SVG** to the Display designer. Convert a selected SVG into ordinary,
 editable designer elements, automatically choosing the closest supported drawing
@@ -10,32 +36,32 @@ representation and standard/tiny native text. Preview the conversion, explain
 losses and size problems, and let the user resolve them before inserting it.
 Every inserted element must participate in the existing Lua generation workflow.
 
-This extends the original [designer plan](DISPLAY_UI_DESIGNER_IMPLEMENTATION_PLAN.md),
+This extends the original [designer plan](../../plans/DISPLAY_UI_DESIGNER_IMPLEMENTATION_PLAN.md),
 which deferred SVG import. It supersedes that deferral for this feature only.
 SVG remains an input format; the saved scene remains a Disting-oriented document.
 Import is a Luading authoring extension, not a new firmware API.
 
 ## Evidence and existing integration points
 
-- The official [Lua scripting 1.12 PDF](../Disting%20NT%20Lua%20Scripting%201.12.pdf),
+- The official [Lua scripting 1.12 PDF](../../Disting%20NT%20Lua%20Scripting%201.12.pdf),
   pages 21 and 23–25, defines the 256×64 display, shades 0–15, drawing functions,
   text baselines, and the tiny 3×5 font. Native text has two choices, not an
   arbitrary font-size argument.
-- [API metadata](../../src/disting/validation/api-manifest.ts) and
-  [conformance status](../CONFORMANCE_STATUS.md) identify approximate font faces
+- [API metadata](../../../src/disting/validation/api-manifest.ts) and
+  [conformance status](../../CONFORMANCE_STATUS.md) identify approximate font faces
   and smooth rendering. The standard 8px Pixelmix and tiny 6px Tom Thumb atlas
   metrics are simulator approximations, not verified hardware font dimensions.
-- The [current model](../../src/disting/workbench/display-designer/display-design-model.ts)
+- The [current model](../../../src/disting/workbench/display-designer/display-design-model.ts)
   is version 9. It already supports lines, boxes, outline circles, regular
   polygons, Bézier curves, text, pixel boxes, groups, screens, tokens, and bindings.
 - Reuse the compiler, generator, validation, history, identifier allocation,
   geometry, pixel-box optimizer, and file serializer in
   `src/disting/workbench/display-designer/`. Reuse
-  [font measurement](../../src/disting/emulation/display-font.ts) and the
+  [font measurement](../../../src/disting/emulation/display-font.ts) and the
   production display renderer for target previews.
-- Follow the current [authoring boundary](../ARCHITECTURE.md#display-design-authoring-and-file-handoff),
-  [workbench behavior](../WORKBENCH_GUIDE.md#display-designer), and
-  [test workflow](../TESTING.md). Import never changes the active script or
+- Follow the current [authoring boundary](../../ARCHITECTURE.md#display-design-authoring-and-file-handoff),
+  [workbench behavior](../../WORKBENCH_GUIDE.md#display-designer), and
+  [test workflow](../../TESTING.md). Import never changes the active script or
   simulation. The user copies the generated callback through the existing action.
 
 Use the W3C SVG specifications for the source format:
@@ -292,12 +318,12 @@ until its checks and any unavailable verification are recorded here.
 
 | Increment | Deliverable and acceptance evidence | Status |
 | --- | --- | --- |
-| 1. Fixtures and contract | Minimal hand-authored SVGs plus representative tool exports; exact supported-subset table, fit tolerances, limits, finding actions, and expected target scenes. Include a selected group from the existing pixel UI SVG. | Planned |
-| 2. Safe parsing and normalization | File/XML failures, styles, viewport/transform order, local references, bounds, paint order, blocked resources, expansion limits and cancellation tests. | Planned |
-| 3. Geometry and native text | Direct matches, all path commands, filled holes, opacity refusal, pixel-box transparency guard, both font candidates, baseline/alignment, spans, unsupported characters and post-fit overflow tests. | Planned |
-| 4. Materialization and generated Lua | Valid version-9 imports, group/name collisions, existing-content limits, source ranges, binding edits, JSON round trips, and deterministic compiler/generator output. | Planned |
-| 5. Review workflow | Dialog rendering/accessibility/model tests; file/fit/group selection, finding resolution, failed/cancelled import, stale analysis, one-step undo/redo and successful code handoff. | Planned |
-| 6. Acceptance and documentation | Complete automated checks, browser matrix, evidence limitations, updated current guides, and dated completion record. | Planned |
+| 1. Fixtures and contract | Minimal hand-authored SVGs plus representative tool exports; exact supported-subset table, fit tolerances, limits, finding actions, and expected target scenes. Include a selected group from the existing pixel UI SVG. | Complete; focused tests pass |
+| 2. Safe parsing and normalization | File/XML failures, styles, viewport/transform order, local references, bounds, paint order, blocked resources, expansion limits and cancellation tests. | Complete; focused tests pass |
+| 3. Geometry and native text | Direct matches, all path commands, filled holes, opacity refusal, pixel-box transparency guard, both font candidates, baseline/alignment, spans, unsupported characters and post-fit overflow tests. | Complete; focused tests pass |
+| 4. Materialization and generated Lua | Valid version-9 imports, group/name collisions, existing-content limits, source ranges, binding edits, JSON round trips, and deterministic compiler/generator output. | Complete; focused tests pass |
+| 5. Review workflow | Dialog rendering/accessibility/model tests; file/fit/group selection, finding resolution, failed/cancelled import, stale analysis, one-step undo/redo and successful code handoff. | Complete; focused tests pass |
+| 6. Acceptance and documentation | Complete automated checks, browser matrix, evidence limitations, updated current guides, and dated completion record. | Complete; automated checks pass, unavailable browser matrix recorded |
 
 Required regression examples include a native-resolution UI that needs no fit,
 a 1024×256 UI fitted to 256×64, a tall UI retaining the parameter line, a huge
@@ -338,3 +364,13 @@ The release acceptance condition is that every imported visible object either
 becomes editable, code-generating content or receives an explicitly resolved
 finding; no object is silently lost, no unresolved layout loss is hidden, and
 no partial import mutates the draft after a failure.
+
+## Verification record
+
+2026-09-09: the five co-located SVG test files add 41 tests covering parser,
+conversion, real export artwork, Lua integration and the review dialog. All
+`npm test` checks pass: 147 files, 941 tests, including the existing corpus and
+conformance suites. `npm run check` passes: lint, coverage thresholds, all 941 tests, TypeScript
+and the production build. The build retains non-blocking chunk-size/plugin-time
+notices. Documentation link guardrails and `git diff --check` pass.
+No runtime, firmware API, atlas, or persisted schema changes were made.

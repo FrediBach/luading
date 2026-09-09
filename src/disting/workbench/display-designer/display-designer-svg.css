@@ -1,0 +1,35 @@
+.svg-import-backdrop { position:fixed; inset:0; z-index:240; display:grid; place-items:center; padding:12px; background:#020606d9; }
+.svg-import-dialog { width:min(1300px,100%); height:auto; max-height:100%; display:flex; flex-direction:column; overflow:auto; }
+.svg-import-dialog header,.svg-import-dialog footer { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 16px; background:var(--surface-command); }
+.svg-import-dialog header { border-bottom:1px solid var(--nt-line); }
+.svg-import-dialog footer { position:sticky; bottom:0; border-top:1px solid var(--nt-line); }
+.svg-import-dialog h2,.svg-import-dialog h3 { margin:0 0 6px; font-size:var(--font-body); }
+.svg-import-dialog p { margin:5px 0; color:var(--nt-muted); font-size:var(--font-label); }
+.svg-import-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:10px; padding:10px 16px; }
+.svg-import-dialog label { display:flex; align-items:center; gap:5px; font-size:var(--font-label); }
+.svg-import-dialog label:has(>span) { flex-direction:column; align-items:stretch; }
+.svg-import-dialog input,.svg-import-dialog select { min-width:0; max-width:100%; padding:6px; border:1px solid var(--nt-line); color:var(--nt-text); background:var(--surface-recessed); border-radius:4px; }
+.svg-import-toolbar input[type=number] { width:80px; }
+.svg-import-toolbar select { max-width:240px; }
+.svg-import-previews { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:8px 16px; }
+.svg-import-previews figure { min-width:0; margin:0; padding:8px; border:1px solid var(--nt-line); border-radius:6px; }
+.svg-import-previews figcaption { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:var(--font-label); margin-bottom:8px; }
+.svg-import-reference { width:100%; height:160px; background:#161b1b; }
+.svg-import-preview-scroll { overflow:auto; min-height:160px; display:grid; align-items:center; }
+.svg-import-pixels { position:relative; flex:none; }
+.svg-import-pixels canvas,.svg-import-pixels svg { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+.svg-import-pixels svg { pointer-events:none; }
+.svg-import-review { display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:12px; padding:12px 16px; min-height:160px; }
+.svg-import-review section { min-width:0; display:flex; flex-direction:column; gap:8px; }
+.svg-import-object-list { max-height:260px; overflow:auto; }
+.svg-import-object-list>div { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:4px; }
+.svg-import-object-list button { min-width:0; overflow-wrap:anywhere; text-align:left; }
+.svg-import-review ul { margin:0; padding:0; list-style:none; max-height:280px; overflow:auto; }
+.svg-import-review li { border-left:2px solid var(--nt-line); padding:6px; margin:4px 0; }
+.svg-import-review li[data-severity=blocked] { border-color:#ff9248; }
+.svg-import-review li>button { text-align:left; width:100%; }
+.svg-import-error,.svg-import-empty { padding:16px; }
+.svg-import-dialog .svg-import-insert { color:var(--nt-green); border-color:var(--nt-green); flex:none; }
+@media(max-width:900px) { .svg-import-review { grid-template-columns:1fr 1fr; } .svg-import-review section:last-child { grid-column:1/-1; } }
+@media(max-width:720px) { .svg-import-backdrop { padding:0; } .svg-import-dialog { height:100%; border-radius:0; } .svg-import-previews,.svg-import-review { grid-template-columns:1fr; } .svg-import-dialog footer { align-items:stretch; flex-direction:column; gap:6px; } .svg-import-dialog header { align-items:start; } }
+@media(pointer:coarse) { .svg-import-dialog button,.svg-import-dialog input,.svg-import-dialog select { min-height:44px; } }

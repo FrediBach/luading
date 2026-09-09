@@ -288,6 +288,30 @@ complete preset/bus semantics, visual parity, or real hardware I/O.
 
 ### React rendering and UI models
 
+SVG import tests cover detached XML/file limits, forbidden resources/entities,
+simple CSS cascade/inheritance, local reference expansion/cycles, transforms,
+units/viewports, all path command families, curve extrema, compact arc flags,
+fill rules/holes, native text selection, explicit line splitting, missing glyphs,
+clipping, opacity refusal, group selection and aggregate destination limits.
+Imported generated callbacks run through the production Wasmoon/display bridge
+in both display modes, including native text bindings and string escaping;
+integer/font pixels and commands agree with the preview compiler. A real group
+from the pixel UI SVG pins pixel positions and the documented generic RGB shade
+mapping without claiming recovery of outlined text or component metadata.
+
+The import dialog's jsdom tests exercise the file picker, converted preview
+structure, unsupported-object exclusion, parse failures, cancellation, stale
+file reads, current-destination revalidation, Escape handling, launcher focus,
+and atomic insertion with Undo/Redo. These tests do not verify browser layout,
+real Canvas compositing, native file-picker behavior, screen-reader output or
+network isolation in an actual browser. During the 2026-09-09 implementation,
+browser setup failed with “privileged native pipe bridge is not available;
+browser-client is not trusted.” Chromium, Firefox and Safari checks remain
+unverified at >900px, 721–900px and ≤720px, including keyboard/focus, coarse
+pointers, reduced motion, reference isolation/no network requests, 1×/2×/4×
+previews, fit controls, cancellation, repeated import, Undo/Redo, Download/Open
+and Copy callback. Hardware font/smooth-rendering parity remains unverified.
+
 Server-rendering tests use `renderToStaticMarkup()` to pin component structure,
 accessible names and states, responsive branch selection, routing/status text,
 parameter-preset simulator disclosure, active/Custom selection, and control

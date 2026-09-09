@@ -173,6 +173,7 @@ import {
   updateDisplaySymbolVariant,
 } from './display-design-symbols'
 import { optimizeDisplayPixelBox } from './display-design-pixel-box'
+import { DisplaySvgImportDialog } from './DisplaySvgImportDialog'
 import './display-designer.css'
 
 interface Props {
@@ -2025,6 +2026,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const [confirmReplace, setConfirmReplace] = useState(false)
   const [pendingDetachId, setPendingDetachId] = useState<string>()
   const [fileStatus, setFileStatus] = useState('')
+  const [svgImportOpen, setSvgImportOpen] = useState(false)
   const [focusTokenId, setFocusTokenId] = useState<string>()
   const [responsivePanel, setResponsivePanel] = useState<DisplayDesignerPanel>('layers')
   const [leftPanel, setLeftPanel] = useState<DisplayDesignerLeftPanel>('layers')
@@ -2040,6 +2042,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
   const discardRef = useRef<HTMLButtonElement>(null)
   const replaceRef = useRef<HTMLButtonElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const svgImportButtonRef = useRef<HTMLButtonElement>(null)
   const layout = useDisplayDesignerLayout(viewportWidth)
   const responsive = layout !== 'wide'
   const effectiveZoom = layout === 'narrow' ? 'fit' : zoom
@@ -2596,7 +2599,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
 
   const dialog = (
     <div className="display-designer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose() }}>
-      <div ref={dialogRef} className={`display-designer-dialog is-${layout}`} data-layout={layout} role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description display-designer-disclosure" onKeyDown={handleKeyDown}>
+      <div ref={dialogRef} inert={svgImportOpen} className={`display-designer-dialog is-${layout}`} data-layout={layout} role="dialog" aria-modal="true" aria-labelledby="display-designer-title" aria-describedby="display-designer-description display-designer-disclosure" onKeyDown={handleKeyDown}>
         <header className="display-designer-header">
           <div className="display-designer-title"><h2 id="display-designer-title">Display designer <span className="display-designer-beta">Beta</span></h2><p id="display-designer-description">Browser-only authoring for the 256 × 64 Disting NT display.</p></div>
           <label><span>Display mode</span><select value={document.displayMode} onChange={(event) => commit('Change display mode', setDisplayDesignMode(document, event.currentTarget.value as DisplayDesignDocument['displayMode']))}><option value="parameter-line">Keep standard parameter line</option><option value="full-screen">Use full display</option></select></label>
@@ -2612,6 +2615,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
           <button type="button" disabled={history.future.length === 0} onClick={() => setHistory(redoDisplayDesign)}>Redo</button>
           <div className="display-designer-file-actions">
             <button type="button" onClick={requestOpenDesign}>Open design</button>
+            <button ref={svgImportButtonRef} type="button" onClick={() => { updateGesture(null); setSvgImportOpen(true) }}>Import SVG</button>
             <button type="button" disabled={!serializedDocument.ok} onClick={downloadDesign}>Download design</button>
             {fileStatus && <span className="display-designer-file-status" role="status">{fileStatus}</span>}
             <input
@@ -2957,6 +2961,13 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
 
         {confirmReplace && <div className="display-designer-confirm-shell"><section role="alertdialog" aria-modal="true" aria-labelledby="display-designer-replace-title" aria-describedby="display-designer-replace-description"><h3 id="display-designer-replace-title">Replace changed display design?</h3><p id="display-designer-replace-description">Choose a file only after confirming that the current undownloaded changes may be replaced. A failed open will still keep them.</p><div><button type="button" onClick={() => setConfirmReplace(false)}>Keep current design</button><button ref={replaceRef} type="button" className="is-danger" onClick={() => { setConfirmReplace(false); chooseDesignFile() }}>Discard changes and choose file</button></div></section></div>}
       </div>
+      {svgImportOpen && <DisplaySvgImportDialog returnFocusRef={svgImportButtonRef} document={history.present.document} onClose={() => setSvgImportOpen(false)} onInsert={(nextDocument, nextSelection, summary) => {
+        commit('Import SVG', nextDocument, nextSelection)
+        setActiveTool('select')
+        setLeftPanel('layers')
+        setFileStatus(summary)
+        setSvgImportOpen(false)
+      }} />}
     </div>
   )
 
