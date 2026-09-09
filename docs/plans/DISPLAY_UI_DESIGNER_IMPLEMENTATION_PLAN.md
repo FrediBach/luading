@@ -145,6 +145,12 @@ conversion layer. This has three intended consequences:
 SVG import can be investigated later as a lossy trace/reference feature. It is
 not a dependency for version one and must not distort the core scene model.
 
+Planning update (2026-09-09): the separate
+[SVG import plan](DISPLAY_DESIGNER_SVG_IMPORT_PLAN.md) now proposes conversion
+into editable designer primitives and native text, with guided loss/size review.
+It supersedes the SVG deferral for that follow-up feature; the original
+version-one scope above remains a record of the initial design decision.
+
 ### The design document is not the Lua source
 
 The designer owns a separate, versioned, browser-only document. It does not

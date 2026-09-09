@@ -71,6 +71,9 @@ results separately from claims about the Disting hardware contract.
   plans a built-in catalog of editable, stateful Eurorack display components
   and screen recipes on top of the Display designer, including patching,
   controls, signal processing, sequencing, and original drum-machine graphics.
+- [Display designer SVG import](plans/DISPLAY_DESIGNER_SVG_IMPORT_PLAN.md) plans
+  editable SVG-to-drawing conversion, automatic native text/font selection,
+  code-ready imports, and guided resolution of unsupported or oversized artwork.
 
 An active plan describes intended work and is not evidence that the behavior
 exists. Update its status as work lands. Once it is complete, move it to the
