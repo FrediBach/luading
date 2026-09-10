@@ -1,0 +1,139 @@
+/* Designer-owned defaults. Keep element selectors inside these surface roots.
+   :where() keeps their specificity below component rules; the root class beats
+   unscoped application element rules regardless of stylesheet import order.
+   Add new shared element defaults here, not one-off repairs in each panel. */
+:is(.display-designer-dialog, .display-designer-context-menu) {
+  font: var(--font-label)/1.4 var(--mono);
+  letter-spacing: normal;
+  color: var(--nt-text);
+}
+:is(.display-designer-dialog, .display-designer-context-menu),
+:is(.display-designer-dialog, .display-designer-context-menu) :where(*, *::before, *::after) {
+  box-sizing: border-box;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  color: var(--nt-text);
+  font: 600 var(--font-label)/1.3 var(--mono);
+  letter-spacing: normal;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(p, pre, figure) {
+  margin: 0;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :is(code, kbd, samp) {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-family: var(--mono);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(pre) {
+  font: inherit;
+  white-space: pre;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :is(pre code) {
+  white-space: inherit;
+  overflow-wrap: normal;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(small, legend, summary) {
+  color: var(--nt-muted);
+  font-family: var(--mono);
+  font-size: var(--font-micro);
+  line-height: 1.4;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(summary) {
+  cursor: pointer;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(fieldset, details, label) {
+  min-width: 0;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(fieldset) {
+  margin: 0;
+  padding: 7px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(ul, ol) {
+  margin: 0;
+  padding-left: 1.5em;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(a) {
+  color: var(--nt-green);
+  text-decoration: underline;
+}
+:is(.display-designer-dialog, .display-designer-context-menu) :where(button, input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  font: var(--font-label)/1.2 var(--mono);
+  letter-spacing: normal;
+}
+.display-designer-dialog :where(input, select, textarea) {
+  padding: 4px 7px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  color: var(--nt-text);
+  background: var(--surface-recessed);
+  accent-color: var(--nt-green);
+}
+/* Preserve native checkbox/radio geometry and range interaction. */
+.display-designer-dialog :where(input[type='checkbox'], input[type='radio'], input[type='range']) {
+  padding: 0;
+}
+.display-designer-field {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+.display-designer-help {
+  margin: 0;
+  color: var(--nt-muted);
+  font: var(--font-micro)/1.4 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.display-designer-dialog button,
+.display-designer-dialog input,
+.display-designer-dialog select,
+.display-designer-dialog textarea {
+  font: var(--font-label)/1.2 var(--mono);
+}
+
+.display-designer-dialog button {
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--nt-line);
+  border-radius: 5px;
+  color: var(--nt-muted);
+  background: var(--surface-recessed);
+  cursor: pointer;
+}
+
+.display-designer-dialog button:hover:not(:disabled),
+.display-designer-dialog button[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--nt-green) 70%, var(--nt-line));
+  color: var(--nt-green);
+}
+
+.display-designer-dialog button[aria-pressed='true'] {
+  box-shadow: inset 0 -2px var(--nt-green);
+}
+
+.display-designer-dialog button:focus-visible,
+.display-designer-dialog input:focus-visible,
+.display-designer-dialog select:focus-visible,
+.display-designer-dialog textarea:focus-visible,
+.display-designer-dialog summary:focus-visible,
+.display-designer-dialog a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--nt-green) 75%, white);
+  outline-offset: 1px;
+}
+
+.display-designer-dialog button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

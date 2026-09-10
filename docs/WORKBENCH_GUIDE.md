@@ -1344,7 +1344,20 @@ the current state menu contains duplicate, add-blank, reorder, make-default,
 and delete actions. Symbol states contain primitives only; symbols cannot nest.
 
 Instances choose a literal state or attach a choice binding with an explicit
-choice-to-state map. **Make state dynamic** creates matching choices, while
+choice-to-state map. For a dynamic instance, **Preview state** in Properties
+selects the current input value and **Showing** identifies its resulting artwork.
+The compact help text wraps long Lua binding names within the inspector.
+The designer, SVG import dialog, and popup menus share scoped typography,
+control sizing, inline-code, and disclosure defaults in both themes. Help text
+uses a plain muted style; dashed boxes indicate empty content. Source blocks
+retain their whitespace and syntax highlighting.
+This control shares the State panel's preview value, including across instances
+using the same binding. Expand **State mapping** to change the binding or edit
+explicit **When input is …, show** rules. Editing an inactive rule does not change
+the current preview; select that input to see it. Switching bindings matches the
+new choices by Lua value to symbol states, falling back to the symbol's default
+for unmatched values. Mapping edits are undoable; preview changes add no undo
+entries. **Make state dynamic** creates matching choices, while
 **Sync choices with states** is the explicit, undoable way to adopt later state
 changes; editing a definition never silently rewrites a shared choice binding.
 Detaching keeps only the current preview state as ordinary scene layers after a

@@ -10,6 +10,7 @@ import { materializeSvgImport, unresolvedSvgFindings } from './display-design-sv
 import { DEFAULT_SVG_IMPORT_OPTIONS, svgUnion, type SvgConversion, type SvgImportOptions, type SvgNodeOverride, type SvgScene, type SvgSourceNode } from './display-design-svg-model'
 import { svgColour } from './display-design-svg-style'
 import { matchSvgText } from './display-design-svg-text'
+import './display-designer-foundation.css'
 import './display-designer-svg.css'
 
 function sourcePaint(node: SvgSourceNode, key: 'fill' | 'stroke') {

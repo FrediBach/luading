@@ -162,6 +162,7 @@ afterEach(async () => {
   if (revokeObjectUrlDescriptor) Object.defineProperty(URL, 'revokeObjectURL', revokeObjectUrlDescriptor)
   else delete (URL as Partial<typeof URL>).revokeObjectURL
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 describe('Display designer dialog', () => {
@@ -183,6 +184,54 @@ describe('Display designer dialog', () => {
     await click(button('Use X1 token/formula'))
     expect(field('X1 formula')).not.toBeNull()
     expect(button('Copy draw callback').classList.contains('display-designer-primary')).toBe(true)
+  })
+
+  it('previews instance inputs directly, distinguishes mapping rules, and remaps a changed binding', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Components'))
+    await commitInput(field('Search components') as HTMLInputElement, '7 segment')
+    await click(button('Insert Seven segment small at centre'))
+    const selectByName = async (label: string, name: string) => {
+      const select = field(label) as HTMLSelectElement
+      const option = [...select.options].find((candidate) => candidate.textContent === name)!
+      await choose(select, option.value)
+    }
+    const inspector = () => document.querySelector('.display-designer-inspector')!
+    const mapping = [...inspector().querySelectorAll('details')].find((details) => details.querySelector('summary')?.textContent === 'State mapping')!
+    expect(mapping.open).toBe(false)
+    expect(mapping.classList.contains('display-designer-property-options')).toBe(true)
+    expect(inspector().querySelector('.display-designer-help code')?.textContent).toBe('seven_segment_small_state')
+    expect(inspector().querySelector('.display-designer-binding-map .display-designer-empty')).toBeNull()
+    expect(inspector().textContent).toContain('Showing: 0.')
+    await click(mapping.querySelector('summary')!)
+    await selectByName('When input is 1, show', '5')
+    expect(inspector().textContent).toContain('Showing: 0.')
+    await selectByName('Preview state', '1')
+    expect(inspector().textContent).toContain('Showing: 5.')
+    expect(source()).toContain('seven_segment_small_state = "1"')
+    const sharedPreview = bindingCard('Seven segment small · State').querySelector('select')!
+    expect(sharedPreview.selectedOptions[0]?.textContent).toBe('1')
+    await choose(sharedPreview, [...sharedPreview.options].find((option) => option.textContent === '2')!.value)
+    expect((field('Preview state') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('2')
+    expect(inspector().textContent).toContain('Showing: 2.')
+
+    await click(button('Insert Seven segment medium at centre'))
+    await click(layer('Seven segment small instance'))
+    await selectByName('Choice binding', 'Seven segment medium · State')
+    await selectByName('Preview state', '1')
+    expect(inspector().textContent).toContain('Showing: 1.')
+    expect((field('When input is 1, show') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('1')
+    // Preview changes do not add undo entries; undo restores the prior binding and its custom map.
+    await click(button('Undo'))
+    expect((field('Choice binding') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Seven segment small · State')
+    expect((field('When input is 1, show') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('5')
+    await commitInput(field('Search components') as HTMLInputElement, 'input jack')
+    await click(button('Insert Input jack at centre'))
+    await click(layer('Seven segment small instance'))
+    await selectByName('Choice binding', 'Input jack · State')
+    expect(inspector().textContent).toContain('Showing: Blank.')
+    expect((field('When input is Unpatched, show') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Blank')
   })
 
   it('finds all seven-segment sizes and inserts custom controls with accessible labels', async () => {
@@ -637,6 +686,9 @@ describe('Display designer dialog', () => {
   })
 
   it('animates pixel boxes by duplicating frames and exposes exact rate and hold controls', async () => {
+    // This test edits animation data; live preview ticks can keep async act()
+    // rendering indefinitely on slower coverage runs. Advance them explicitly.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))
     await addDefault('Pixel box')
@@ -665,6 +717,8 @@ describe('Display designer dialog', () => {
     expect(source()).toContain('if displayFrame % 30 < 6 then')
     expect(source()).toContain('elseif displayFrame % 30 < 12 then')
     expect(source()).toContain('elseif displayFrame % 30 < 30 then')
+    await act(async () => { vi.advanceTimersByTime(100) })
+    expect(field('Frame duration')).toHaveProperty('value', '3')
   })
 
   it('authors axis-aligned two-shade animated lines with direction and speed controls', async () => {

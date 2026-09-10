@@ -4,12 +4,20 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DisplayDesignerDialog } from './DisplayDesignerDialog'
 
+const foundationCss = readFileSync(new URL('./display-designer-foundation.css', import.meta.url), 'utf8')
 const designerCss = readFileSync(new URL('./display-designer.css', import.meta.url), 'utf8')
 const distingCss = readFileSync(new URL('../../DistingPlayground.css', import.meta.url), 'utf8')
 const workbenchCss = readFileSync(new URL('../workbench.css', import.meta.url), 'utf8')
 const rootCss = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8')
 
 describe('Display designer rendering', () => {
+  it('keeps dynamic state help and controls inside narrow inspector columns', () => {
+    expect(designerCss).toMatch(/\.display-designer-binding-map \{[^}]*grid-template-columns: minmax\(0, 1fr\);/s)
+    expect(designerCss).toContain('.display-designer-binding-map .display-designer-field { min-width: 0; }')
+    expect(designerCss).toMatch(/\.display-designer-binding-map select \{[^}]*min-width: 0;[^}]*max-width: 100%;/s)
+    expect(foundationCss).toMatch(/\.display-designer-help \{[^}]*font: var\(--font-micro\)\/1\.4 var\(--mono\);[^}]*overflow-wrap: anywhere;/s)
+  })
+
   it('renders a labelled full-size authoring dialog with every static primitive path', () => {
     const markup = renderToStaticMarkup(
       <DisplayDesignerDialog open returnFocusRef={createRef<HTMLElement>()} onClose={() => undefined} />,

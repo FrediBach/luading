@@ -174,6 +174,7 @@ import {
 } from './display-design-symbols'
 import { optimizeDisplayPixelBox } from './display-design-pixel-box'
 import { DisplaySvgImportDialog } from './DisplaySvgImportDialog'
+import './display-designer-foundation.css'
 import './display-designer.css'
 
 interface Props {
@@ -1196,6 +1197,7 @@ function DisplayDesignerInspector({
   onEditSymbol,
   onDetachInstance,
   onMakeIndependent,
+  onPreviewUpdate,
 }: {
   element?: DisplayDesignElement
   document: DisplayDesignDocument
@@ -1208,6 +1210,7 @@ function DisplayDesignerInspector({
   onEditSymbol?(instance: DisplaySymbolInstance): void
   onDetachInstance?(instance: DisplaySymbolInstance): void
   onMakeIndependent?(instance: DisplaySymbolInstance): void
+  onPreviewUpdate(bindingId: string, update: (binding: DisplayDesignBinding) => DisplayDesignBinding): void
 }) {
   const [pixelPaintShade, setPixelPaintShade] = useState(15)
   const [pixelFrameIndex, setPixelFrameIndex] = useState(0)
@@ -1283,7 +1286,32 @@ function DisplayDesignerInspector({
           : element[property]
         onCommit(`Make instance ${property} runtime dynamic`, updateDisplayDesignElement(created.document, element.id, (current) => current.kind === 'symbol-instance' ? { ...current, [property]: { kind: 'number-binding', bindingId: created.binding.id, from: staticScalar, to: offsetDisplayStaticScalar(staticScalar, 16), quantize: 'none' } } : current))
       }} />)}</div>
-      {element.state.kind === 'literal' ? <label className="display-designer-field"><span>State</span><select value={element.state.variantId} onChange={(event) => updateInstance('Change instance state', (instance) => ({ ...instance, state: { kind: 'literal', variantId: event.currentTarget.value } }))}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label> : <fieldset className="display-designer-binding-map"><legend>Dynamic state</legend><label className="display-designer-field"><span>Choice binding</span><select value={element.state.bindingId} onChange={(event) => updateInstance('Change state binding', (instance) => ({ ...instance, state: { kind: 'choice-binding', bindingId: event.currentTarget.value, variantByChoiceId: instance.state.kind === 'choice-binding' ? instance.state.variantByChoiceId : {} } }))}>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>{binding?.kind === 'choice' && binding.choices.map((choice) => <label key={choice.id} className="display-designer-field"><span>{choice.name}</span><select value={element.state.kind === 'choice-binding' ? element.state.variantByChoiceId[choice.id] ?? '' : ''} onChange={(event) => updateInstance('Map instance state', (instance) => instance.state.kind === 'choice-binding' ? { ...instance, state: { ...instance.state, variantByChoiceId: { ...instance.state.variantByChoiceId, [choice.id]: event.currentTarget.value } } } : instance)}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>)}<button type="button" onClick={() => onCommit('Sync choices with states', syncDisplaySymbolChoiceMap(document, element.id))}>Sync choices with states</button><button type="button" onClick={() => {
+      {element.state.kind === 'literal' ? <label className="display-designer-field"><span>State</span><select value={element.state.variantId} onChange={(event) => updateInstance('Change instance state', (instance) => ({ ...instance, state: { kind: 'literal', variantId: event.currentTarget.value } }))}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label> : <fieldset className="display-designer-binding-map"><legend>Dynamic state</legend>
+        {binding?.kind === 'choice' && <>
+          <label className="display-designer-field"><span>Preview state</span><select value={binding.previewChoiceId} onChange={(event) => {
+            const previewChoiceId = event.currentTarget.value
+            onPreviewUpdate(binding.id, (current) => current.kind === 'choice' ? { ...current, previewChoiceId } : current)
+          }}>{binding.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.name}</option>)}</select></label>
+          <p className="display-designer-help">Showing: {symbol.variants.find(({ id }) => id === (elementState.kind === 'choice-binding' ? elementState.variantByChoiceId[binding.previewChoiceId] : undefined))?.name ?? symbol.variants.find(({ id }) => id === symbol.defaultVariantId)?.name}. Preview values are shared by instances using this binding. Connect <code>{binding.luaName}</code> to script state in the generated Lua.</p>
+        </>}
+        <details className="display-designer-property-options"><summary>State mapping</summary>
+          <p className="display-designer-help">Each rule chooses the artwork shown for one input value. Only the rule matching Preview state affects the current preview.</p>
+          <label className="display-designer-field"><span>Choice binding</span><select value={element.state.bindingId} onChange={(event) => {
+            const nextBinding = document.bindings.find(({ id }) => id === event.currentTarget.value)
+            if (nextBinding?.kind !== 'choice') return
+            const byValue = new Map(symbol.variants.map((variant) => [variant.luaValue, variant.id]))
+            updateInstance('Change state binding', (instance) => ({ ...instance, state: {
+              kind: 'choice-binding', bindingId: nextBinding.id,
+              variantByChoiceId: Object.fromEntries(nextBinding.choices.map((choice) => [choice.id, byValue.get(choice.luaValue) ?? symbol.defaultVariantId])),
+            } }))
+          }}>{document.bindings.filter(({ kind }) => kind === 'choice').map((choiceBinding) => <option key={choiceBinding.id} value={choiceBinding.id}>{choiceBinding.name}</option>)}</select></label>
+          {binding?.kind === 'choice' && binding.choices.map((choice) => <label key={choice.id} className="display-designer-field"><span>When input is {choice.name}, show</span><select value={(elementState.kind === 'choice-binding' ? elementState.variantByChoiceId[choice.id] : undefined) ?? symbol.defaultVariantId} onChange={(event) => {
+            const variantId = event.currentTarget.value
+            updateInstance('Map instance state', (instance) => instance.state.kind === 'choice-binding' ? { ...instance, state: { ...instance.state, variantByChoiceId: { ...instance.state.variantByChoiceId, [choice.id]: variantId } } } : instance)
+          }}>{symbol.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>)}
+          <button type="button" onClick={() => onCommit('Sync choices with states', syncDisplaySymbolChoiceMap(document, element.id))}>Sync choices with states</button>
+        </details>
+        <button type="button" onClick={() => {
         const choice = binding?.kind === 'choice' ? binding.previewChoiceId : ''
         updateInstance('Make instance state static', (instance) => ({ ...instance, state: { kind: 'literal', variantId: instance.state.kind === 'choice-binding' ? instance.state.variantByChoiceId[choice] ?? symbol.defaultVariantId : symbol.defaultVariantId } }))
       }}>Make state static</button></fieldset>}
@@ -1727,7 +1755,7 @@ function DisplayDesignerStatePanel({
 
   return <section className="display-designer-panel display-designer-state" aria-labelledby="display-designer-state-title">
     <h3 id="display-designer-state-title">State</h3>
-    <p className="display-designer-empty">Preview controls are browser-only placeholders for generated Lua locals.</p>
+    <p className="display-designer-help">Preview controls are browser-only placeholders for generated Lua locals.</p>
     <div className="display-designer-state-add" aria-label="Add binding">
       {(['number', 'boolean', 'text', 'choice'] as const).map((kind) => <button key={kind} type="button" disabled={document.bindings.length >= DISPLAY_DESIGN_LIMITS.maximumBindings} onClick={() => addBinding(kind)}>Add {kind} binding</button>)}
     </div>
@@ -1815,7 +1843,7 @@ function DisplayDesignerTokensPanel({
   }
   return <section className="display-designer-panel display-designer-tokens" aria-labelledby="display-designer-tokens-title">
     <h3 id="display-designer-tokens-title">Tokens</h3>
-    <p className="display-designer-empty">Design tokens are authored layout/style numbers. They are not runtime bindings or Disting state.</p>
+    <p className="display-designer-help">Design tokens are authored layout/style numbers. They are not runtime bindings or Disting state.</p>
     <button type="button" disabled={document.tokens.length >= DISPLAY_DESIGN_LIMITS.maximumTokens} onClick={addToken}>Add number token</button>
     {document.tokens.length === 0 ? <p className="display-designer-empty">Create a token, then attach it to numeric properties or use it in a safe formula.</p> : <ol>{document.tokens.map((token, index) => {
       const tokenUsages = usages.filter(({ tokenId }) => tokenId === token.id)
@@ -2849,6 +2877,7 @@ export function DisplayDesignerDialog({ open, returnFocusRef, onClose, viewportW
                 showLayoutGrid={showLayoutGrid}
                 onToggleLayoutGrid={() => setShowLayoutGrid((value) => !value)}
                 onArtboardCommit={commit}
+                onPreviewUpdate={updateBindingPreview}
                 onCommit={(label, nextDocument) => {
                   if (!activeSymbol || !activeVariant) {
                     commit(label, mergeActiveDisplayDesignDocument(document, nextDocument))

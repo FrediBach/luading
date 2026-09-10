@@ -24,48 +24,6 @@
   color: var(--nt-text);
   background: var(--workbench-surface-panel);
   box-shadow: 0 24px 80px var(--shadow-strong);
-  font-family: var(--mono);
-}
-
-.display-designer-dialog button,
-.display-designer-dialog input,
-.display-designer-dialog select,
-.display-designer-dialog textarea {
-  font: var(--font-label)/1.2 var(--mono);
-}
-
-.display-designer-dialog button {
-  min-height: 30px;
-  padding: 4px 8px;
-  border: 1px solid var(--nt-line);
-  border-radius: 5px;
-  color: var(--nt-muted);
-  background: var(--surface-recessed);
-  cursor: pointer;
-}
-
-.display-designer-dialog button:hover:not(:disabled),
-.display-designer-dialog button[aria-pressed='true'] {
-  border-color: color-mix(in srgb, var(--nt-green) 70%, var(--nt-line));
-  color: var(--nt-green);
-}
-
-.display-designer-dialog button[aria-pressed='true'] {
-  box-shadow: inset 0 -2px var(--nt-green);
-}
-
-.display-designer-dialog button:focus-visible,
-.display-designer-dialog input:focus-visible,
-.display-designer-dialog select:focus-visible,
-.display-designer-dialog textarea:focus-visible,
-.display-designer-dialog summary:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--nt-green) 75%, white);
-  outline-offset: 1px;
-}
-
-.display-designer-dialog button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .display-designer-header {
@@ -467,7 +425,7 @@
 .display-designer-context-menu button.is-danger { color: var(--signal-error); }
 
 .display-component-library { margin: 0; border-top: 0; }
-.display-component-library > .display-designer-empty { margin: 5px 0 8px; }
+.display-component-library > .display-designer-help { margin: 5px 0 8px; }
 .display-component-library-filters { display: grid; gap: 6px; }
 .display-component-library-count,
 .display-component-library-status { margin: 7px 0 0; color: var(--nt-muted); font-size: var(--font-micro); line-height: 1.35; }
@@ -764,6 +722,7 @@
 }
 
 .display-designer-binding-map {
+  grid-template-columns: minmax(0, 1fr);
   margin: 0;
   padding: 7px;
   border: 1px solid color-mix(in srgb, var(--nt-green) 34%, var(--nt-line));
@@ -771,6 +730,9 @@
 }
 
 .display-designer-binding-map legend { color: var(--nt-green); font-size: var(--font-micro); }
+.display-designer-binding-map > * { min-width: 0; }
+.display-designer-binding-map .display-designer-field { min-width: 0; }
+.display-designer-binding-map select { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .display-designer-check { display: flex; align-items: center; gap: 6px; color: var(--nt-muted); font-size: var(--font-micro); }
 
 .display-designer-state { border-top: 1px solid var(--nt-line); }

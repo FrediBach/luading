@@ -364,10 +364,26 @@ selection, centre and drag insertion, single-transaction insertion/undo,
 resource details, Integration disclosure, State-panel bindings, generated
 source, and the responsive Components tab. Artwork tests exercise every declared
 state at both numeric extremes with boolean overlays enabled, checking integer
-coordinates and footprint containment. Focused raster tests cover empty meters,
+coordinates and footprint containment. Dynamic-instance inspector tests distinguish
+preview inputs from state-mapping rules, synchronize the Properties and State
+panels, and cover rebinding, default fallback, and undo. The pixel-box animation
+inspector test controls interval ticks explicitly while editing frames and checks
+that a preview tick preserves the authored duration; it does not measure browser
+frame cadence. Focused raster tests cover empty meters,
 equal segment widths, seven-segment digit masks and independent decimal/custom
 controls at all three sizes, label separation, alert silhouettes, completed progress,
 drum overlays, circular pointer compass positions, and integer preview scales.
+The shared `display-designer-foundation.css` owns element defaults for the
+main dialog, SVG import dialog, and portaled context menus. Add new common
+control/text defaults there before adding panel overrides; use
+`display-designer-help` for guidance and `display-designer-empty` for empty content.
+Foundation regression tests load real app and designer styles with additional
+conflicting global element rules before and after the designer CSS. They check
+inline code, heading/disclosure typography, control containment, source whitespace,
+SVG layout, and menu disabled styles using light and dark token fixtures. jsdom
+cannot resolve CSS custom properties, so these tests substitute fixture token
+literals before checking computed styles. They prove cascade behavior, not browser
+layout, native select rendering, real theme contrast, or focus-ring appearance.
 Actual browser compositing, scrolling through the full catalog, and physical 1x
 legibility still require live browser/device review.
 
