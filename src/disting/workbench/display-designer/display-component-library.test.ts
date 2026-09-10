@@ -186,11 +186,11 @@ function recipe(id: string) {
 describe('display component library', () => {
   it('ships the expected valid recipes in every component category', () => {
     expect(validateDisplayComponentCatalog(DISPLAY_COMPONENT_RECIPES)).toEqual([])
-    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(128)
+    expect(DISPLAY_COMPONENT_RECIPES).toHaveLength(131)
     const expectedCategoryCounts = {
       layout: 10,
       patching: 13,
-      controls: 13,
+      controls: 16,
       signals: 6,
       processors: 22,
       meters: 12,

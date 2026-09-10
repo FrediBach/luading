@@ -347,7 +347,7 @@ capture, CSS layout, scrolling, focus-ring visibility, touch behavior, or
 Canvas visual fidelity.
 
 Display-component-library tests pin the nine stable categories and complete
-128-recipe non-screen catalog, recipe/state/scenario/input-guidance validation,
+131-recipe non-screen catalog, recipe/state/scenario/input-guidance validation,
 search aliases, density and display-mode filters, collision-safe names,
 independent fresh bindings, open-grid and explicit placement, resource-limit
 rejection without document mutation, and successful materialization of every
@@ -365,7 +365,8 @@ resource details, Integration disclosure, State-panel bindings, generated
 source, and the responsive Components tab. Artwork tests exercise every declared
 state at both numeric extremes with boolean overlays enabled, checking integer
 coordinates and footprint containment. Focused raster tests cover empty meters,
-equal segment widths, label separation, alert silhouettes, completed progress,
+equal segment widths, seven-segment digit masks and independent decimal/custom
+controls at all three sizes, label separation, alert silhouettes, completed progress,
 drum overlays, circular pointer compass positions, and integer preview scales.
 Actual browser compositing, scrolling through the full catalog, and physical 1x
 legibility still require live browser/device review.

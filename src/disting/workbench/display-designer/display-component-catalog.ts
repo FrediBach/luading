@@ -1,4 +1,5 @@
 import { PROCESSOR_GLYPHS, type PixelStroke } from './display-component-glyphs'
+import { SEVEN_SEGMENT_COMPONENTS } from './display-component-seven-segment'
 import {
   type DisplayPrimitiveElement,
   type DisplayScalar,
@@ -4115,6 +4116,7 @@ export const DISPLAY_COMPONENT_RECIPES: readonly DisplayComponentRecipe[] = [
   softTakeoverControl,
   numericUnitReadout,
   choiceReadout,
+  ...SEVEN_SEGMENT_COMPONENTS,
   signalTypeBadge,
   waveformGlyph,
   directionBadge,

@@ -185,6 +185,26 @@ describe('Display designer dialog', () => {
     expect(button('Copy draw callback').classList.contains('display-designer-primary')).toBe(true)
   })
 
+  it('finds all seven-segment sizes and inserts custom controls with accessible labels', async () => {
+    await act(async () => { root.render(<DisplayDesignerLauncher />) })
+    await click(button('Open Display designer'))
+    await click(button('Components'))
+    await commitInput(field('Search components') as HTMLInputElement, '7 segment')
+    expect([...document.querySelectorAll('.display-component-card > header strong')].map((element) => element.textContent)).toEqual([
+      'Seven segment small', 'Seven segment medium', 'Seven segment large',
+    ])
+    await choose(document.querySelector<HTMLSelectElement>('[aria-label="Seven segment medium preview scenario"]')!, 'custom')
+    await click(button('Insert Seven segment medium at centre'))
+    expect(layer('Seven segment medium instance')).toBeTruthy()
+    for (const name of ['State', 'Brightness', 'Off brightness', 'Decimal point', 'Segment A', 'Segment G']) {
+      expect(bindingCard(`Seven segment medium · ${name}`)).toBeTruthy()
+    }
+    expect(source()).toContain('seven_segment_medium_state = "custom"')
+    expect(source()).toContain('seven_segment_medium_segment_a = true')
+    await click(button('Undo'))
+    expect(() => layer('Seven segment medium instance')).toThrow('Missing layer')
+  })
+
   it('searches starter components, previews scenarios, inserts editable stateful symbols, and undoes atomically', async () => {
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))
@@ -192,7 +212,7 @@ describe('Display designer dialog', () => {
     expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(true)
     await click(button('Components'))
     expect(document.querySelector('#display-designer-left-panel-components')?.hasAttribute('hidden')).toBe(false)
-    expect(document.querySelectorAll('.display-component-card')).toHaveLength(128)
+    expect(document.querySelectorAll('.display-component-card')).toHaveLength(131)
     await commitInput(field('Search components') as HTMLInputElement, 'classic analog snare')
     expect(document.querySelectorAll('.display-component-card')).toHaveLength(1)
     expect(document.querySelector('.display-component-card strong')?.textContent).toBe('Classic analog snare glyph')

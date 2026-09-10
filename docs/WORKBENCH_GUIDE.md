@@ -1034,7 +1034,7 @@ scenarios before inserting it. The preview is rasterized by the same display
 compiler and renderer as the artboard. Density and compatible-display-mode
 filters narrow the catalog, and every card shows one cropped pixel preview at
 an integer 1×–4× zoom, plus
-current/maximum draw calls and insertion resources. The catalog contains 128
+current/maximum draw calls and insertion resources. The catalog contains 131
 choices. Layout includes panel frame, section header, status lamp,
 divider/ruler, label/value row, state badge, tabs/segmented selector, and page
 indicator plus focus/selection brackets and an empty/unavailable marker. Patch and routing includes input,
@@ -1112,6 +1112,33 @@ used by that component. The confirmation states exactly which values stop being
 shared; the copy is then selected as one undoable transaction.
 
 ### Wiring component state
+
+**Seven segment small**, **medium**, and **large** provide 9×11, 14×19,
+and 23×33 pixel footprints including a decimal point. Search for `7 segment`
+in Controls. Each digit has string states `"0"`–`"9"`, `"-"`, `"blank"`, and
+`"custom"`; unknown state values fall back to blank. Brightness and Off brightness
+map 0–1 to shades 0–15. Set Off brightness to 0 to hide unlit segments.
+The Decimal point boolean works independently, even when the digit is blank.
+Custom state uses seven booleans: A top, B upper right, C lower right, D bottom,
+E lower left, F upper left, and G middle. Other states ignore those booleans.
+Each size is an ordinary editable symbol, so its artwork can be customized.
+
+For a multi-digit readout, insert a fresh component for each independently
+controlled digit (ordinary duplication shares bindings). Wire each generated
+State TODO to a digit string. For example, calculate a three-digit counter in
+`step()`:
+
+```lua
+local value = math.max(0, math.min(999, math.floor(self.counter or 0)))
+self.hundreds = value >= 100 and tostring(math.floor(value / 100)) or "blank"
+self.tens = value >= 10 and tostring(math.floor(value / 10) % 10) or "blank"
+self.ones = tostring(value % 10)
+```
+
+Then replace the three generated State TODO values with `self.hundreds`,
+`self.tens`, and `self.ones`. Use `"-"` for a sign position and turn on the
+appropriate digit's Decimal point for fixed-point readouts. All these controls
+are browser authoring bindings exported as ordinary Lua drawing calls.
 
 Rotary knobs, encoder rings, phase rings, Euclidean rings, and radial groove
 rings take paired normalized X/Y coordinates for their pointers. Calculate both
