@@ -48,6 +48,7 @@ import {
 } from './drawer/scope-controls'
 import { IoDeck } from './io'
 import { DISTING_SCRIPT_EXAMPLES, DISTING_SCRIPT_GROUPS } from './script-examples'
+import { runtimeModules } from './ntlib-modules'
 import {
   browserThemeStorage,
   persistTheme,
@@ -319,7 +320,7 @@ export function DistingPlayground() {
       workerRef.current?.postMessage({
         type: 'load',
         source: sourceRef.current,
-        modules: modulesRef.current,
+        modules: runtimeModules(modulesRef.current),
         state: savedStateRef.current,
       } satisfies WorkerRequest)
       setStatus('loading')

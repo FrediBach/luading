@@ -117,7 +117,7 @@ function containsOffset(source: string, range: SourceRange | undefined, offset: 
 
 function functionNameBefore(masked: string, openingOffset: number) {
   return masked.slice(0, openingOffset)
-    .match(/([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*$/)?.[1]
+    .match(/([A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)*)\s*$/)?.[1]
 }
 
 export function activeLuaCallAt(source: string, offset: number): ActiveLuaCall | undefined {
@@ -177,7 +177,8 @@ function delimitedArgumentIndex(source: string, start: number, offset: number) {
 }
 
 function ownerBeforeOffset(masked: string, offset: number) {
-  return masked.slice(0, offset).match(/([A-Za-z_]\w*)\.\w*$/)?.[1]
+  return masked.slice(0, offset)
+    .match(/([A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)*)[.:]\w*$/)?.[1]
 }
 
 function isInsideExistingField(

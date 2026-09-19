@@ -8,6 +8,7 @@ import {
   luaDownloadFilename,
   NEW_DISTING_SCRIPT,
   readLuaScriptFile,
+  sourceImportsNtlib,
 } from './script-file'
 
 describe('Lua script file helpers', () => {
@@ -50,5 +51,41 @@ describe('Lua script file helpers', () => {
     expect(download.filename).toBe('custom.lua')
     expect(download.blob.type).toBe('text/x-lua;charset=utf-8')
     await expect(download.blob.text()).resolves.toBe(source)
+  })
+
+  it('detects literal ntlib imports without matching comments or strings', () => {
+    expect(sourceImportsNtlib("local nt = require 'ntlib'")).toBe(true)
+    expect(sourceImportsNtlib('local q = require( --[[ bundled ]] "ntlib.quant" )')).toBe(true)
+    expect(sourceImportsNtlib(`
+      -- require 'ntlib'
+      local message = "require 'ntlib.quant'"
+      local documentation = [=[require "ntlib.clock"]=]
+      return {}
+    `)).toBe(false)
+  })
+
+  it('embeds runtime ntlib modules in an importing export', async () => {
+    const source = `local num = require 'ntlib.num'
+return {
+  init = function() return { outputs = 1 } end,
+  step = function() return { num.clamp(8, 0, 5) } end,
+}`
+    const download = createLuaScriptDownload(source, 'ntlib-export.lua')
+    const exportedSource = await download.blob.text()
+
+    expect(exportedSource).toContain('package.preload["ntlib"] = function(...)')
+    expect(exportedSource).toContain('package.preload["ntlib.num"] = function(...)')
+    expect(exportedSource).not.toContain('package.preload["ntlib.test"]')
+    expect(exportedSource.endsWith(source)).toBe(true)
+
+    const lua = await createDistingLuaTestEngine()
+    try {
+      const runtime = await loadLuaProgramRuntime(lua, exportedSource)
+      expect(runtime.init?.()).toMatchObject({ outputs: 1 })
+      expect(runtime.step?.(0.001, [])).toEqual([5])
+      runtime.close?.()
+    } finally {
+      lua.global.close()
+    }
   })
 })

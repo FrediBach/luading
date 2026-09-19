@@ -76,7 +76,10 @@ flowchart LR
 
 Disting-specific completion, hover, navigation, and diagnostic adapters are
 registered with Monaco on the main thread. Their source/context helpers are
-pure and do not communicate with the simulation worker.
+pure and do not communicate with the simulation worker. ntlib completion,
+signature, and hover entries are catalogued from the same bundled Lua sources
+that populate `package.preload`; a small explicit constructor map adds object
+return types so local instances receive their complete public method surface.
 
 ## Local directory access
 
@@ -304,8 +307,11 @@ corrupted Lua VM from surviving reload.
 1. The coordinator terminates the previous worker, clears frame acknowledgements
    and presentation state, and starts a two-second initialization timeout.
 2. The new worker creates an isolated Wasmoon engine.
-3. It registers constants and Disting global adapters, then installs bundled
-   modules through `package.preload`.
+3. It registers constants and Disting global adapters, then installs the
+   bundled pure-Lua ntlib sources and the active project's modules through
+   `package.preload`. Project-owned modules take precedence on name
+   collisions. This automatic preload is a simulator extension, not a new
+   firmware global.
 4. `emulation/lua-runtime.ts` executes the chunk, obtains the returned program
    table, and installs a reusable callback thread and instruction-timeout hook.
 5. A saved `self.state`, when present, is installed before `init()`.

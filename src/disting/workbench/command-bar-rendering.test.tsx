@@ -121,6 +121,7 @@ describe('command bar utilities', () => {
     expect(markup).toContain('Open Help &amp; About')
     expect(markup).toContain('Switch to light mode')
     expect(markup).toContain('Text size: Standard')
+    expect(markup).not.toContain('commandbar-ntlib')
   })
 
   it('presents load and unavailable states without ambiguous commands', () => {

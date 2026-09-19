@@ -263,6 +263,33 @@ describe('Disting IntelliSense API support', () => {
     registration.dispose()
   })
 
+  it('provides ntlib method signatures and hover details through inferred constructor types', () => {
+    const { providers, registration } = providerHarness()
+    const signature = providers.signature as {
+      provideSignatureHelp(model: unknown, position: unknown): { value: {
+        signatures: Array<{ label: string }>
+        activeParameter: number
+      } } | null
+    }
+    const callSource = `local clock = require 'ntlib.clock'
+local tracker = clock.new{}
+tracker:setBpm(`
+    const help = signature.provideSignatureHelp(modelFor(callSource), cursorPosition(callSource))
+    expect(help?.value.signatures[0].label).toBe('ntlib.clock.Clock:setBpm(value)')
+    expect(help?.value.activeParameter).toBe(0)
+
+    const hoverSource = `local clock = require 'ntlib.clock'
+local tracker = clock.new{}
+tracker:process(0.001)`
+    const processOffset = hoverSource.indexOf('process') + 1
+    const hover = (providers.hover as {
+      provideHover(model: unknown, position: unknown): { contents: Array<{ value: string }> } | null
+    }).provideHover(modelFor(hoverSource), cursorPosition(hoverSource, processOffset))
+    expect(hover?.contents[0].value).toContain('ntlib.clock.Clock:process(dt)')
+    expect(hover?.contents[1].value).toContain('ntlib · method')
+    registration.dispose()
+  })
+
   it('provides parameter-specific hover details and exact word replacement ranges', () => {
     const { providers, registration } = providerHarness()
     const source = `return {

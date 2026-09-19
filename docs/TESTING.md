@@ -76,6 +76,15 @@ custom UI callbacks, `setupUi`, MIDI, serialization, syntax errors, and
 `luading.parameterPresets` metadata crosses the real table boundary in source
 order and that batch parameter synchronization updates Lua `self.parameters`.
 
+`src/ntlib/ntlib.test.ts` registers the complete bundled ntlib source set
+through that same production preload bridge. It covers lazy loading, numeric
+and musical helpers, deterministic stateful processors, host parameter and
+drawing adapters, binary state round trips, MIDI allocation, and the headless
+Lua harness. `ntlib-modules.test.ts` separately pins the Vite raw-source map
+used by automatic workbench injection. `workbench/script-file.test.ts` executes
+a self-contained ntlib export through real Wasmoon without registering modules
+from JavaScript, covering the browser-export-to-Lua boundary.
+
 The reusable test engine in
 `src/disting/testing/lua-test-environment.ts` installs the same Disting constants
 and global API names used by the simulator. Many functions use controlled or
@@ -241,6 +250,12 @@ arguments, and overload selection. A feature-wiring regression test pins the
 Monaco UI contributions needed to render each registered provider. Default API,
 lifecycle, complete-script, metadata, and parameter snippets are compiled with
 Wasmoon after placeholder expansion.
+
+`ntlib-intellisense.test.ts` checks every public module function and object
+method found in the bundled Lua sources against the generated editor catalog.
+It also covers module-path completion inside `require`, root and nested table
+members, constructor and method-return inference, colon-method completion, the
+dynamically forwarded default tuning functions, hover, and signature help.
 
 Navigation tests pin outline entries for lifecycle callbacks, local functions,
 metadata sections and named parameters; folding ranges for function bodies and

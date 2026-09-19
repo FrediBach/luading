@@ -24,6 +24,11 @@ import {
 } from './disting-intellisense-context'
 import { DISTING_LUA_LANGUAGE_ID } from './disting-lua'
 import { resolvedLocalSymbolAt } from './disting-navigation-context'
+import {
+  ntlibEntryForCall,
+  ntlibMembersForSource,
+  ntlibRequireEntriesAt,
+} from './ntlib-intellisense'
 
 type MonacoApi = typeof Monaco
 type CompletionKind = 'constant' | 'field' | 'function' | 'method' | 'snippet' | 'variable'
@@ -392,6 +397,8 @@ export function completionEntriesForSource(
   offset: number,
   index = createLuaSourceIndex(source, 1),
 ): IntelliSenseEntry[] {
+  const requiredModules = ntlibRequireEntriesAt(source, offset)
+  if (requiredModules) return requiredModules
   const context = completionContextAt(source, offset, index)
   if (context.kind === 'suppressed') return []
   if (context.kind === 'empty-document') return [COMPLETE_SCRIPT_SNIPPET]
@@ -406,7 +413,11 @@ export function completionEntriesForSource(
       .map(constantEntryForIntelliSense)
   }
   if (context.kind === 'parameter-list') return PARAMETER_SNIPPETS
-  if (context.kind === 'member') return MEMBER_COMPLETIONS[context.owner] ?? []
+  if (context.kind === 'member') {
+    return ntlibMembersForSource(source, offset, context.owner)
+      ?? MEMBER_COMPLETIONS[context.owner]
+      ?? []
+  }
   if (context.kind === 'top-level') {
     const existing = new Set(index.topLevelFields.map((field) => field.name))
     return TOP_LEVEL_FIELDS.filter((entry) => !existing.has(entry.label))
@@ -579,7 +590,7 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
   }
 
   disposables.push(monaco.languages.registerCompletionItemProvider(DISTING_LUA_LANGUAGE_ID, {
-    triggerCharacters: ['.', 'k'],
+    triggerCharacters: ['.', ':', 'k', "'", '"'],
     provideCompletionItems(model, position) {
       const source = model.getValue()
       const offset = model.getOffsetAt(position)
@@ -614,11 +625,13 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
       if (!word) return null
       const line = model.getLineContent(position.lineNumber)
       const prefix = line.slice(0, word.startColumn - 1)
-      const owner = prefix.match(/([A-Za-z_]\w*)\.$/)?.[1]
+      const owner = prefix.match(/([A-Za-z_]\w*(?:[.:][A-Za-z_]\w*)*)[.:]$/)?.[1]
       const index = sourceIndex(model)
       const local = resolvedLocalSymbolAt(source, offset, index)
       const entry = owner
-        ? MEMBER_COMPLETIONS[owner]?.find((candidate) => candidate.label === word.word)
+        ? ntlibMembersForSource(source, offset, owner)
+          ?.find((candidate) => candidate.label === word.word)
+          ?? MEMBER_COMPLETIONS[owner]?.find((candidate) => candidate.label === word.word)
         : structuralHoverEntry(index, position.lineNumber, position.column)
           ?? (local ? localHoverEntry(local.definition) : HOVER_ENTRIES.get(word.word))
       if (!entry) return null
@@ -640,7 +653,12 @@ export function registerDistingIntelliSense(monaco: MonacoApi) {
       const source = model.getValue()
       const call = activeLuaCallAt(source, model.getOffsetAt(position))
       if (!call) return null
-      const signatures = SIGNATURES.get(call.name)
+      const ntlibEntry = ntlibEntryForCall(source, model.getOffsetAt(position), call.name)
+      const signatures = ntlibEntry?.signature ? [{
+        label: ntlibEntry.signature,
+        documentation: ntlibEntry.documentation,
+        parameters: (ntlibEntry.parameters ?? []).map((label) => ({ label })),
+      }] : SIGNATURES.get(call.name)
       if (!signatures?.length) return null
       const activeSignature = activeSignatureIndex(signatures, call.argumentIndex, call.argumentText)
       const selected = signatures[activeSignature]

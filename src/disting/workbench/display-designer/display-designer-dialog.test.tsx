@@ -722,6 +722,7 @@ describe('Display designer dialog', () => {
   })
 
   it('authors axis-aligned two-shade animated lines with direction and speed controls', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     await act(async () => { root.render(<DisplayDesignerLauncher />) })
     await click(button('Open Display designer'))
     await addDefault('Animated line')

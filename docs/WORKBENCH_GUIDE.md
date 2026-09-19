@@ -912,6 +912,14 @@ documentation. Hover appears after a short delay; a plain click only moves the
 cursor. Use Command/Ctrl+K followed by Command/Ctrl+I to open or focus the same
 documentation from the keyboard.
 
+The editor also understands the bundled ntlib library. Completion is available
+for module names inside literal `require 'ntlib…'` calls, root modules, module
+functions and constants, nested public tables, and every public method on an
+object assigned from a recognised ntlib constructor. Both dot and colon calls
+show signatures and hover details. The catalog is generated from the bundled
+Lua sources, so newly added public functions and methods appear automatically;
+constructor return relationships remain explicit and tested.
+
 Callback bodies, local functions, and metadata tables spanning at least three
 lines can be folded from the gutter. Formatting is not offered until a Lua
 5.4-compatible formatter proves idempotent across every bundled script. Inlay
@@ -1463,6 +1471,27 @@ nonempty draft requires explicit discard confirmation, and closing returns
 focus to the command-bar trigger. The draft may remain in memory while the
 workbench stays mounted, but only an explicit downloaded design file is durable
 across page reloads.
+
+## Using the bundled ntlib library
+
+Luading automatically preloads its bundled, pure-Lua **ntlib** library into the
+simulation worker. Scripts can use `require 'ntlib'` and individual modules
+such as `require 'ntlib.quant'` without changing a setting or adding library
+files to the current project. A project-owned module with the same preload name
+takes precedence over the bundled copy.
+
+When **Export Lua script** sees a literal `require 'ntlib'` or
+`require 'ntlib.*'`, it embeds the runtime library modules into the downloaded
+Lua file as `package.preload` loaders. The resulting single file can resolve
+those imports on Disting NT hardware without a separate library installation.
+The simulator-only `ntlib.test` harness is not included. Scripts that do not
+import ntlib are exported byte-for-byte unchanged, and export never rewrites
+the editor source or saved project.
+
+As an alternative to a self-contained export, install the `src/ntlib`
+directory under `/programs/lua/lib/ntlib` (with `init.lua` inside), or build a
+custom single-file selection with `tools/amalgamate.lua`. Automatic simulation
+preloading remains a simulator convenience and does not add firmware globals.
 
 ## Importing and exporting scripts
 
